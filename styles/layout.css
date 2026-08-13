@@ -316,24 +316,26 @@ button { font-family: inherit; }
   color: var(--text);
 }
 
-/* ---------- Source footer ---------- */
+/* ---------- Page footer ---------- */
 
-.footer {
-  flex: none;
+/* One source line for the whole page, centred under the last visualisation. */
+.page-footer {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  align-items: center;
+  gap: 4px;
+  padding: 16px 24px 48px;
+  text-align: center;
   font-size: 12.5px;
   color: var(--text-caption);
-  margin-top: auto;
 }
 
-.footer a {
+.page-footer a {
   color: var(--text-caption);
   text-decoration: none;
 }
 
-.footer a:hover {
+.page-footer a:hover {
   color: var(--text-secondary);
 }
 

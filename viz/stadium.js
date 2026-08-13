@@ -2,7 +2,7 @@
 
 import { CITIES, LYCEUM, LYCEUM_COLOR } from '../data/hse.js';
 import { nf, pct, plural } from '../lib/format.js';
-import { sourceFooter, mountCanvas } from '../lib/ui.js';
+import { mountCanvas } from '../lib/ui.js';
 
 export const meta = {
   id: 'stadium',
@@ -34,7 +34,6 @@ export function init(root) {
         <button type="button" class="btn" data-el="clearAll">Убрать всех</button>
         <button type="button" class="btn" data-el="restoreAll">Вернуть всех</button>
       </div>
-      ${sourceFooter()}
     </div>
 
     <div class="col-right">
@@ -68,8 +67,8 @@ export function init(root) {
     const { kinds } = state;
     const out = [];
     CITIES.forEach((c) => {
-      if (kinds.students) out.push({ key: c.key, n: c.students, color: c.colorStudents });
-      if (kinds.staff) out.push({ key: c.key, n: c.staff, color: c.colorStaff });
+      if (kinds.students) out.push({ key: c.key, n: c.students, color: c.color });
+      if (kinds.staff) out.push({ key: c.key, n: c.staff, color: c.colorLight });
     });
     if (kinds.lyceum) out.push({ key: 'lyceum', n: LYCEUM, color: LYCEUM_COLOR, always: true });
     return out;
@@ -346,8 +345,8 @@ export function init(root) {
       <div class="city-info">
         <div class="city-name">${c.name}</div>
         <div class="city-stats">
-          <span class="city-stat city-stat-students"><span class="city-dot" style="background:${c.colorStudents}"></span><span class="city-stat-text"></span></span>
-          <span class="city-stat city-stat-staff"><span class="city-dot" style="background:${c.colorStaff}"></span><span class="city-stat-text"></span></span>
+          <span class="city-stat city-stat-students"><span class="city-dot" style="background:${c.color}"></span><span class="city-stat-text"></span></span>
+          <span class="city-stat city-stat-staff"><span class="city-dot" style="background:${c.colorLight}"></span><span class="city-stat-text"></span></span>
         </div>
       </div>
       <button type="button" class="toggle" role="switch"><span class="toggle-knob"></span></button>
@@ -404,7 +403,7 @@ export function init(root) {
       const els = cityEls[c.key];
       const on = !!state.active[c.key];
       els.toggle.classList.toggle('on', on);
-      els.toggle.style.background = on ? c.colorStudents : '';
+      els.toggle.style.background = on ? c.color : '';
       els.studentsRow.style.display = state.kinds.students ? '' : 'none';
       els.staffRow.style.display = state.kinds.staff ? '' : 'none';
       els.studentsText.textContent = `${nf(c.students)} ${plural(c.students, 'студент', 'студента', 'студентов')}`;
