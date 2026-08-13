@@ -47,7 +47,7 @@ export function init(root) {
 
       <div class="canvas-card">
         <div class="canvas-legend">
-          <span class="canvas-legend-swatch"></span>
+          <span class="canvas-legend-swatch" data-el="legendSwatch"></span>
           <span>100 мест</span>
         </div>
         <div class="canvas-wrap" data-el="canvasWrap"></div>
@@ -166,6 +166,21 @@ export function init(root) {
     });
     stripes.sort((p, q) => (p.col - q.col) || (p.ring - q.ring) || (p.order - q.order));
 
+    // Median stripe — the legend swatch is drawn at exactly this size, so the
+    // "100 мест" sample always matches the stripes on the schema.
+    const arcLen = (s) => {
+      const a = s.t1, b = s.t2 >= s.t1 ? s.t2 : s.t2 + Math.PI * 2;
+      let len = 0, prev = sePoint(s.rx, s.ry, a, s.k);
+      for (let i = 1; i <= 24; i++) {
+        const p = sePoint(s.rx, s.ry, a + (b - a) * (i / 24), s.k);
+        len += Math.hypot(p[0] - prev[0], p[1] - prev[1]);
+        prev = p;
+      }
+      return len;
+    };
+    const byLen = stripes.map((s) => ({ len: arcLen(s), lw: s.lw })).sort((p, q) => p.len - q.len);
+    const legend = byLen[byLen.length >> 1];
+
     const last = rings[rings.length - 1];
     const outRx = last.rx + TIERS[1].lw, outRy = last.ry + TIERS[1].lw;
     const shellRx = outRx * 1.13 + 12, shellRy = outRy * 1.13 + 12;
@@ -177,7 +192,7 @@ export function init(root) {
     edges[0].forEach((f) => exits.push({ f, k1: kLow, k2: kLow, r1x: lowOut + 9, r1y: lowOutY + 9, r2x: lowOut + 22, r2y: lowOutY + 22, w: 5 }));
     edges[1].forEach((f) => exits.push({ f, k1: kTop, k2: kTop, r1x: outRx + 6, r1y: outRy + 6, r2x: outRx + 19, r2y: outRy + 19, w: 5 }));
 
-    bowlCache = { stripes, exits, outRx, outRy, shellRx, shellRy, W: shellRx * 2 + 24, H: shellRy * 2 + 24 };
+    bowlCache = { stripes, exits, legend, outRx, outRy, shellRx, shellRy, W: shellRx * 2 + 24, H: shellRy * 2 + 24 };
     return bowlCache;
   }
 
@@ -194,6 +209,7 @@ export function init(root) {
   }
 
   // ---------- Canvas painting ----------
+  const legendSwatch = $('legendSwatch');
   const { canvas, ctx } = mountCanvas($('canvasWrap'), paint);
   let currentColors = null;
   let animFrame = null;
@@ -208,6 +224,12 @@ export function init(root) {
     canvas.height = Math.round(cssH * dpr);
     ctx.setTransform(dpr * scale, 0, 0, dpr * scale, dpr * cssW / 2, dpr * cssH / 2);
     ctx.clearRect(-cssW / (2 * scale), -cssH / (2 * scale), cssW / scale, cssH / scale);
+
+    // Keep the legend sample the same size as a stripe on the schema.
+    const legendW = B.legend.len * scale, legendH = B.legend.lw * scale;
+    legendSwatch.style.width = `${legendW}px`;
+    legendSwatch.style.height = `${legendH}px`;
+    legendSwatch.style.borderRadius = `${legendH / 2}px`;
 
     // outer shell
     ctx.beginPath();

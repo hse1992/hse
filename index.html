@@ -15,7 +15,7 @@
   <header class="page-header">
     <div class="page-header-inner">
       <h1>На сколько большая</h1>
-      <p>Высшая школа экономики — один из самых больших университетов России. Но часто непросто осознать, насколько на самом деле Вышка большая. Этот проект поможет вам оценить масштаб нашего любимого университета</p>
+      <p>Высшая школа экономики — один из самых больших университетов России. Но даже зная все цифры, непросто прочувствовать реальный масштаб Вышки. Этот проект поможет вам оценить масштаб нашего любимого университета</p>
     </div>
   </header>
 
@@ -29,10 +29,11 @@
 
 <script type="module">
   import * as stadium from './viz/stadium.js';
+  import * as area from './viz/area.js';
 
   // Every visualisation on the page, in the order it appears.
   // To add one: write viz/<name>.js, import it, append it here.
-  const MODULES = [stadium];
+  const MODULES = [stadium, area];
 
   const page = document.getElementById('page');
 
