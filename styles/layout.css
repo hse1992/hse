@@ -1,0 +1,393 @@
+/* Shared page shell and UI components.
+   Everything here is used by more than one visualisation — keep it generic.
+   Anything specific to a single visualisation belongs in its own module. */
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Golos Text', -apple-system, Helvetica, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: var(--link); text-decoration: none; }
+a:hover { color: var(--link-hover); }
+
+button { font-family: inherit; }
+
+/* ---------- Section shell ---------- */
+
+.viz-section {
+  min-height: 100vh;
+  padding: 24px 24px 20px;
+  display: flex;
+  justify-content: center;
+}
+
+.viz-container {
+  flex: 1;
+  max-width: 1320px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 0;
+}
+
+.viz-header {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.viz-header h2 {
+  margin: 0;
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 1.06;
+  letter-spacing: -0.02em;
+  text-wrap: pretty;
+}
+
+.viz-header p {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.4;
+  color: var(--text-secondary);
+  text-wrap: pretty;
+}
+
+.viz-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: 16px;
+  align-items: stretch;
+}
+
+.col-left {
+  width: 340px;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+}
+
+.col-right {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+}
+
+/* ---------- Category checkboxes ---------- */
+
+.kind-row {
+  display: flex;
+  gap: 14px 18px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.kind-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+  user-select: none;
+  background: none;
+  border: none;
+  padding: 0;
+}
+
+.kind-box {
+  width: 15px;
+  height: 15px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid var(--check-inactive-border);
+  background: #FFFFFF;
+  transition: all 160ms ease;
+}
+
+.kind-check {
+  width: 7px;
+  height: 4px;
+  border-left: 1.5px solid #fff;
+  border-bottom: 1.5px solid #fff;
+  transform: rotate(-45deg) translate(1px, -1px);
+  opacity: 0;
+  transition: opacity 160ms ease;
+}
+
+.kind-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--check-inactive-label);
+}
+
+.kind-item.active .kind-box {
+  border-color: var(--check-active);
+  background: var(--check-active);
+}
+
+.kind-item.active .kind-check {
+  opacity: 1;
+}
+
+.kind-item.active .kind-label {
+  color: var(--text-secondary);
+}
+
+.kind-item.lyceum.active .kind-box {
+  border-color: var(--lyceum);
+  background: var(--lyceum);
+}
+
+/* ---------- City cards ---------- */
+
+.city-list {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.city-card {
+  flex: none;
+  background: var(--card);
+  border-radius: var(--r-card);
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  box-shadow: var(--card-shadow);
+}
+
+.city-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.city-name {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.city-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 36px;
+  justify-content: center;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  line-height: 1.35;
+}
+
+.city-stat {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.city-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+}
+
+/* ---------- Toggle ---------- */
+
+.toggle {
+  width: 51px;
+  height: 31px;
+  border-radius: 16px;
+  flex: none;
+  cursor: pointer;
+  padding: 2px;
+  border: none;
+  box-sizing: border-box;
+  background: var(--toggle-off);
+  transition: background 200ms ease;
+}
+
+.toggle-knob {
+  display: block;
+  width: 27px;
+  height: 27px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: var(--knob-shadow);
+  transform: translateX(0);
+  transition: transform 200ms cubic-bezier(.4, .1, .2, 1);
+}
+
+.toggle.on .toggle-knob {
+  transform: translateX(20px);
+}
+
+/* ---------- Buttons ---------- */
+
+.actions {
+  flex: none;
+  display: flex;
+  gap: 8px;
+  padding-top: 2px;
+}
+
+.btn {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: var(--card);
+  border: 1px solid var(--btn-border);
+  border-radius: var(--r-btn);
+  padding: 7px 13px;
+  cursor: pointer;
+  transition: all 140ms ease;
+}
+
+.btn:hover {
+  border-color: var(--btn-border-hover);
+  color: var(--text);
+}
+
+/* ---------- Source footer ---------- */
+
+.footer {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 12.5px;
+  color: var(--text-caption);
+  margin-top: auto;
+}
+
+.footer a {
+  color: var(--text-caption);
+  text-decoration: none;
+}
+
+.footer a:hover {
+  color: var(--text-secondary);
+}
+
+/* ---------- Meter card (segmented progress bar) ---------- */
+
+.meter-card {
+  flex: none;
+  background: var(--card);
+  border-radius: var(--r-card);
+  padding: 14px 18px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: var(--card-shadow);
+}
+
+.meter-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.meter-title {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.meter-value {
+  font-size: 15px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.meter-value strong {
+  color: var(--text);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.meter-bar {
+  height: 16px;
+  border-radius: 8px;
+  background: var(--shell);
+  overflow: hidden;
+  display: flex;
+}
+
+.meter-bar-seg {
+  height: 100%;
+  width: 0%;
+  transition: width 260ms ease;
+}
+
+/* ---------- Canvas card ---------- */
+
+.canvas-card {
+  flex: 1;
+  min-height: 0;
+  background: var(--card);
+  border-radius: var(--r-canvas-card);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  box-shadow: var(--card-shadow);
+}
+
+.canvas-legend {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 4px 0;
+  font-size: 12px;
+  color: var(--text-caption);
+}
+
+.canvas-legend-swatch {
+  width: 22px;
+  height: 7px;
+  border-radius: 2px;
+  background: var(--legend-swatch);
+}
+
+.canvas-wrap {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+}
+
+.canvas-wrap canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}

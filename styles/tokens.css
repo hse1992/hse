@@ -1,0 +1,42 @@
+/* Design tokens — the single source of colour, shadow and type for the whole page.
+   Never hard-code these values in a visualisation; add a token here instead. */
+
+:root {
+  /* Surfaces */
+  --bg: #F2F3F5;
+  --card: #FFFFFF;
+
+  /* Text */
+  --text: #14171C;
+  --text-secondary: #6B7280;
+  --text-caption: #9AA1AC;
+  --link: #2A55D6;
+  --link-hover: #1B3EA8;
+
+  /* Controls */
+  --check-inactive-label: #A9AFB9;
+  --check-active: #4A505B;
+  --check-inactive-border: #C4C9D2;
+  --btn-border: #DDE0E6;
+  --btn-border-hover: #B9BEC7;
+  --toggle-off: #D6D9DF;
+
+  /* Neutral fills used inside canvases */
+  --empty: #D3D7DE;
+  --shell: #E7E9ED;
+  --exit: #CBD0D8;
+  --legend-swatch: #C7CCD4;
+
+  /* Accents */
+  --lyceum: #FFD400;
+  --pitch: #8CC63F;
+
+  /* Elevation */
+  --card-shadow: 0 1px 2px rgba(16, 24, 40, 0.06);
+  --knob-shadow: 0 2px 5px rgba(16, 24, 40, 0.28);
+
+  /* Radii */
+  --r-card: 14px;
+  --r-canvas-card: 18px;
+  --r-btn: 9px;
+}

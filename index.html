@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>На сколько большая</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="styles/tokens.css" />
+<link rel="stylesheet" href="styles/layout.css" />
+</head>
+<body>
+<main id="page"></main>
+
+<script type="module">
+  import * as stadium from './viz/stadium.js';
+
+  // Every visualisation on the page, in the order it appears.
+  // To add one: write viz/<name>.js, import it, append it here.
+  const MODULES = [stadium];
+
+  const page = document.getElementById('page');
+
+  MODULES.forEach((mod) => {
+    const section = document.createElement('section');
+    section.className = 'viz-section';
+    section.id = mod.meta.id;
+    section.innerHTML = `
+      <div class="viz-container">
+        <div class="viz-header">
+          <h2>${mod.meta.title}</h2>
+          <p>${mod.meta.subtitle}</p>
+        </div>
+        <div class="viz-body"></div>
+      </div>
+    `;
+    page.appendChild(section);
+    mod.init(section.querySelector('.viz-body'));
+  });
+</script>
+</body>
+</html>
