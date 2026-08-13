@@ -20,6 +20,45 @@ a:hover { color: var(--link-hover); }
 
 button { font-family: inherit; }
 
+/* ---------- Page header ---------- */
+
+/* Shorter than a full screen on purpose: the top of the first visualisation
+   stays visible and invites scrolling. */
+.page-header {
+  min-height: 62vh;
+  padding: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.page-header-inner {
+  flex: 1;
+  max-width: 1320px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.page-header h1 {
+  margin: 0;
+  font-size: clamp(44px, 6.2vw, 76px);
+  font-weight: 700;
+  line-height: 1.0;
+  letter-spacing: -0.035em;
+  text-wrap: balance;
+}
+
+.page-header p {
+  margin: 0;
+  max-width: 760px;
+  font-size: 17px;
+  font-weight: 400;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  text-wrap: pretty;
+}
+
 /* ---------- Section shell ---------- */
 
 .viz-section {
@@ -158,8 +197,10 @@ button { font-family: inherit; }
 
 /* ---------- City cards ---------- */
 
+/* Sized by its content so .actions sits right under the last card;
+   shrinks and scrolls only when the column runs out of room. */
 .city-list {
-  flex: 1;
+  flex: 0 1 auto;
   min-height: 0;
   overflow: auto;
   display: flex;
@@ -390,4 +431,122 @@ button { font-family: inherit; }
   width: 100%;
   height: 100%;
   display: block;
+}
+
+/* ---------- Mobile ---------- */
+
+/* One column: the canvas moves above the controls and sticks to the top of
+   the screen, so the picture stays visible while the controls scroll under it.
+   Sections stop being screen-height — they are as tall as their content. */
+@media (max-width: 860px) {
+  .page-header {
+    min-height: 46dvh;
+    padding: 20px 16px 28px;
+  }
+
+  .page-header-inner {
+    gap: 14px;
+  }
+
+  .page-header p {
+    font-size: 16px;
+  }
+
+  .viz-section {
+    min-height: 0;
+    padding: 8px 16px 32px;
+  }
+
+  .viz-container {
+    gap: 12px;
+  }
+
+  .viz-header {
+    margin-bottom: 0;
+  }
+
+  .viz-header h2 {
+    font-size: 25px;
+    letter-spacing: -0.025em;
+  }
+
+  .viz-header p {
+    font-size: 14px;
+  }
+
+  .viz-body {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .col-right {
+    order: -1;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    flex: none;
+    gap: 10px;
+    padding: 10px 0 12px;
+    background: var(--bg);
+  }
+
+  /* Cards fade out as they slide under the sticky canvas. */
+  .col-right::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 100%;
+    height: 14px;
+    background: linear-gradient(var(--bg), rgba(242, 243, 245, 0));
+    pointer-events: none;
+  }
+
+  .col-left {
+    width: auto;
+  }
+
+  .city-list {
+    overflow: visible;
+  }
+
+  .canvas-card {
+    flex: none;
+    height: 40dvh;
+    min-height: 230px;
+    padding: 8px;
+  }
+
+  .meter-card {
+    padding: 12px 14px 14px;
+  }
+
+  .meter-header {
+    flex-wrap: wrap;
+    gap: 2px 12px;
+  }
+
+  .meter-value,
+  .meter-title {
+    font-size: 14px;
+  }
+
+  .btn {
+    padding: 9px 14px;
+  }
+}
+
+/* Narrow phones: the meter label and value get their own lines. */
+@media (max-width: 400px) {
+  .viz-header h2 {
+    font-size: 23px;
+  }
+
+  .meter-value {
+    white-space: normal;
+  }
+
+  .city-card {
+    padding: 12px 14px;
+  }
 }
