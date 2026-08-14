@@ -11,7 +11,7 @@ html, body {
 body {
   background: var(--bg);
   color: var(--text);
-  font-family: 'Golos Text', -apple-system, Helvetica, sans-serif;
+  font-family: 'HSE Sans', -apple-system, Helvetica, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -47,6 +47,30 @@ button { font-family: inherit; }
   line-height: 1.0;
   letter-spacing: -0.035em;
   text-wrap: balance;
+}
+
+/* HSE mark standing in for the "о" in «большая».
+   Sized from the real glyph: 0.479em wide, sitting 0.014em below the
+   baseline, with the same side bearings — so it occupies the letter's slot. */
+.hse-o {
+  width: 0.479em;
+  height: 0.479em;
+  margin: 0 0.031em;
+  vertical-align: -0.014em;
+}
+
+.hse-o-disc { fill: var(--hse-blue); }
+.hse-o-mark { fill: #FFFFFF; }
+
+/* The letter the mark replaces: invisible, but still copied and read aloud. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .page-header p {
