@@ -65,7 +65,7 @@ export function init(root) {
       }
 
       .world-group-title {
-        font-size: 11.5px;
+        font-size: 0.7188rem;
         font-weight: 600;
         line-height: 15px;
         letter-spacing: 0.02em;
@@ -127,7 +127,7 @@ export function init(root) {
       }
 
       .world-score-value {
-        font-size: 56px;
+        font-size: 3.5rem;
         font-weight: 700;
         line-height: 1;
         letter-spacing: -0.03em;
@@ -135,7 +135,7 @@ export function init(root) {
       }
 
       .world-score-note {
-        font-size: 15px;
+        font-size: 0.9375rem;
         color: var(--text-secondary);
       }
 
@@ -176,8 +176,8 @@ export function init(root) {
           overflow: visible;
         }
 
-        .world-score-value { font-size: 40px; }
-        .world-score-note { font-size: 14px; }
+        .world-score-value { font-size: 2.5rem; }
+        .world-score-note { font-size: 0.875rem; }
       }
     </style>
 

@@ -98,7 +98,7 @@ export function init(root) {
       }
 
       .area-switch-label {
-        font-size: 13px;
+        font-size: 0.8125rem;
         font-weight: 500;
         color: var(--check-inactive-label);
         cursor: pointer;
@@ -124,7 +124,7 @@ export function init(root) {
       }
 
       .area-score-value {
-        font-size: 56px;
+        font-size: 3.5rem;
         font-weight: 700;
         line-height: 1;
         letter-spacing: -0.03em;
@@ -132,7 +132,7 @@ export function init(root) {
       }
 
       .area-score-note {
-        font-size: 15px;
+        font-size: 0.9375rem;
         color: var(--text-secondary);
       }
 
@@ -143,8 +143,8 @@ export function init(root) {
         .area-inner,
         .area-cols { display: contents; }
 
-        .area-score-value { font-size: 40px; }
-        .area-score-note { font-size: 14px; }
+        .area-score-value { font-size: 2.5rem; }
+        .area-score-note { font-size: 0.875rem; }
       }
     </style>
 
