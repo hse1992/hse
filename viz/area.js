@@ -166,8 +166,8 @@ export function init(root) {
         <div class="col-left">
           <div class="city-list" data-el="cityList"></div>
           <div class="actions">
-            <button type="button" class="btn" data-el="clearAll">Убрать всех</button>
-            <button type="button" class="btn" data-el="restoreAll">Вернуть всех</button>
+            <button type="button" class="btn" data-el="clearAll">Снять все</button>
+            <button type="button" class="btn" data-el="restoreAll">Вернуть все</button>
           </div>
         </div>
 
