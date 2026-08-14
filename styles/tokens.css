@@ -33,6 +33,10 @@
   --pitch: #8CC63F;
   --hse-blue: #102D69;      /* corporate blue of the university */
 
+  /* Metro track (canvas) */
+  --metro-rail: #C9CFD8;
+  --metro-tunnel: #464C56;
+
   /* Five-storey block icon (canvas) */
   --house-wall: #E0D2BA;
   --house-roof: #8B929C;
