@@ -5,6 +5,7 @@
 import { CITIES, ADMITTED } from '../data/hse.js';
 import { nf, dec, plural } from '../lib/format.js';
 import { mountCanvas } from '../lib/ui.js';
+import { loadMark } from '../lib/hse-mark.js';
 
 // Facts about the metro itself — they live here, not in data/hse.js, which
 // only knows about the university. 165 people is a packed car at rush hour,
@@ -36,6 +37,7 @@ export function init(root) {
   const RAIL = '#C9CFD8';
   const TUNNEL = '#464C56';
   const COUPLING = '#8B929C';
+  const HSE_BLUE = '#102D69';
 
   const M = 22;                 // margin around the track
   const GAP = 0.26;             // coupling between cars, in car lengths
@@ -223,6 +225,7 @@ export function init(root) {
   }
 
   let track = null, trackKey = '';
+  let mark = null;                  // the HSE mark, once it is loaded
 
   // ---------- Canvas painting ----------
   const { canvas, ctx } = mountCanvas($('canvasWrap'), paint);
@@ -286,18 +289,36 @@ export function init(root) {
     pieces(s0, s1).forEach(([s, e]) => { if (e - s > 0.2) strokeAlong(s, e); });
   }
 
-  // Mouths of the tunnel: the one the train comes out of and the one it
-  // vanishes into. Drawn over the cars, so the train really slides under them.
-  function drawTunnels() {
+  // Both ends of the track, drawn over the cars so the train really slides
+  // under them: the tunnel it comes out of, and the mark of the university it
+  // drives into. Until the mark is loaded the far end is a tunnel too.
+  function drawEnds() {
     const h = Math.min(track.dy * 0.5, 26), w = h * 0.55, r = h / 2;
     const first = track.pts[0], last = track.pts[track.pts.length - 1];
+
     ctx.fillStyle = TUNNEL;
-    [[first.x, first.y, 1], [last.x - w, last.y, -1]].forEach(([x, y, dir]) => {
+    const portal = (x, y, dir) => {
       ctx.beginPath();
       if (ctx.roundRect) ctx.roundRect(x, y - h / 2, w, h, dir === 1 ? [4, r, r, 4] : [r, 4, 4, r]);
       else ctx.rect(x, y - h / 2, w, h);
       ctx.fill();
-    });
+    };
+
+    portal(first.x, first.y, 1);
+    if (!mark) { portal(last.x - w, last.y, -1); return; }
+
+    // The mark sits in the corner the track ends in, so it takes the margin
+    // as its radius and no more.
+    const size = Math.min(M - 1, track.dy * 0.5);
+    ctx.save();
+    ctx.translate(last.x, last.y);
+    ctx.scale(size / mark.r, size / mark.r);
+    ctx.translate(-mark.cx, -mark.cy);
+    ctx.fillStyle = HSE_BLUE;
+    ctx.fill(mark.disc);
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fill(mark.mark);
+    ctx.restore();
   }
 
   function paint(now) {
@@ -343,7 +364,7 @@ export function init(root) {
       }
     });
 
-    drawTunnels();
+    drawEnds();
   }
 
   // ---------- Animation loop ----------
@@ -360,6 +381,11 @@ export function init(root) {
   new IntersectionObserver((entries) => {
     if (entries[entries.length - 1].isIntersecting) start(); else stop();
   }).observe($('canvasWrap'));
+
+  loadMark().then((m) => {
+    mark = m;
+    if (frame === null) paint();
+  });
 
   // ---------- DOM rendering ----------
   const cityList = $('cityList');
