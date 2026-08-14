@@ -29,11 +29,12 @@
 
 <script type="module">
   import * as stadium from './viz/stadium.js';
+  import * as world from './viz/world.js';
   import * as area from './viz/area.js';
 
   // Every visualisation on the page, in the order it appears.
   // To add one: write viz/<name>.js, import it, append it here.
-  const MODULES = [stadium, area];
+  const MODULES = [stadium, world, area];
 
   const page = document.getElementById('page');
 
