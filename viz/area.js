@@ -330,15 +330,19 @@ export function init(root) {
     if (state.unit === 'house') paintHouses(icons); else paintFields(icons);
   }
 
-  // Switching the unit redraws with different icons, so there is nothing to
-  // animate between — only counts within one unit are animated.
-  function animateTo(target, instant) {
+  // mode: 'instant' — no animation at all (first paint); 'fill' — grow from an
+  // empty canvas, used when the icons themselves change and the count before
+  // the switch means nothing; otherwise the count moves from where it was.
+  function animateTo(target, mode) {
     if (animFrame) cancelAnimationFrame(animFrame);
-    const from = shown === null || instant ? target : shown;
+    if (mode === 'instant' || shown === null) { shown = target; paint(); return; }
+    const from = mode === 'fill' ? 0 : shown;
     if (from === target) { shown = target; paint(); return; }
     const dur = 620, t0 = performance.now();
     const step = (now) => {
-      const raw = Math.min(1, (now - t0) / dur);
+      // The frame timestamp can be slightly older than t0, and a negative
+      // progress would show a count below zero on the first frame.
+      const raw = Math.min(1, Math.max(0, (now - t0) / dur));
       const p = 1 - Math.pow(1 - raw, 3);
       shown = from + (target - from) * p;
       paint();
@@ -380,13 +384,13 @@ export function init(root) {
 
   // Both switches work the same way: the knob sits on the side of the option
   // that is shown, and the labels are clickable too. Returns a sync function.
-  function bindSwitch(name, key, values, instant) {
+  function bindSwitch(name, key, values, mode) {
     const row = $(name);
     const toggle = row.querySelector('.toggle');
     const labels = row.querySelectorAll('.area-switch-label');
     const pick = (value) => {
       state[key] = value;
-      render(instant);
+      render(mode);
     };
     toggle.addEventListener('click', () => {
       pick(state[key] === values[0] ? values[1] : values[0]);
@@ -402,8 +406,8 @@ export function init(root) {
     };
   }
 
-  const syncMetric = bindSwitch('metricSwitch', 'metric', METRICS.map((m) => m.key), false);
-  const syncUnit = bindSwitch('unitSwitch', 'unit', UNITS.map((u) => u.key), true);
+  const syncMetric = bindSwitch('metricSwitch', 'metric', METRICS.map((m) => m.key));
+  const syncUnit = bindSwitch('unitSwitch', 'unit', UNITS.map((u) => u.key), 'fill');
 
   $('clearAll').addEventListener('click', () => {
     CITIES.forEach((c) => { state.active[c.key] = false; });
@@ -414,7 +418,7 @@ export function init(root) {
     render();
   });
 
-  function render(instant) {
+  function render(mode) {
     syncMetric();
     syncUnit();
 
@@ -435,9 +439,9 @@ export function init(root) {
     areaLabelEl.textContent = nf(area);
 
     // The big number counts along with the icons — paint() keeps it in sync.
-    animateTo(area / u.m2, instant);
+    animateTo(area / u.m2, mode);
   }
 
-  render(true);
+  render('instant');
   paint();
 }
