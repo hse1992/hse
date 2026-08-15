@@ -4,17 +4,19 @@ import { CITIES, LYCEUM, LYCEUM_COLOR } from '../data/hse.js';
 import { nf, pct, plural } from '../lib/format.js';
 import { mountCanvas } from '../lib/ui.js';
 
+// Seats in the arena — the figure the subtitle and the meter both quote.
+const TOTAL = 81000;
+
 export const meta = {
   id: 'stadium',
-  title: 'На сколько Вышка заполнит Лужники',
-  subtitle: 'Лужники — самая крупная арена России. Вышка такая большая, что может заполнить ее практически полностью'
+  title: 'В Лужниках все свои',
+  subtitle: `Лужники — самая крупная арена России, вмещающая ${nf(TOTAL)} человек. Вышка такая большая, что может заполнить ее практически полностью`
 };
 
 export function init(root) {
   'use strict';
 
   // ---------- Data ----------
-  const TOTAL = 81000;
   const STRIPES = 800;
   const PER = TOTAL / STRIPES;
   const EMPTY = '#D3D7DE';

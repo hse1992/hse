@@ -39,7 +39,7 @@ export function init(root) {
 
   const M = 22;                 // margin around the track
   const GAP = 0.26;             // coupling between cars, in car lengths
-  const TRAIN_GAP = 2;          // gap between trains, same units
+  const TRAIN_GAP = 4;          // gap between trains, same units
   const SHARE = 0.36;           // how much of the track all the trains take
   const MIN_CAR = 7;            // below this a car stops reading as a car, px
   const SEC_PER_ROW = 16;       // how long a train takes to cross one row
@@ -100,7 +100,7 @@ export function init(root) {
       <div class="canvas-card">
         <div class="canvas-legend">
           <span class="canvas-legend-swatch" data-el="legendSwatch"></span>
-          <span>1 поезд — ${TRAIN} вагонов, в каждом ${PER_CAR} человек</span>
+          <span>1 поезд — ${TRAIN} вагонов, в каждом вагоне ${PER_CAR} человек</span>
         </div>
         <div class="canvas-wrap" data-el="canvasWrap"></div>
       </div>
