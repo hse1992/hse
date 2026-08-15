@@ -3,22 +3,20 @@
 // tunnel at the bottom right, only to come out of the first one again.
 
 import { CITIES, ADMITTED } from '../data/hse.js';
-import { nf, dec, plural } from '../lib/format.js';
+import { nf, plural } from '../lib/format.js';
 import { mountCanvas } from '../lib/ui.js';
 import { loadMark } from '../lib/hse-mark.js';
 
 // Facts about the metro itself — they live here, not in data/hse.js, which
 // only knows about the university. 165 people is a packed car at rush hour,
-// eight cars make one train, one car is 19,2 m long.
+// eight cars make one train.
 const PER_CAR = 165;
 const TRAIN = 8;
-const CAR_M = 19.2;
 
 // Every city takes a whole number of cars: nobody rides half a car.
 const carsOf = (c) => Math.ceil(c.admitted / PER_CAR);
 const CARS_TOTAL = CITIES.reduce((n, c) => n + carsOf(c), 0);
 const TRAINS = Math.floor(CARS_TOTAL / TRAIN);
-const KM = (CARS_TOTAL * CAR_M) / 1000;
 
 // The train is drawn from its last car forward, so the head of it is Moscow
 // and the colours follow the order of the cities on the cards.
@@ -26,8 +24,8 @@ const TAIL_FIRST = CITIES.slice().reverse();
 
 export const meta = {
   id: 'metro',
-  title: 'Следующая станция Вышка',
-  subtitle: `За одну приемную кампанию Вышка набирает ${nf(ADMITTED)} студентов. Чтобы увезти их всех разом, нужно ${nf(CARS_TOTAL)} ${plural(CARS_TOTAL, 'вагон', 'вагона', 'вагонов')} метро — ${TRAINS} ${plural(TRAINS, 'полный поезд', 'полных поезда', 'полных поездов')} длиной ${dec(KM)} километра`
+  title: 'Следующая станция «Вышка»',
+  subtitle: `За одну приемную кампанию Вышка зачислила ${nf(ADMITTED)} ${plural(ADMITTED, 'первокурсника', 'первокурсника', 'первокурсников')}. Чтобы увезти их всех разом, нужно ${nf(CARS_TOTAL)} ${plural(CARS_TOTAL, 'вагон', 'вагона', 'вагонов')} метро — ${TRAINS} ${plural(TRAINS, 'полный поезд', 'полных поезда', 'полных поездов')}`
 };
 
 export function init(root) {
@@ -41,8 +39,8 @@ export function init(root) {
 
   const M = 22;                 // margin around the track
   const GAP = 0.26;             // coupling between cars, in car lengths
-  const TRAIN_GAP = 1;          // gap between trains, same units
-  const SHARE = 0.33;           // how much of the track all the trains take
+  const TRAIN_GAP = 2;          // gap between trains, same units
+  const SHARE = 0.36;           // how much of the track all the trains take
   const MIN_CAR = 7;            // below this a car stops reading as a car, px
   const SEC_PER_ROW = 16;       // how long a train takes to cross one row
 
@@ -349,8 +347,12 @@ export function init(root) {
     // Laid out back to front, so that Moscow leads and Perm brings up the rear.
     const gap = track.car * GAP, trainGap = track.car * TRAIN_GAP;
     let s = still ? 0 : (t / 1000) * (track.straight / SEC_PER_ROW);
-    let idx = 0;                     // car number in the whole chain
+    let idx = 0;                     // cars drawn so far, counting from the rear
     let prev = null;                 // back of the car in front, if coupled
+    // Trains are counted from the head, so the one train that is short of
+    // eight cars is the last one.
+    let total = 0;
+    TAIL_FIRST.forEach((c) => { total += Math.max(0, Math.ceil((shown[c.key] || 0) - 0.02)); });
     TAIL_FIRST.forEach((c) => {
       for (let left = shown[c.key] || 0; left > 0.02; left -= 1) {
         const part = Math.min(1, left);
@@ -360,7 +362,8 @@ export function init(root) {
         idx += 1;
         s = end + gap;
         prev = end;
-        if (idx % TRAIN === 0) { s += trainGap * part; prev = null; }
+        const ahead = total - idx;   // cars still to come, towards the head
+        if (ahead > 0 && ahead % TRAIN === 0) { s += trainGap * part; prev = null; }
       }
     });
 
