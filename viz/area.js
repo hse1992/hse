@@ -38,7 +38,7 @@ const UNITS = [
 
 export const meta = {
   id: 'area',
-  title: 'Площадь зданий',
+  title: 'В тесноте да не в обиде',
   subtitle: `У Вышки почти ${nf(BUILDINGS)} зданий общей площадью ${nf(AREA_TOTAL)} м². Но на сколько это много?`
 };
 
