@@ -34,6 +34,7 @@ export function init(root) {
   // Canvas has no CSS variables — same values as the tokens of the same name.
   const RAIL = '#C9CFD8';
   const SLEEPER = '#DCE0E6';
+  const CAR_BODY = '#8B98A8';
   const TUNNEL = '#464C56';
   const COUPLING = '#8B929C';
   const HSE_BLUE = '#102D69';
@@ -41,8 +42,8 @@ export function init(root) {
   const M = 22;                 // margin around the track
   const GAP = 0.26;             // coupling between cars, in car lengths
   const TRAIN_GAP = 4;          // gap between trains, same units
-  const SHARE = 0.36;           // how much of the track all the trains take
-  const MIN_CAR = 7;            // below this a car stops reading as a car, px
+  const SHARE = 0.51;           // how much of the track all the trains take
+  const MIN_CAR = 11;           // below this the stripes stop reading, px
   const SEC_PER_ROW = 16;       // how long a train takes to cross one row
 
   // Length of the whole chain, in car lengths.
@@ -95,11 +96,18 @@ export function init(root) {
         flex: none;
       }
 
+      /* Same car as on the track: a grey body with one stripe down the middle
+         of the roof. The stripe takes the colour from the row. */
       .metro-legend-train i {
-        width: 7px;
+        width: 11px;                 /* same 2,4 : 1 as a car on the track */
         height: 5px;
         border-radius: 1px;
-        background: currentColor;
+        background: linear-gradient(
+          to bottom,
+          var(--metro-car) 0 34%,
+          currentColor 34% 66%,
+          var(--metro-car) 66% 100%
+        );
       }
 
       @media (max-width: 860px) {
@@ -189,7 +197,7 @@ export function init(root) {
       // instead of making a turn there.
       const len = rows * (w - 2 * M) + (rows - 1) * r * (Math.PI - 2);
       const car = (len * SHARE) / UNITS;
-      const carW = Math.min(car * 0.58, dy * 0.4);
+      const carW = Math.min(car * 0.42, dy * 0.4);
       last = { rows, dy, r, straight, car, carW };
       if (car >= MIN_CAR) break;
     }
@@ -232,20 +240,24 @@ export function init(root) {
     }
     const len = cum[cum.length - 1];
 
-    // Two rails, the polyline shifted along its normal to either side. They
-    // stick out a little from under the cars, which are narrow at this scale.
-    const gauge = Math.max(1.1, L.carW * 0.55);
-    const rails = [gauge, -gauge].map((d) => {
-      const rail = new Path2D();
+    // The polyline shifted along its normal by `d` — the two rails are the
+    // same line, moved aside.
+    const offset = (d) => {
+      const path = new Path2D();
       pts.forEach((p, i) => {
         const a = pts[Math.max(0, i - 1)], b = pts[Math.min(pts.length - 1, i + 1)];
         const dx = b.x - a.x, dy = b.y - a.y;
         const m = Math.hypot(dx, dy) || 1;
         const x = p.x - (dy / m) * d, y = p.y + (dx / m) * d;
-        if (i === 0) rail.moveTo(x, y); else rail.lineTo(x, y);
+        if (i === 0) path.moveTo(x, y); else path.lineTo(x, y);
       });
-      return rail;
-    });
+      return path;
+    };
+
+    // Two rails. They stick out a little from under the cars, which are narrow
+    // at this scale.
+    const gauge = Math.max(1.1, L.carW * 0.55);
+    const rails = [gauge, -gauge].map(offset);
 
     // Sleepers under the rails: short ticks across the track, evenly spaced
     // along the whole snake.
@@ -267,7 +279,10 @@ export function init(root) {
       }
     }
 
-    return { pts, cum, len, rails, sleepers, car: L.car, carW: L.carW, straight: L.straight, dy: L.dy };
+    return {
+      pts, cum, len, rails, sleepers,
+      car: L.car, carW: L.carW, straight: L.straight, dy: L.dy
+    };
   }
 
   let track = null, trackKey = '';
@@ -310,19 +325,34 @@ export function init(root) {
     return [[a, track.len], [0, b - track.len]];
   }
 
+  // A car seen from above, drawn after assets/metro-car-top.svg: a rounded
+  // body with a stripe along the roof. The stripe carries the colour of the
+  // city, the body is the same grey on every car.
   // A car is rigid, so on a turn it sits on the chord between its ends instead
   // of bending with the rails.
   function drawCar(s0, s1, color) {
-    ctx.fillStyle = color;
+    const w = track.carW;
     pieces(s0, s1).forEach(([s, e]) => {
       const a = at(s), b = at(e);
       const dx = b.x - a.x, dy = b.y - a.y;
       const len = Math.hypot(dx, dy);
       if (len < 0.2) return;
+
       ctx.save();
       ctx.translate((a.x + b.x) / 2, (a.y + b.y) / 2);
       ctx.rotate(Math.atan2(dy, dx));
-      ctx.fillRect(-len / 2, -track.carW / 2, len, track.carW);
+
+      ctx.fillStyle = CAR_BODY;
+      ctx.beginPath();
+      const r = Math.min(w * 0.16, len / 2);
+      if (ctx.roundRect) ctx.roundRect(-len / 2, -w / 2, len, w, r);
+      else ctx.rect(-len / 2, -w / 2, len, w);
+      ctx.fill();
+
+      // One stripe down the middle of the roof, from end to end.
+      const stripeW = Math.max(1, w * 0.32);
+      ctx.fillStyle = color;
+      ctx.fillRect(-len / 2, -stripeW / 2, len, stripeW);
       ctx.restore();
     });
   }
