@@ -34,7 +34,7 @@ export function init(root) {
   // Canvas has no CSS variables — same values as the tokens of the same name.
   const RAIL = '#C9CFD8';
   const SLEEPER = '#DCE0E6';
-  const CAR_BODY = '#8B98A8';
+  const CAR_STRIPE = 'rgba(255, 255, 255, 0.5)';
   const TUNNEL = '#464C56';
   const COUPLING = '#8B929C';
   const HSE_BLUE = '#102D69';
@@ -96,18 +96,20 @@ export function init(root) {
         flex: none;
       }
 
-      /* Same car as on the track: a grey body with one stripe down the middle
-         of the roof. The stripe takes the colour from the row. */
+      /* Same car as on the track: a body in the colour of the row with a
+         lighter stripe down the middle of the roof. */
       .metro-legend-train i {
         width: 11px;                 /* same 2,4 : 1 as a car on the track */
         height: 5px;
         border-radius: 1px;
-        background: linear-gradient(
-          to bottom,
-          var(--metro-car) 0 34%,
-          currentColor 34% 66%,
-          var(--metro-car) 66% 100%
-        );
+        background:
+          linear-gradient(
+            to bottom,
+            transparent 0 34%,
+            var(--metro-car-stripe) 34% 66%,
+            transparent 66% 100%
+          ),
+          currentColor;
       }
 
       @media (max-width: 860px) {
@@ -326,8 +328,7 @@ export function init(root) {
   }
 
   // A car seen from above, drawn after assets/metro-car-top.svg: a rounded
-  // body with a stripe along the roof. The stripe carries the colour of the
-  // city, the body is the same grey on every car.
+  // body in the colour of the city, with a lighter stripe along the roof.
   // A car is rigid, so on a turn it sits on the chord between its ends instead
   // of bending with the rails.
   function drawCar(s0, s1, color) {
@@ -342,7 +343,7 @@ export function init(root) {
       ctx.translate((a.x + b.x) / 2, (a.y + b.y) / 2);
       ctx.rotate(Math.atan2(dy, dx));
 
-      ctx.fillStyle = CAR_BODY;
+      ctx.fillStyle = color;
       ctx.beginPath();
       const r = Math.min(w * 0.16, len / 2);
       if (ctx.roundRect) ctx.roundRect(-len / 2, -w / 2, len, w, r);
@@ -351,7 +352,7 @@ export function init(root) {
 
       // One stripe down the middle of the roof, from end to end.
       const stripeW = Math.max(1, w * 0.32);
-      ctx.fillStyle = color;
+      ctx.fillStyle = CAR_STRIPE;
       ctx.fillRect(-len / 2, -stripeW / 2, len, stripeW);
       ctx.restore();
     });
