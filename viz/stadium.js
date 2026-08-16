@@ -452,6 +452,27 @@ export function init(root) {
     animateStripesTo(colorsFor(state.active));
   }
 
+  // ---------- Column alignment ----------
+  // Only the left column starts with the filter row, so without this the meter
+  // card sits higher than the first city card. Measured rather than hard-coded:
+  // the row grows with the text size and can wrap on narrow screens.
+  const colLeft = root.querySelector('.col-left');
+  const colRight = root.querySelector('.col-right');
+  const stacked = window.matchMedia('(max-width: 860px)');
+
+  function alignColumns() {
+    if (stacked.matches) {
+      colRight.style.paddingTop = '';   // one column: nothing to line up with
+      return;
+    }
+    const gap = parseFloat(getComputedStyle(colLeft).rowGap) || 0;
+    colRight.style.paddingTop = `${kindRow.offsetHeight + gap}px`;
+  }
+
+  new ResizeObserver(alignColumns).observe(kindRow);
+  stacked.addEventListener('change', alignColumns);
+
   render();
   paint();
+  alignColumns();
 }
