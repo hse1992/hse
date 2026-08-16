@@ -24,7 +24,7 @@ const TAIL_FIRST = CITIES.slice().reverse();
 
 export const meta = {
   id: 'metro',
-  title: 'Следующая станция «Вышка»',
+  title: 'Следующая станция <img class="metro-m" src="assets/metro-m.svg" alt="метро"> «Вышкинская»',
   subtitle: `За одну приемную кампанию Вышка зачислила ${nf(ADMITTED)} ${plural(ADMITTED, 'первокурсника', 'первокурсника', 'первокурсников')}. Чтобы увезти их всех разом, нужно ${nf(CARS_TOTAL)} ${plural(CARS_TOTAL, 'вагон', 'вагона', 'вагонов')} метро — ${TRAINS} ${plural(TRAINS, 'полный поезд', 'полных поезда', 'полных поездов')}`
 };
 
@@ -74,6 +74,33 @@ export function init(root) {
         color: var(--text-secondary);
       }
 
+      /* The metro sign in the title of the section. The heading is drawn by
+         the page shell, but the title belongs to this module, so its icon is
+         styled here — sized in em, so it scales with the heading.
+         The file has empty space around the letter: it takes 76% of the height
+         of the picture and stands 12% of it above the bottom edge. Hence the
+         odd numbers — they make the letter itself match the capitals. */
+      .metro-m {
+        height: 0.95em;
+        vertical-align: -0.115em;
+      }
+
+      /* The legend sample is a whole train, so it replaces the single bar of
+         .canvas-legend-swatch with eight little cars. */
+      .metro-legend-train {
+        display: inline-flex;
+        align-items: center;
+        gap: 2px;
+        flex: none;
+      }
+
+      .metro-legend-train i {
+        width: 7px;
+        height: 5px;
+        border-radius: 1px;
+        background: currentColor;
+      }
+
       @media (max-width: 860px) {
         .metro-score-value { font-size: 2.5rem; }
         .metro-score-note { font-size: 0.875rem; }
@@ -99,7 +126,7 @@ export function init(root) {
 
       <div class="canvas-card">
         <div class="canvas-legend">
-          <span class="canvas-legend-swatch" data-el="legendSwatch"></span>
+          <span class="metro-legend-train" data-el="legendTrain" aria-hidden="true">${'<i></i>'.repeat(TRAIN)}</span>
           <span>1 поезд — ${TRAIN} вагонов, в каждом вагоне ${PER_CAR} человек</span>
         </div>
         <div class="canvas-wrap" data-el="canvasWrap"></div>
@@ -395,12 +422,8 @@ export function init(root) {
   const countEl = $('count');
   const peopleEl = $('people');
 
-  // The sample in the legend is one car: a short bar, not the default one.
-  const legendSwatch = $('legendSwatch');
-  legendSwatch.style.background = CITIES[0].color;
-  legendSwatch.style.width = '11px';
-  legendSwatch.style.height = '5px';
-  legendSwatch.style.borderRadius = '1px';
+  // The cars of the sample train are painted in the colour of the first city.
+  $('legendTrain').style.color = CITIES[0].color;
 
   const cityEls = {};
   CITIES.forEach((c) => {
