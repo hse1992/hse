@@ -33,6 +33,7 @@ export function init(root) {
 
   // Canvas has no CSS variables — same values as the tokens of the same name.
   const RAIL = '#C9CFD8';
+  const SLEEPER = '#DCE0E6';
   const TUNNEL = '#464C56';
   const COUPLING = '#8B929C';
   const HSE_BLUE = '#102D69';
@@ -246,7 +247,27 @@ export function init(root) {
       return rail;
     });
 
-    return { pts, cum, len, rails, car: L.car, carW: L.carW, straight: L.straight, dy: L.dy };
+    // Sleepers under the rails: short ticks across the track, evenly spaced
+    // along the whole snake.
+    const sleepers = new Path2D();
+    const step = Math.max(5, L.car * 0.55);
+    const half = gauge + Math.max(1, L.carW * 0.3);
+    let next = step / 2;
+    for (let i = 1; i < pts.length && next < len; i++) {
+      while (cum[i] >= next && next < len) {
+        const a = pts[i - 1], b = pts[i];
+        const f = (next - cum[i - 1]) / (cum[i] - cum[i - 1] || 1);
+        const dx = b.x - a.x, dy = b.y - a.y;
+        const m = Math.hypot(dx, dy) || 1;
+        const nx = (-dy / m) * half, ny = (dx / m) * half;
+        const x = a.x + dx * f, y = a.y + dy * f;
+        sleepers.moveTo(x - nx, y - ny);
+        sleepers.lineTo(x + nx, y + ny);
+        next += step;
+      }
+    }
+
+    return { pts, cum, len, rails, sleepers, car: L.car, carW: L.carW, straight: L.straight, dy: L.dy };
   }
 
   let track = null, trackKey = '';
@@ -362,9 +383,12 @@ export function init(root) {
     const key = `${cssW}x${cssH}`;
     if (key !== trackKey) { track = buildTrack(cssW, cssH); trackKey = key; }
 
-    // rails
+    // track: sleepers first, rails over them
     ctx.lineCap = 'butt';
     ctx.lineJoin = 'round';
+    ctx.strokeStyle = SLEEPER;
+    ctx.lineWidth = Math.max(0.75, track.carW * 0.13);
+    ctx.stroke(track.sleepers);
     ctx.strokeStyle = RAIL;
     ctx.lineWidth = Math.max(0.9, track.carW * 0.16);
     track.rails.forEach((rail) => ctx.stroke(rail));
