@@ -433,6 +433,9 @@ export function init(root) {
 
   let track = null, flock = null, trackKey = '';
   let mark = null;                  // the HSE mark, once it is loaded
+  // When the current mode started: switching modes runs its animation from
+  // the beginning rather than dropping the reader into the middle of it.
+  let epoch = performance.now();
 
   // ---------- Canvas painting ----------
   const { canvas, ctx } = mountCanvas($('canvasWrap'), paint);
@@ -701,9 +704,11 @@ export function init(root) {
 
   function paintBuses(t, w) {
     const { roads, roadW, rowH, perRow, slot, busL, loop } = flock;
-    const drift = still ? 0 : (t / 1000) * (roadW / SEC_ACROSS);
-    // A column starts fully on its road, its head at the end of it.
-    const start = M + busL;
+    const drift = still ? 0 : ((t - epoch) / 1000) * (roadW / SEC_ACROSS);
+    // A column starts its ride outside the picture on the left, with the
+    // first bus at the edge: from there it drives the whole road. The hair
+    // taken off keeps the last bus from wrapping round to the other end.
+    const start = roadW + busL - 0.01;
 
     roads.forEach((road) => paintRoad(road));
 
@@ -760,7 +765,7 @@ export function init(root) {
     // Cars of one train are coupled; between trains there is just a gap.
     // Laid out back to front, so that Moscow leads and Perm brings up the rear.
     const gap = track.car * GAP, trainGap = track.car * TRAIN_GAP;
-    let s = still ? 0 : (t / 1000) * (track.straight / SEC_PER_ROW);
+    let s = still ? 0 : ((t - epoch) / 1000) * (track.straight / SEC_PER_ROW);
     let idx = 0;                     // cars drawn so far, counting from the rear
     let prev = null;                 // back of the car in front, if coupled
     // Trains are counted from the head, so the one train that is short of
@@ -862,6 +867,7 @@ export function init(root) {
   const pickMode = (key) => {
     if (key === state.mode) return;
     state.mode = key;
+    epoch = performance.now();     // the new mode starts its ride from scratch
     render('fill');
   };
   modeToggle.addEventListener('click', () => {
