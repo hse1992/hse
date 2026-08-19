@@ -55,6 +55,7 @@ export const meta = {
   title: 'Следующая <span data-el="stop">станция</span> '
     + '<img class="metro-m" data-el="signMetro" src="assets/metro-m.svg" alt="метро">'
     + '<img class="metro-m metro-spb-sign" data-el="signSpb" src="assets/metrospb.png" alt="метро" hidden>'
+    + '<img class="metro-m metro-nn-sign" data-el="signNn" src="assets/MetroNN.svg" alt="метро" hidden>'
     + '<img class="metro-m metro-bus-sign" data-el="signBus" src="assets/bus.png" alt="электробус" hidden>'
     + '«Вышкинская»',
   subtitle: `За одну приемную кампанию Вышка зачислила ${nf(ADMITTED)} ${plural(ADMITTED, 'первокурсника', 'первокурсника', 'первокурсников')}. Чтобы увезти их всех разом, нужно ${nf(CARS_TOTAL)} ${plural(CARS_TOTAL, 'вагон', 'вагона', 'вагонов')} метро — ${TRAINS} ${plural(TRAINS, 'полный поезд', 'полных поезда', 'полных поездов')}. Если ехать на электробусах, то их понадобится ${nf(BUSES_TOTAL)} ${plural(BUSES_TOTAL, 'штука', 'штуки', 'штук')}`
@@ -140,6 +141,13 @@ export function init(root) {
       .metro-spb-sign {
         height: 0.74em;
         vertical-align: -0.02em;
+        margin-right: 0.08em;
+      }
+
+      /* The Nizhny Novgorod one is almost square and stands on its own. */
+      .metro-nn-sign {
+        height: 0.86em;
+        vertical-align: -0.08em;
         margin-right: 0.08em;
       }
 
@@ -820,13 +828,18 @@ export function init(root) {
   const stopEl = header && header.querySelector('[data-el="stop"]');
   // Two signs in the heading, one per mode. If the file with the bus sign is
   // missing, the metro one simply stays put.
+  // One sign per key: 'metro' is the default, 'bus' belongs to the other mode,
+  // the rest are cities that have a metro of their own and show their sign
+  // when that city is the only one selected.
   const signs = {
     metro: header && header.querySelector('[data-el="signMetro"]'),
+    bus: header && header.querySelector('[data-el="signBus"]'),
     spb: header && header.querySelector('[data-el="signSpb"]'),
-    bus: header && header.querySelector('[data-el="signBus"]')
+    nn: header && header.querySelector('[data-el="signNn"]')
   };
-  const signOk = { spb: true, bus: true };
-  ['spb', 'bus'].forEach((key) => {
+  const signOk = {};
+  Object.keys(signs).forEach((key) => {
+    signOk[key] = !!signs[key];
     if (signs[key]) signs[key].addEventListener('error', () => { signOk[key] = false; render(); });
   });
   const legendTrainEl = $('legendTrain');
@@ -914,15 +927,15 @@ export function init(root) {
     });
 
     if (stopEl) stopEl.textContent = m.stop;
-    if (signs.metro && signs.spb && signs.bus) {
-      // Riding the Petersburg metro alone gets the Petersburg sign; the rest
-      // of the time the sign follows the mode.
-      const onlySpb = CITIES.every((c) => !!state.active[c.key] === (c.key === 'spb'));
+    if (signs.metro) {
+      // A city on its own gets the sign of its own metro, if there is one;
+      // the rest of the time the sign follows the mode.
+      const sole = CITIES.find((c) => CITIES.every((o) => !!state.active[o.key] === (o.key === c.key)));
       const which = state.mode === 'bus' && signOk.bus ? 'bus'
-        : (onlySpb && signOk.spb ? 'spb' : 'metro');
-      signs.metro.hidden = which !== 'metro';
-      signs.spb.hidden = which !== 'spb';
-      signs.bus.hidden = which !== 'bus';
+        : (sole && signOk[sole.key] ? sole.key : 'metro');
+      Object.keys(signs).forEach((key) => {
+        if (signs[key]) signs[key].hidden = key !== which;
+      });
     }
     scoreTitleEl.textContent = m.title;
     legendTextEl.textContent = m.legend;
