@@ -54,7 +54,7 @@ export const meta = {
   // module changes it when the mode is switched.
   title: 'Следующая <span data-el="stop">станция</span> '
     + '<img class="metro-m" data-el="signMetro" src="assets/metro-m.svg" alt="метро">'
-    + '<img class="metro-m metro-bus-sign" data-el="signBus" src="assets/bus-logo.svg" alt="электробус" hidden>'
+    + '<img class="metro-m metro-bus-sign" data-el="signBus" src="assets/bus.png" alt="электробус" hidden>'
     + '«Вышкинская»',
   subtitle: `За одну приемную кампанию Вышка зачислила ${nf(ADMITTED)} ${plural(ADMITTED, 'первокурсника', 'первокурсника', 'первокурсников')}. Чтобы увезти их всех разом, нужно ${nf(CARS_TOTAL)} ${plural(CARS_TOTAL, 'вагон', 'вагона', 'вагонов')} метро — ${TRAINS} ${plural(TRAINS, 'полный поезд', 'полных поезда', 'полных поездов')}`
 };
@@ -122,11 +122,14 @@ export function init(root) {
         vertical-align: -0.115em;
       }
 
-      /* The bus sign has no empty space around it, so it is sized to the
-         capitals directly. */
+      /* The bus sign is sized to the capitals directly. Its file has a solid
+         white background, and multiply lets the page show through it — the
+         white drops out and the red stays as it is. */
       .metro-bus-sign {
         height: 0.78em;
         vertical-align: -0.04em;
+        margin-right: 0.06em;      /* the file has no side bearings of its own */
+        mix-blend-mode: multiply;
       }
 
       /* The legend sample is a whole train, so it replaces the single bar of
