@@ -71,6 +71,8 @@ export function init(root) {
   const ROAD_FILL = '#F1F3F6';
   const ROAD_EDGE = '#AEB6C2';
   const ROAD_LINE = '#C2C9D3';
+  const SIGN_BLUE = '#1668E0';
+  const SIGN_EDGE = '#1A1D22';
   const TUNNEL = '#464C56';
   const COUPLING = '#8B929C';
   const HSE_BLUE = '#102D69';
@@ -549,55 +551,125 @@ export function init(root) {
   const BUS_RATIO = 2.8;        // length : width of a bus seen from above
   const SEC_ACROSS = 13;        // how long a bus takes to cross the screen
   const SNUG = 0.72;            // how much of its cell a bus takes up
-  const BLOCK = 0.5;            // the column is at most half the picture wide
+  const BLOCK = 0.5;            // the column is at most half the road long
 
-  function buildFlock(w, h) {
-    let best = null;
-    for (let rows = 5; rows <= 31; rows += 2) {
-      const perRow = Math.ceil(BUSES_TOTAL / rows);
-      // Two things keep a bus small: the column takes half of the picture
-      // across, and all of it down.
-      const byWidth = (BLOCK * SNUG * w) / (perRow * BUS_RATIO);
-      const byHeight = (SNUG * (h - 2 * M)) / rows;
-      const busW = Math.min(byWidth, byHeight);
-      const busL = busW * BUS_RATIO;
-      const slot = busL / SNUG, rowH = busW / SNUG;
-      if (!best || busW > best.busW) best = { rows, rowH, perRow, slot, busL, busW, loop: w + busL };
-    }
-    // Lanes are filled from the top down, one city after another, so every
-    // city gets its own lanes and rides the whole length of the column.
-    best.order = [];
-    for (let r = -(best.rows - 1) / 2; r <= (best.rows - 1) / 2; r++) best.order.push(r);
-    return best;
+  function signFontSize(w) {
+    return Math.max(9, Math.min(15, w / 58));
   }
 
-  // Two solid lines along the sides of the road and a dashed one between the
-  // lanes. The markings stand still — only the buses move.
-  function paintRoad(w, h) {
-    const { rows, rowH, busL, busW } = flock;
-    const top = h / 2 - (rows * rowH) / 2;
+  // Every city gets a road of its own, wide enough for all of its buses, and
+  // a sign with its name at the end of it. The roads are built for the whole
+  // university, so they stay put — only the buses on them come and go.
+  function buildFlock(w, h) {
+    // The roads run the whole width of the picture; the signs stand at the
+    // end of them, on the road itself.
+    const font = signFontSize(w);
+    const roadW = w;
+
+    // Every road carries its sign above it, so each one needs a strip of
+    // ground of its own on top. The sign stands closer to its own road than
+    // to the one above, so it is clear whose name it is.
+    const signH = font * 2, below = font * 0.35, above = font * 1.3;
+    const strip = signH + below + above;
+    const forSigns = strip * CITIES.length;
+
+    const lanesFor = (perRow) => CITIES.map((c) => Math.max(1, Math.ceil(busesOf(c) / perRow)));
+
+    let best = null;
+    for (let perRow = 4; perRow <= 26; perRow++) {
+      const lanes = lanesFor(perRow);
+      const total = lanes.reduce((a, b) => a + b, 0);
+      // Two things keep a bus small: a column takes half of its road across,
+      // and all the roads with their signs have to fit down the picture.
+      const byWidth = (BLOCK * SNUG * roadW) / (perRow * BUS_RATIO);
+      const byHeight = (SNUG * (h - 2 * M - forSigns)) / total;
+      const busW = Math.min(byWidth, byHeight);
+      if (!best || busW > best.busW) best = { perRow, lanes, total, busW };
+    }
+
+    const busW = best.busW, busL = busW * BUS_RATIO;
+    const rowH = busW / SNUG;
+    const height = best.total * rowH + forSigns;
+
+    let cursor = (h - height) / 2;
+    const roads = CITIES.map((c, ci) => {
+      const road = { city: c, lanes: best.lanes[ci], top: cursor + strip };
+      cursor = road.top + road.lanes * rowH;
+      return road;
+    });
+
+    const slot = busL / SNUG;
+    return {
+      perRow: best.perRow, roads, roadW, rowH, busL, busW, slot, font,
+      // The loop is long enough for the whole column to leave the road on the
+      // right before its first bus comes back on the left.
+      loop: roadW + busL + (best.perRow - 1) * slot
+    };
+  }
+
+  // One road: asphalt, a solid line along each side, a dashed one between the
+  // lanes, and the sign with the name of the city at the end of it. The
+  // markings stand still — only the buses move.
+  function paintRoad(road) {
+    const { rowH, busL, busW, roadW } = flock;
+    const height = road.lanes * rowH;
     const line = (y) => {
       ctx.beginPath();
       ctx.moveTo(0, y);
-      ctx.lineTo(w, y);
+      ctx.lineTo(roadW, y);
       ctx.stroke();
     };
 
-    // The asphalt itself, so the road reads even when the traffic covers it.
     ctx.fillStyle = ROAD_FILL;
-    ctx.fillRect(0, top, w, rows * rowH);
+    ctx.fillRect(0, road.top, roadW, height);
 
     ctx.lineCap = 'butt';
     ctx.strokeStyle = ROAD_EDGE;
     ctx.lineWidth = Math.max(1.2, busW * 0.12);
-    line(top);
-    line(top + rows * rowH);
+    line(road.top);
+    line(road.top + height);
 
     ctx.strokeStyle = ROAD_LINE;
     ctx.lineWidth = Math.max(0.8, busW * 0.08);
     ctx.setLineDash([busL * 0.3, busL * 0.42]);
-    for (let i = 1; i < rows; i++) line(top + i * rowH);
+    for (let i = 1; i < road.lanes; i++) line(road.top + i * rowH);
     ctx.setLineDash([]);
+  }
+
+  // The sign every road ends with — a white plate with a blue field and the
+  // name of the city on it, after the one in assets/roadsign.jpg.
+  function paintSign(road, w) {
+    const font = flock.font;
+    const name = road.city.name.toUpperCase();
+    ctx.font = `700 ${font}px 'HSE Sans', sans-serif`;
+    const plateH = font * 2, plateW = ctx.measureText(name).width + font * 1.6;
+    // Standing on the ground above the road, at the end of it.
+    const x = w - plateW - font * 0.4;
+    const y = road.top - font * 0.35 - plateH;
+    const pad = Math.max(1.2, font * 0.16);
+
+    const plate = (px, py, pw, ph, r) => {
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(px, py, pw, ph, r); else ctx.rect(px, py, pw, ph);
+    };
+
+    plate(x, y, plateW, plateH, plateH * 0.22);
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fill();
+    ctx.strokeStyle = SIGN_EDGE;
+    ctx.lineWidth = Math.max(0.6, font * 0.06);
+    ctx.stroke();
+
+    plate(x + pad, y + pad, plateW - 2 * pad, plateH - 2 * pad, (plateH - 2 * pad) * 0.2);
+    ctx.fillStyle = SIGN_BLUE;
+    ctx.fill();
+
+    ctx.fillStyle = '#FFFFFF';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(name, x + plateW / 2, y + plateH / 2 + font * 0.06);
+    ctx.textAlign = 'start';
+    ctx.textBaseline = 'alphabetic';
   }
 
   // A bus from above: a rounded body in the colour of the city with four black
@@ -627,25 +699,29 @@ export function init(root) {
     ctx.fill();
   }
 
-  function paintBuses(t, w, h) {
-    paintRoad(w, h);
-
-    const drift = still ? 0 : (t / 1000) * (w / SEC_ACROSS);
-    const { rows, rowH, perRow, slot, busL, loop, order } = flock;
-    // The column starts fully on the screen, its head at the right edge.
+  function paintBuses(t, w) {
+    const { roads, roadW, rowH, perRow, slot, busL, loop } = flock;
+    const drift = still ? 0 : (t / 1000) * (roadW / SEC_ACROSS);
+    // A column starts fully on its road, its head at the end of it.
     const start = M + busL;
-    let i = 0;
-    CITIES.forEach((c) => {
-      for (let left = shown[c.key] || 0; left > 0.02; left -= 1, i += 1) {
-        const lane = Math.min(rows - 1, Math.floor(i / perRow));
-        const r = order[lane];
+
+    roads.forEach((road) => paintRoad(road));
+
+    roads.forEach((road) => {
+      const color = road.city.color;
+      let i = 0;
+      for (let left = shown[road.city.key] || 0; left > 0.02; left -= 1, i += 1) {
+        const lane = Math.min(road.lanes - 1, Math.floor(i / perRow));
         // Every other lane is shifted by half a slot, so the traffic does not
         // line up into walls of buses.
         const phase = (lane % 2) * slot * 0.5;
         const back = (((i % perRow) * slot + phase + start - drift) % loop + loop) % loop;
-        drawBus(w + busL / 2 - back, h / 2 + r * rowH, c.color, Math.min(1, left));
+        const y = road.top + (lane + 0.5) * rowH;
+        drawBus(roadW + busL / 2 - back, y, color, Math.min(1, left));
       }
     });
+
+    roads.forEach((road) => paintSign(road, w));
   }
 
   function paint(now) {
@@ -668,7 +744,7 @@ export function init(root) {
       trackKey = key;
     }
 
-    if (state.mode === 'bus') { paintBuses(t, cssW, cssH); return; }
+    if (state.mode === 'bus') { paintBuses(t, cssW); return; }
 
     // track: sleepers first, rails over them
     ctx.lineCap = 'butt';
