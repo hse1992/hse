@@ -54,9 +54,10 @@ export const meta = {
   // module changes it when the mode is switched.
   title: 'Следующая <span data-el="stop">станция</span> '
     + '<img class="metro-m" data-el="signMetro" src="assets/metro-m.svg" alt="метро">'
+    + '<img class="metro-m metro-spb-sign" data-el="signSpb" src="assets/metrospb.png" alt="метро" hidden>'
     + '<img class="metro-m metro-bus-sign" data-el="signBus" src="assets/bus.png" alt="электробус" hidden>'
     + '«Вышкинская»',
-  subtitle: `За одну приемную кампанию Вышка зачислила ${nf(ADMITTED)} ${plural(ADMITTED, 'первокурсника', 'первокурсника', 'первокурсников')}. Чтобы увезти их всех разом, нужно ${nf(CARS_TOTAL)} ${plural(CARS_TOTAL, 'вагон', 'вагона', 'вагонов')} метро — ${TRAINS} ${plural(TRAINS, 'полный поезд', 'полных поезда', 'полных поездов')}`
+  subtitle: `За одну приемную кампанию Вышка зачислила ${nf(ADMITTED)} ${plural(ADMITTED, 'первокурсника', 'первокурсника', 'первокурсников')}. Чтобы увезти их всех разом, нужно ${nf(CARS_TOTAL)} ${plural(CARS_TOTAL, 'вагон', 'вагона', 'вагонов')} метро — ${TRAINS} ${plural(TRAINS, 'полный поезд', 'полных поезда', 'полных поездов')}. Если ехать на электробусах, то их понадобится ${nf(BUSES_TOTAL)} ${plural(BUSES_TOTAL, 'штука', 'штуки', 'штук')}`
 };
 
 export function init(root) {
@@ -132,6 +133,14 @@ export function init(root) {
         mix-blend-mode: multiply;
       }
 
+      /* The Petersburg sign is wider than it is tall, so it is a little
+         shorter than the others to weigh the same in the line. */
+      .metro-spb-sign {
+        height: 0.74em;
+        vertical-align: -0.02em;
+        margin-right: 0.08em;
+      }
+
       /* The legend sample is a whole train, so it replaces the single bar of
          .canvas-legend-swatch with eight little cars. */
       .metro-legend-train {
@@ -157,14 +166,17 @@ export function init(root) {
           currentColor;
       }
 
-      /* One bus for the legend of the other mode: the same shape as on the
-         canvas, only without the wheels — they would be a pixel each. */
+      /* One bus for the legend of the other mode, drawn with the same
+         proportions as the buses on the canvas: a body in the colour of the
+         row and four wheels under it. */
       .metro-legend-bus {
-        width: 16px;
-        height: 6px;
-        border-radius: 3px;
-        background: currentColor;
+        height: 9px;
+        width: auto;
         flex: none;
+      }
+
+      .metro-legend-bus .wheel {
+        fill: var(--bus-wheel);
       }
 
       /* The switch between the two modes stands above both columns, so the
@@ -247,7 +259,15 @@ export function init(root) {
           <div class="canvas-card">
             <div class="canvas-legend">
               <span class="metro-legend-train" data-el="legendTrain" aria-hidden="true">${'<i></i>'.repeat(TRAIN)}</span>
-              <span class="metro-legend-bus" data-el="legendBus" aria-hidden="true"></span>
+              <svg class="metro-legend-bus" data-el="legendBus" viewBox="0 0 28 13.4" aria-hidden="true">
+                <g class="wheel">
+                  <rect x="3.78" y="0" width="4.76" height="3.4" rx="0.9"></rect>
+                  <rect x="19.46" y="0" width="4.76" height="3.4" rx="0.9"></rect>
+                  <rect x="3.78" y="10" width="4.76" height="3.4" rx="0.9"></rect>
+                  <rect x="19.46" y="10" width="4.76" height="3.4" rx="0.9"></rect>
+                </g>
+                <rect x="0" y="1.7" width="28" height="10" rx="3" fill="currentColor"></rect>
+              </svg>
               <span data-el="legendText"></span>
             </div>
             <div class="canvas-wrap" data-el="canvasWrap"></div>
@@ -721,10 +741,13 @@ export function init(root) {
   // missing, the metro one simply stays put.
   const signs = {
     metro: header && header.querySelector('[data-el="signMetro"]'),
+    spb: header && header.querySelector('[data-el="signSpb"]'),
     bus: header && header.querySelector('[data-el="signBus"]')
   };
-  let busSignOk = true;
-  if (signs.bus) signs.bus.addEventListener('error', () => { busSignOk = false; render(); });
+  const signOk = { spb: true, bus: true };
+  ['spb', 'bus'].forEach((key) => {
+    if (signs[key]) signs[key].addEventListener('error', () => { signOk[key] = false; render(); });
+  });
   const legendTrainEl = $('legendTrain');
   const legendBusEl = $('legendBus');
   const legendTextEl = $('legendText');
@@ -809,10 +832,15 @@ export function init(root) {
     });
 
     if (stopEl) stopEl.textContent = m.stop;
-    if (signs.metro && signs.bus) {
-      const onBus = state.mode === 'bus' && busSignOk;
-      signs.bus.hidden = !onBus;
-      signs.metro.hidden = onBus;
+    if (signs.metro && signs.spb && signs.bus) {
+      // Riding the Petersburg metro alone gets the Petersburg sign; the rest
+      // of the time the sign follows the mode.
+      const onlySpb = CITIES.every((c) => !!state.active[c.key] === (c.key === 'spb'));
+      const which = state.mode === 'bus' && signOk.bus ? 'bus'
+        : (onlySpb && signOk.spb ? 'spb' : 'metro');
+      signs.metro.hidden = which !== 'metro';
+      signs.spb.hidden = which !== 'spb';
+      signs.bus.hidden = which !== 'bus';
     }
     scoreTitleEl.textContent = m.title;
     legendTextEl.textContent = m.legend;
