@@ -7,16 +7,42 @@ import { nf, plural } from '../lib/format.js';
 import { mountCanvas } from '../lib/ui.js';
 import { loadMark } from '../lib/hse-mark.js';
 
-// Facts about the metro itself — they live here, not in data/hse.js, which
-// only knows about the university. 165 people is a packed car at rush hour,
-// eight cars make one train.
+// Facts about the transport itself — they live here, not in data/hse.js, which
+// only knows about the university. 165 people is a packed metro car at rush
+// hour, eight cars make one train; an electric bus holds 85.
 const PER_CAR = 165;
 const TRAIN = 8;
+const PER_BUS = 85;
 
-// Every city takes a whole number of cars: nobody rides half a car.
+// Every city takes a whole number of cars and buses: nobody rides half of one.
 const carsOf = (c) => Math.ceil(c.admitted / PER_CAR);
+const busesOf = (c) => Math.ceil(c.admitted / PER_BUS);
 const CARS_TOTAL = CITIES.reduce((n, c) => n + carsOf(c), 0);
+const BUSES_TOTAL = CITIES.reduce((n, c) => n + busesOf(c), 0);
 const TRAINS = Math.floor(CARS_TOTAL / TRAIN);
+
+// The two ways to carry the same people. `of` is how many vehicles a city
+// needs, the rest is what the cards and the legend say about them.
+const MODES = [
+  {
+    key: 'metro',
+    label: 'На метро',
+    of: carsOf,
+    stop: 'станция',
+    title: 'Вагонов метро',
+    noun: ['вагон', 'вагона', 'вагонов'],
+    legend: `1 поезд — ${TRAIN} вагонов, в каждом вагоне ${PER_CAR} человек`
+  },
+  {
+    key: 'bus',
+    label: 'На электробусе',
+    of: busesOf,
+    stop: 'остановка',
+    title: 'Электробусов',
+    noun: ['электробус', 'электробуса', 'электробусов'],
+    legend: `Это электробус. Он вмещает ${PER_BUS} человек`
+  }
+];
 
 // The train is drawn from its last car forward, so the head of it is Moscow
 // and the colours follow the order of the cities on the cards.
@@ -24,7 +50,12 @@ const TAIL_FIRST = CITIES.slice().reverse();
 
 export const meta = {
   id: 'metro',
-  title: 'Следующая станция <img class="metro-m" src="assets/metro-m.svg" alt="метро"> «Вышкинская»',
+  // The word before the name depends on what the reader is riding, so the
+  // module changes it when the mode is switched.
+  title: 'Следующая <span data-el="stop">станция</span> '
+    + '<img class="metro-m" data-el="signMetro" src="assets/metro-m.svg" alt="метро">'
+    + '<img class="metro-m metro-bus-sign" data-el="signBus" src="assets/bus-logo.svg" alt="электробус" hidden>'
+    + '«Вышкинская»',
   subtitle: `За одну приемную кампанию Вышка зачислила ${nf(ADMITTED)} ${plural(ADMITTED, 'первокурсника', 'первокурсника', 'первокурсников')}. Чтобы увезти их всех разом, нужно ${nf(CARS_TOTAL)} ${plural(CARS_TOTAL, 'вагон', 'вагона', 'вагонов')} метро — ${TRAINS} ${plural(TRAINS, 'полный поезд', 'полных поезда', 'полных поездов')}`
 };
 
@@ -35,6 +66,10 @@ export function init(root) {
   const RAIL = '#C9CFD8';
   const SLEEPER = '#DCE0E6';
   const CAR_STRIPE = 'rgba(255, 255, 255, 0.5)';
+  const WHEEL = '#2A2E35';
+  const ROAD_FILL = '#F1F3F6';
+  const ROAD_EDGE = '#AEB6C2';
+  const ROAD_LINE = '#C2C9D3';
   const TUNNEL = '#464C56';
   const COUPLING = '#8B929C';
   const HSE_BLUE = '#102D69';
@@ -87,6 +122,13 @@ export function init(root) {
         vertical-align: -0.115em;
       }
 
+      /* The bus sign has no empty space around it, so it is sized to the
+         capitals directly. */
+      .metro-bus-sign {
+        height: 0.78em;
+        vertical-align: -0.04em;
+      }
+
       /* The legend sample is a whole train, so it replaces the single bar of
          .canvas-legend-swatch with eight little cars. */
       .metro-legend-train {
@@ -112,35 +154,102 @@ export function init(root) {
           currentColor;
       }
 
+      /* One bus for the legend of the other mode: the same shape as on the
+         canvas, only without the wheels — they would be a pixel each. */
+      .metro-legend-bus {
+        width: 16px;
+        height: 6px;
+        border-radius: 3px;
+        background: currentColor;
+        flex: none;
+      }
+
+      /* The switch between the two modes stands above both columns, so the
+         city cards and the score card start at the same height. */
+      .metro-inner {
+        flex: 1;
+        min-width: 0;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .metro-cols {
+        flex: 1;
+        min-height: 0;
+        display: flex;
+        gap: 16px;
+        align-items: stretch;
+      }
+
+      .metro-switch {
+        flex: none;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 2px 0;
+      }
+
+      .metro-switch-label {
+        font-size: 0.8125rem;
+        font-weight: 500;
+        color: var(--check-inactive-label);
+        cursor: pointer;
+        user-select: none;
+        transition: color 160ms ease;
+      }
+
+      .metro-switch-label.on {
+        color: var(--text);
+        font-weight: 600;
+      }
+
       @media (max-width: 860px) {
         .metro-score-value { font-size: 2.5rem; }
         .metro-score-note { font-size: 0.875rem; }
+
+        /* On phones the wrappers dissolve and the section itself lays out the
+           picture, the switch and the cities. */
+        .metro-inner,
+        .metro-cols { display: contents; }
       }
     </style>
 
-    <div class="col-left">
-      <div class="city-list" data-el="cityList"></div>
-      <div class="actions">
-        <button type="button" class="btn" data-el="clearAll">Снять все</button>
-        <button type="button" class="btn" data-el="restoreAll">Вернуть все</button>
-      </div>
-    </div>
-
-    <div class="col-right">
-      <div class="meter-card">
-        <div class="meter-title">Вагонов метро</div>
-        <div class="metro-score">
-          <span class="metro-score-value" data-el="count"></span>
-          <span class="metro-score-note">на <span data-el="people"></span> принятых студентов</span>
-        </div>
+    <div class="metro-inner">
+      <div class="metro-switch" data-el="modeSwitch">
+        <span class="metro-switch-label" data-value="${MODES[0].key}">${MODES[0].label}</span>
+        <button type="button" class="toggle" role="switch"><span class="toggle-knob"></span></button>
+        <span class="metro-switch-label" data-value="${MODES[1].key}">${MODES[1].label}</span>
       </div>
 
-      <div class="canvas-card">
-        <div class="canvas-legend">
-          <span class="metro-legend-train" data-el="legendTrain" aria-hidden="true">${'<i></i>'.repeat(TRAIN)}</span>
-          <span>1 поезд — ${TRAIN} вагонов, в каждом вагоне ${PER_CAR} человек</span>
+      <div class="metro-cols">
+        <div class="col-left">
+          <div class="city-list" data-el="cityList"></div>
+          <div class="actions">
+            <button type="button" class="btn" data-el="clearAll">Снять все</button>
+            <button type="button" class="btn" data-el="restoreAll">Вернуть все</button>
+          </div>
         </div>
-        <div class="canvas-wrap" data-el="canvasWrap"></div>
+
+        <div class="col-right">
+          <div class="meter-card">
+            <div class="meter-title" data-el="scoreTitle"></div>
+            <div class="metro-score">
+              <span class="metro-score-value" data-el="count"></span>
+              <span class="metro-score-note">на <span data-el="people"></span> принятых студентов</span>
+            </div>
+          </div>
+
+          <div class="canvas-card">
+            <div class="canvas-legend">
+              <span class="metro-legend-train" data-el="legendTrain" aria-hidden="true">${'<i></i>'.repeat(TRAIN)}</span>
+              <span class="metro-legend-bus" data-el="legendBus" aria-hidden="true"></span>
+              <span data-el="legendText"></span>
+            </div>
+            <div class="canvas-wrap" data-el="canvasWrap"></div>
+          </div>
+        </div>
       </div>
     </div>
   `;
@@ -148,26 +257,36 @@ export function init(root) {
   const $ = (name) => root.querySelector(`[data-el="${name}"]`);
 
   // ---------- State ----------
-  const state = { active: { msk: true, spb: true, nn: true, perm: true } };
+  const state = {
+    mode: MODES[0].key,
+    active: { msk: true, spb: true, nn: true, perm: true }
+  };
 
-  // Cars currently on the track, per city. Fractional while a city is coming
-  // or going: the tail car grows out of nothing and pushes the rest along.
+  const mode = () => MODES.find((m) => m.key === state.mode);
+
+  // Vehicles currently on the screen, per city. Fractional while a city is
+  // coming or going: the last one grows out of nothing and pushes the rest.
   const shown = {};
   let tween = null;                 // { from, to, t0 }
 
   const targets = () => {
     const out = {};
-    CITIES.forEach((c) => { out[c.key] = state.active[c.key] ? carsOf(c) : 0; });
+    CITIES.forEach((c) => { out[c.key] = state.active[c.key] ? mode().of(c) : 0; });
     return out;
   };
 
-  function animateTo(target, instant) {
-    if (instant) {
+  // how: 'instant' — no animation at all (the first paint); 'fill' — grow from
+  // an empty screen, used when the vehicles themselves change and the previous
+  // count means nothing; otherwise the count moves from where it was.
+  function animateTo(target, how) {
+    if (how === 'instant') {
       Object.assign(shown, target);
       tween = null;
       return;
     }
-    tween = { from: Object.assign({}, shown), to: target, t0: performance.now() };
+    const from = {};
+    CITIES.forEach((c) => { from[c.key] = how === 'fill' ? 0 : (shown[c.key] || 0); });
+    tween = { from, to: target, t0: performance.now() };
   }
 
   // Moves `shown` towards the target — called once per painted frame.
@@ -287,7 +406,7 @@ export function init(root) {
     };
   }
 
-  let track = null, trackKey = '';
+  let track = null, flock = null, trackKey = '';
   let mark = null;                  // the HSE mark, once it is loaded
 
   // ---------- Canvas painting ----------
@@ -398,6 +517,114 @@ export function init(root) {
     ctx.restore();
   }
 
+  // ---------- The buses ----------
+  // A road of many lanes, buses driving left to right along it. A lane holds
+  // the same number of buses as any other and loops into itself: the loop is a
+  // screen plus one bus, so a bus leaves the screen at one edge and comes back
+  // at the other one, never in the middle. Lanes are built for the whole
+  // university — a bus keeps its size whatever is selected.
+  const BUS_RATIO = 2.8;        // length : width of a bus seen from above
+  const SEC_ACROSS = 13;        // how long a bus takes to cross the screen
+  const SNUG = 0.72;            // how much of its cell a bus takes up
+  const BLOCK = 0.5;            // the column is at most half the picture wide
+
+  function buildFlock(w, h) {
+    let best = null;
+    for (let rows = 5; rows <= 31; rows += 2) {
+      const perRow = Math.ceil(BUSES_TOTAL / rows);
+      // Two things keep a bus small: the column takes half of the picture
+      // across, and all of it down.
+      const byWidth = (BLOCK * SNUG * w) / (perRow * BUS_RATIO);
+      const byHeight = (SNUG * (h - 2 * M)) / rows;
+      const busW = Math.min(byWidth, byHeight);
+      const busL = busW * BUS_RATIO;
+      const slot = busL / SNUG, rowH = busW / SNUG;
+      if (!best || busW > best.busW) best = { rows, rowH, perRow, slot, busL, busW, loop: w + busL };
+    }
+    // Lanes are filled from the top down, one city after another, so every
+    // city gets its own lanes and rides the whole length of the column.
+    best.order = [];
+    for (let r = -(best.rows - 1) / 2; r <= (best.rows - 1) / 2; r++) best.order.push(r);
+    return best;
+  }
+
+  // Two solid lines along the sides of the road and a dashed one between the
+  // lanes. The markings stand still — only the buses move.
+  function paintRoad(w, h) {
+    const { rows, rowH, busL, busW } = flock;
+    const top = h / 2 - (rows * rowH) / 2;
+    const line = (y) => {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(w, y);
+      ctx.stroke();
+    };
+
+    // The asphalt itself, so the road reads even when the traffic covers it.
+    ctx.fillStyle = ROAD_FILL;
+    ctx.fillRect(0, top, w, rows * rowH);
+
+    ctx.lineCap = 'butt';
+    ctx.strokeStyle = ROAD_EDGE;
+    ctx.lineWidth = Math.max(1.2, busW * 0.12);
+    line(top);
+    line(top + rows * rowH);
+
+    ctx.strokeStyle = ROAD_LINE;
+    ctx.lineWidth = Math.max(0.8, busW * 0.08);
+    ctx.setLineDash([busL * 0.3, busL * 0.42]);
+    for (let i = 1; i < rows; i++) line(top + i * rowH);
+    ctx.setLineDash([]);
+  }
+
+  // A bus from above: a rounded body in the colour of the city with four black
+  // wheels peeking out from under it. `part` grows the last one into place.
+  function drawBus(x, y, color, part) {
+    const L = flock.busL * part, W = flock.busW * part;
+    if (L < 0.5) return;
+
+    ctx.fillStyle = WHEEL;
+    const ww = L * 0.17, wh = Math.max(1, W * 0.34);
+    [-1, 1].forEach((sx) => {
+      [-1, 1].forEach((sy) => {
+        ctx.beginPath();
+        const rx = x + sx * L * 0.28 - ww / 2;
+        const ry = y + sy * (W / 2) - wh / 2;
+        if (ctx.roundRect) ctx.roundRect(rx, ry, ww, wh, Math.min(1.5, wh / 2));
+        else ctx.rect(rx, ry, ww, wh);
+        ctx.fill();
+      });
+    });
+
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    const r = Math.min(W * 0.3, L / 2);
+    if (ctx.roundRect) ctx.roundRect(x - L / 2, y - W / 2, L, W, r);
+    else ctx.rect(x - L / 2, y - W / 2, L, W);
+    ctx.fill();
+  }
+
+  function paintBuses(t, w, h) {
+    paintRoad(w, h);
+
+    const drift = still ? 0 : (t / 1000) * (w / SEC_ACROSS);
+    const { rows, rowH, perRow, slot, busL, loop, order } = flock;
+    // The column starts fully on the screen, its head at the right edge.
+    const start = M + busL;
+    let i = 0;
+    CITIES.forEach((c) => {
+      for (let left = shown[c.key] || 0; left > 0.02; left -= 1, i += 1) {
+        const lane = Math.min(rows - 1, Math.floor(i / perRow));
+        const r = order[lane];
+        // Every other lane is shifted by half a slot, so the traffic does not
+        // line up into walls of buses.
+        const phase = (lane % 2) * slot * 0.5;
+        const back = (((i % perRow) * slot + phase + start - drift) % loop + loop) % loop;
+        drawBus(w + busL / 2 - back, h / 2 + r * rowH, c.color, Math.min(1, left));
+      }
+    });
+  }
+
   function paint(now) {
     const t = typeof now === 'number' ? now : performance.now();
     const cssW = canvas.clientWidth || 900;
@@ -412,7 +639,13 @@ export function init(root) {
     updateScore();
 
     const key = `${cssW}x${cssH}`;
-    if (key !== trackKey) { track = buildTrack(cssW, cssH); trackKey = key; }
+    if (key !== trackKey) {
+      track = buildTrack(cssW, cssH);
+      flock = buildFlock(cssW, cssH);
+      trackKey = key;
+    }
+
+    if (state.mode === 'bus') { paintBuses(t, cssW, cssH); return; }
 
     // track: sleepers first, rails over them
     ctx.lineCap = 'butt';
@@ -476,20 +709,36 @@ export function init(root) {
   const cityList = $('cityList');
   const countEl = $('count');
   const peopleEl = $('people');
+  const scoreTitleEl = $('scoreTitle');
+  // The heading is drawn by the page shell, but its text belongs to the
+  // module — this is the one word of it that changes with the mode.
+  const header = root.parentElement;
+  const stopEl = header && header.querySelector('[data-el="stop"]');
+  // Two signs in the heading, one per mode. If the file with the bus sign is
+  // missing, the metro one simply stays put.
+  const signs = {
+    metro: header && header.querySelector('[data-el="signMetro"]'),
+    bus: header && header.querySelector('[data-el="signBus"]')
+  };
+  let busSignOk = true;
+  if (signs.bus) signs.bus.addEventListener('error', () => { busSignOk = false; render(); });
+  const legendTrainEl = $('legendTrain');
+  const legendBusEl = $('legendBus');
+  const legendTextEl = $('legendText');
 
-  // The cars of the sample train are painted in the colour of the first city.
-  $('legendTrain').style.color = CITIES[0].color;
+  // The samples in the legend are painted in the colour of the first city.
+  legendTrainEl.style.color = CITIES[0].color;
+  legendBusEl.style.color = CITIES[0].color;
 
   const cityEls = {};
   CITIES.forEach((c) => {
-    const cars = carsOf(c);
     const card = document.createElement('div');
     card.className = 'city-card';
     card.innerHTML = `
       <div class="city-info">
         <div class="city-name">${c.name}</div>
         <div class="city-stats">
-          <span class="city-stat"><span class="city-dot" style="background:${c.color}"></span><span class="city-stat-text">${nf(c.admitted)} принятых · ${cars} ${plural(cars, 'вагон', 'вагона', 'вагонов')}</span></span>
+          <span class="city-stat"><span class="city-dot" style="background:${c.color}"></span><span class="city-stat-text"></span></span>
         </div>
       </div>
       <button type="button" class="toggle" role="switch"><span class="toggle-knob"></span></button>
@@ -500,7 +749,24 @@ export function init(root) {
       render();
     });
     cityList.appendChild(card);
-    cityEls[c.key] = toggleBtn;
+    cityEls[c.key] = { toggle: toggleBtn, text: card.querySelector('.city-stat-text') };
+  });
+
+  // The switch works like the one on the areas: the knob sits on the side of
+  // the mode that is shown, and the labels are clickable too.
+  const modeSwitch = $('modeSwitch');
+  const modeToggle = modeSwitch.querySelector('.toggle');
+  const modeLabels = modeSwitch.querySelectorAll('.metro-switch-label');
+  const pickMode = (key) => {
+    if (key === state.mode) return;
+    state.mode = key;
+    render('fill');
+  };
+  modeToggle.addEventListener('click', () => {
+    pickMode(state.mode === MODES[0].key ? MODES[1].key : MODES[0].key);
+  });
+  modeLabels.forEach((label) => {
+    label.addEventListener('click', () => pickMode(label.dataset.value));
   });
 
   $('clearAll').addEventListener('click', () => {
@@ -512,33 +778,56 @@ export function init(root) {
     render();
   });
 
-  // The counter counts along with the cars, so paint() keeps it in sync.
-  let lastCars = null, lastPeople = null;
+  // The counter counts along with the vehicles, so paint() keeps it in sync.
+  let lastCount = null, lastPeople = null;
   function updateScore() {
-    let cars = 0, people = 0;
+    const of = mode().of;
+    let count = 0, people = 0;
     CITIES.forEach((c) => {
       const n = shown[c.key] || 0;
-      cars += n;
-      people += (n / carsOf(c)) * c.admitted;
+      count += n;
+      people += (n / of(c)) * c.admitted;
     });
-    cars = Math.round(cars);
+    count = Math.round(count);
     people = Math.round(people);
-    if (cars === lastCars && people === lastPeople) return;
-    lastCars = cars;
+    if (count === lastCount && people === lastPeople) return;
+    lastCount = count;
     lastPeople = people;
-    countEl.textContent = nf(cars);
+    countEl.textContent = nf(count);
     peopleEl.textContent = nf(people);
   }
 
-  function render(instant) {
-    CITIES.forEach((c) => {
-      cityEls[c.key].classList.toggle('on', !!state.active[c.key]);
-      cityEls[c.key].style.background = state.active[c.key] ? c.color : '';
+  function render(how) {
+    const m = mode();
+
+    modeToggle.classList.toggle('on', state.mode === MODES[1].key);
+    modeLabels.forEach((label) => {
+      label.classList.toggle('on', label.dataset.value === state.mode);
     });
-    animateTo(targets(), instant);
+
+    if (stopEl) stopEl.textContent = m.stop;
+    if (signs.metro && signs.bus) {
+      const onBus = state.mode === 'bus' && busSignOk;
+      signs.bus.hidden = !onBus;
+      signs.metro.hidden = onBus;
+    }
+    scoreTitleEl.textContent = m.title;
+    legendTextEl.textContent = m.legend;
+    legendTrainEl.style.display = state.mode === 'metro' ? '' : 'none';
+    legendBusEl.style.display = state.mode === 'bus' ? '' : 'none';
+
+    CITIES.forEach((c) => {
+      const on = !!state.active[c.key];
+      const n = m.of(c);
+      cityEls[c.key].toggle.classList.toggle('on', on);
+      cityEls[c.key].toggle.style.background = on ? c.color : '';
+      cityEls[c.key].text.textContent = `${nf(c.admitted)} принятых · ${n} ${plural(n, ...m.noun)}`;
+    });
+
+    animateTo(targets(), how);
     if (frame === null) paint();     // keep things right while off screen
   }
 
-  render(true);
+  render('instant');
   paint();
 }

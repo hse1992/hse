@@ -37,6 +37,12 @@
   --metro-rail: #C9CFD8;
   --metro-sleeper: #DCE0E6;
   --metro-car-stripe: rgba(255, 255, 255, 0.5);
+
+  /* Electric buses and the road they drive on (canvas) */
+  --bus-wheel: #2A2E35;
+  --road-fill: #F1F3F6;
+  --road-edge: #AEB6C2;
+  --road-line: #C2C9D3;
   --metro-tunnel: #464C56;
 
   /* Five-storey block icon (canvas) */
