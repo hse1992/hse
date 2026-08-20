@@ -45,6 +45,13 @@ export function init(root) {
   // attached to it in data/history.js, and a moving "now" would shift them all.
   const NOW = 2026;
 
+  // The scale under the picture: from the earliest year the section can reach
+  // (all the programmes at once) to today, with a tick every half century.
+  const START = NOW - YEARS_TOTAL;
+  const FOUNDED = 1992;              // the year the university itself started
+  const TICK = 50;
+  const TODAY_YEAR = new Date().getFullYear();
+
   // ---------- Markup ----------
   // The stage with the big number is specific to this visualisation, so its
   // styles live here and not in layout.css.
@@ -144,13 +151,103 @@ export function init(root) {
         color: var(--text-secondary);
       }
 
+      /* The same span of time as a line: 1114 on the left, today on the
+         right, and a pointer that slides to the year in question. */
+      .study-timeline {
+        width: 100%;
+        max-width: 540px;
+        margin-top: 24px;
+        padding: 0 24px;
+      }
+
+      .study-track {
+        position: relative;
+        height: 42px;
+      }
+
+      .study-line {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 10px;
+        height: 2px;
+        border-radius: 1px;
+        background: var(--empty);
+      }
+
+      .study-tick {
+        position: absolute;
+        bottom: 12px;
+        width: 1px;
+        height: 5px;
+        background: var(--empty);
+      }
+
+      .study-tick.major {
+        height: 9px;
+        background: var(--legend-swatch);
+      }
+
+      /* Sits on the line and is moved along it frame by frame, together with
+         the count — hence no transition of its own. */
+      .study-mark {
+        position: absolute;
+        bottom: 6px;
+        left: 0;
+        transform: translateX(-50%);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 3px;
+      }
+
+      .study-mark-label {
+        font-size: 0.75rem;
+        font-weight: 700;
+        line-height: 1;
+        color: var(--hse-blue);
+        font-variant-numeric: tabular-nums;
+        transition: opacity 160ms ease;
+      }
+
+      .study-mark-pin {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: var(--hse-blue);
+        box-shadow: 0 0 0 3px var(--card);
+      }
+
+      /* The footnote at the very bottom of the card, in the same voice as the
+         line about the event. */
+      .study-note {
+        flex: none;
+        padding: 6px 12px 4px;
+        text-align: center;
+        font-size: 0.9375rem;
+        color: var(--text-secondary);
+      }
+
+      .study-ends {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        margin-top: 2px;
+        font-size: 0.75rem;
+        color: var(--text-caption);
+        font-variant-numeric: tabular-nums;
+      }
+
       @media (max-width: 860px) {
-        .study-years { font-size: clamp(2.75rem, 17vw, 5rem); }
+        .study-years { font-size: clamp(2.5rem, 15vw, 4.5rem); }
         .study-caption { font-size: 0.875rem; }
-        .study-history { gap: 12px; margin-top: 18px; padding: 12px 16px; }
+        .study-history { gap: 12px; margin-top: 14px; padding: 12px 16px; }
         .study-art { width: 64px; height: 64px; }
         .study-since { font-size: 1rem; }
         .study-event { font-size: 0.875rem; }
+        .study-timeline { margin-top: 14px; padding: 0 20px; }
+        .study-track { height: 34px; }
+        .study-note { font-size: 0.875rem; }
 
         /* The picture has no fixed height of its own, unlike the canvases in
            the other sections: a long event text must not be cut off. */
@@ -193,7 +290,23 @@ export function init(root) {
               <span class="study-event" data-el="event"></span>
             </span>
           </div>
+
+          <div class="study-timeline">
+            <div class="study-track" data-el="track">
+              <div class="study-line"></div>
+              <div class="study-mark" data-el="mark">
+                <span class="study-mark-label" data-el="markYear"></span>
+                <span class="study-mark-pin"></span>
+              </div>
+            </div>
+            <div class="study-ends">
+              <span>${START}</span>
+              <span>${TODAY_YEAR}</span>
+            </div>
+          </div>
         </div>
+
+        <div class="study-note" data-el="note"></div>
       </div>
     </div>
   `;
@@ -261,6 +374,9 @@ export function init(root) {
   const artEl = $('art');
   const sinceEl = $('since');
   const eventEl = $('event');
+  const markEl = $('mark');
+  const markYearEl = $('markYear');
+  const noteEl = $('note');
 
   function paint() {
     const years = Math.round(shown.years);
@@ -274,6 +390,21 @@ export function init(root) {
       ? `непрерывной учебы, чтобы пройти ${nf(programs)} ${plural(programs, 'выбранную программу', 'выбранные программы', 'выбранных программ')} одну за другой`
       : 'Выберите города и уровни обучения';
 
+    // The pointer follows the count itself, not the rounded number, so it
+    // slides smoothly while the years run.
+    const pos = (1 - shown.years / YEARS_TOTAL) * 100;
+    markEl.style.left = `${pos}%`;
+    markYearEl.textContent = NOW - years;
+    // At the very ends the label would just repeat the caption under the line.
+    markYearEl.style.opacity = pos < 4 || pos > 96 ? '0' : '1';
+
+    // How far that year is from the university itself.
+    const from = NOW - years;
+    const gap = Math.abs(from - FOUNDED);
+    const word = plural(gap, 'год', 'года', 'лет');
+    noteEl.textContent = from === FOUNDED ? 'Вышка как раз появилась'
+      : from < FOUNDED ? `До создания Вышки еще ${gap} ${word}`
+      : `Вышке уже ${gap} ${word}`;
   }
 
   // The same span of time, counted backwards — a number of years is easier to
@@ -345,6 +476,15 @@ export function init(root) {
       rows: LEVELS.map((l) => card.querySelector(`.city-stat[data-level="${l.key}"]`))
     };
   });
+
+  // Half-century ticks on round years, every second one taller.
+  const track = $('track');
+  for (let y = Math.ceil(START / TICK) * TICK; y < NOW; y += TICK) {
+    const tick = document.createElement('div');
+    tick.className = 'study-tick' + (y % 100 === 0 ? ' major' : '');
+    tick.style.left = `${((y - START) / YEARS_TOTAL) * 100}%`;
+    track.insertBefore(tick, markEl);
+  }
 
   $('clearAll').addEventListener('click', () => {
     CITIES.forEach((c) => { state.active[c.key] = false; });
