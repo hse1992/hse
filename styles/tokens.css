@@ -47,6 +47,16 @@
   --road-line: #C2C9D3;
   --metro-tunnel: #464C56;
 
+  /* Historical illustrations (inline SVG in the studies section) */
+  --ill-ink: #3C4451;
+  --ill-stone: #C3CAD4;
+  --ill-light: #E6EAF0;
+  --ill-gold: #E2A93A;
+  --ill-red: #D2493F;
+  --ill-blue: #3E7BC4;
+  --ill-warm: #D9BE92;
+  --ill-green: #5C9E72;
+
   /* Five-storey block icon (canvas) */
   --house-wall: #E0D2BA;
   --house-roof: #8B929C;
