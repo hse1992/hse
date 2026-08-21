@@ -330,7 +330,7 @@ export function init(root) {
                     <rect x="458" y="26" width="60" height="40" rx="7"></rect>
                     <rect x="260" y="26" width="60" height="62" rx="7"></rect>
                     <rect x="392" y="26" width="60" height="62" rx="7"></rect>
-                    <rect x="530" y="26" width="12" height="46" rx="5"></rect>
+                    <rect x="536" y="26" width="20" height="48" rx="6" clip-path="url(#ebus-body)"></rect>
                   </g>
                   <!-- lights -->
                   <rect x="540" y="92" width="14" height="12" rx="3" fill="var(--ebus-light)"></rect>
@@ -944,8 +944,8 @@ export function init(root) {
 
     const from = legendSampleEl.getBoundingClientRect();
     const to = legendBusEl.getBoundingClientRect();
-    const x1 = from.right - box.left + 5, y1 = from.top - box.top + from.height / 2;
-    const x2 = to.left - box.left - 7, y2 = to.top - box.top + to.height * 0.42;
+    const x1 = from.right - box.left + 16, y1 = from.top - box.top + from.height / 2;
+    const x2 = to.left - box.left - 18, y2 = to.top - box.top + to.height * 0.42;
     // A curve that leaves sideways and arrives pointing at the picture.
     const cx1 = x1 + (x2 - x1) * 0.55, cy1 = y1;
     const cx2 = x2 - (x2 - x1) * 0.1, cy2 = y2 - (y2 - y1) * 0.55;
