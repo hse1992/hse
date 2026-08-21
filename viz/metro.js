@@ -613,8 +613,10 @@ export function init(root) {
     return {
       perRow: best.perRow, roads, roadW, rowH, busL, busW, slot, font,
       // The loop is long enough for the whole column to leave the road on the
-      // right before its first bus comes back on the left.
-      loop: roadW + busL + (best.perRow - 1) * slot
+      // right before its first bus comes back on the left. The half a slot is
+      // the shift of every other lane: without it the last bus of a shifted
+      // lane runs past the loop and pops up at the wrong end.
+      loop: roadW + busL + (best.perRow - 0.5) * slot
     };
   }
 
@@ -947,7 +949,7 @@ export function init(root) {
       const n = m.of(c);
       cityEls[c.key].toggle.classList.toggle('on', on);
       cityEls[c.key].toggle.style.background = on ? c.color : '';
-      cityEls[c.key].text.textContent = `${nf(c.admitted)} принятых · ${n} ${plural(n, ...m.noun)}`;
+      cityEls[c.key].text.textContent = `${nf(c.admitted)} принятых, ${n} ${plural(n, ...m.noun)}`;
     });
 
     animateTo(targets(), how);
