@@ -44,9 +44,9 @@ const MODES = [
   }
 ];
 
-// The train is drawn from its last car forward, so the head of it is Moscow
-// and the colours follow the order of the cities on the cards.
-const TAIL_FIRST = CITIES.slice().reverse();
+// The train is drawn from its last car forward, so the city drawn first ends
+// up at the rear: Moscow brings up the rear and Perm leads.
+const TAIL_FIRST = CITIES.slice();
 
 export const meta = {
   id: 'metro',
@@ -773,27 +773,29 @@ export function init(root) {
 
     // trains: the whole chain of cars, city after city, cut into eights.
     // Cars of one train are coupled; between trains there is just a gap.
-    // Laid out back to front, so that Moscow leads and Perm brings up the rear.
-    const gap = track.car * GAP, trainGap = track.car * TRAIN_GAP;
-    let s = still ? 0 : ((t - epoch) / 1000) * (track.straight / SEC_PER_ROW);
-    let idx = 0;                     // cars drawn so far, counting from the rear
-    let prev = null;                 // back of the car in front, if coupled
-    // Trains are counted from the head, so the one train that is short of
-    // eight cars is the last one.
-    let total = 0;
-    TAIL_FIRST.forEach((c) => { total += Math.max(0, Math.ceil((shown[c.key] || 0) - 0.02)); });
+    // Laid out back to front, so that Perm leads and Moscow brings up the rear.
+    // The city in front rides a whole train: the cars it does not fill go
+    // grey and empty at the head of the column.
+    const chain = [];
     TAIL_FIRST.forEach((c) => {
       for (let left = shown[c.key] || 0; left > 0.02; left -= 1) {
-        const part = Math.min(1, left);
-        const end = s + track.car * part;
-        if (prev !== null) drawCoupling(prev, s);
-        drawCar(s, end, c.color);
-        idx += 1;
-        s = end + gap;
-        prev = end;
-        const ahead = total - idx;   // cars still to come, towards the head
-        if (ahead > 0 && ahead % TRAIN === 0) { s += trainGap * part; prev = null; }
+        chain.push({ color: c.color, part: Math.min(1, left) });
       }
+    });
+
+    const gap = track.car * GAP, trainGap = track.car * TRAIN_GAP;
+    let s = still ? 0 : ((t - epoch) / 1000) * (track.straight / SEC_PER_ROW);
+    let prev = null;                 // back of the car in front, if coupled
+    chain.forEach((car, i) => {
+      const end = s + track.car * car.part;
+      if (prev !== null) drawCoupling(prev, s);
+      drawCar(s, end, car.color);
+      s = end + gap;
+      prev = end;
+      // Trains are counted from the head, so a train short of eight cars
+      // would be the last one — with the grey cars there is none.
+      const ahead = chain.length - 1 - i;
+      if (ahead > 0 && ahead % TRAIN === 0) { s += trainGap * car.part; prev = null; }
     });
 
     drawEnds();
