@@ -23,6 +23,10 @@ const LEVELS = [
   { key: 'master', label: 'Магистратура', short: 'магистратура', years: 2, shade: (c) => c.colorLight }
 ];
 
+// Специалитет lives in Moscow only, so only its card spells the level out
+// in full — the other three would just wrap the line for nothing.
+const SPECIALIST = ['msk'];
+
 const countOf = (city, level) => PROGRAMS[city.key][level.key];
 const PROGRAMS_TOTAL = CITIES.reduce(
   (n, c) => n + LEVELS.reduce((m, l) => m + countOf(c, l), 0), 0
@@ -274,9 +278,6 @@ export function init(root) {
       </div>
 
       <div class="canvas-card">
-        <div class="canvas-legend">
-          <span>Бакалавриат и специалитет — 4 года, магистратура — 2 года</span>
-        </div>
         <div class="study-stage">
           <div class="study-years">
             <span data-el="years">0</span>
@@ -521,10 +522,11 @@ export function init(root) {
         const row = els.rows[i];
         row.style.display = state.levels[l.key] ? '' : 'none';
         const n = countOf(c, l);
-        // The full name of the level would wrap the line, and the checkbox
-        // above the list has already spelled it out.
+        const level = l.key === 'bachelor' && SPECIALIST.includes(c.key)
+          ? l.label.toLowerCase()
+          : l.short;
         row.querySelector('.city-stat-text').textContent =
-          `${n} ${plural(n, 'программа', 'программы', 'программ')} · ${l.short}`;
+          `${n} ${plural(n, 'программа', 'программы', 'программ')} · ${level}`;
       });
     });
 
