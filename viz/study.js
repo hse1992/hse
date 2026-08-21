@@ -92,9 +92,14 @@ export function init(root) {
         color: var(--text-secondary);
       }
 
+      /* Three lines are always reserved: the text is two or three lines long
+         depending on the number in it, and without the floor everything below
+         would jump on every switch. */
       .study-caption {
         max-width: 30ch;
         font-size: 0.9375rem;
+        line-height: 1.35;
+        min-height: 4.05em;
         color: var(--text-secondary);
       }
 
@@ -114,8 +119,6 @@ export function init(root) {
         opacity: 0;
         transition: opacity 260ms ease;
       }
-
-      .study-history[hidden] { display: none; }
 
       .study-history.in { opacity: 1; }
 
@@ -284,7 +287,7 @@ export function init(root) {
             <span class="study-years-unit" data-el="yearsWord">лет</span>
           </div>
           <div class="study-caption" data-el="caption"></div>
-          <div class="study-history" data-el="history" hidden>
+          <div class="study-history" data-el="history" aria-hidden="true">
             <span class="study-art" data-el="art" aria-hidden="true"></span>
             <span class="study-history-text">
               <span class="study-since" data-el="since"></span>
@@ -415,11 +418,14 @@ export function init(root) {
     const years = Math.round(shown.years);
     const from = NOW - years;
     const event = HISTORY[from];
-    historyEl.hidden = years < 5 || !event;
-    if (historyEl.hidden) {
+    // With nothing selected there is no year to show, but the block keeps its
+    // place: otherwise the scale under it would jump up.
+    if (years < 5 || !event) {
       historyEl.classList.remove('in');
+      historyEl.setAttribute('aria-hidden', 'true');
       return;
     }
+    historyEl.setAttribute('aria-hidden', 'false');
     artEl.innerHTML = `<svg viewBox="0 0 64 64" focusable="false">${event.art}</svg>`;
     sinceEl.innerHTML = `Начинать пришлось бы в <b>${from}</b> году`;
     eventEl.textContent = `Тогда ${event.text}`;
@@ -526,7 +532,7 @@ export function init(root) {
           ? l.label.toLowerCase()
           : l.short;
         row.querySelector('.city-stat-text').textContent =
-          `${n} ${plural(n, 'программа', 'программы', 'программ')} · ${level}`;
+          `${n} ${plural(n, 'программа', 'программы', 'программ')}, ${level}`;
       });
     });
 
