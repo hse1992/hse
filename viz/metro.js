@@ -25,15 +25,6 @@ const TRAINS = Math.floor(CARS_TOTAL / TRAIN);
 // needs, the rest is what the cards and the legend say about them.
 const MODES = [
   {
-    key: 'metro',
-    label: 'На метро',
-    of: carsOf,
-    stop: 'станция',
-    title: 'Вагонов метро',
-    noun: ['вагон', 'вагона', 'вагонов'],
-    legend: `1 поезд — ${TRAIN} вагонов, в каждом вагоне ${PER_CAR} человек`
-  },
-  {
     key: 'bus',
     label: 'На электробусе',
     of: busesOf,
@@ -41,6 +32,15 @@ const MODES = [
     title: 'Электробусов',
     noun: ['электробус', 'электробуса', 'электробусов'],
     legend: `Это электробус. Он вмещает ${PER_BUS} ${plural(PER_BUS, 'вышкинца', 'вышкинца', 'вышкинцев')}`
+  },
+  {
+    key: 'metro',
+    label: 'На метро',
+    of: carsOf,
+    stop: 'станция',
+    title: 'Вагонов метро',
+    noun: ['вагон', 'вагона', 'вагонов'],
+    legend: `1 поезд — ${TRAIN} вагонов, в каждом вагоне ${PER_CAR} человек`
   }
 ];
 
@@ -52,13 +52,13 @@ export const meta = {
   id: 'metro',
   // The word before the name depends on what the reader is riding, so the
   // module changes it when the mode is switched.
-  title: 'Следующая <span data-el="stop">станция</span> '
-    + '<img class="metro-m" data-el="signMetro" src="assets/metro-m.svg" alt="метро">'
+  title: 'Следующая <span data-el="stop">остановка</span> '
+    + '<img class="metro-m" data-el="signMetro" src="assets/metro-m.svg" alt="метро" hidden>'
     + '<img class="metro-m metro-spb-sign" data-el="signSpb" src="assets/metrospb.png" alt="метро" hidden>'
     + '<img class="metro-m metro-nn-sign" data-el="signNn" src="assets/MetroNN.svg" alt="метро" hidden>'
-    + '<img class="metro-m metro-bus-sign" data-el="signBus" src="assets/bus.png" alt="электробус" hidden>'
+    + '<img class="metro-m metro-bus-sign" data-el="signBus" src="assets/bus.png" alt="электробус">'
     + '«Вышкинская»',
-  subtitle: `За одну приемную кампанию Вышка зачислила ${nf(ADMITTED)} ${plural(ADMITTED, 'первокурсника', 'первокурсника', 'первокурсников')}. Чтобы увезти их всех разом, нужно ${nf(CARS_TOTAL)} ${plural(CARS_TOTAL, 'вагон', 'вагона', 'вагонов')} метро — ${TRAINS} ${plural(TRAINS, 'полный поезд', 'полных поезда', 'полных поездов')}. Если ехать на электробусах, то их понадобится ${nf(BUSES_TOTAL)} ${plural(BUSES_TOTAL, 'штука', 'штуки', 'штук')}`
+  subtitle: `За одну приемную кампанию Вышка зачислила ${nf(ADMITTED)} ${plural(ADMITTED, 'первокурсника', 'первокурсника', 'первокурсников')}. Чтобы увезти их всех разом, нужно ${nf(BUSES_TOTAL)} ${plural(BUSES_TOTAL, 'электробус', 'электробуса', 'электробусов')}. А на метро — ${nf(CARS_TOTAL)} ${plural(CARS_TOTAL, 'вагон', 'вагона', 'вагонов')}, то есть ${TRAINS} ${plural(TRAINS, 'полный поезд', 'полных поезда', 'полных поездов')}`
 };
 
 export function init(root) {
@@ -176,6 +176,14 @@ export function init(root) {
           currentColor;
       }
 
+      /* A whole train across the picture, under the legend of the metro mode. */
+      .metro-train {
+        display: block;
+        width: 100%;
+        height: auto;
+        margin: 4px 0 22px;          /* the air that separates it from the roads */
+      }
+
       /* The legend of the bus mode is the bus itself, drawn after the photo in
          assets/electrobus.jpeg, with the caption painted on its side. It keeps
          to the middle of the picture below it, whatever the width of the
@@ -186,7 +194,9 @@ export function init(root) {
         flex: 1;
         min-width: 0;
         height: 92px;
-        margin: 0 -4px;              /* line up with the picture, not the padding */
+        /* line up with the picture, not the padding, and keep the same air
+           above the animation as the metro mode has */
+        margin: 0 -4px 16px;
       }
 
       .metro-legend-sample {
@@ -351,6 +361,8 @@ export function init(root) {
               </div>
               <span data-el="legendText"></span>
             </div>
+            <img class="metro-train" data-el="trainPhoto" src="assets/metro-train.png"
+                 alt="" aria-hidden="true">
             <div class="canvas-wrap" data-el="canvasWrap"></div>
           </div>
         </div>
@@ -921,6 +933,7 @@ export function init(root) {
   const legendTrainEl = $('legendTrain');
   const legendBusEl = $('legendBus');
   const legendTextEl = $('legendText');
+  const trainPhotoEl = $('trainPhoto');
 
   // The little bus of the legend is exactly as long as the ones on the roads,
   // and the arrow between it and the picture is drawn every time either of
@@ -965,9 +978,9 @@ export function init(root) {
     $('legendArrow').setAttribute('viewBox', `0 0 ${box.width} ${box.height}`);
   }
 
-  // The picture moves with the width of the card, so the arrow is redrawn
-  // whenever the legend changes size — that also covers the moment the mode
-  // is switched and the layout has not settled yet.
+  // The picture of the bus moves with the width of the card, so its arrow is
+  // redrawn whenever the legend changes size — that also covers the moment the
+  // mode is switched and the layout has not settled yet.
   new ResizeObserver(() => syncLegendSample()).observe(busLegendEl);
 
   const cityEls = {};
@@ -1061,6 +1074,7 @@ export function init(root) {
     // In the bus mode the caption is written on the bus itself.
     legendTextEl.textContent = state.mode === 'bus' ? '' : m.legend;
     legendTextEl.style.display = state.mode === 'bus' ? 'none' : '';
+    trainPhotoEl.style.display = state.mode === 'metro' ? '' : 'none';
     legendTrainEl.style.display = state.mode === 'metro' ? '' : 'none';
     busLegendEl.style.display = state.mode === 'bus' ? '' : 'none';
     if (state.mode === 'bus') syncLegendSample();
