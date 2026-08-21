@@ -40,6 +40,15 @@
 
   /* Electric buses and the road they drive on (canvas) */
   --bus-wheel: #2A2E35;
+
+  /* The electric bus of the legend, after assets/electrobus.jpeg */
+  --ebus-body: #22A3E2;
+  --ebus-arrow: #9AA1AC;
+  --ebus-wave: #6FC8EE;
+  --ebus-glass: #143B54;
+  --ebus-hub: #B7C0CC;
+  --ebus-light: #FFE08A;
+  --ebus-stop: #E4573D;
   --sign-blue: #1668E0;      /* road sign 5.23.1, the name of a place */
   --sign-edge: #1A1D22;
   --road-fill: #F1F3F6;

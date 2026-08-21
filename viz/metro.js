@@ -40,7 +40,7 @@ const MODES = [
     stop: 'остановка',
     title: 'Электробусов',
     noun: ['электробус', 'электробуса', 'электробусов'],
-    legend: `Это электробус. Он вмещает ${PER_BUS} человек`
+    legend: `Это электробус. Он вмещает ${PER_BUS} ${plural(PER_BUS, 'вышкинца', 'вышкинца', 'вышкинцев')}`
   }
 ];
 
@@ -176,17 +176,17 @@ export function init(root) {
           currentColor;
       }
 
-      /* One bus for the legend of the other mode, drawn with the same
-         proportions as the buses on the canvas: a body in the colour of the
-         row and four wheels under it. */
+      /* The legend of the bus mode is the bus itself, drawn after the photo in
+         assets/electrobus.jpeg, with the caption painted on its side. */
       .metro-legend-bus {
-        height: 9px;
+        height: 92px;
         width: auto;
         flex: none;
+        margin: 2px 0 -2px;
       }
 
-      .metro-legend-bus .wheel {
-        fill: var(--bus-wheel);
+      @media (max-width: 860px) {
+        .metro-legend-bus { height: 66px; }
       }
 
       /* The switch between the two modes stands above both columns, so the
@@ -269,14 +269,56 @@ export function init(root) {
           <div class="canvas-card">
             <div class="canvas-legend">
               <span class="metro-legend-train" data-el="legendTrain" aria-hidden="true">${'<i></i>'.repeat(TRAIN)}</span>
-              <svg class="metro-legend-bus" data-el="legendBus" viewBox="0 0 28 13.4" aria-hidden="true">
-                <g class="wheel">
-                  <rect x="3.78" y="0" width="4.76" height="3.4" rx="0.9"></rect>
-                  <rect x="19.46" y="0" width="4.76" height="3.4" rx="0.9"></rect>
-                  <rect x="3.78" y="10" width="4.76" height="3.4" rx="0.9"></rect>
-                  <rect x="19.46" y="10" width="4.76" height="3.4" rx="0.9"></rect>
+              <svg class="metro-legend-bus" data-el="legendBus" viewBox="0 0 560 132"
+                   role="img" aria-label="Это электробус. Он вмещает ${PER_BUS} ${plural(PER_BUS, 'вышкинца', 'вышкинца', 'вышкинцев')}">
+                <!-- the scallops are painted on the body, so they are cut by it -->
+                <clipPath id="ebus-body"><path d="M116 30a22 22 0 0 1 22-22h396a22 22 0 0 1 22 22v78a8 8 0 0 1-8 8H124a8 8 0 0 1-8-8z"></path></clipPath>
+
+                <!-- the same bus as the ones driving on the roads below, seen
+                     from above. The module scales it to the size they are
+                     there; the arrow points from it to the picture. -->
+                <g data-el="legendSample">
+                  <g fill="var(--bus-wheel)">
+                    <rect x="-21" y="-13.5" width="10" height="7" rx="2"></rect>
+                    <rect x="11" y="-13.5" width="10" height="7" rx="2"></rect>
+                    <rect x="-21" y="6.5" width="10" height="7" rx="2"></rect>
+                    <rect x="11" y="6.5" width="10" height="7" rx="2"></rect>
+                  </g>
+                  <rect x="-28" y="-10" width="56" height="20" rx="6" fill="currentColor"></rect>
                 </g>
-                <rect x="0" y="1.7" width="28" height="10" rx="3" fill="currentColor"></rect>
+                <g fill="none" stroke="var(--ebus-arrow)" stroke-width="1.6">
+                  <path d="M76 34c16 2 26 12 34 24"></path>
+                </g>
+                <path d="M113 62.5 103.9 56.5 110.9 51.9z" fill="var(--ebus-arrow)"></path>
+
+                <!-- body: flat roof, both ends of the same shape, four lengths
+                     to one height as on the photograph -->
+                <path d="M116 30a22 22 0 0 1 22-22h396a22 22 0 0 1 22 22v78a8 8 0 0 1-8 8H124a8 8 0 0 1-8-8z" fill="var(--ebus-body)"></path>
+                <path d="M112 22q11-11 22 0 q11-11 22 0 q11-11 22 0 q11-11 22 0 q11-11 22 0 q11-11 22 0 q11-11 22 0 q11-11 22 0 q11-11 22 0 q11-11 22 0 q11-11 22 0 q11-11 22 0 q11-11 22 0 q11-11 22 0 q11-11 22 0 q11-11 22 0 q11-11 22 0 q11-11 22 0 q11-11 22 0 q11-11 22 0 q11-11 22 0 q11-11 22 0v-16H112z" fill="var(--ebus-wave)" clip-path="url(#ebus-body)"></path>
+                <!-- windows and the two doors, which stop at the wheel arches -->
+                <g fill="var(--ebus-glass)">
+                  <rect x="128" y="26" width="60" height="40" rx="7"></rect>
+                  <rect x="194" y="26" width="60" height="40" rx="7"></rect>
+                  <rect x="326" y="26" width="60" height="40" rx="7"></rect>
+                  <rect x="458" y="26" width="60" height="40" rx="7"></rect>
+                  <rect x="260" y="26" width="60" height="62" rx="7"></rect>
+                  <rect x="392" y="26" width="60" height="62" rx="7"></rect>
+                </g>
+                <!-- lights -->
+                <rect x="540" y="92" width="14" height="12" rx="3" fill="var(--ebus-light)"></rect>
+                <rect x="120" y="92" width="14" height="12" rx="3" fill="var(--ebus-stop)"></rect>
+                <!-- the caption, painted right across the middle of the side -->
+                <g text-anchor="middle" fill="#FFFFFF">
+                  <text x="336" y="60" font-size="30" font-weight="700">Это электробус.</text>
+                  <text x="336" y="84" font-size="17" font-weight="600">Он вмещает ${PER_BUS} ${plural(PER_BUS, 'вышкинца', 'вышкинца', 'вышкинцев')}</text>
+                </g>
+                <!-- wheels: whole, standing a fifth of themselves below the body -->
+                <g>
+                  <circle cx="196" cy="106" r="17" fill="var(--bus-wheel)"></circle>
+                  <circle cx="196" cy="106" r="6.5" fill="var(--ebus-hub)"></circle>
+                  <circle cx="470" cy="106" r="17" fill="var(--bus-wheel)"></circle>
+                  <circle cx="470" cy="106" r="6.5" fill="var(--ebus-hub)"></circle>
+                </g>
               </svg>
               <span data-el="legendText"></span>
             </div>
@@ -757,6 +799,7 @@ export function init(root) {
       track = buildTrack(cssW, cssH);
       flock = buildFlock(cssW, cssH);
       trackKey = key;
+      syncLegendSample();
     }
 
     if (state.mode === 'bus') { paintBuses(t, cssW); return; }
@@ -854,6 +897,21 @@ export function init(root) {
   legendTrainEl.style.color = CITIES[0].color;
   legendBusEl.style.color = CITIES[0].color;
 
+  // The little bus of the legend is the same size as the ones on the roads:
+  // its group is drawn 56 units long and scaled down to whatever a bus
+  // measures on the canvas. Its right end stays put, so the arrow keeps
+  // touching it.
+  const LEGEND_VIEW = 132, SAMPLE_LEN = 56;
+  const legendSampleEl = $('legendSample');
+  function syncLegendSample() {
+    const height = legendBusEl.getBoundingClientRect().height;
+    if (!height || !flock) return;
+    const scale = flock.busL / ((height / LEGEND_VIEW) * SAMPLE_LEN);
+    legendSampleEl.setAttribute(
+      'transform', `translate(${72 - (SAMPLE_LEN / 2) * scale} 30) scale(${scale})`
+    );
+  }
+
   const cityEls = {};
   CITIES.forEach((c) => {
     const card = document.createElement('div');
@@ -942,9 +1000,11 @@ export function init(root) {
       });
     }
     scoreTitleEl.textContent = m.title;
-    legendTextEl.textContent = m.legend;
+    // In the bus mode the caption is written on the bus itself.
+    legendTextEl.textContent = state.mode === 'bus' ? '' : m.legend;
     legendTrainEl.style.display = state.mode === 'metro' ? '' : 'none';
     legendBusEl.style.display = state.mode === 'bus' ? '' : 'none';
+    if (state.mode === 'bus') syncLegendSample();
 
     CITIES.forEach((c) => {
       const on = !!state.active[c.key];
