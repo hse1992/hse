@@ -42,7 +42,7 @@ export function init(root) {
       <div class="meter-card">
         <div class="meter-header">
           <div class="meter-title">Занято мест</div>
-          <div class="meter-value"><strong data-el="filled"></strong> из ${nf(TOTAL)} · <span data-el="pct"></span></div>
+          <div class="meter-value"><strong data-el="filled"></strong> из ${nf(TOTAL)} — <span data-el="pct"></span></div>
         </div>
         <div class="meter-bar" data-el="bar"></div>
       </div>

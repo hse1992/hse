@@ -194,7 +194,7 @@ export function init(root) {
         <div class="meter-title">Стран, откуда приняты студенты</div>
         <div class="world-score">
           <span class="world-score-value" data-el="count"></span>
-          <span class="world-score-note">из ${WORLD} стран мира · <span data-el="pct"></span></span>
+          <span class="world-score-note">из ${WORLD} стран мира — <span data-el="pct"></span></span>
         </div>
         <div class="meter-bar">
           <div class="meter-bar-seg world-bar-seg" data-el="barSeg"></div>
