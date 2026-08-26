@@ -9,12 +9,23 @@ const TOTAL = 81000;
 
 export const meta = {
   id: 'stadium',
-  title: 'В Лужниках все свои',
-  subtitle: `Лужники — самая крупная арена России, вмещающая ${nf(TOTAL)} человек. Вышка такая большая, что может заполнить ее практически полностью`,
+  title: 'В «Лужниках» все свои',
+  // The title card arrives in two goes: the arena first, what we are about to
+  // do with it a screen later. Both sentences are phrasing content — the page
+  // shell puts the subtitle inside a <p>.
+  subtitle: `
+    <span class="stadium-brief">
+      <span class="stadium-brief-line">«Лужники» — самая крупная арена России, вмещающая ${nf(TOTAL)} человек.</span>
+      <span class="stadium-brief-line intro-stage" data-stage="1">Вышка такая большая, что может заполнить ее практически полностью</span>
+    </span>
+  `,
   // Opens with the heading alone, then the empty arena fills up campus by
   // campus; the last step hands the stadium over to the reader.
   intro: true,
-  steps: 7
+  introStages: 2,
+  // Empty arena, five arrivals, two screens with the full arena, then the
+  // stadium is handed over to the reader.
+  steps: 9
 };
 
 export function init(root) {
@@ -37,10 +48,48 @@ export function init(root) {
   root.classList.add('stadium-body');
   root.innerHTML = `
     <style>
+      /* Both sentences of the title card are their own line. While the card is
+         out in the middle of the screen a blank line separates them; as it
+         settles into the heading the blank line folds away and the two read as
+         one plain subtitle. Folds faster than the card lands, hence the ×3. */
+      .stadium-brief {
+        --fold: clamp(0, 1 - var(--intro-body, 1) * 3, 1);
+        display: block;
+      }
+
+      .stadium-brief-line {
+        display: block;
+      }
+
+      .stadium-brief-line + .stadium-brief-line {
+        margin-top: calc(var(--fold) * 1.4em);
+      }
+
+      /* Always in the flow: it opens and closes by height, so the canvas next
+         to it changes size smoothly rather than in one jump. */
       .stadium-figure {
-        display: none;
+        display: flex;
         flex-direction: column;
-        gap: 4px;
+        gap: 2px;
+        flex: none;
+      }
+
+      /* The label and the share read as one sentence. */
+      .stadium-figure-head {
+        display: flex;
+        align-items: baseline;
+        flex-wrap: wrap;
+        gap: 0 12px;
+      }
+
+      .stadium-figure-label,
+      .stadium-figure-people {
+        font-size: 1.0625rem;
+        color: var(--text-secondary);
+      }
+
+      .stadium-figure-people {
+        font-variant-numeric: tabular-nums;
       }
 
       .stadium-figure-value {
@@ -51,29 +100,72 @@ export function init(root) {
         font-variant-numeric: tabular-nums;
       }
 
+      /* Who is coming in, in their own colour. Cloned decoration keeps the
+         padding on both halves if the phrase breaks across lines. */
+      .stadium-mark {
+        padding: 0.08em 0.3em;
+        border-radius: 0.24em;
+        box-decoration-break: clone;
+        -webkit-box-decoration-break: clone;
+      }
+
       .stadium-figure-note {
-        font-size: 1.0625rem;
-        color: var(--text-secondary);
+        margin-top: 8px;
+        font-size: 1.5rem;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+        color: var(--text);
       }
 
-      .stadium-body.is-telling .stadium-figure { display: flex; }
-      .stadium-body.is-telling .col-left,
-      .stadium-body.is-telling .meter-card { display: none; }
-
-      /* Handing over: the controls arrive rather than blink into place. */
-      .stadium-body:not(.is-telling) .col-left,
-      .stadium-body:not(.is-telling) .meter-card {
-        animation: stadium-arrive 320ms ease both;
+      /* Handing over. Nothing appears out of nowhere: the column of controls
+         opens from zero width and the cards from zero height, so the canvas
+         beside them loses room gradually and the arena shrinks into its place
+         instead of jumping there. The canvas redraws itself on every frame of
+         this — it is subscribed to the size of its box. */
+      .stadium-body .col-left,
+      .stadium-body .meter-card,
+      .stadium-body .stadium-figure {
+        transition: width 520ms ease, max-height 520ms ease, opacity 320ms ease;
       }
 
-      @keyframes stadium-arrive {
-        from { opacity: 0; transform: translateY(8px); }
-        to { opacity: 1; transform: none; }
+      /* With the controls away the right column is the whole width, so the
+         lines above the arena start where the heading does. */
+      .stadium-body.is-telling {
+        gap: 0;
+      }
+
+      .stadium-body.is-telling .col-left {
+        width: 0;
+        opacity: 0;
+        overflow: hidden;
+      }
+
+      .stadium-body.is-telling .meter-card {
+        max-height: 0;
+        padding-top: 0;
+        padding-bottom: 0;
+        opacity: 0;
+        overflow: hidden;
+      }
+
+      .stadium-body .meter-card {
+        max-height: 240px;
+      }
+
+      .stadium-body .stadium-figure {
+        max-height: 240px;
+      }
+
+      .stadium-body:not(.is-telling) .stadium-figure {
+        max-height: 0;
+        opacity: 0;
+        overflow: hidden;
       }
 
       @media (prefers-reduced-motion: reduce) {
-        .stadium-body:not(.is-telling) .col-left,
-        .stadium-body:not(.is-telling) .meter-card { animation: none; }
+        .stadium-body .col-left,
+        .stadium-body .meter-card,
+        .stadium-body .stadium-figure { transition: none; }
       }
     </style>
 
@@ -88,7 +180,11 @@ export function init(root) {
 
     <div class="col-right">
       <div class="stadium-figure">
-        <div class="stadium-figure-value" data-el="figureValue"></div>
+        <div class="stadium-figure-head">
+          <span class="stadium-figure-label">Стадион заполнен на</span>
+          <span class="stadium-figure-value" data-el="figureValue"></span>
+          <span class="stadium-figure-people" data-el="figurePeople"></span>
+        </div>
         <div class="stadium-figure-note" data-el="figureNote"></div>
       </div>
 
@@ -518,6 +614,12 @@ export function init(root) {
   const colRight = root.querySelector('.col-right');
   const stacked = window.matchMedia('(max-width: 860px)');
 
+  const meterCard = root.querySelector('.meter-card');
+
+  // Lines the top of the meter up with the top of the first city card.
+  // Measured rather than derived: the left column starts with the filter row
+  // and the right one with whatever the scene left behind, and both change
+  // height with the text size.
   function alignColumns() {
     // One column, or the controls are away telling the story: nothing to line
     // the meter up with.
@@ -525,31 +627,88 @@ export function init(root) {
       colRight.style.paddingTop = '';
       return;
     }
-    const gap = parseFloat(getComputedStyle(colLeft).rowGap) || 0;
-    colRight.style.paddingTop = `${kindRow.offsetHeight + gap}px`;
+    const card = cityList.querySelector('.city-card');
+    if (!card) return;
+    colRight.style.paddingTop = '0px';
+    const delta = card.getBoundingClientRect().top - meterCard.getBoundingClientRect().top;
+    colRight.style.paddingTop = `${Math.max(0, Math.round(delta))}px`;
   }
 
   new ResizeObserver(alignColumns).observe(kindRow);
   stacked.addEventListener('change', alignColumns);
+  // The left column arrives with a transition; measure once it has settled.
+  colLeft.addEventListener('transitionend', (e) => {
+    if (e.propertyName === 'width') alignColumns();
+  });
 
   // ---------- Scene ----------
   // The arena starts empty and fills up campus by campus, smallest first, so
   // every group visibly adds its own patch of stands. The last step hands the
   // stadium over: the controls arrive and the reader takes it from there.
+  const people = (key) => {
+    const c = CITIES.find((x) => x.key === key);
+    return c.students + c.staff;
+  };
+  const many = (n) => `${nf(n)} ${plural(n, 'человек', 'человека', 'человек')}`;
+
+  // Who is coming in is painted in their own colour, the same one their seats
+  // take on the stands. The lyceum yellow is light, so its text stays dark.
+  const colorOf = (key) => (key === 'lyceum'
+    ? LYCEUM_COLOR
+    : CITIES.find((x) => x.key === key).color);
+
+  const mark = (text, key) => `<span class="stadium-mark" style="background:${colorOf(key)};`
+    + `color:${key === 'lyceum' ? 'var(--text)' : '#FFFFFF'}">${text}</span>`;
+
   const ARRIVALS = [
-    { key: 'lyceum', n: LYCEUM, note: `Первыми заходят лицеисты, их ${nf(LYCEUM)}` },
-    ...['perm', 'nn', 'spb', 'msk'].map((key) => {
-      const c = CITIES.find((x) => x.key === key);
-      const n = c.students + c.staff;
-      return { key, n, note: `${c.name} — ${nf(n)} ${plural(n, 'человек', 'человека', 'человек')}` };
-    })
+    { key: 'lyceum', note: `Первыми пропустим ${mark('лицеистов Москвы и Перми,', 'lyceum')} их ${many(LYCEUM)}` },
+    { key: 'perm', note: `Дальше студенты и сотрудники ${mark('пермского кампуса', 'perm')} — ${many(people('perm'))}` },
+    { key: 'nn', note: `Затем ${mark('нижегородский кампус', 'nn')} — ${many(people('nn'))}` },
+    { key: 'spb', note: `Потом ${mark('Питер', 'spb')} — ${many(people('spb'))}` },
+    { key: 'msk', note: `И ${mark('Москва', 'msk')} — ${many(people('msk'))}` }
   ];
+  // One step past the last arrival: the full arena stays on screen for a while
+  // before the controls take over.
   const LAST = meta.steps - 1;             // the live stadium, with controls
 
   const noteEl = $('note');
   const figureValue = $('figureValue');
+  const figurePeople = $('figurePeople');
   const figureNote = $('figureNote');
   let userDrives = false;
+
+  // ---------- Counter ----------
+  // The share does not jump to its new value: it runs up to it over the same
+  // 620 ms the stands take to change colour, so the number and the picture
+  // arrive together.
+  const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let shownFilled = 0;
+  let countFrame = null;
+
+  function paintCount(n) {
+    figureValue.textContent = pct(n, TOTAL);
+    figurePeople.textContent = n > 0 ? `(всего ${many(n)})` : '';
+  }
+
+  function countTo(target) {
+    if (countFrame) cancelAnimationFrame(countFrame);
+    const from = shownFilled;
+    if (still || from === target) {
+      shownFilled = target;
+      paintCount(target);
+      return;
+    }
+    const t0 = performance.now();
+    const tick = (now) => {
+      const raw = Math.min(1, (now - t0) / 620);
+      const p = 1 - Math.pow(1 - raw, 3);
+      shownFilled = Math.round(from + (target - from) * p);
+      paintCount(shownFilled);
+      if (raw < 1) countFrame = requestAnimationFrame(tick);
+      else { countFrame = null; shownFilled = target; paintCount(target); }
+    };
+    countFrame = requestAnimationFrame(tick);
+  }
 
   function takeOver() {
     if (userDrives) return;
@@ -563,14 +722,17 @@ export function init(root) {
 
     if (telling) {
       userDrives = false;                  // scrolled back into the story
-      const came = ARRIVALS.slice(0, i);   // step 0 is the empty arena
+      // Step 0 is the empty arena; anything past the last arrival holds the
+      // full one, so the reader gets a moment with it before the controls.
+      const shown = Math.min(i, ARRIVALS.length);
+      const came = ARRIVALS.slice(0, shown);
       CITIES.forEach((c) => { state.active[c.key] = came.some((a) => a.key === c.key); });
       state.kinds.lyceum = came.some((a) => a.key === 'lyceum');
       state.kinds.students = true;
       state.kinds.staff = true;
-      figureNote.textContent = i === 0
+      figureNote.innerHTML = shown === 0
         ? `Пустая арена — ${nf(TOTAL)} мест`
-        : ARRIVALS[i - 1].note;
+        : ARRIVALS[shown - 1].note;
     } else if (!userDrives) {
       CITIES.forEach((c) => { state.active[c.key] = true; });
       KIND_DEFS.forEach((k) => { state.kinds[k.key] = true; });
@@ -578,7 +740,7 @@ export function init(root) {
     }
 
     render();
-    figureValue.textContent = pct(filledCount(), TOTAL);
+    countTo(filledCount());
     alignColumns();
   }
 

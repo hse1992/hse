@@ -20,7 +20,7 @@ const NAME = new Map(COUNTRIES.map((c) => [c.code, c.name]));
 
 export const meta = {
   id: 'world',
-  title: 'Вышка глобальная',
+  title: '«Все флаги в гости будут к нам»',
   subtitle: `В нашем университете учатся студенты из ${COUNTRIES.length} стран`
 };
 

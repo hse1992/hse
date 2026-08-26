@@ -65,7 +65,8 @@
     // module itself is there.
     let api = null;
     const scene = mod.meta.steps
-      ? mountScene(section, mod.meta.steps, (i) => api && api.step(i), { intro: !!mod.meta.intro })
+      ? mountScene(section, mod.meta.steps, (i) => api && api.step(i),
+          { intro: !!mod.meta.intro, stages: mod.meta.introStages })
       : null;
 
     // The first section hands over from the title of the page: its heading
