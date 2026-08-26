@@ -183,6 +183,17 @@ button { font-family: inherit; }
   opacity: var(--intro-body, 1);
 }
 
+/* Where the whole section is pinned, the block does not turn up behind the
+   heading on its way out: it waits below the fold and comes up from there as
+   the heading goes to the top. On a narrow screen the block already scrolls up
+   from under the pinned heading on its own, so it is left alone. */
+@media (min-width: 861px) {
+  .viz-intro .viz-body {
+    transform: translateY(calc((1 - var(--intro-body, 1)) * 100vh));
+    will-change: transform;
+  }
+}
+
 /* Wraps the heading so that on a narrow screen it can be pinned on its own for
    exactly the length of the intro zone. Invisible on a wide screen. */
 .viz-intro-hold {

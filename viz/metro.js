@@ -231,7 +231,7 @@ export function init(root) {
         --fold: clamp(0, 1 - var(--intro-body, 1) * 3, 1);
         display: flex;
         flex-direction: column;
-        gap: calc(var(--fold) * 0.9em);
+        gap: calc(var(--fold) * 1.8em);       /* two blank lines between them */
       }
 
       /* A plain block, not a column: the shell squeezes a stage shut by its
@@ -256,7 +256,7 @@ export function init(root) {
         overflow: hidden;
       }
 
-      .metro-brief-fig-bus { --fig-h: 118px; }
+      .metro-brief-fig-bus { --fig-h: 48px; }
       .metro-brief-fig-train { --fig-h: 40px; }
 
       /* The bus keeps to the height of the row and takes the width that goes
@@ -294,7 +294,7 @@ export function init(root) {
          the pictures give up the height they can spare. */
       @media (max-width: 860px) {
         .metro-brief-fig { gap: 10px; }
-        .metro-brief-fig-bus { --fig-h: 52px; }
+        .metro-brief-fig-bus { --fig-h: 24px; }
         .metro-brief-fig-train { --fig-h: 24px; }
         .metro-brief-times { font-size: 1.0625rem; }
       }
