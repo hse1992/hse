@@ -1,21 +1,32 @@
 // Luzhniki stands filled with HSE people, one stripe per 100 seats.
 
-import { CITIES, LYCEUM, LYCEUM_COLOR } from '../data/hse.js';
+import { CITIES, LYCEUM, LYCEUM_COLOR, ADMITTED } from '../data/hse.js';
 import { nf, pct, plural } from '../lib/format.js';
 import { mountCanvas } from '../lib/ui.js';
 
 // Seats in the arena — the figure the subtitle and the meter both quote.
 const TOTAL = 81000;
 
+// The screen before this section still speaks of the intake — rounded to the
+// nearest thousand, because it is a thought, not a figure to be checked.
+const ADMITTED_ROUND = Math.round(ADMITTED / 1000) * 1000;
+
 export const meta = {
   id: 'stadium',
+  // Hands the reader over from the trains: a number they have just met, and
+  // the question it raises.
+  lead: {
+    value: `${nf(ADMITTED_ROUND)} ${plural(ADMITTED_ROUND, 'первокурсник', 'первокурсника', 'первокурсников')}`,
+    text: 'Наверно, чтобы вместить всех людей из Вышки, нужен целый стадион'
+  },
   // The scarf closes the line. Sized by width, like the station board in the
   // metro section: the file is 600 by 164, so it keeps its own proportions and
   // shrinks whole on a narrow screen. The inline width holds until the styles
   // of the module arrive — the shell draws the heading a moment earlier.
   title: 'В «Лужниках» все свои '
-    + '<img class="stadium-scarf" style="width: 4.7em"'
-    + ' src="assets/scarf-hse.svg" alt="" aria-hidden="true">',
+    + '<span class="stadium-scarf-slot" style="width: 4.7em">'
+    + '<img class="stadium-scarf" src="assets/scarf-hse.svg" alt="" aria-hidden="true">'
+    + '</span>',
   // The title card arrives in two goes: the arena first, what we are about to
   // do with it a screen later. Both sentences are phrasing content — the page
   // shell puts the subtitle inside a <p>.
@@ -137,12 +148,26 @@ export function init(root) {
       /* The scarf in the heading. It sags in the middle, so its box is taller
          than what the eye reads as its body — hence it hangs a little below
          the baseline instead of sitting on it. */
-      .stadium-scarf {
+      /* The scarf is taller than the line it sits in, and a picture in the flow
+         would push the whole line apart — which would drop the subtitle below
+         where the lead-in screen puts its own. So it hangs out of a slot that
+         is shorter than the line: the slot holds the width, the scarf overflows
+         it without anyone noticing. */
+      .stadium-scarf-slot {
         display: inline-block;
+        position: relative;
         width: 4.7em;
-        height: auto;
-        vertical-align: -0.36em;
+        height: 0.8em;
         margin-left: 0.14em;
+        vertical-align: baseline;
+      }
+
+      .stadium-scarf {
+        position: absolute;
+        left: 0;
+        bottom: -0.3em;
+        width: 100%;
+        height: auto;
       }
 
       /* With the controls away the right column is the whole width, so the

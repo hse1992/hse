@@ -47,6 +47,7 @@ button { font-family: inherit; }
 /* The opening screen belongs to the title alone — the first section starts
    only once the reader scrolls past it. */
 .page-header {
+  position: relative;
   min-height: 100dvh;
   padding: 24px;
   display: flex;
@@ -134,6 +135,98 @@ button { font-family: inherit; }
   text-wrap: pretty;
 }
 
+/* ---------- Scroll hint ---------- */
+
+/* A thin arrow at the foot of the opening screen. It drifts down and back,
+   and leaves for good the moment the reader starts scrolling. */
+.scroll-hint {
+  position: absolute;
+  left: 50%;
+  bottom: 44px;
+  color: var(--text-caption);
+  opacity: 0.85;
+  transform: translate(-50%, 0);
+  animation: scroll-hint 2.8s ease-in-out infinite;
+  transition: opacity 420ms ease;
+  pointer-events: none;
+}
+
+.scroll-hint svg {
+  display: block;
+  width: 30px;
+  height: 30px;
+}
+
+.scroll-hint.is-gone {
+  opacity: 0;
+}
+
+@keyframes scroll-hint {
+  0%, 100% { transform: translate(-50%, 0); }
+  50% { transform: translate(-50%, 7px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scroll-hint { animation: none; }
+}
+
+/* ---------- Interlude ---------- */
+
+/* The screen a section opens with: one figure and one line, holding the middle
+   of the pinned container until the reader scrolls on. Then it slides out to
+   the left while the title card of the section comes in from the right — the
+   two live in the same container, so the swap is one movement, not a jump
+   between screens. Driven by leadCard() in lib/page.js. */
+/* `top` is set from JS to the top edge of the title card, so the two swap
+   places without shifting vertically. */
+.viz-lead {
+  position: absolute;
+  left: 24px;
+  right: 24px;
+  display: flex;
+  flex-direction: column;
+  /* The card is scaled up as a whole, so its 14px gap reads as 14 × k. The
+     lead-in is not scaled, so it takes that gap already multiplied — and the
+     two subtitles end up on the same line. */
+  gap: calc(14px * var(--intro-k, 1.55));
+  transform: translateX(var(--lead-x, 0));
+  will-change: transform;
+  pointer-events: none;
+}
+
+/* Set in the same type as the heading of the card it hands over to: the same
+   size, weight and tracking, so one reads as a continuation of the other. */
+.viz-lead-value {
+  font-size: calc(2rem * var(--intro-k, 1.55));
+  font-weight: 700;
+  line-height: 1.06;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Exactly the subtitle of the card it hands over to. At that size the line is
+   longer than a narrow window, so it is allowed to wrap there; from about
+   1330px across it holds one line. */
+.viz-lead-text {
+  margin: 0;
+  font-size: calc(0.9375rem * var(--intro-k, 1.55));
+  line-height: 1.4;
+  color: var(--text-secondary);
+  text-wrap: pretty;
+}
+
+@media (max-width: 860px) {
+  .viz-lead {
+    left: 16px;
+    right: 16px;
+    gap: 16px;
+  }
+
+  .viz-lead-text {
+    font-size: 1.0625rem;
+  }
+}
+
 /* ---------- Section shell ---------- */
 
 .viz-section {
@@ -174,7 +267,11 @@ button { font-family: inherit; }
 
 .viz-intro .viz-header {
   width: calc(100% / var(--intro-k, 1));
-  transform: translateY(var(--intro-dy, 0px)) scale(var(--intro-k, 1));
+  /* --card-x waits the card off to the right while the lead-in screen has the
+     stage; the rest is the card settling into place. */
+  transform: translateX(var(--card-x, 0))
+             translateY(var(--intro-dy, 0px))
+             scale(var(--intro-k, 1));
   transform-origin: left top;
   will-change: transform;
 }
