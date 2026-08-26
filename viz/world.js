@@ -26,10 +26,16 @@ export const meta = {
   id: 'world',
   // Hands the reader over from the stadium: the whole student body first, and
   // then the part of it that brings the quotation on.
+  // The countries are picked out in corporate blue: that is what the whole
+  // section is about, and the wall of flags starts from it. Painted inline —
+  // the shell draws the lead-in before the styles of the module arrive.
   lead: {
     value: `${nf(STUDENTS_ROUND)}+ ${plural(STUDENTS_ROUND, 'студент', 'студента', 'студентов')}`,
-    text: `Из них ${nf(FOREIGN)}+ ${plural(FOREIGN, 'иностранец', 'иностранца', 'иностранцев')}`
-      + ` из ${COUNTRIES.length} ${countriesOf(COUNTRIES.length)}. Сразу вспоминаются слова классика…`
+    text: `Из них ${nf(FOREIGN)}+ ${plural(FOREIGN, 'иностранец', 'иностранца', 'иностранцев')} `
+      + '<span class="world-lead-mark"'
+      + ' style="background: var(--hse-blue); color: var(--card)">'
+      + `из ${COUNTRIES.length} ${countriesOf(COUNTRIES.length)}</span>`
+      + '. Сразу вспоминаются слова классика…'
   },
   // Pushkin himself closes the line, the way the scarf closes it on the
   // stadium: a slot shorter than the line holds the width, and the portrait
@@ -40,7 +46,7 @@ export const meta = {
     + '<span class="world-pushkin-slot" style="width: 1.25em">'
     + '<span class="world-pushkin"></span>'
     + '</span>',
-  subtitle: `В нашем университете учатся студенты из ${COUNTRIES.length} стран`,
+  subtitle: `У нас в гостях уже ${COUNTRIES.length} ${plural(COUNTRIES.length, 'флаг', 'флага', 'флагов')}`,
   // Opens with the lead-in screen and the title card, like the stadium does.
   intro: true
 };
@@ -61,6 +67,16 @@ export function init(root) {
   // here and not in layout.css.
   root.innerHTML = `
     <style>
+      /* The countries picked out in the lead-in. Colour comes inline with the
+         markup; what is left here is the shape of the patch. The clone break
+         keeps both halves painted if the line wraps inside it. */
+      .world-lead-mark {
+        padding: 0.06em 0.26em;
+        border-radius: 0.2em;
+        -webkit-box-decoration-break: clone;
+        box-decoration-break: clone;
+      }
+
       /* The portrait at the end of the heading. It stands taller than the line
          it sits in, and a picture in the flow would push the whole line apart —
          which would drop the subtitle below where the lead-in screen puts its
