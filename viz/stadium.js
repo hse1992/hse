@@ -9,7 +9,13 @@ const TOTAL = 81000;
 
 export const meta = {
   id: 'stadium',
-  title: 'В «Лужниках» все свои',
+  // The scarf closes the line. Sized by width, like the station board in the
+  // metro section: the file is 600 by 164, so it keeps its own proportions and
+  // shrinks whole on a narrow screen. The inline width holds until the styles
+  // of the module arrive — the shell draws the heading a moment earlier.
+  title: 'В «Лужниках» все свои '
+    + '<img class="stadium-scarf" style="width: 4.7em"'
+    + ' src="assets/scarf-hse.svg" alt="" aria-hidden="true">',
   // The title card arrives in two goes: the arena first, what we are about to
   // do with it a screen later. Both sentences are phrasing content — the page
   // shell puts the subtitle inside a <p>.
@@ -126,6 +132,17 @@ export function init(root) {
       .stadium-body .meter-card,
       .stadium-body .stadium-figure {
         transition: width 520ms ease, max-height 520ms ease, opacity 320ms ease;
+      }
+
+      /* The scarf in the heading. It sags in the middle, so its box is taller
+         than what the eye reads as its body — hence it hangs a little below
+         the baseline instead of sitting on it. */
+      .stadium-scarf {
+        display: inline-block;
+        width: 4.7em;
+        height: auto;
+        vertical-align: -0.36em;
+        margin-left: 0.14em;
       }
 
       /* With the controls away the right column is the whole width, so the
