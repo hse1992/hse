@@ -52,12 +52,10 @@ export const meta = {
   id: 'metro',
   // The word before the name depends on what the reader is riding, so the
   // module changes it when the mode is switched.
+  // The name of the station is the station board itself — the same one in
+  // both modes.
   title: 'Следующая <span data-el="stop">остановка</span> '
-    + '<img class="metro-m" data-el="signMetro" src="assets/metro-m.svg" alt="метро" hidden>'
-    + '<img class="metro-m metro-spb-sign" data-el="signSpb" src="assets/metrospb.png" alt="метро" hidden>'
-    + '<img class="metro-m metro-nn-sign" data-el="signNn" src="assets/MetroNN.svg" alt="метро" hidden>'
-    + '<img class="metro-m metro-bus-sign" data-el="signBus" src="assets/bus.png" alt="электробус">'
-    + '«Вышкинская»',
+    + '<img class="metro-tablo" src="assets/tablo-vyshkinskaya.svg" alt="Вышкинская">',
   subtitle: `За одну приемную кампанию Вышка зачислила ${nf(ADMITTED)} ${plural(ADMITTED, 'первокурсника', 'первокурсника', 'первокурсников')}. Чтобы увезти их всех разом, нужно ${nf(BUSES_TOTAL)} ${plural(BUSES_TOTAL, 'электробус', 'электробуса', 'электробусов')}. А на метро — ${nf(CARS_TOTAL)} ${plural(CARS_TOTAL, 'вагон', 'вагона', 'вагонов')}, то есть ${TRAINS} ${plural(TRAINS, 'полный поезд', 'полных поезда', 'полных поездов')}`
 };
 
@@ -115,40 +113,23 @@ export function init(root) {
         color: var(--text-secondary);
       }
 
-      /* The metro sign in the title of the section. The heading is drawn by
-         the page shell, but the title belongs to this module, so its icon is
-         styled here — sized in em, so it scales with the heading.
-         The file has empty space around the letter: it takes 76% of the height
-         of the picture and stands 12% of it above the bottom edge. Hence the
-         odd numbers — they make the letter itself match the capitals. */
-      .metro-m {
-        height: 0.95em;
-        vertical-align: -0.115em;
-      }
-
-      /* The bus sign is sized to the capitals directly. Its file has a solid
-         white background, and multiply lets the page show through it — the
-         white drops out and the red stays as it is. */
-      .metro-bus-sign {
-        height: 0.78em;
-        vertical-align: -0.04em;
-        margin-right: 0.06em;      /* the file has no side bearings of its own */
-        mix-blend-mode: multiply;
-      }
-
-      /* The Petersburg sign is wider than it is tall, so it is a little
-         shorter than the others to weigh the same in the line. */
-      .metro-spb-sign {
-        height: 0.74em;
-        vertical-align: -0.02em;
-        margin-right: 0.08em;
-      }
-
-      /* The Nizhny Novgorod one is almost square and stands on its own. */
-      .metro-nn-sign {
-        height: 0.86em;
-        vertical-align: -0.08em;
-        margin-right: 0.08em;
+      /* The name of the station in the title of the section — the board of a
+         carriage, with the name lit on it. The heading is drawn by the page
+         shell, but the title belongs to this module, so the picture is styled
+         here. Width, not height, sets the size: the board is 5,6 times as wide
+         as it is tall, so on a narrow screen it shrinks whole instead of
+         running past the edge.
+         The numbers make the lit word sit in the line as if it were typed. In
+         the file the board is 1108 by 198, and the lamps of the word run from
+         52,2 to 145,8 down it — 93,6 tall. At 8,46em wide one unit of the file
+         is 0,00764em, so the word comes out 0,715em tall, the cap height of
+         the heading. Its feet stand 0,4em above the bottom edge of the board,
+         so dropping the board by that much puts them on the baseline. */
+      .metro-tablo {
+        display: inline-block;
+        width: min(100%, 8.46em);
+        height: auto;
+        vertical-align: -0.4em;
       }
 
       /* The legend sample is a whole train, so it replaces the single bar of
@@ -914,22 +895,6 @@ export function init(root) {
   // module — this is the one word of it that changes with the mode.
   const header = root.parentElement;
   const stopEl = header && header.querySelector('[data-el="stop"]');
-  // Two signs in the heading, one per mode. If the file with the bus sign is
-  // missing, the metro one simply stays put.
-  // One sign per key: 'metro' is the default, 'bus' belongs to the other mode,
-  // the rest are cities that have a metro of their own and show their sign
-  // when that city is the only one selected.
-  const signs = {
-    metro: header && header.querySelector('[data-el="signMetro"]'),
-    bus: header && header.querySelector('[data-el="signBus"]'),
-    spb: header && header.querySelector('[data-el="signSpb"]'),
-    nn: header && header.querySelector('[data-el="signNn"]')
-  };
-  const signOk = {};
-  Object.keys(signs).forEach((key) => {
-    signOk[key] = !!signs[key];
-    if (signs[key]) signs[key].addEventListener('error', () => { signOk[key] = false; render(); });
-  });
   const legendTrainEl = $('legendTrain');
   const legendBusEl = $('legendBus');
   const legendTextEl = $('legendText');
@@ -1060,16 +1025,6 @@ export function init(root) {
     });
 
     if (stopEl) stopEl.textContent = m.stop;
-    if (signs.metro) {
-      // A city on its own gets the sign of its own metro, if there is one;
-      // the rest of the time the sign follows the mode.
-      const sole = CITIES.find((c) => CITIES.every((o) => !!state.active[o.key] === (o.key === c.key)));
-      const which = state.mode === 'bus' && signOk.bus ? 'bus'
-        : (sole && signOk[sole.key] ? sole.key : 'metro');
-      Object.keys(signs).forEach((key) => {
-        if (signs[key]) signs[key].hidden = key !== which;
-      });
-    }
     scoreTitleEl.textContent = m.title;
     // In the bus mode the caption is written on the bus itself.
     legendTextEl.textContent = state.mode === 'bus' ? '' : m.legend;
