@@ -216,10 +216,24 @@ button { font-family: inherit; }
 }
 
 @media (max-width: 860px) {
+  /* Nothing is pinned as a whole here, so the lead-in holds the screen itself:
+     it is fixed to the middle of the window while its part of the zone lasts,
+     and the heading waits off to the right, already pinned by its own hold.
+     JS hides it while the section is still below the fold. */
   .viz-lead {
+    position: fixed;
+    top: 0;
     left: 16px;
     right: 16px;
+    height: var(--lead-screen, 100dvh);
+    justify-content: center;
     gap: 16px;
+  }
+
+  /* Scaled against the heading of this screen size, so the lead-in and the
+     card it hands over to are set in the same type here too. */
+  .viz-lead-value {
+    font-size: calc(1.5625rem * var(--intro-k, 1.55));
   }
 
   .viz-lead-text {

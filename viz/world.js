@@ -1,8 +1,8 @@
 // Countries HSE students come from, as a wall of flags split by part of the world.
 
-import { CITIES } from '../data/hse.js';
+import { CITIES, STUDENTS, FOREIGN } from '../data/hse.js';
 import { COUNTRIES, REGIONS, BY_CITY } from '../data/countries.js';
-import { pct, plural } from '../lib/format.js';
+import { nf, pct, plural } from '../lib/format.js';
 
 // The world to compare against: 193 UN members plus 2 observer states, split
 // by part of the world the same way the countries above are (UN M49, so the
@@ -18,10 +18,31 @@ const countriesOf = (n) => plural(n, 'страны', 'стран', 'стран')
 // Every country, by code — the flags are built from the regions, not the flat list.
 const NAME = new Map(COUNTRIES.map((c) => [c.code, c.name]));
 
+// The screen before this section speaks of the students as a whole, rounded
+// down to a round thousand: it is a scale, not a figure to be checked.
+const STUDENTS_ROUND = Math.floor(STUDENTS / 1000) * 1000;
+
 export const meta = {
   id: 'world',
-  title: '«Все флаги в гости будут к нам»',
-  subtitle: `В нашем университете учатся студенты из ${COUNTRIES.length} стран`
+  // Hands the reader over from the stadium: the whole student body first, and
+  // then the part of it that brings the quotation on.
+  lead: {
+    value: `${nf(STUDENTS_ROUND)}+ ${plural(STUDENTS_ROUND, 'студент', 'студента', 'студентов')}`,
+    text: `Из них ${nf(FOREIGN)}+ ${plural(FOREIGN, 'иностранец', 'иностранца', 'иностранцев')}`
+      + ` из ${COUNTRIES.length} ${countriesOf(COUNTRIES.length)}. Сразу вспоминаются слова классика…`
+  },
+  // Pushkin himself closes the line, the way the scarf closes it on the
+  // stadium: a slot shorter than the line holds the width, and the portrait
+  // hangs out of it without pushing the line apart. The inline size holds
+  // until the styles of the module arrive — the shell draws the heading a
+  // moment earlier.
+  title: '«Все флаги в гости будут к нам»'
+    + '<span class="world-pushkin-slot" style="width: 1.25em">'
+    + '<span class="world-pushkin"></span>'
+    + '</span>',
+  subtitle: `В нашем университете учатся студенты из ${COUNTRIES.length} стран`,
+  // Opens with the lead-in screen and the title card, like the stadium does.
+  intro: true
 };
 
 export function init(root) {
@@ -40,6 +61,32 @@ export function init(root) {
   // here and not in layout.css.
   root.innerHTML = `
     <style>
+      /* The portrait at the end of the heading. It stands taller than the line
+         it sits in, and a picture in the flow would push the whole line apart —
+         which would drop the subtitle below where the lead-in screen puts its
+         own. So it hangs out of a slot shorter than the line. */
+      .world-pushkin-slot {
+        display: inline-block;
+        position: relative;
+        width: 1.25em;
+        height: 0.75em;
+        margin-left: 0.16em;
+        vertical-align: baseline;
+      }
+
+      /* Drawn as a mask so the profile takes the colour of the heading itself
+         rather than staying flat black. */
+      .world-pushkin {
+        position: absolute;
+        left: 0;
+        bottom: -0.2em;
+        width: 100%;
+        aspect-ratio: 1;
+        background: currentColor;
+        -webkit-mask: url(assets/pushkin-profile.svg) center / contain no-repeat;
+        mask: url(assets/pushkin-profile.svg) center / contain no-repeat;
+      }
+
       /* Nothing on the wall is coloured by city, so the switches are plain green. */
       .world-city .toggle.on {
         background: var(--toggle-on);

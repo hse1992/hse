@@ -26,6 +26,10 @@ export const CITIES = [
 export const LYCEUM = 2600;
 export const LYCEUM_COLOR = '#FFD400';
 
+// Students from abroad, rounded down to a round hundred: the page quotes it as
+// «5 600+», as a scale rather than a figure to be checked.
+export const FOREIGN = 5600;
+
 export const STUDENTS = CITIES.reduce((n, c) => n + c.students, 0);
 export const STAFF = CITIES.reduce((n, c) => n + c.staff, 0);
 export const HSE_TOTAL = STUDENTS + STAFF + LYCEUM;
