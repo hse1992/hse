@@ -48,15 +48,98 @@ const MODES = [
 // up at the rear: Moscow brings up the rear and Perm leads.
 const TAIL_FIRST = CITIES.slice();
 
+const HOLDS = `Он вмещает ${PER_BUS} ${plural(PER_BUS, 'вышкинца', 'вышкинца', 'вышкинцев')}`;
+
+// The electric bus drawn after assets/electrobus.jpeg, with the caption painted
+// along its side. It is needed twice — in the title card and in the legend of
+// the picture — and the clip path inside it has to be named anew each time, or
+// the second bus would be cut by the shape of the first.
+function busPicture(id, cls, attrs = '') {
+  const body = 'M116 30a22 22 0 0 1 22-22h396a22 22 0 0 1 22 22v78'
+    + 'a8 8 0 0 1-8 8H124a8 8 0 0 1-8-8z';
+  return `
+    <svg class="${cls}" ${attrs} viewBox="110 0 452 132"
+         role="img" aria-label="Это электробус. ${HOLDS}">
+      <!-- the scallops are painted on the body, so they are cut by it -->
+      <clipPath id="${id}"><path d="${body}"></path></clipPath>
+      <!-- body: flat roof, both ends of the same shape, four lengths
+           to one height as on the photograph -->
+      <path d="${body}" fill="var(--ebus-body)"></path>
+      <path d="M112 22q11-11 22 0 q11-11 22 0 q11-11 22 0 q11-11 22 0 q11-11 22 0 q11-11 22 0 q11-11 22 0 q11-11 22 0 q11-11 22 0 q11-11 22 0 q11-11 22 0 q11-11 22 0 q11-11 22 0 q11-11 22 0 q11-11 22 0 q11-11 22 0 q11-11 22 0 q11-11 22 0 q11-11 22 0 q11-11 22 0 q11-11 22 0 q11-11 22 0v-16H112z" fill="var(--ebus-wave)" clip-path="url(#${id})"></path>
+      <!-- windows, the two doors and the windscreen at the front -->
+      <g fill="var(--ebus-glass)">
+        <rect x="128" y="26" width="60" height="40" rx="7"></rect>
+        <rect x="194" y="26" width="60" height="40" rx="7"></rect>
+        <rect x="326" y="26" width="60" height="40" rx="7"></rect>
+        <rect x="458" y="26" width="60" height="40" rx="7"></rect>
+        <rect x="260" y="26" width="60" height="62" rx="7"></rect>
+        <rect x="392" y="26" width="60" height="62" rx="7"></rect>
+        <rect x="536" y="26" width="20" height="48" rx="6" clip-path="url(#${id})"></rect>
+      </g>
+      <!-- lights -->
+      <rect x="540" y="92" width="14" height="12" rx="3" fill="var(--ebus-light)"></rect>
+      <rect x="120" y="92" width="14" height="12" rx="3" fill="var(--ebus-stop)"></rect>
+      <!-- the caption, painted right across the middle of the side -->
+      <g text-anchor="middle" fill="#FFFFFF">
+        <text x="330" y="60" font-size="34" font-weight="700">Это электробус.</text>
+        <text x="330" y="86" font-size="20" font-weight="600">${HOLDS}</text>
+      </g>
+      <!-- wheels: whole, standing a fifth of themselves below the body -->
+      <g>
+        <circle cx="196" cy="106" r="17" fill="var(--bus-wheel)"></circle>
+        <circle cx="196" cy="106" r="6.5" fill="var(--ebus-hub)"></circle>
+        <circle cx="470" cy="106" r="17" fill="var(--bus-wheel)"></circle>
+        <circle cx="470" cy="106" r="6.5" fill="var(--ebus-hub)"></circle>
+      </g>
+    </svg>`;
+}
+
+// The three sentences of the subtitle, told one by one. The reader gets the
+// number of first-years first, then what it takes to carry them by bus, then
+// the same by metro — each with the thing itself and how many of them.
+const SAID = [
+  `За одну приемную кампанию Вышка зачислила ${nf(ADMITTED)} ${plural(ADMITTED, 'первокурсника', 'первокурсника', 'первокурсников')}.`,
+  `Чтобы увезти их всех разом, нужно ${nf(BUSES_TOTAL)} ${plural(BUSES_TOTAL, 'электробус', 'электробуса', 'электробусов')}.`,
+  `А на метро — ${nf(CARS_TOTAL)} ${plural(CARS_TOTAL, 'вагон', 'вагона', 'вагонов')}, то есть ${TRAINS} ${plural(TRAINS, 'полный поезд', 'полных поезда', 'полных поездов')}`
+];
+
 export const meta = {
   id: 'metro',
+  // The title card of the section fills in as the reader scrolls: first the
+  // heading with one sentence, then a sentence and a picture at a time.
+  introStages: 3,
   // The word before the name depends on what the reader is riding, so the
   // module changes it when the mode is switched.
   // The name of the station is the station board itself — the same one in
   // both modes.
   title: 'Следующая <span data-el="stop">остановка</span> '
     + '<img class="metro-tablo" src="assets/tablo-vyshkinskaya.svg" alt="Вышкинская">',
-  subtitle: `За одну приемную кампанию Вышка зачислила ${nf(ADMITTED)} ${plural(ADMITTED, 'первокурсника', 'первокурсника', 'первокурсников')}. Чтобы увезти их всех разом, нужно ${nf(BUSES_TOTAL)} ${plural(BUSES_TOTAL, 'электробус', 'электробуса', 'электробусов')}. А на метро — ${nf(CARS_TOTAL)} ${plural(CARS_TOTAL, 'вагон', 'вагона', 'вагонов')}, то есть ${TRAINS} ${plural(TRAINS, 'полный поезд', 'полных поезда', 'полных поездов')}`
+  // Everything below the first line belongs to the title card: the pictures
+  // and the multipliers fold away as the card settles, and what is left reads
+  // as the plain subtitle of the section. All of it is phrasing content — the
+  // page shell puts the subtitle inside a <p>.
+  subtitle: `
+    <span class="metro-brief">
+      <span class="metro-brief-line">${SAID[0]}</span>
+      <span class="metro-brief-line intro-stage" data-stage="1">
+        <span>${SAID[1]}</span>
+        <span class="metro-brief-fig metro-brief-fig-bus">
+          ${busPicture('ebus-brief', 'metro-brief-bus')}
+          <span class="metro-brief-times">&times;&nbsp;${nf(BUSES_TOTAL)}</span>
+        </span>
+      </span>
+      <span class="metro-brief-line intro-stage" data-stage="2">
+        <span>${SAID[2]}</span>
+        <span class="metro-brief-fig metro-brief-fig-train">
+          <!-- the styles of the module arrive with the module, a moment after
+               the shell has drawn the heading, and the file is 5446 px wide:
+               this keeps it in the page for that moment -->
+          <img class="metro-brief-train" style="max-width: 100%"
+               src="assets/metro-train.png" alt="" aria-hidden="true">
+          <span class="metro-brief-times">&times;&nbsp;${TRAINS}</span>
+        </span>
+      </span>
+    </span>`
 };
 
 export function init(root) {
@@ -130,6 +213,90 @@ export function init(root) {
         width: min(100%, 8.46em);
         height: auto;
         vertical-align: -0.4em;
+      }
+
+      /* The subtitle of the section, which doubles as the title card. The card
+         is what the reader meets first: the heading with one sentence, then a
+         sentence and a picture at a time as they scroll. The shell squeezes
+         each .intro-stage shut until its turn comes; everything here is about
+         what happens afterwards, when the card settles into a plain subtitle.
+
+         --intro-body is how far it has settled, 0 on the card and 1 in place.
+         The pictures fold away over that stretch and the blank lines between
+         the sentences close up, so what is left is an ordinary paragraph. The
+         fold runs three times as fast as the card: the heading is still on its
+         way down when the card is already a paragraph, and the two do not have
+         to cross each other on the screen. */
+      .metro-brief {
+        --fold: clamp(0, 1 - var(--intro-body, 1) * 3, 1);
+        display: flex;
+        flex-direction: column;
+        gap: calc(var(--fold) * 0.9em);
+      }
+
+      /* A plain block, not a column: the shell squeezes a stage shut by its
+         height, and the parts of a flex column would be squeezed along with
+         it — the block would then have nothing left to report as the height it
+         wants to grow to. */
+      .metro-brief-line {
+        display: block;
+      }
+
+      /* The picture of a stage, with its multiplier beside it. Its height is
+         written down rather than measured, so that folding it away is a matter
+         of one number going to zero; the picture inside keeps to that height
+         and shrinks with it instead of being cut off. */
+      .metro-brief-fig {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        margin-top: calc(var(--fold) * 0.5em);
+        height: calc(var(--fold) * var(--fig-h));
+        opacity: var(--fold);
+        overflow: hidden;
+      }
+
+      .metro-brief-fig-bus { --fig-h: 118px; }
+      .metro-brief-fig-train { --fig-h: 40px; }
+
+      /* The bus keeps to the height of the row and takes the width that goes
+         with it, but it gives that width up when the screen is too narrow for
+         it and the multiplier both — the drawing then fits itself into what is
+         left instead of running off the edge. */
+      .metro-brief-bus {
+        flex: 0 1 auto;
+        min-width: 0;
+        height: 100%;
+        width: auto;
+      }
+
+      /* The train is 31 lengths to one height, so it takes the whole width it
+         is given and object-fit finds the height that fits. */
+      .metro-brief-train {
+        flex: 1;
+        min-width: 0;
+        height: 100%;
+        object-fit: contain;
+        object-position: left center;
+      }
+
+      .metro-brief-times {
+        flex: none;
+        font-size: 1.375rem;
+        font-weight: 700;
+        color: var(--text);
+        letter-spacing: -0.02em;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+      }
+
+      /* On a phone the card is read on a screen it has to fit into whole, so
+         the pictures give up the height they can spare. */
+      @media (max-width: 860px) {
+        .metro-brief-fig { gap: 10px; }
+        .metro-brief-fig-bus { --fig-h: 52px; }
+        .metro-brief-fig-train { --fig-h: 24px; }
+        .metro-brief-times { font-size: 1.0625rem; }
       }
 
       /* The legend sample is a whole train, so it replaces the single bar of
@@ -305,40 +472,7 @@ export function init(root) {
                   <path data-el="arrowHead" fill="var(--ebus-arrow)"></path>
                 </svg>
 
-                <svg class="metro-legend-bus" data-el="legendBus" viewBox="110 0 452 132"
-                     role="img" aria-label="Это электробус. Он вмещает ${PER_BUS} ${plural(PER_BUS, 'вышкинца', 'вышкинца', 'вышкинцев')}">
-                  <!-- the scallops are painted on the body, so they are cut by it -->
-                  <clipPath id="ebus-body"><path d="M116 30a22 22 0 0 1 22-22h396a22 22 0 0 1 22 22v78a8 8 0 0 1-8 8H124a8 8 0 0 1-8-8z"></path></clipPath>
-                  <!-- body: flat roof, both ends of the same shape, four lengths
-                       to one height as on the photograph -->
-                  <path d="M116 30a22 22 0 0 1 22-22h396a22 22 0 0 1 22 22v78a8 8 0 0 1-8 8H124a8 8 0 0 1-8-8z" fill="var(--ebus-body)"></path>
-                  <path d="M112 22q11-11 22 0 q11-11 22 0 q11-11 22 0 q11-11 22 0 q11-11 22 0 q11-11 22 0 q11-11 22 0 q11-11 22 0 q11-11 22 0 q11-11 22 0 q11-11 22 0 q11-11 22 0 q11-11 22 0 q11-11 22 0 q11-11 22 0 q11-11 22 0 q11-11 22 0 q11-11 22 0 q11-11 22 0 q11-11 22 0 q11-11 22 0 q11-11 22 0v-16H112z" fill="var(--ebus-wave)" clip-path="url(#ebus-body)"></path>
-                  <!-- windows, the two doors and the windscreen at the front -->
-                  <g fill="var(--ebus-glass)">
-                    <rect x="128" y="26" width="60" height="40" rx="7"></rect>
-                    <rect x="194" y="26" width="60" height="40" rx="7"></rect>
-                    <rect x="326" y="26" width="60" height="40" rx="7"></rect>
-                    <rect x="458" y="26" width="60" height="40" rx="7"></rect>
-                    <rect x="260" y="26" width="60" height="62" rx="7"></rect>
-                    <rect x="392" y="26" width="60" height="62" rx="7"></rect>
-                    <rect x="536" y="26" width="20" height="48" rx="6" clip-path="url(#ebus-body)"></rect>
-                  </g>
-                  <!-- lights -->
-                  <rect x="540" y="92" width="14" height="12" rx="3" fill="var(--ebus-light)"></rect>
-                  <rect x="120" y="92" width="14" height="12" rx="3" fill="var(--ebus-stop)"></rect>
-                  <!-- the caption, painted right across the middle of the side -->
-                  <g text-anchor="middle" fill="#FFFFFF">
-                    <text x="330" y="60" font-size="34" font-weight="700">Это электробус.</text>
-                    <text x="330" y="86" font-size="20" font-weight="600">Он вмещает ${PER_BUS} ${plural(PER_BUS, 'вышкинца', 'вышкинца', 'вышкинцев')}</text>
-                  </g>
-                  <!-- wheels: whole, standing a fifth of themselves below the body -->
-                  <g>
-                    <circle cx="196" cy="106" r="17" fill="var(--bus-wheel)"></circle>
-                    <circle cx="196" cy="106" r="6.5" fill="var(--ebus-hub)"></circle>
-                    <circle cx="470" cy="106" r="17" fill="var(--bus-wheel)"></circle>
-                    <circle cx="470" cy="106" r="6.5" fill="var(--ebus-hub)"></circle>
-                  </g>
-                </svg>
+                ${busPicture('ebus-legend', 'metro-legend-bus', 'data-el="legendBus"')}
               </div>
               <span data-el="legendText"></span>
             </div>
