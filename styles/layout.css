@@ -183,6 +183,12 @@ button { font-family: inherit; }
   opacity: var(--intro-body, 1);
 }
 
+/* Wraps the heading so that on a narrow screen it can be pinned on its own for
+   exactly the length of the intro zone. Invisible on a wide screen. */
+.viz-intro-hold {
+  display: contents;
+}
+
 /* A section that tells its story step by step: it is several screens tall and
    its contents stay pinned while the reader scrolls through them. Set up by
    mountScene() in lib/page.js, and only ever on a wide screen. */
@@ -602,6 +608,34 @@ button { font-family: inherit; }
   .viz-section {
     min-height: 0;
     padding: 8px 16px 32px;
+  }
+
+  /* Title card on a narrow screen. Pinning the whole section would cut off a
+     stacked block, so only the heading is pinned — for the height of the intro
+     zone, after which it lets go and the block scrolls on as usual. */
+  .viz-intro,
+  .viz-scene {
+    height: auto;
+    display: flex;
+    padding: 8px 16px 32px;
+  }
+
+  .viz-intro > .viz-container,
+  .viz-scene > .viz-container {
+    position: static;
+    height: auto;
+    max-width: none;
+    padding: 0;
+  }
+
+  .viz-intro .viz-intro-hold {
+    display: block;
+    height: var(--intro-hold, calc(var(--intro-zone, 1.35) * 100dvh));
+  }
+
+  .viz-intro .viz-header {
+    position: sticky;
+    top: 8px;
   }
 
   .viz-container {
