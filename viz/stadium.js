@@ -10,7 +10,11 @@ const TOTAL = 81000;
 export const meta = {
   id: 'stadium',
   title: 'В Лужниках все свои',
-  subtitle: `Лужники — самая крупная арена России, вмещающая ${nf(TOTAL)} человек. Вышка такая большая, что может заполнить ее практически полностью`
+  subtitle: `Лужники — самая крупная арена России, вмещающая ${nf(TOTAL)} человек. Вышка такая большая, что может заполнить ее практически полностью`,
+  // Opens with the heading alone, then the empty arena fills up campus by
+  // campus; the last step hands the stadium over to the reader.
+  intro: true,
+  steps: 7
 };
 
 export function init(root) {
@@ -28,7 +32,51 @@ export function init(root) {
   ];
 
   // ---------- Markup ----------
+  // While the scene is running the controls step aside: there is only the
+  // arena, the share of it that is full, and a line saying who just came in.
+  root.classList.add('stadium-body');
   root.innerHTML = `
+    <style>
+      .stadium-figure {
+        display: none;
+        flex-direction: column;
+        gap: 4px;
+      }
+
+      .stadium-figure-value {
+        font-size: 4rem;
+        font-weight: 700;
+        line-height: 1;
+        letter-spacing: -0.03em;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .stadium-figure-note {
+        font-size: 1.0625rem;
+        color: var(--text-secondary);
+      }
+
+      .stadium-body.is-telling .stadium-figure { display: flex; }
+      .stadium-body.is-telling .col-left,
+      .stadium-body.is-telling .meter-card { display: none; }
+
+      /* Handing over: the controls arrive rather than blink into place. */
+      .stadium-body:not(.is-telling) .col-left,
+      .stadium-body:not(.is-telling) .meter-card {
+        animation: stadium-arrive 320ms ease both;
+      }
+
+      @keyframes stadium-arrive {
+        from { opacity: 0; transform: translateY(8px); }
+        to { opacity: 1; transform: none; }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .stadium-body:not(.is-telling) .col-left,
+        .stadium-body:not(.is-telling) .meter-card { animation: none; }
+      }
+    </style>
+
     <div class="col-left">
       <div class="kind-row" data-el="kindRow"></div>
       <div class="city-list" data-el="cityList"></div>
@@ -39,12 +87,18 @@ export function init(root) {
     </div>
 
     <div class="col-right">
+      <div class="stadium-figure">
+        <div class="stadium-figure-value" data-el="figureValue"></div>
+        <div class="stadium-figure-note" data-el="figureNote"></div>
+      </div>
+
       <div class="meter-card">
         <div class="meter-header">
           <div class="meter-title">Занято мест</div>
           <div class="meter-value"><strong data-el="filled"></strong> из ${nf(TOTAL)} — <span data-el="pct"></span></div>
         </div>
         <div class="meter-bar" data-el="bar"></div>
+        <div class="meter-note" data-el="note"></div>
       </div>
 
       <div class="canvas-card">
@@ -354,6 +408,7 @@ export function init(root) {
       <span class="kind-label">${def.label}</span>
     `;
     item.addEventListener('click', () => {
+      takeOver();
       state.kinds[def.key] = !state.kinds[def.key];
       render();
     });
@@ -377,6 +432,7 @@ export function init(root) {
     `;
     const toggleBtn = card.querySelector('.toggle');
     toggleBtn.addEventListener('click', () => {
+      takeOver();
       state.active[c.key] = !state.active[c.key];
       render();
     });
@@ -392,11 +448,13 @@ export function init(root) {
   });
 
   $('clearAll').addEventListener('click', () => {
+    takeOver();
     CITIES.forEach((c) => { state.active[c.key] = false; });
     KIND_DEFS.forEach((k) => { state.kinds[k.key] = false; });
     render();
   });
   $('restoreAll').addEventListener('click', () => {
+    takeOver();
     CITIES.forEach((c) => { state.active[c.key] = true; });
     KIND_DEFS.forEach((k) => { state.kinds[k.key] = true; });
     render();
@@ -461,8 +519,10 @@ export function init(root) {
   const stacked = window.matchMedia('(max-width: 860px)');
 
   function alignColumns() {
-    if (stacked.matches) {
-      colRight.style.paddingTop = '';   // one column: nothing to line up with
+    // One column, or the controls are away telling the story: nothing to line
+    // the meter up with.
+    if (stacked.matches || root.classList.contains('is-telling')) {
+      colRight.style.paddingTop = '';
       return;
     }
     const gap = parseFloat(getComputedStyle(colLeft).rowGap) || 0;
@@ -472,7 +532,59 @@ export function init(root) {
   new ResizeObserver(alignColumns).observe(kindRow);
   stacked.addEventListener('change', alignColumns);
 
+  // ---------- Scene ----------
+  // The arena starts empty and fills up campus by campus, smallest first, so
+  // every group visibly adds its own patch of stands. The last step hands the
+  // stadium over: the controls arrive and the reader takes it from there.
+  const ARRIVALS = [
+    { key: 'lyceum', n: LYCEUM, note: `Первыми заходят лицеисты, их ${nf(LYCEUM)}` },
+    ...['perm', 'nn', 'spb', 'msk'].map((key) => {
+      const c = CITIES.find((x) => x.key === key);
+      const n = c.students + c.staff;
+      return { key, n, note: `${c.name} — ${nf(n)} ${plural(n, 'человек', 'человека', 'человек')}` };
+    })
+  ];
+  const LAST = meta.steps - 1;             // the live stadium, with controls
+
+  const noteEl = $('note');
+  const figureValue = $('figureValue');
+  const figureNote = $('figureNote');
+  let userDrives = false;
+
+  function takeOver() {
+    if (userDrives) return;
+    userDrives = true;
+    noteEl.textContent = 'Стадион ваш: попробуйте выключить город или категорию';
+  }
+
+  function step(i) {
+    const telling = i < LAST;
+    root.classList.toggle('is-telling', telling);
+
+    if (telling) {
+      userDrives = false;                  // scrolled back into the story
+      const came = ARRIVALS.slice(0, i);   // step 0 is the empty arena
+      CITIES.forEach((c) => { state.active[c.key] = came.some((a) => a.key === c.key); });
+      state.kinds.lyceum = came.some((a) => a.key === 'lyceum');
+      state.kinds.students = true;
+      state.kinds.staff = true;
+      figureNote.textContent = i === 0
+        ? `Пустая арена — ${nf(TOTAL)} мест`
+        : ARRIVALS[i - 1].note;
+    } else if (!userDrives) {
+      CITIES.forEach((c) => { state.active[c.key] = true; });
+      KIND_DEFS.forEach((k) => { state.kinds[k.key] = true; });
+      noteEl.textContent = 'Стадион ваш: попробуйте выключить город или категорию';
+    }
+
+    render();
+    figureValue.textContent = pct(filledCount(), TOTAL);
+    alignColumns();
+  }
+
   render();
   paint();
   alignColumns();
+
+  return { step };
 }

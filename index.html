@@ -12,8 +12,11 @@
 <main>
   <header class="page-header">
     <div class="page-header-inner">
-      <h1>На сколько б<svg class="hse-o" viewBox="0 0 283.47 283.47" aria-hidden="true" focusable="false"><circle class="hse-o-disc" cx="141.73" cy="141.74" r="141.73"/><path class="hse-o-mark" d="M135.6,133.32c32.26,0,44.81,21.45,44.81,60.69v29.51h-20.69v-63.35h-23.9v63.42h-18.28V53.65h18.78c7.03,0,17.71,1.58,25.25,10.95c3.93,4.73,6.34,11.04,7.19,17.38h-32.94v9.35h33.23c-0.27,6.04-1.49,12.8-7.42,19.97c-5.2,6.51-13.76,12.56-25.83,12.56c-0.06,0-0.13,0-0.2,0V133.32 M206.41,197.55c0-34.86-11.26-58.29-40.45-68.6c9.21-3.77,14.82-9.58,18.49-13.99c7.01-8.06,9.88-17.96,9.88-27.31c0-7.56-2.08-22.65-15.35-33.04c-9.1-7.04-17.16-10.43-36.43-10.43h-9.75c-0.3-0.01-0.6-0.01-0.96-0.01H91.65v189.79h114.76V197.55z"/></svg><span class="sr-only">о</span>льшая</h1>
-      <p>Высшая школа экономики — один из самых больших университетов России. Но даже зная основные показатели, непросто осознать реальный масштаб Вышки. Этот проект поможет вам прочувствовать масштаб нашего университета</p>
+      <h1>На сколько б<svg class="hse-o" viewBox="0 0 283.47 283.47" aria-hidden="true" focusable="false"><circle class="hse-o-disc" cx="141.73" cy="141.74" r="141.73"/><path class="hse-o-mark" d="M135.6,133.32c32.26,0,44.81,21.45,44.81,60.69v29.51h-20.69v-63.35h-23.9v63.42h-18.28V53.65h18.78c7.03,0,17.71,1.58,25.25,10.95c3.93,4.73,6.34,11.04,7.19,17.38h-32.94v9.35h33.23c-0.27,6.04-1.49,12.8-7.42,19.97c-5.2,6.51-13.76,12.56-25.83,12.56c-0.06,0-0.13,0-0.2,0V133.32 M206.41,197.55c0-34.86-11.26-58.29-40.45-68.6c9.21-3.77,14.82-9.58,18.49-13.99c7.01-8.06,9.88-17.96,9.88-27.31c0-7.56-2.08-22.65-15.35-33.04c-9.1-7.04-17.16-10.43-36.43-10.43h-9.75c-0.3-0.01-0.6-0.01-0.96-0.01H91.65v189.79h114.76V197.55z"/></svg><span class="sr-only">о</span>льш<span class="stressed">а<i></i></span>я</h1>
+      <div class="page-header-text">
+        <p>Высшая школа экономики — один из самых больших университетов России. Но даже зная основные показатели, непросто осознать реальный масштаб Вышки.</p>
+        <p>Этот проект поможет вам прочувствовать, на сколько большой наш университет</p>
+      </div>
     </div>
   </header>
 
@@ -31,6 +34,7 @@
   import * as world from './viz/world.js';
   import * as area from './viz/area.js';
   import * as study from './viz/study.js';
+  import { mountProgress, whenVisible, mountScene, mountIntro } from './lib/page.js';
 
   // Every visualisation on the page, in the order it appears.
   // To add one: write viz/<name>.js, import it, append it here.
@@ -38,7 +42,7 @@
 
   const page = document.getElementById('page');
 
-  MODULES.forEach((mod) => {
+  MODULES.forEach((mod, index) => {
     const section = document.createElement('section');
     section.className = 'viz-section';
     section.id = mod.meta.id;
@@ -52,8 +56,30 @@
       </div>
     `;
     page.appendChild(section);
-    mod.init(section.querySelector('.viz-body'));
+
+    // A module that tells its story step by step declares `steps` in meta and
+    // returns { step } from init. The scene is set up right away so the section
+    // has its full height from the start; the steps start arriving once the
+    // module itself is there.
+    let api = null;
+    const scene = mod.meta.steps
+      ? mountScene(section, mod.meta.steps, (i) => api && api.step(i), { intro: !!mod.meta.intro })
+      : null;
+
+    // The first section hands over from the title of the page: its heading
+    // arrives on its own in the middle of the screen and then takes its place.
+    const intro = index === 0 && !scene ? mountIntro(section) : null;
+
+    // A section builds itself when the reader gets to it, so whatever it
+    // animates on start plays in front of them.
+    whenVisible(section, () => {
+      api = mod.init(section.querySelector('.viz-body'));
+      if (scene) scene.sync();
+      if (intro) intro.sync();
+    });
   });
+
+  mountProgress();
 </script>
 </body>
 </html>

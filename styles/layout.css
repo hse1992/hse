@@ -27,12 +27,27 @@ a:hover { color: var(--link-hover); }
 
 button { font-family: inherit; }
 
+/* ---------- Reading progress ---------- */
+
+.page-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background: var(--hse-blue);
+  transform: scaleX(0);
+  transform-origin: 0 50%;
+  z-index: 50;
+  pointer-events: none;
+}
+
 /* ---------- Page header ---------- */
 
-/* Shorter than a full screen on purpose: the top of the first visualisation
-   stays visible and invites scrolling. */
+/* The opening screen belongs to the title alone — the first section starts
+   only once the reader scrolls past it. */
 .page-header {
-  min-height: 62vh;
+  min-height: 100dvh;
   padding: 24px;
   display: flex;
   align-items: center;
@@ -44,15 +59,15 @@ button { font-family: inherit; }
   max-width: 1320px;
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 40px;
 }
 
 .page-header h1 {
   margin: 0;
-  font-size: clamp(2.75rem, 6.7vw, 4.75rem);
+  font-size: clamp(3.25rem, 9.6vw, 8.5rem);
   font-weight: 700;
-  line-height: 1.0;
-  letter-spacing: -0.035em;
+  line-height: 0.98;
+  letter-spacing: -0.04em;
   text-wrap: balance;
 }
 
@@ -69,6 +84,27 @@ button { font-family: inherit; }
 .hse-o-disc { fill: var(--hse-blue); }
 .hse-o-mark { fill: #FFFFFF; }
 
+/* Stress mark. HSE Sans has no combining acute, so a combining character makes
+   the browser render the whole cluster — the letter included — in a fallback
+   font, and the letter changes shape. Instead the letter stays untouched and
+   the stroke is drawn above it. */
+.stressed {
+  position: relative;
+  display: inline-block;
+  line-height: 1;
+}
+
+.stressed i {
+  position: absolute;
+  left: 50%;
+  bottom: 0.62em;
+  width: 0.075em;
+  height: 0.2em;
+  border-radius: 0.04em;
+  background: currentColor;
+  transform: translateX(-50%) rotate(20deg);
+}
+
 /* The letter the mark replaces: invisible, but still copied and read aloud. */
 .sr-only {
   position: absolute;
@@ -80,12 +116,20 @@ button { font-family: inherit; }
   white-space: nowrap;
 }
 
+/* Two paragraphs with a blank line between them — the gap is one line of the
+   text itself, so it stays a blank line at any size. */
+.page-header-text {
+  display: flex;
+  flex-direction: column;
+  font-size: 1.625rem;
+  gap: 1.45em;
+}
+
 .page-header p {
   margin: 0;
-  max-width: 760px;
-  font-size: 1.0625rem;
+  font-size: 1.625rem;
   font-weight: 400;
-  line-height: 1.5;
+  line-height: 1.45;
   color: var(--text-secondary);
   text-wrap: pretty;
 }
@@ -108,11 +152,61 @@ button { font-family: inherit; }
   min-height: 0;
 }
 
+/* A section that opens with its heading alone in the middle of the screen and
+   then settles into place. Driven by mountIntro() in lib/page.js, which keeps
+   --intro-k (size), --intro-dy (shift) and --intro-body (how far the body has
+   faded in) up to date while scrolling. */
+.viz-intro {
+  height: calc(var(--intro-screens, 2.35) * 100vh);
+  min-height: 0;
+  display: block;
+  padding: 0;
+}
+
+.viz-intro > .viz-container {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 24px 24px 20px;
+}
+
+.viz-intro .viz-header {
+  width: calc(100% / var(--intro-k, 1));
+  transform: translateY(var(--intro-dy, 0px)) scale(var(--intro-k, 1));
+  transform-origin: left top;
+  will-change: transform;
+}
+
+.viz-intro .viz-body {
+  opacity: var(--intro-body, 1);
+}
+
+/* A section that tells its story step by step: it is several screens tall and
+   its contents stay pinned while the reader scrolls through them. Set up by
+   mountScene() in lib/page.js, and only ever on a wide screen. */
+.viz-scene {
+  height: calc(var(--scene-screens, 2) * 100vh);
+  min-height: 0;
+  display: block;
+  padding: 0;
+}
+
+.viz-scene > .viz-container {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 24px 24px 20px;
+}
+
 .viz-header {
   flex: none;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 14px;
   margin-bottom: 10px;
 }
 
@@ -140,6 +234,12 @@ button { font-family: inherit; }
   display: flex;
   gap: 16px;
   align-items: stretch;
+}
+
+/* Not built yet — hold the space so the page keeps its height and the
+   progress bar does not jump as sections come to life. */
+.viz-body:empty {
+  min-height: 72vh;
 }
 
 .col-left {
@@ -408,6 +508,19 @@ button { font-family: inherit; }
   font-variant-numeric: tabular-nums;
 }
 
+/* Caption under the meter — a scene uses it to say what the reader is
+   looking at right now. Takes no room when there is nothing to say. */
+.meter-note {
+  font-size: 0.8125rem;
+  line-height: 1.35;
+  color: var(--text-secondary);
+  transition: opacity 260ms ease;
+}
+
+.meter-note:empty {
+  display: none;
+}
+
 .meter-bar {
   height: 16px;
   border-radius: 8px;
@@ -473,16 +586,17 @@ button { font-family: inherit; }
    Sections stop being screen-height — they are as tall as their content. */
 @media (max-width: 860px) {
   .page-header {
-    min-height: 46dvh;
+    min-height: 100dvh;
     padding: 20px 16px 28px;
   }
 
   .page-header-inner {
-    gap: 14px;
+    gap: 26px;
   }
 
+  .page-header-text,
   .page-header p {
-    font-size: 1rem;
+    font-size: 1.375rem;
   }
 
   .viz-section {
