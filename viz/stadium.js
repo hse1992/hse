@@ -16,8 +16,8 @@ export const meta = {
   // Hands the reader over from the trains: a number they have just met, and
   // the question it raises.
   lead: {
-    value: `${nf(ADMITTED_ROUND)} ${plural(ADMITTED_ROUND, 'первокурсник', 'первокурсника', 'первокурсников')}`,
-    text: 'Наверно, чтобы вместить всех людей из Вышки, нужен целый стадион'
+    value: `Только первокурсников ${nf(ADMITTED_ROUND)}`,
+    text: 'Похоже, чтобы собрать всех людей из Вышки, нужен целый стадион…'
   },
   // The scarf closes the line. Sized by width, like the station board in the
   // metro section: the file is 600 by 164, so it keeps its own proportions and
