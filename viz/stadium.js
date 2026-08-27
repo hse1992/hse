@@ -259,10 +259,15 @@ export function init(root) {
 
   function segments() {
     const { kinds } = state;
+    // While the story runs a campus is one colour: it arrives as a whole, and
+    // there is nothing on screen yet to say what the second shade would mean.
+    // The split into students and staff appears with the controls, next to the
+    // legend that explains it.
+    const split = !root.classList.contains('is-telling');
     const out = [];
     CITIES.forEach((c) => {
       if (kinds.students) out.push({ key: c.key, n: c.students, color: c.color });
-      if (kinds.staff) out.push({ key: c.key, n: c.staff, color: c.colorLight });
+      if (kinds.staff) out.push({ key: c.key, n: c.staff, color: split ? c.colorLight : c.color });
     });
     if (kinds.lyceum) out.push({ key: 'lyceum', n: LYCEUM, color: LYCEUM_COLOR, always: true });
     return out;
