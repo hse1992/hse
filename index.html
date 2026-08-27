@@ -58,7 +58,7 @@
     section.innerHTML = `
       <div class="viz-container">
         ${mod.meta.lead ? `
-          <div class="viz-lead" data-exit="${mod.meta.lead.exit || 'aside'}">
+          <div class="viz-lead" data-exit="${mod.meta.lead.exit || 'aside'}" data-fit="${mod.meta.lead.fit || 'top'}">
             <div class="viz-lead-value">${mod.meta.lead.value}</div>
             <p class="viz-lead-text">${mod.meta.lead.text}</p>
           </div>

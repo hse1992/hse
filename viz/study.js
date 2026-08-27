@@ -35,26 +35,93 @@ const YEARS_TOTAL = CITIES.reduce(
   (n, c) => n + LEVELS.reduce((m, l) => m + countOf(c, l) * l.years, 0), 0
 );
 
+// The year the answer is counted back from. Pinned rather than taken from the
+// clock: every year the reader can land on has a historical event attached to
+// it in data/history.js, and a moving "now" would shift them all.
+const NOW = 2026;
+
+// The scale under the picture: from the earliest year the section can reach
+// (all the programmes at once) to today, with a tick every half century.
+const START = NOW - YEARS_TOTAL;
+const FOUNDED = 1992;              // the year the university itself started
+const TICK = 50;
+const TODAY_YEAR = new Date().getFullYear();
+
+// Half-century ticks on round years, every second one taller. The lead-in
+// screen shows the same scale, so they are laid out once and drawn twice —
+// as markup there, as elements in the block itself.
+const TICKS = [];
+for (let y = Math.ceil(START / TICK) * TICK; y < NOW; y += TICK) {
+  TICKS.push({ major: y % 100 === 0, at: ((y - START) / YEARS_TOTAL) * 100 });
+}
+
+// The figure each beat of the lead-in turns on, picked out in the corporate
+// blue — same as on the screens before this one. Painted inline: the shell
+// draws the screen before the styles of the module arrive.
+const mark = (text) =>
+  `<span class="study-lead-mark" style="background: var(--hse-blue); color: var(--card)">${text}</span>`;
+
+// One square per programme — all alike: the screen is about how many of them
+// there are, and the campuses have their own colours later on.
+const LEAD_DOTS = '<span class="study-lead-dot"></span>'.repeat(PROGRAMS_TOTAL);
+
+// What was happening in the world when a student taking every programme one
+// after another would have had to start — the far end of the scale.
+const FIRST = HISTORY[START];
+
+// The picture the second beat stands on: the card the block itself draws,
+// with the year and the pointer already at their far end.
+const LEAD_CARD = `
+  <span class="study-lead-row">
+    <span class="study-art"><svg viewBox="0 0 64 64" aria-hidden="true" focusable="false">${FIRST.art}</svg></span>
+    <span class="study-lead-col">
+      <span class="study-since">Начинать пришлось бы в <b>${START}</b> году</span>
+      <span class="study-event">Тогда ${FIRST.text}</span>
+    </span>
+  </span>
+  <span class="study-lead-time">
+    <span class="study-track">
+      <span class="study-line"></span>
+      ${TICKS.map((t) => `<span class="study-tick${t.major ? ' major' : ''}" style="left:${t.at}%"></span>`).join('')}
+      <span class="study-mark" style="left:0"><span class="study-mark-pin"></span></span>
+    </span>
+    <span class="study-ends"><span>${START}</span><span>${TODAY_YEAR}</span></span>
+  </span>
+`;
+
 export const meta = {
   id: 'study',
+  // Hands the reader over from the buildings: what goes on inside them, then
+  // all of it at once as a square apiece — and that gives way to how long it
+  // would take to sit through them one after another, and to the year such a
+  // student would have had to start in. The last line runs into the heading.
+  lead: {
+    // The screen grows by a whole block at a time, so it holds the middle of
+    // the screen rather than the top edge of the title card to come.
+    fit: 'center',
+    value: 'Во всех этих зданиях студенты обучаются не только экономике',
+    text: '<span class="study-lead-swap">'
+      + '<span class="study-lead-beat intro-stage" data-stage="1">'
+      +   `<span class="study-lead-gone">Вышка обучает по ${mark(`${nf(PROGRAMS_TOTAL)} образовательным программам`)}`
+      +   `<span class="study-lead-dots">${LEAD_DOTS}</span></span></span>`
+      + '<span class="study-lead-beat intro-stage" data-stage="2"><span class="study-lead-come">'
+      +   `Чтобы обучиться на каждой из них, потребуется ${mark(`${nf(YEARS_TOTAL)} ${plural(YEARS_TOTAL, 'год', 'года', 'лет')}`)}`
+      +   `<span class="study-lead-card">${LEAD_CARD}</span>`
+      +   '<span class="study-lead-outro">В общем нужно…</span>'
+      + '</span></span></span>'
+  },
   title: 'Учиться, учиться и еще раз учиться',
-  subtitle: `В Вышке ${nf(PROGRAMS_TOTAL)} образовательных программ. Если поступать на них по очереди, одну за другой, учиться придется ${nf(YEARS_TOTAL)} ${plural(YEARS_TOTAL, 'год', 'года', 'лет')}`
+  // The heading arrives on its own — the reader has just been told all this on
+  // the screen before it. The subtitle comes with the block underneath, on the
+  // same fade: --intro-body is how far that block has arrived.
+  subtitle: `<span class="study-sub" style="opacity: var(--intro-body, 1)">Вышка обучает по ${nf(PROGRAMS_TOTAL)} образовательным программам</span>`,
+  // Opens with that screen and then with the title card, like the sections
+  // before it.
+  intro: true
 };
 
 export function init(root) {
   'use strict';
-
-  // The year the answer is counted back from. Pinned rather than taken from
-  // the clock: every year the reader can land on has a historical event
-  // attached to it in data/history.js, and a moving "now" would shift them all.
-  const NOW = 2026;
-
-  // The scale under the picture: from the earliest year the section can reach
-  // (all the programmes at once) to today, with a tick every half century.
-  const START = NOW - YEARS_TOTAL;
-  const FOUNDED = 1992;              // the year the university itself started
-  const TICK = 50;
-  const TODAY_YEAR = new Date().getFullYear();
 
   // ---------- Markup ----------
   // The stage with the big number is specific to this visualisation, so its
@@ -245,6 +312,108 @@ export function init(root) {
         font-variant-numeric: tabular-nums;
       }
 
+      /* ---------- The lead-in screen ---------- */
+
+      /* Both beats stand in one box, one over the other: the first leaves as
+         the second arrives, so the second takes its place instead of being
+         pushed down by it. Each of them grows into place by its own height,
+         so each needs a box of its own. */
+      .study-lead-swap {
+        display: grid;
+        margin-top: 0.45em;
+      }
+
+      .study-lead-beat {
+        grid-area: 1 / 1;
+        align-self: start;
+      }
+
+      /* The two share the box, so they must not be seen through each other:
+         the first is gone by the time the second has come two fifths of the
+         way, and the second only starts showing at half. The page shell owns
+         the opacity of a part while it grows — hence both from the inside, by
+         how far the second one has come. */
+      .study-lead-gone {
+        display: block;
+        opacity: calc(1 - var(--lead-stage-2, 0) * 2.5);
+      }
+
+      .study-lead-come {
+        display: block;
+        opacity: calc(var(--lead-stage-2, 1) * 2 - 1);
+      }
+
+      /* Every programme as a square, in one block under the line that counts
+         them. Spans, not divs — the shell puts the screen inside a <p>. */
+      .study-lead-dots {
+        display: grid;
+        grid-template-columns: repeat(28, 1fr);
+        gap: 4px;
+        max-width: 520px;
+        margin-top: 0.6em;
+      }
+
+      .study-lead-dot {
+        aspect-ratio: 1;
+        border-radius: 3px;
+        background: var(--hse-blue);
+      }
+
+      /* The year the second beat stands on, in the middle of the screen. Set
+         at its own size: the screen around it is scaled up, a card in it is
+         not. */
+      .study-lead-card {
+        display: block;
+        max-width: 600px;
+        margin: 0.7em auto 0;
+        padding: 18px 24px 20px 20px;
+        border-radius: var(--r-canvas-card);
+        background: var(--card);
+        box-shadow: var(--card-shadow);
+      }
+
+      .study-lead-row {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+      }
+
+      .study-lead-col {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 0;
+      }
+
+      .study-lead-card .study-art { width: 96px; height: 96px; }
+      .study-lead-card .study-since { font-size: 1.25rem; }
+      .study-lead-card .study-event { font-size: 1rem; }
+
+      .study-lead-time {
+        display: block;
+        margin-top: 12px;
+        padding: 0 10px;
+      }
+
+      /* Spans, not divs — the shell puts the screen inside a <p>. */
+      .study-lead-card .study-track {
+        display: block;
+      }
+
+      .study-lead-outro {
+        display: block;
+        margin-top: 0.7em;
+      }
+
+      /* The patch on a figure of the screen. Colour comes inline with the
+         markup; what is left here is the shape of it. */
+      .study-lead-mark {
+        padding: 0.06em 0.3em;
+        border-radius: 0.2em;
+        -webkit-box-decoration-break: clone;
+        box-decoration-break: clone;
+      }
+
       @media (max-width: 860px) {
         .study-years { font-size: clamp(2.5rem, 15vw, 4.5rem); }
         .study-caption { font-size: 0.875rem; }
@@ -255,6 +424,16 @@ export function init(root) {
         .study-timeline { margin-top: 14px; padding: 0 20px; }
         .study-track { height: 34px; }
         .study-note { font-size: 0.875rem; }
+
+        /* Fewer squares to a row: at this width 28 of them would be specks. */
+        .study-lead-dots { grid-template-columns: repeat(20, 1fr); gap: 3px; }
+        .study-lead-dot { border-radius: 2px; }
+        .study-lead-card { margin-top: 0.6em; padding: 12px 16px 14px; }
+        .study-lead-row { gap: 12px; }
+        .study-lead-card .study-art { width: 64px; height: 64px; }
+        .study-lead-card .study-since { font-size: 1rem; }
+        .study-lead-card .study-event { font-size: 0.875rem; }
+        .study-lead-time { margin-top: 8px; padding: 0 6px; }
 
         /* The picture has no fixed height of its own, unlike the canvases in
            the other sections: a long event text must not be cut off. */
@@ -484,14 +663,13 @@ export function init(root) {
     };
   });
 
-  // Half-century ticks on round years, every second one taller.
   const track = $('track');
-  for (let y = Math.ceil(START / TICK) * TICK; y < NOW; y += TICK) {
+  TICKS.forEach((t) => {
     const tick = document.createElement('div');
-    tick.className = 'study-tick' + (y % 100 === 0 ? ' major' : '');
-    tick.style.left = `${((y - START) / YEARS_TOTAL) * 100}%`;
+    tick.className = 'study-tick' + (t.major ? ' major' : '');
+    tick.style.left = `${t.at}%`;
     track.insertBefore(tick, markEl);
-  }
+  });
 
   $('clearAll').addEventListener('click', () => {
     CITIES.forEach((c) => { state.active[c.key] = false; });
