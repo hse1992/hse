@@ -30,12 +30,13 @@ export const meta = {
   // section is about, and the wall of flags starts from it. Painted inline —
   // the shell draws the lead-in before the styles of the module arrive.
   lead: {
-    value: `${nf(STUDENTS_ROUND)}+ ${plural(STUDENTS_ROUND, 'студент', 'студента', 'студентов')}`,
+    value: `На стадионе было ${nf(STUDENTS_ROUND)}+ `
+      + plural(STUDENTS_ROUND, 'студент', 'студента', 'студентов'),
     text: `Из них ${nf(FOREIGN)}+ ${plural(FOREIGN, 'иностранец', 'иностранца', 'иностранцев')} `
       + '<span class="world-lead-mark"'
       + ' style="background: var(--hse-blue); color: var(--card)">'
       + `из ${COUNTRIES.length} ${countriesOf(COUNTRIES.length)}</span>`
-      + '. Сразу вспоминаются слова классика…'
+      + '. Вспоминаются слова классика…'
   },
   // Pushkin himself closes the line, the way the scarf closes it on the
   // stadium: a slot shorter than the line holds the width, and the portrait
