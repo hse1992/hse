@@ -43,12 +43,12 @@
   import * as world from './viz/world.js';
   import * as area from './viz/area.js';
   import * as study from './viz/study.js';
-  import * as you from './viz/you.js';
+  import * as each from './viz/each.js';
   import { mountProgress, whenVisible, mountScene, mountIntro } from './lib/page.js';
 
   // Every visualisation on the page, in the order it appears.
   // To add one: write viz/<name>.js, import it, append it here.
-  const MODULES = [metro, stadium, world, area, study, you];
+  const MODULES = [metro, stadium, world, area, study, each];
 
   const page = document.getElementById('page');
 
