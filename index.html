@@ -58,7 +58,7 @@
     section.innerHTML = `
       <div class="viz-container">
         ${mod.meta.lead ? `
-          <div class="viz-lead">
+          <div class="viz-lead" data-exit="${mod.meta.lead.exit || 'aside'}">
             <div class="viz-lead-value">${mod.meta.lead.value}</div>
             <p class="viz-lead-text">${mod.meta.lead.text}</p>
           </div>
@@ -81,7 +81,7 @@
     let api = null;
     const scene = mod.meta.steps
       ? mountScene(section, mod.meta.steps, (i) => api && api.step(i),
-          { intro: !!mod.meta.intro, stages: mod.meta.introStages })
+          { intro: !!mod.meta.intro, stages: mod.meta.introStages, scale: mod.meta.introScale })
       : null;
 
     // The first section hands over from the title of the page: its heading
@@ -89,7 +89,7 @@
     // Any other section can open the same way by asking for it with `intro`.
     // With `introStages` in meta the card fills in part by part on the way.
     const intro = !scene && (index === 0 || mod.meta.intro)
-      ? mountIntro(section, mod.meta.introStages)
+      ? mountIntro(section, mod.meta.introStages, mod.meta.introScale)
       : null;
 
     // A section builds itself when the reader gets to it, so whatever it

@@ -71,6 +71,7 @@
   --house-roof: #8B929C;
   --house-window: #5C82A6;
   --house-door: #6B5B48;
+  --house-window-lit: #FFC85C;
 
   /* Elevation */
   --card-shadow: 0 1px 2px rgba(16, 24, 40, 0.06);

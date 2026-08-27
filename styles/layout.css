@@ -189,7 +189,7 @@ button { font-family: inherit; }
      lead-in is not scaled, so it takes that gap already multiplied — and the
      two subtitles end up on the same line. */
   gap: calc(14px * var(--intro-k, 1.55));
-  transform: translateX(var(--lead-x, 0));
+  transform: translate(var(--lead-x, 0), var(--lead-y, 0));
   will-change: transform;
   pointer-events: none;
 }
@@ -213,6 +213,30 @@ button { font-family: inherit; }
   line-height: 1.4;
   color: var(--text-secondary);
   text-wrap: pretty;
+}
+
+/* A lead-in that stays: it goes up to the top and reads as the heading of the
+   section from then on. It keeps the size it held at, whatever the card behind
+   it is doing, and the block starts below it rather than under it. */
+@media (min-width: 861px) {
+  .viz-lead[data-exit="top"] {
+    gap: calc(14px * 1.55);
+  }
+
+  .viz-lead[data-exit="top"] .viz-lead-value {
+    font-size: calc(2rem * 1.55);
+  }
+
+  .viz-lead[data-exit="top"] .viz-lead-text {
+    font-size: calc(0.9375rem * 1.55);
+  }
+
+  /* Margin, not padding: the block is a flex item, and a margin is taken off
+     its height instead of being added to it — so it still ends where the
+     pinned container does. */
+  .viz-intro .viz-body {
+    margin-top: var(--lead-hold, 0px);
+  }
 }
 
 @media (max-width: 860px) {

@@ -1,12 +1,12 @@
 // Total floor area of HSE buildings, measured in things you can picture.
 
-import { CITIES, AREA_TOTAL } from '../data/hse.js';
-import { nf, dec } from '../lib/format.js';
+import { CITIES, AREA_TOTAL, STUDENTS, STAFF } from '../data/hse.js';
+import { nf, plural } from '../lib/format.js';
 import { mountCanvas } from '../lib/ui.js';
 
 // Facts about the buildings themselves — they live here, not in data/hse.js,
 // which only knows about the university.
-const BUILDINGS = 200;
+const BUILDINGS = 196;
 
 // Two metrics the first switch flips between; `field` is the key in data/hse.js.
 const METRICS = [
@@ -17,6 +17,8 @@ const METRICS = [
 // Two objects we compare to. A FIFA-size pitch is 105 × 68 m; the flats of one
 // five-storey block with two entrances add up to 1 680 m².
 const HOUSE_M2 = 1680;
+const FLATS = 40;                     // flats in one block, two entrances
+const FLAT_M2 = HOUSE_M2 / FLATS;
 const UNITS = [
   {
     key: 'field',
@@ -30,7 +32,7 @@ const UNITS = [
     key: 'house',
     label: 'В пятиэтажках',
     noun: 'пятиэтажных домов',
-    legend: `1 пятиэтажка — 2 подъезда, 40 квартир общей площадью ${nf(HOUSE_M2)} м²`,
+    legend: `1 пятиэтажка — 2 подъезда, ${FLATS} квартир общей площадью ${nf(HOUSE_M2)} м²`,
     m2: HOUSE_M2,
     ratio: 1.55                 // two entrances wide, five floors high
   }
@@ -38,9 +40,34 @@ const UNITS = [
 
 export const meta = {
   id: 'area',
+  // The reader arrives straight from the arena, so the section opens with a
+  // screen of its own, told in two goes: the stadium the university has not
+  // got, and the figure it has instead. It does not leave — it goes up to the
+  // top of the section and stays there while the rest is told under it.
+  lead: {
+    exit: 'top',
+    value: 'Для расположения всех студентов и сотрудников у Вышки нет своего стадиона <span class="area-soon">(пока)</span>',
+    text: `<span class="area-lead-line intro-stage" data-stage="1">Но есть ${nf(BUILDINGS)} ${plural(BUILDINGS, 'здание', 'здания', 'зданий')} <span class="area-mark">общей площадью ${nf(AREA_TOTAL)} м²</span></span>`
+  },
   title: 'В тесноте да не в обиде',
-  subtitle: `У Вышки почти ${nf(BUILDINGS)} зданий общей площадью ${nf(AREA_TOTAL)} м². Но на сколько это много?`
+  subtitle: 'На сколько это много?',
+  intro: true,
+  // Steps: the area in pitches, the same area in blocks of flats beside it,
+  // the question both raise, the answer under each of them, and then the
+  // visualisation itself.
+  steps: 6
 };
+
+// How many whole pitches the whole university comes to — the figure the first
+// step of the scene is about.
+const FIELDS_TOTAL = Math.round(AREA_TOTAL / (105 * 68));
+const HOUSES_TOTAL = Math.round(AREA_TOTAL / HOUSE_M2);
+
+// What the area comes to once the people are put into it: everyone the section
+// speaks of, spread over the pitches and over the flats.
+const PEOPLE = STUDENTS + STAFF;
+const PER_PITCH = Math.round(PEOPLE / FIELDS_TOTAL);
+const PER_FLAT = Math.round(PEOPLE / (HOUSES_TOTAL * FLATS));
 
 export function init(root) {
   'use strict';
@@ -53,13 +80,169 @@ export function init(root) {
   const ROOF = '#8B929C';
   const WINDOW = '#5C82A6';
   const DOOR = '#6B5B48';
+  const WINDOW_LIT = '#FFC85C';
+  const DOT = '#102D69';          // a person on the pitch, in corporate blue
   const GAP = 0.12;               // gap between icons, in icon widths
 
   // ---------- Markup ----------
   // The switches and the score card are specific to this visualisation, so
   // their styles live here and not in layout.css.
+  root.classList.add('area-body');
   root.innerHTML = `
     <style>
+      /* The second line of the lead-in grows into place by height, so it needs
+         a box of its own. */
+      .area-lead-line {
+        display: block;
+      }
+
+      /* An aside inside the opening line, so it is set back from it. */
+      .area-soon {
+        color: var(--text-caption);
+      }
+
+      /* The steps of the scene lie over the block, in two columns of one grid:
+         the pitches on the left, the blocks of flats on the right. One grid
+         rather than two halves, so both start at the same height however the
+         lines above them wrap. The visualisation itself waits underneath,
+         faded out, so nothing shifts when they swap. */
+      .area-body {
+        position: relative;
+      }
+
+      .area-steps {
+        position: absolute;
+        inset: 0;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 44px 64px;
+        align-content: center;
+        align-items: start;
+        pointer-events: none;
+      }
+
+      /* Whatever is leaving goes quickly and whatever is arriving waits for
+         it, so the two never sit on top of each other for long. */
+      .area-step {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        opacity: 0;
+        visibility: hidden;
+        transform: translateY(18px);
+        transition: opacity 300ms ease, transform 300ms ease, visibility 300ms;
+      }
+
+      .area-step.on {
+        opacity: 1;
+        visibility: visible;
+        transform: none;
+        transition: opacity 620ms ease 180ms, transform 620ms ease 180ms, visibility 0s;
+      }
+
+      /* Room for two lines whether the line takes them or not, so the two
+         figures stand on one level. */
+      .area-step-line {
+        margin: 0;
+        min-height: 2.4em;
+        font-size: 2rem;
+        font-weight: 600;
+        line-height: 1.2;
+        letter-spacing: -0.02em;
+        text-wrap: pretty;
+      }
+
+      /* The multiplier sits under its icon rather than beside it: both icons
+         then take the whole column and come out the same size, whether the
+         number beside them is two digits or three, and nothing crowds the
+         gutter between the two halves. */
+      .area-step-fig {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 14px;
+      }
+
+      .area-step-pitch,
+      .area-step-house {
+        width: 100%;
+        max-width: 420px;
+        border-radius: 4px;
+        overflow: hidden;
+      }
+
+      .area-step-pitch { aspect-ratio: 105 / 68; }
+      .area-step-house { aspect-ratio: 1.55; }
+
+      /* The question both figures raise, under the two of them. */
+      .area-step-question {
+        grid-column: 1 / -1;
+        margin: 0;
+        font-size: 2rem;
+        font-weight: 600;
+        line-height: 1.2;
+        letter-spacing: -0.02em;
+        text-wrap: pretty;
+      }
+
+      /* What each figure comes to once the people are in it. */
+      .area-step-note {
+        margin: 0;
+        font-size: 1.25rem;
+        line-height: 1.35;
+        color: var(--text-secondary);
+        text-wrap: pretty;
+      }
+
+      /* Everything of a step keeps its place in the layout from the start and
+         only fades in when its turn comes, so nothing below it ever jumps. */
+      .area-step-question,
+      .area-step-note {
+        opacity: 0;
+        transform: translateY(12px);
+        transition: opacity 300ms ease, transform 300ms ease;
+      }
+
+      .area-step-question.on,
+      .area-step-note.on {
+        opacity: 1;
+        transform: none;
+        transition: opacity 620ms ease 180ms, transform 620ms ease 180ms;
+      }
+
+      .area-step-times {
+        flex: none;
+        font-size: 2.25rem;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+      }
+
+      /* While the step is on, the visualisation is out of the way — invisible
+         and not clickable. */
+      .area-inner {
+        transition: opacity 620ms ease 180ms;
+      }
+
+      .area-inner.off {
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 300ms ease;
+      }
+
+      /* The figure on the lead-in screen is marked out in the corporate blue.
+         It lives in the shell markup, which is drawn a moment before this
+         style arrives — that is fine, the section starts well above the fold. */
+      .area-mark {
+        background: var(--hse-blue);
+        color: #FFFFFF;
+        padding: 0.06em 0.3em;
+        border-radius: 0.2em;
+        box-decoration-break: clone;
+        -webkit-box-decoration-break: clone;
+      }
+
       /* One row of switches above both columns, so the city cards and the
          score card start at the same height. */
       .area-inner {
@@ -148,6 +331,28 @@ export function init(root) {
       }
     </style>
 
+    <div class="area-steps">
+      <div class="area-step area-step-fields" data-el="stepFields">
+        <p class="area-step-line">Это площадь ${nf(FIELDS_TOTAL)} футбольных полей</p>
+        <div class="area-step-fig">
+          <div class="canvas-wrap area-step-pitch" data-el="stepPitch"></div>
+          <div class="area-step-times">&times;&nbsp;${nf(FIELDS_TOTAL)}</div>
+        </div>
+        <p class="area-step-note" data-el="pitchNote">Это ${nf(PER_PITCH)} «${plural(PER_PITCH, 'футболист', 'футболиста', 'футболистов')}» на одном поле</p>
+      </div>
+
+      <div class="area-step area-step-houses" data-el="stepHouses">
+        <p class="area-step-line">Или ${nf(HOUSES_TOTAL)} ${plural(HOUSES_TOTAL, 'пятиэтажка', 'пятиэтажки', 'пятиэтажек')}</p>
+        <div class="area-step-fig">
+          <div class="canvas-wrap area-step-house" data-el="stepHouse"></div>
+          <div class="area-step-times">&times;&nbsp;${nf(HOUSES_TOTAL)}</div>
+        </div>
+        <p class="area-step-note" data-el="houseNote">Или по ${nf(PER_FLAT)} ${plural(PER_FLAT, 'жильцу', 'жильца', 'жильцов')} в каждой квартире ${nf(FLAT_M2)} м²</p>
+      </div>
+
+      <p class="area-step-question" data-el="question">Много это или мало, учитывая сколько в Вышке студентов и сотрудников?</p>
+    </div>
+
     <div class="area-inner">
       <div class="area-switches">
         <div class="area-switch" data-el="unitSwitch">
@@ -217,7 +422,7 @@ export function init(root) {
   // same size whatever is selected — only the number of drawn icons changes.
   function layout(cssW, cssH) {
     const u = unit();
-    const cells = Math.ceil(AREA_TOTAL / u.m2);
+    const cells = Math.round(AREA_TOTAL / u.m2);
     let best = null;
     for (let cols = 1; cols <= cells; cols++) {
       const rows = Math.ceil(cells / cols);
@@ -235,71 +440,78 @@ export function init(root) {
     };
   }
 
-  // `part` — how much of the icon fits into the selected area. Only the last
-  // icon of the row of icons is ever cut.
+  // One pitch: mown grass, the halfway line and the centre circle. Both the
+  // grid and the single large pitch of the first step go through here.
+  function drawPitch(g, x, y, w, h) {
+    g.fillStyle = PITCH;
+    g.fillRect(x, y, w, h);
+    g.fillStyle = MOW;
+    const band = w / 6;
+    for (let i = 1; i < 6; i += 2) g.fillRect(x + i * band, y, band, h);
+
+    g.strokeStyle = LINE;
+    g.lineWidth = Math.max(1, w * 0.007);
+    g.beginPath();
+    g.moveTo(x + w / 2, y);
+    g.lineTo(x + w / 2, y + h);
+    g.stroke();
+    g.beginPath();
+    g.arc(x + w / 2, y + h / 2, h * 0.135, 0, Math.PI * 2);
+    g.stroke();
+  }
+
+  // Only whole pitches are ever drawn — the count on the card is rounded, and
+  // the picture has to show exactly that many.
   function paintFields(icons) {
-    icons.forEach((c) => {
-      ctx.save();
-      ctx.beginPath();
-      ctx.rect(c.x, c.y, c.w * c.part, c.h);
-      ctx.clip();
-
-      ctx.fillStyle = PITCH;
-      ctx.fillRect(c.x, c.y, c.w * c.part, c.h);
-      ctx.fillStyle = MOW;
-      const band = c.w / 6;
-      for (let i = 1; i < 6; i += 2) ctx.fillRect(c.x + i * band, c.y, band, c.h);
-
-      // Markings are laid out on the whole pitch, then cut by the same clip.
-      ctx.strokeStyle = LINE;
-      ctx.lineWidth = Math.max(1, c.w * 0.007);
-      ctx.beginPath();
-      ctx.moveTo(c.x + c.w / 2, c.y);
-      ctx.lineTo(c.x + c.w / 2, c.y + c.h);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.arc(c.x + c.w / 2, c.y + c.h / 2, c.h * 0.135, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.restore();
-    });
+    icons.forEach((c) => drawPitch(ctx, c.x, c.y, c.w, c.h));
   }
 
   // Five floors of windows and two doors. There are hundreds of blocks on the
-  // screen, so everything goes into four paths instead of a fill per window.
-  function paintHouses(icons) {
-    const roof = new Path2D(), wall = new Path2D();
-    const win = new Path2D(), door = new Path2D();
+  // screen, so a block adds its shapes to four shared paths and the whole
+  // district is painted with four fills instead of a fill per window.
+  const housePaths = () => ({
+    roof: new Path2D(), wall: new Path2D(), win: new Path2D(), door: new Path2D()
+  });
 
-    icons.forEach((c) => {
-      const edge = c.x + c.w * c.part;   // nothing is drawn past the cut
-      const add = (path, x, y, w, h) => {
-        const right = Math.min(x + w, edge);
-        if (right > x) path.rect(x, y, right - x, h);
-      };
+  function addHouse(paths, x, y, w, h) {
+    paths.roof.rect(x, y, w, h * 0.09);
+    paths.wall.rect(x, y + h * 0.09, w, h * 0.91);
 
-      add(roof, c.x, c.y, c.w, c.h * 0.09);
-      add(wall, c.x, c.y + c.h * 0.09, c.w, c.h * 0.91);
-
-      const COLS = 6, ROWS = 5;
-      const gx = c.x + c.w * 0.08, gw = c.w * 0.84;
-      const gy = c.y + c.h * 0.19, gh = c.h * 0.58;
-      const cw = gw / COLS, ch = gh / ROWS;
-      const ww = Math.max(1, cw * 0.62), wh = Math.max(1, ch * 0.6);
-      for (let r = 0; r < ROWS; r++) {
-        for (let i = 0; i < COLS; i++) {
-          add(win, gx + i * cw + (cw - ww) / 2, gy + r * ch + (ch - wh) / 2, ww, wh);
-        }
+    const COLS = 6, ROWS = 5;
+    const gx = x + w * 0.08, gw = w * 0.84;
+    const gy = y + h * 0.19, gh = h * 0.58;
+    const cw = gw / COLS, ch = gh / ROWS;
+    const ww = Math.max(1, cw * 0.62), wh = Math.max(1, ch * 0.6);
+    for (let r = 0; r < ROWS; r++) {
+      for (let i = 0; i < COLS; i++) {
+        paths.win.rect(gx + i * cw + (cw - ww) / 2, gy + r * ch + (ch - wh) / 2, ww, wh);
       }
+    }
 
-      const dw = Math.max(1, c.w * 0.07), dh = c.h * 0.13;
-      add(door, c.x + c.w * 0.25 - dw / 2, c.y + c.h - dh, dw, dh);
-      add(door, c.x + c.w * 0.75 - dw / 2, c.y + c.h - dh, dw, dh);
-    });
+    const dw = Math.max(1, w * 0.07), dh = h * 0.13;
+    paths.door.rect(x + w * 0.25 - dw / 2, y + h - dh, dw, dh);
+    paths.door.rect(x + w * 0.75 - dw / 2, y + h - dh, dw, dh);
+  }
 
-    ctx.fillStyle = ROOF; ctx.fill(roof);
-    ctx.fillStyle = WALL; ctx.fill(wall);
-    ctx.fillStyle = WINDOW; ctx.fill(win);
-    ctx.fillStyle = DOOR; ctx.fill(door);
+  // `lit` turns the light on in every window, from 0 to 1.
+  function fillHouses(g, paths, lit = 0) {
+    g.fillStyle = ROOF; g.fill(paths.roof);
+    g.fillStyle = WALL; g.fill(paths.wall);
+    g.fillStyle = WINDOW; g.fill(paths.win);
+    if (lit > 0) {
+      g.save();
+      g.globalAlpha = lit;
+      g.fillStyle = WINDOW_LIT;
+      g.fill(paths.win);
+      g.restore();
+    }
+    g.fillStyle = DOOR; g.fill(paths.door);
+  }
+
+  function paintHouses(icons) {
+    const paths = housePaths();
+    icons.forEach((c) => addHouse(paths, c.x, c.y, c.w, c.h));
+    fillHouses(ctx, paths);
   }
 
   function paint() {
@@ -312,19 +524,20 @@ export function init(root) {
     ctx.clearRect(0, 0, cssW, cssH);
 
     if (shown === null) shown = selectedArea() / unit().m2;
-    countEl.textContent = dec(shown);
 
-    const cells = Math.ceil(shown);
-    if (cells < 1) return;
+    // The card and the picture show the same rounded number of icons.
+    const count = Math.round(shown);
+    countEl.textContent = nf(count);
+
+    if (count < 1) return;
     const g = layout(cssW, cssH);
     const icons = [];
-    for (let i = 0; i < cells; i++) {
+    for (let i = 0; i < count; i++) {
       icons.push({
         x: g.x + (i % g.cols) * (g.w + g.gap),
         y: g.y + Math.floor(i / g.cols) * (g.h + g.gap),
         w: g.w,
-        h: g.h,
-        part: Math.min(1, shown - i)
+        h: g.h
       });
     }
     if (state.unit === 'house') paintHouses(icons); else paintFields(icons);
@@ -350,6 +563,95 @@ export function init(root) {
       else { shown = target; paint(); }
     };
     animFrame = requestAnimationFrame(step);
+  }
+
+  // The single pitch and the single block of the first two steps, each on its
+  // own little canvas — drawn by the same hand as the ones on the schema.
+  const fitCanvas = (pair) => {
+    const c = pair.canvas, g = pair.ctx;
+    const w = c.clientWidth || 1, h = c.clientHeight || 1;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    c.width = Math.round(w * dpr);
+    c.height = Math.round(h * dpr);
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    g.clearRect(0, 0, w, h);
+    return { g, w, h };
+  };
+
+  let dots = 0;      // people standing on the pitch of the step
+  let lit = 0;        // how far the windows of the block have lit up
+
+  const stepPitch = mountCanvas($('stepPitch'), paintStepPitch);
+  function paintStepPitch() {
+    const { g, w, h } = fitCanvas(stepPitch);
+    drawPitch(g, 0, 0, w, h);
+    drawCrowd(g, w, h, dots);
+  }
+
+  // The people on the pitch line up as two teams do: each half has its own
+  // block, the two mirror each other across the halfway line, and they fill up
+  // at the same time — one from each side with every other dot.
+  function drawCrowd(g, w, h, n) {
+    if (n <= 0) return;
+    const perTeam = Math.ceil(PER_PITCH / 2);
+    const padX = w * 0.045, padY = h * 0.07;
+    const mid = w * 0.02;                       // room left along the halfway line
+    const teamW = w / 2 - padX - mid;
+    const teamH = h - padY * 2;
+    const cols = Math.max(1, Math.round(Math.sqrt(perTeam * (teamW / teamH))));
+    const rows = Math.ceil(perTeam / cols);
+    const cw = teamW / cols, ch = teamH / rows;
+    const r = Math.max(0.8, Math.min(cw, ch) * 0.26);
+
+    g.fillStyle = DOT;
+    for (let i = 0; i < n; i++) {
+      const team = i % 2;
+      const k = (i - team) / 2;
+      if (k >= perTeam) continue;
+      const c = k % cols, row = Math.floor(k / cols);
+      const x = team === 0
+        ? padX + cw * (c + 0.5)
+        : w - padX - cw * (c + 0.5);
+      g.beginPath();
+      g.arc(x, padY + ch * (row + 0.5), r, 0, Math.PI * 2);
+      g.fill();
+    }
+  }
+
+  const stepHouse = mountCanvas($('stepHouse'), paintStepHouse);
+  function paintStepHouse() {
+    const { g, w, h } = fitCanvas(stepHouse);
+    const paths = housePaths();
+    addHouse(paths, 0, 0, w, h);
+    fillHouses(g, paths, lit);
+  }
+
+  // The crowd and the light come on the same way everything else does here.
+  function tween(from, to, set) {
+    const dur = 620, t0 = performance.now();
+    let frame = requestAnimationFrame(function run(now) {
+      const raw = Math.min(1, Math.max(0, (now - t0) / dur));
+      const p = 1 - Math.pow(1 - raw, 3);
+      set(from + (to - from) * p);
+      if (raw < 1) frame = requestAnimationFrame(run);
+    });
+    return () => cancelAnimationFrame(frame);
+  }
+
+  let stopDots = null, stopLit = null;
+
+  function showCrowd(on) {
+    const target = on ? PER_PITCH : 0;
+    if (dots === target) return;
+    if (stopDots) stopDots();
+    stopDots = tween(dots, target, (v) => { dots = v; paintStepPitch(); });
+  }
+
+  function lightUp(on) {
+    const target = on ? 1 : 0;
+    if (lit === target) return;
+    if (stopLit) stopLit();
+    stopLit = tween(lit, target, (v) => { lit = v; paintStepHouse(); });
   }
 
   // ---------- DOM rendering ----------
@@ -442,6 +744,36 @@ export function init(root) {
     animateTo(area / u.m2, mode);
   }
 
+  // ---------- Scene ----------
+  // One pitch and how many of them fit; the same area in blocks of flats
+  // beside it; the question the two raise; the answer under each of them —
+  // the crowd on the pitch and the light in the windows; and then the
+  // visualisation itself.
+  const fieldsStepEl = $('stepFields');
+  const housesStepEl = $('stepHouses');
+  const questionEl = $('question');
+  const pitchNoteEl = $('pitchNote');
+  const houseNoteEl = $('houseNote');
+  const innerEl = root.querySelector('.area-inner');
+  const LAST = 5;
+
+  function step(i) {
+    const told = i < LAST;
+    fieldsStepEl.classList.toggle('on', told);
+    housesStepEl.classList.toggle('on', told && i >= 1);
+    questionEl.classList.toggle('on', told && i === 2);
+    pitchNoteEl.classList.toggle('on', told && i >= 3);
+    houseNoteEl.classList.toggle('on', told && i >= 4);
+    showCrowd(told && i >= 3);
+    lightUp(told && i >= 4);
+    innerEl.classList.toggle('off', told);
+  }
+
   render('instant');
   paint();
+  paintStepPitch();
+  paintStepHouse();
+  step(0);
+
+  return { step };
 }
