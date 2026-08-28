@@ -347,7 +347,7 @@ export function init(root) {
           <div class="canvas-wrap area-step-house" data-el="stepHouse"></div>
           <div class="area-step-times">&times;&nbsp;${nf(HOUSES_TOTAL)}</div>
         </div>
-        <p class="area-step-note" data-el="houseNote">Или по ${nf(PER_FLAT)} ${plural(PER_FLAT, 'жильцу', 'жильца', 'жильцов')} в каждой квартире ${nf(FLAT_M2)} м²</p>
+        <p class="area-step-note" data-el="houseNote">Или по ${nf(PER_FLAT)} «${plural(PER_FLAT, 'жильцу', 'жильца', 'жильцов')}» в каждой квартире ${nf(FLAT_M2)} м²</p>
       </div>
 
       <p class="area-step-question" data-el="question">Много это или мало, учитывая сколько в Вышке студентов и сотрудников?</p>
