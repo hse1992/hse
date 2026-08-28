@@ -69,23 +69,14 @@ const LEAD_DOTS = '<span class="study-lead-dot"></span>'.repeat(PROGRAMS_TOTAL);
 // after another would have had to start — the far end of the scale.
 const FIRST = HISTORY[START];
 
-// The picture the second beat stands on: the card the block itself draws,
-// with the year and the pointer already at their far end.
+// The picture the second beat stands on: the year the studies would have to
+// start in, and what was happening in the world then. The scale under it is
+// the block's own business — here it would only be one thing too many.
 const LEAD_CARD = `
-  <span class="study-lead-row">
-    <span class="study-art"><svg viewBox="0 0 64 64" aria-hidden="true" focusable="false">${FIRST.art}</svg></span>
-    <span class="study-lead-col">
-      <span class="study-since">Начинать пришлось бы в <b>${START}</b> году</span>
-      <span class="study-event">Тогда ${FIRST.text}</span>
-    </span>
-  </span>
-  <span class="study-lead-time">
-    <span class="study-track">
-      <span class="study-line"></span>
-      ${TICKS.map((t) => `<span class="study-tick${t.major ? ' major' : ''}" style="left:${t.at}%"></span>`).join('')}
-      <span class="study-mark" style="left:0"><span class="study-mark-pin"></span></span>
-    </span>
-    <span class="study-ends"><span>${START}</span><span>${TODAY_YEAR}</span></span>
+  <span class="study-art"><svg viewBox="0 0 64 64" aria-hidden="true" focusable="false">${FIRST.art}</svg></span>
+  <span class="study-lead-col">
+    <span class="study-since">Начинать пришлось бы в <b>${START}</b> году</span>
+    <span class="study-event">Тогда ${FIRST.text}</span>
   </span>
 `;
 
@@ -107,8 +98,8 @@ export const meta = {
       + '<span class="study-lead-beat intro-stage" data-stage="2"><span class="study-lead-come">'
       +   `Чтобы обучиться на каждой из них, потребуется ${mark(`${nf(YEARS_TOTAL)} ${plural(YEARS_TOTAL, 'год', 'года', 'лет')}`)}`
       +   `<span class="study-lead-card">${LEAD_CARD}</span>`
-      +   '<span class="study-lead-outro">В общем нужно…</span>'
       + '</span></span></span>'
+      + '<span class="study-lead-outro intro-stage" data-stage="3">В общем нужно…</span>'
   },
   title: 'Учиться, учиться и еще раз учиться',
   // The heading arrives on its own — the reader has just been told all this on
@@ -347,9 +338,9 @@ export function init(root) {
          them. Spans, not divs — the shell puts the screen inside a <p>. */
       .study-lead-dots {
         display: grid;
-        grid-template-columns: repeat(28, 1fr);
+        grid-template-columns: repeat(30, 1fr);
         gap: 4px;
-        max-width: 520px;
+        max-width: 540px;
         margin-top: 0.6em;
       }
 
@@ -363,46 +354,35 @@ export function init(root) {
          at its own size: the screen around it is scaled up, a card in it is
          not. */
       .study-lead-card {
-        display: block;
-        max-width: 600px;
+        display: flex;
+        align-items: center;
+        gap: 26px;
+        max-width: 640px;
         margin: 0.7em auto 0;
-        padding: 18px 24px 20px 20px;
+        padding: 26px 32px;
         border-radius: var(--r-canvas-card);
         background: var(--card);
         box-shadow: var(--card-shadow);
       }
 
-      .study-lead-row {
-        display: flex;
-        align-items: center;
-        gap: 20px;
-      }
-
       .study-lead-col {
         display: flex;
         flex-direction: column;
-        gap: 2px;
+        gap: 4px;
         min-width: 0;
       }
 
-      .study-lead-card .study-art { width: 96px; height: 96px; }
-      .study-lead-card .study-since { font-size: 1.25rem; }
-      .study-lead-card .study-event { font-size: 1rem; }
+      .study-lead-card .study-art { width: 128px; height: 128px; }
+      .study-lead-card .study-since { font-size: 1.5rem; }
+      .study-lead-card .study-event { font-size: 1.125rem; }
 
-      .study-lead-time {
-        display: block;
-        margin-top: 12px;
-        padding: 0 10px;
-      }
-
-      /* Spans, not divs — the shell puts the screen inside a <p>. */
-      .study-lead-card .study-track {
-        display: block;
-      }
-
+      /* The line that runs into the heading itself, so it is set larger than
+         the screen around it — and scaled with it, like everything else here. */
       .study-lead-outro {
         display: block;
         margin-top: 0.7em;
+        font-size: calc(1.25rem * var(--intro-k, 1.55));
+        color: var(--text);
       }
 
       /* The patch on a figure of the screen. Colour comes inline with the
@@ -426,14 +406,13 @@ export function init(root) {
         .study-note { font-size: 0.875rem; }
 
         /* Fewer squares to a row: at this width 28 of them would be specks. */
-        .study-lead-dots { grid-template-columns: repeat(20, 1fr); gap: 3px; }
+        .study-lead-dots { grid-template-columns: repeat(22, 1fr); gap: 3px; }
         .study-lead-dot { border-radius: 2px; }
-        .study-lead-card { margin-top: 0.6em; padding: 12px 16px 14px; }
-        .study-lead-row { gap: 12px; }
-        .study-lead-card .study-art { width: 64px; height: 64px; }
-        .study-lead-card .study-since { font-size: 1rem; }
-        .study-lead-card .study-event { font-size: 0.875rem; }
-        .study-lead-time { margin-top: 8px; padding: 0 6px; }
+        .study-lead-card { gap: 14px; margin-top: 0.6em; padding: 16px 18px; }
+        .study-lead-card .study-art { width: 80px; height: 80px; }
+        .study-lead-card .study-since { font-size: 1.125rem; }
+        .study-lead-card .study-event { font-size: 0.9375rem; }
+        .study-lead-outro { font-size: 1.375rem; }
 
         /* The picture has no fixed height of its own, unlike the canvases in
            the other sections: a long event text must not be cut off. */
