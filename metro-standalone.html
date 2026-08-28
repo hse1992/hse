@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>На сколько большая — начало, приём, «Лужники», флаги, площадь</title>
-<!-- Собранная копия начала страницы и четырёх разделов: стили, скрипты, шрифты и картинки лежат
+<title>На сколько большая</title>
+<!-- Собранная копия страницы целиком: стили, скрипты, шрифты и картинки лежат
      внутри файла, ничего не подгружается. Исходники — в проекте «На сколько
      большая», это выгрузка из них. -->
 <style>
@@ -41,6 +41,7 @@
   --text: #14171C;
   --text-secondary: #6B7280;
   --text-caption: #9AA1AC;
+  --text-faded: #C3C9D3;    /* type that has stepped back but is still there */
   --link: #2A55D6;
   --link-hover: #1B3EA8;
 
@@ -1361,6 +1362,433 @@ const BY_CITY = {
   perm: ['az', 'by', 'ge', 'kz', 'kg', 'cn', 'lv', 'md', 'mn', 'tj', 'tm', 'uz', 'ua'],
 };
 
+// What was happening in the year a run through the programmes would have to
+// start. The sums of programmes are fixed, so the set of years the studies
+// section can land on is fixed too — one entry here for each of them.
+//
+// `art` is the inside of a 64 × 64 SVG. Colours come from the --ill-* tokens,
+// so the drawings stay part of the page palette.
+
+const HISTORY = {
+  1114: {
+    text: 'в Ладоге заложили первую на Руси каменную крепость',
+    art: `<rect x="8" y="30" width="48" height="26" fill="var(--ill-stone)"/>
+      <rect x="4" y="20" width="15" height="36" fill="var(--ill-light)"/>
+      <rect x="45" y="20" width="15" height="36" fill="var(--ill-light)"/>
+      <rect x="4" y="15" width="4" height="5" fill="var(--ill-stone)"/>
+      <rect x="9.5" y="15" width="4" height="5" fill="var(--ill-stone)"/>
+      <rect x="15" y="15" width="4" height="5" fill="var(--ill-stone)"/>
+      <rect x="45" y="15" width="4" height="5" fill="var(--ill-stone)"/>
+      <rect x="50.5" y="15" width="4" height="5" fill="var(--ill-stone)"/>
+      <rect x="56" y="15" width="4" height="5" fill="var(--ill-stone)"/>
+      <rect x="9.5" y="27" width="4" height="8" rx="2" fill="var(--ill-ink)"/>
+      <rect x="50.5" y="27" width="4" height="8" rx="2" fill="var(--ill-ink)"/>
+      <path d="M27 56V43a5 5 0 0 1 10 0v13z" fill="var(--ill-ink)"/>`
+  },
+
+  1164: {
+    text: 'во Владимире достроили Золотые ворота',
+    art: `<rect x="10" y="24" width="44" height="32" fill="var(--ill-light)"/>
+      <rect x="8" y="52" width="48" height="4" fill="var(--ill-stone)"/>
+      <path d="M23 56V41a9 9 0 0 1 18 0v15z" fill="var(--ill-ink)"/>
+      <rect x="24" y="18" width="16" height="6" fill="var(--ill-stone)"/>
+      <rect x="28" y="12" width="8" height="6" fill="var(--ill-stone)"/>
+      <path d="M32 2c5 5 6 8 6 10H26c0-2 1-5 6-10z" fill="var(--ill-gold)"/>`
+  },
+
+  1210: {
+    text: 'папа римский разрешил Франциску Ассизскому проповедовать вместе с братьями',
+    art: `<path d="M4 46h34" stroke="var(--ill-warm)" stroke-width="3" stroke-linecap="round"/>
+      <path d="M14 46c-2-6 2-9 7-9-1 5-3 8-7 9zM28 46c-2-6 2-9 7-9-1 5-3 8-7 9z" fill="var(--ill-green)"/>
+      <ellipse cx="22" cy="34" rx="9" ry="7" fill="var(--ill-blue)"/>
+      <circle cx="30" cy="28" r="5" fill="var(--ill-blue)"/>
+      <path d="M35 28l6 2-6 2z" fill="var(--ill-gold)"/>
+      <circle cx="31.5" cy="27" r="1.2" fill="var(--ill-light)"/>
+      <path d="M13 32L4 28l6 9z" fill="var(--ill-blue)"/>
+      <path d="M34 12c5-6 9-2 11 1 3-4 8-6 12-1-7 5-16 5-23 0z" fill="var(--ill-stone)"/>`
+  },
+
+  1252: {
+    text: 'Александр Невский стал великим князем владимирским',
+    art: `<path d="M18 24a14 14 0 0 1 28 0v20H18z" fill="var(--hse-blue)"/>
+      <circle cx="32" cy="8" r="4" fill="var(--ill-gold)"/>
+      <rect x="20" y="34" width="24" height="9" rx="3" fill="var(--ill-red)"/>
+      <rect x="12" y="42" width="40" height="8" rx="2" fill="var(--ill-warm)"/>
+      <rect x="14" y="50" width="6" height="8" fill="var(--ill-warm)"/>
+      <rect x="44" y="50" width="6" height="8" fill="var(--ill-warm)"/>`
+  },
+
+  1260: {
+    text: 'внук Чингисхана Хубилай стал великим ханом монголов',
+    art: `<path d="M12 52V36c0-9 9-15 20-15s20 6 20 15v16z" fill="var(--ill-light)"/>
+      <rect x="12" y="34" width="40" height="4" fill="var(--ill-stone)"/>
+      <rect x="6" y="52" width="52" height="5" rx="2" fill="var(--ill-stone)"/>
+      <path d="M27 52V40h10v12z" fill="var(--ill-ink)"/>
+      <path d="M32 21V8" stroke="var(--ill-ink)" stroke-width="2"/>
+      <path d="M33 8h13l-3.5 5 3.5 5H33z" fill="var(--ill-red)"/>`
+  },
+
+  1302: {
+    text: 'Москва получила Переславль-Залесский — первую свою прибавку земель',
+    art: `<rect x="6" y="32" width="14" height="22" fill="var(--ill-light)"/>
+      <path d="M6 32l7-9 7 9z" fill="var(--ill-stone)"/>
+      <rect x="42" y="20" width="18" height="34" fill="var(--ill-light)"/>
+      <path d="M42 20l9-11 9 11z" fill="var(--hse-blue)"/>
+      <rect x="4" y="54" width="56" height="4" rx="2" fill="var(--ill-stone)"/>
+      <path d="M24 40h12" stroke="var(--ill-ink)" stroke-width="2.5"/>
+      <path d="M38 40l-7-4v8z" fill="var(--ill-ink)"/>`
+  },
+
+  1348: {
+    text: 'в Праге открыли Карлов университет — первый в Центральной Европе',
+    art: `<path d="M14 56V26l18-14 18 14v30z" fill="var(--ill-light)"/>
+      <rect x="8" y="54" width="48" height="4" fill="var(--ill-stone)"/>
+      <path d="M20 46V36a4 4 0 0 1 8 0v10z" fill="var(--hse-blue)"/>
+      <path d="M36 46V36a4 4 0 0 1 8 0v10z" fill="var(--hse-blue)"/>
+      <path d="M28 56V48a4 4 0 0 1 8 0v8z" fill="var(--ill-ink)"/>
+      <circle cx="32" cy="7" r="3" fill="var(--ill-gold)"/>`
+  },
+
+  1398: {
+    text: 'на Белом озере монах Ферапонт основал монастырь, который потом расписал Дионисий',
+    art: `<rect x="18" y="28" width="26" height="26" fill="var(--ill-light)"/>
+      <rect x="27" y="20" width="8" height="8" fill="var(--ill-stone)"/>
+      <path d="M31 8c6 6 7 9 7 12H24c0-3 1-6 7-12z" fill="var(--ill-gold)"/>
+      <rect x="44" y="36" width="14" height="18" fill="var(--ill-light)"/>
+      <rect x="49" y="31" width="5" height="5" fill="var(--ill-stone)"/>
+      <path d="M51.5 24c3.5 3.5 4 5 4 7h-8c0-2 .5-3.5 4-7z" fill="var(--ill-gold)"/>
+      <path d="M26 54V45a4 4 0 0 1 8 0v9z" fill="var(--ill-ink)"/>
+      <path d="M8 58h48" stroke="var(--ill-stone)" stroke-width="3" stroke-linecap="round"/>`
+  },
+
+  1518: {
+    text: 'в Москву приехал Максим Грек — переводить книги для великого князя',
+    art: `<path d="M6 18h20a6 6 0 0 1 6 6v28a8 8 0 0 0-8-5H6z" fill="var(--ill-light)"/>
+      <path d="M58 18H38a6 6 0 0 0-6 6v28a8 8 0 0 1 8-5h18z" fill="var(--ill-light)"/>
+      <rect x="30" y="18" width="4" height="34" fill="var(--ill-stone)"/>
+      <rect x="10" y="26" width="16" height="2.5" fill="var(--ill-stone)"/>
+      <rect x="10" y="32" width="16" height="2.5" fill="var(--ill-stone)"/>
+      <rect x="38" y="26" width="16" height="2.5" fill="var(--ill-stone)"/>
+      <rect x="38" y="32" width="16" height="2.5" fill="var(--ill-stone)"/>
+      <path d="M56 4c-10 4-16 12-18 22 10-2 16-10 18-22z" fill="var(--ill-gold)"/>`
+  },
+
+  1554: {
+    text: 'англичане получили от Ивана Грозного первую грамоту на торговлю с Русью',
+    art: `<rect x="30" y="14" width="4" height="38" fill="var(--ill-warm)"/>
+      <path d="M18 58h28l-5-7H23z" fill="var(--ill-warm)"/>
+      <circle cx="32" cy="12" r="4" fill="var(--ill-gold)"/>
+      <path d="M10 20h44" stroke="var(--ill-ink)" stroke-width="3" stroke-linecap="round"/>
+      <path d="M14 20v8M50 20v8" stroke="var(--ill-ink)" stroke-width="1.5"/>
+      <path d="M4 28h20l-5 9H9z" fill="var(--ill-gold)"/>
+      <path d="M40 28h20l-5 9h-10z" fill="var(--ill-stone)"/>`
+  },
+
+  1586: {
+    text: 'в Сибири поставили Тюмень — первый русский город за Уралом',
+    art: `<rect x="14" y="26" width="24" height="28" fill="var(--ill-warm)"/>
+      <path d="M10 26L26 10l16 16z" fill="var(--ill-stone)"/>
+      <path d="M14 34h24M14 42h24" stroke="var(--ill-light)" stroke-width="1.5"/>
+      <path d="M22 54V44a4 4 0 0 1 8 0v10z" fill="var(--ill-ink)"/>
+      <path d="M52 20l7 12H45zM52 30l9 14H43zM52 40l11 14H41z" fill="var(--ill-green)"/>
+      <rect x="50" y="52" width="4" height="6" fill="var(--ill-warm)"/>`
+  },
+
+  1602: {
+    text: 'Борис Годунов впервые отправил русских студентов учиться за границу',
+    art: `<path d="M40 8v30" stroke="var(--ill-ink)" stroke-width="2"/>
+      <path d="M42 10h16l-4 10 4 10H42z" fill="var(--ill-light)"/>
+      <path d="M26 38h36l-7 9H33z" fill="var(--ill-warm)"/>
+      <rect x="4" y="34" width="22" height="7" rx="2" fill="var(--hse-blue)"/>
+      <rect x="6" y="43" width="20" height="7" rx="2" fill="var(--ill-red)"/>
+      <rect x="3" y="52" width="24" height="7" rx="2" fill="var(--ill-gold)"/>`
+  },
+
+  1622: {
+    text: 'во Франции родился Мольер',
+    art: `<path d="M4 14h26v18c0 9-6 15-13 15S4 41 4 32z" fill="var(--ill-light)"/>
+      <circle cx="11" cy="26" r="2.5" fill="var(--ill-ink)"/>
+      <circle cx="23" cy="26" r="2.5" fill="var(--ill-ink)"/>
+      <path d="M10 34c3 4 11 4 14 0" fill="none" stroke="var(--ill-ink)" stroke-width="2" stroke-linecap="round"/>
+      <path d="M34 22h26v18c0 9-6 15-13 15s-13-6-13-15z" fill="var(--ill-gold)"/>
+      <circle cx="41" cy="34" r="2.5" fill="var(--ill-ink)"/>
+      <circle cx="53" cy="34" r="2.5" fill="var(--ill-ink)"/>
+      <path d="M40 46c3-4 11-4 14 0" fill="none" stroke="var(--ill-ink)" stroke-width="2" stroke-linecap="round"/>`
+  },
+
+  1636: {
+    text: 'в британских колониях в Америке основали Гарвардский колледж',
+    art: `<path d="M32 12l28 12-28 12L4 24z" fill="var(--hse-blue)"/>
+      <path d="M14 29v11c0 4 8 7 18 7s18-3 18-7V29l-18 8z" fill="var(--ill-light)"/>
+      <path d="M56 26v14" stroke="var(--ill-gold)" stroke-width="2.5"/>
+      <circle cx="56" cy="43" r="4" fill="var(--ill-gold)"/>`
+  },
+
+  1638: {
+    text: 'отряд Ивана Москвитина отправился из Томска к Тихому океану',
+    art: `<circle cx="32" cy="24" r="13" fill="var(--ill-gold)"/>
+      <path d="M28 38h12l-3 6h-6z" fill="var(--ill-ink)"/>
+      <path d="M34 26v12" stroke="var(--ill-ink)" stroke-width="1.5"/>
+      <path d="M35 27h7l-2 4 2 4h-7z" fill="var(--ill-light)"/>
+      <path d="M4 48c5-4 9-4 14 0s9 4 14 0 9-4 14 0 9 4 14 0" fill="none" stroke="var(--ill-blue)" stroke-width="3" stroke-linecap="round"/>
+      <path d="M4 57c5-4 9-4 14 0s9 4 14 0 9-4 14 0 9 4 14 0" fill="none" stroke="var(--ill-stone)" stroke-width="3" stroke-linecap="round"/>`
+  },
+
+  1650: {
+    text: 'в Оксфорде открылась первая в Англии кофейня',
+    art: `<ellipse cx="30" cy="54" rx="24" ry="5" fill="var(--ill-light)"/>
+      <path d="M10 24h38v12c0 9-7 15-15 15h-8c-8 0-15-6-15-15z" fill="var(--ill-light)" stroke="var(--ill-stone)" stroke-width="2"/>
+      <ellipse cx="29" cy="26" rx="18" ry="4.5" fill="var(--ill-warm)"/>
+      <path d="M48 28c8 0 8 12 0 12" fill="none" stroke="var(--ill-stone)" stroke-width="4"/>
+      <path d="M22 16c4-4-2-6 1-10M34 16c4-4-2-6 1-10" fill="none" stroke="var(--ill-stone)" stroke-width="2.5" stroke-linecap="round"/>`
+  },
+
+  1664: {
+    text: 'англичане переименовали Новый Амстердам в Нью-Йорк',
+    art: `<rect x="29" y="12" width="6" height="46" fill="var(--ill-warm)"/>
+      <path d="M35 16h19l6 7-6 7H35z" fill="var(--ill-light)"/>
+      <path d="M29 34H10l-6 7 6 7h19z" fill="var(--ill-stone)"/>
+      <rect x="39" y="21" width="12" height="2.5" rx="1" fill="var(--ill-stone)"/>
+      <rect x="14" y="39" width="11" height="2.5" rx="1" fill="var(--ill-light)"/>`
+  },
+
+  1670: {
+    text: 'в Париже впервые сыграли «Мещанина во дворянстве» Мольера',
+    art: `<rect x="20" y="12" width="24" height="44" fill="var(--ill-light)"/>
+      <path d="M6 12h18c-5 14-5 30 0 44H6z" fill="var(--ill-red)"/>
+      <path d="M58 12H40c5 14 5 30 0 44h18z" fill="var(--ill-red)"/>
+      <rect x="2" y="6" width="60" height="6" rx="3" fill="var(--ill-gold)"/>
+      <circle cx="24" cy="34" r="3" fill="var(--ill-gold)"/>
+      <circle cx="40" cy="34" r="3" fill="var(--ill-gold)"/>`
+  },
+
+  1676: {
+    text: 'на престол вступил царь Федор Алексеевич',
+    art: `<path d="M16 44V30c0-9 7-16 16-16s16 7 16 16v14z" fill="var(--ill-gold)"/>
+      <rect x="12" y="42" width="40" height="12" rx="6" fill="var(--ill-light)"/>
+      <rect x="30" y="2" width="4" height="12" fill="var(--ill-gold)"/>
+      <rect x="26" y="5" width="12" height="4" fill="var(--ill-gold)"/>
+      <circle cx="24" cy="28" r="3" fill="var(--ill-light)"/>
+      <circle cx="40" cy="28" r="3" fill="var(--ill-light)"/>
+      <circle cx="32" cy="22" r="3" fill="var(--ill-light)"/>`
+  },
+
+  1690: {
+    text: 'юный Петр I строил потешную флотилию на Плещеевом озере',
+    art: `<path d="M32 6v34" stroke="var(--ill-ink)" stroke-width="2"/>
+      <path d="M34 12l14 26H34z" fill="var(--ill-light)"/>
+      <path d="M30 18L16 38h14z" fill="var(--ill-light)"/>
+      <path d="M33 6h11l-3 3.5L44 13H33z" fill="var(--ill-red)"/>
+      <path d="M10 40h44l-7 10H17z" fill="var(--ill-warm)"/>
+      <path d="M4 56c5-4 9-4 14 0s9 4 14 0 9-4 14 0" fill="none" stroke="var(--ill-blue)" stroke-width="3" stroke-linecap="round"/>`
+  },
+
+  1704: {
+    text: 'Петр I отчеканил серебряный рубль в сто копеек',
+    art: `<circle cx="42" cy="42" r="13" fill="var(--ill-gold)"/>
+      <circle cx="26" cy="28" r="21" fill="var(--ill-stone)"/>
+      <circle cx="26" cy="28" r="16" fill="var(--ill-light)"/>
+      <path d="M20 36V22h7a5 5 0 0 1 0 10h-9" fill="none" stroke="var(--ill-ink)" stroke-width="2.5" stroke-linecap="round"/>`
+  },
+
+  1706: {
+    text: 'Петр I велел открыть в Москве первый в России госпиталь и лекарскую школу',
+    art: `<path d="M14 34h30l-5 20H19z" fill="var(--ill-stone)"/>
+      <rect x="9" y="29" width="40" height="6" rx="3" fill="var(--ill-light)"/>
+      <path d="M40 8l8 7-16 18-8-7z" fill="var(--ill-warm)"/>
+      <rect x="48" y="36" width="13" height="18" rx="3" fill="var(--hse-blue)"/>
+      <rect x="51" y="29" width="7" height="7" rx="1" fill="var(--ill-stone)"/>
+      <rect x="52" y="42" width="5" height="7" rx="1" fill="var(--ill-light)"/>`
+  },
+
+  1718: {
+    text: 'Петр I ввел ассамблеи — первые в России светские вечера',
+    art: `<path d="M22 56h20l-5-7H27z" fill="var(--ill-gold)"/>
+      <rect x="30" y="28" width="4" height="22" fill="var(--ill-gold)"/>
+      <path d="M14 32c0-9 9-9 18-9s18 0 18 9" fill="none" stroke="var(--ill-gold)" stroke-width="3"/>
+      <rect x="11" y="20" width="6" height="13" rx="2" fill="var(--ill-light)"/>
+      <rect x="29" y="14" width="6" height="13" rx="2" fill="var(--ill-light)"/>
+      <rect x="47" y="20" width="6" height="13" rx="2" fill="var(--ill-light)"/>
+      <path d="M14 20c0-3 3-4 3-7 2 3 3 4 3 7z" fill="var(--ill-red)"/>
+      <path d="M32 14c0-3 3-4 3-7 2 3 3 4 3 7z" fill="var(--ill-red)"/>
+      <path d="M50 20c0-3 3-4 3-7 2 3 3 4 3 7z" fill="var(--ill-red)"/>`
+  },
+
+  1742: {
+    text: 'Семен Челюскин дошел до самой северной точки Евразии',
+    art: `<rect x="0" y="48" width="64" height="10" fill="var(--ill-blue)"/>
+      <path d="M2 50l12-11 9 6 11-10 10 8 12-6 6 5v8H2z" fill="var(--ill-light)"/>
+      <path d="M32 42V10" stroke="var(--ill-ink)" stroke-width="2.5"/>
+      <path d="M34 10h16l-4 6 4 6H34z" fill="var(--ill-red)"/>`
+  },
+
+  1792: {
+    text: 'Карамзин напечатал «Бедную Лизу» — повесть, над которой плакала вся Россия',
+    art: `<rect x="14" y="8" width="38" height="46" rx="3" fill="var(--ill-red)"/>
+      <rect x="14" y="8" width="8" height="46" rx="3" fill="var(--ill-ink)"/>
+      <rect x="50" y="12" width="5" height="38" rx="2" fill="var(--ill-light)"/>
+      <path d="M36 44c-8-5-12-9-12-14a6 6 0 0 1 12-3 6 6 0 0 1 12 3c0 5-4 9-12 14z" fill="var(--ill-light)"/>`
+  },
+
+  1838: {
+    text: 'Борис Якоби провел по Неве первое в мире судно с электромотором',
+    art: `<path d="M36 2l-12 18h8l-5 12 14-18h-8z" fill="var(--ill-gold)"/>
+      <rect x="22" y="32" width="18" height="10" rx="2" fill="var(--hse-blue)"/>
+      <path d="M8 42h48l-8 10H16z" fill="var(--ill-light)"/>
+      <path d="M4 56c5-4 9-4 14 0s9 4 14 0 9-4 14 0" fill="none" stroke="var(--ill-blue)" stroke-width="3" stroke-linecap="round"/>`
+  },
+
+  1874: {
+    text: 'Мусоргский написал «Картинки с выставки»',
+    art: `<rect x="5" y="12" width="54" height="40" rx="3" fill="var(--ill-gold)"/>
+      <rect x="11" y="18" width="42" height="28" fill="var(--ill-light)"/>
+      <circle cx="21" cy="26" r="4.5" fill="var(--ill-gold)"/>
+      <path d="M11 46l13-14 8 8 9-11 12 17z" fill="var(--ill-green)"/>
+      <rect x="26" y="52" width="12" height="4" rx="2" fill="var(--ill-stone)"/>`
+  },
+
+  1880: {
+    text: 'в Москве открыли памятник Пушкину',
+    art: `<circle cx="32" cy="14" r="7" fill="var(--ill-stone)"/>
+      <path d="M21 40V32c0-6 5-11 11-11s11 5 11 11v8z" fill="var(--hse-blue)"/>
+      <rect x="18" y="40" width="28" height="12" fill="var(--ill-stone)"/>
+      <rect x="12" y="52" width="40" height="6" rx="2" fill="var(--ill-light)"/>`
+  },
+
+  1888: {
+    text: 'Чайковский написал Пятую симфонию',
+    art: `<rect x="4" y="14" width="56" height="2.5" fill="var(--ill-stone)"/>
+      <rect x="4" y="22" width="56" height="2.5" fill="var(--ill-stone)"/>
+      <rect x="4" y="30" width="56" height="2.5" fill="var(--ill-stone)"/>
+      <rect x="4" y="38" width="56" height="2.5" fill="var(--ill-stone)"/>
+      <ellipse cx="22" cy="44" rx="9" ry="6.5" fill="var(--hse-blue)"/>
+      <ellipse cx="46" cy="38" rx="9" ry="6.5" fill="var(--hse-blue)"/>
+      <rect x="28" y="12" width="3.5" height="34" fill="var(--hse-blue)"/>
+      <rect x="52" y="6" width="3.5" height="34" fill="var(--hse-blue)"/>
+      <path d="M28 12h27.5v7H28z" fill="var(--hse-blue)"/>`
+  },
+
+  1906: {
+    text: 'в Таврическом дворце собралась первая Государственная дума',
+    art: `<path d="M2 24 32 6l30 18z" fill="var(--ill-light)"/>
+      <rect x="6" y="26" width="52" height="5" fill="var(--ill-stone)"/>
+      <rect x="10" y="31" width="7" height="19" fill="var(--ill-light)"/>
+      <rect x="22" y="31" width="7" height="19" fill="var(--ill-light)"/>
+      <rect x="35" y="31" width="7" height="19" fill="var(--ill-light)"/>
+      <rect x="47" y="31" width="7" height="19" fill="var(--ill-light)"/>
+      <rect x="4" y="50" width="56" height="6" rx="2" fill="var(--ill-stone)"/>`
+  },
+
+  1922: {
+    text: 'на карте появился Советский Союз',
+    art: `<rect x="10" y="6" width="4" height="52" rx="2" fill="var(--ill-ink)"/>
+      <path d="M14 10h40c-5 8-5 16 0 24H14z" fill="var(--ill-red)"/>
+      <polygon points="36,12 37.9,17.4 43.6,17.5 39,21 40.7,26.5 36,23.2 31.3,26.5 33,21 28.4,17.5 34.1,17.4" fill="var(--ill-gold)"/>`
+  },
+
+  1930: {
+    text: 'в СССР ввели всеобщее начальное обучение — в школу пошли все дети',
+    art: `<path d="M24 22v-4a8 8 0 0 1 16 0v4" fill="none" stroke="var(--ill-ink)" stroke-width="3"/>
+      <rect x="6" y="22" width="52" height="30" rx="5" fill="var(--ill-warm)"/>
+      <path d="M6 27a5 5 0 0 1 5-5h42a5 5 0 0 1 5 5v7H6z" fill="var(--hse-blue)"/>
+      <rect x="27" y="30" width="10" height="8" rx="2" fill="var(--ill-gold)"/>`
+  },
+
+  1942: {
+    text: 'на экраны вышел мультфильм «Бэмби»',
+    art: `<ellipse cx="15" cy="18" rx="6" ry="8" transform="rotate(-25 15 18)" fill="var(--ill-warm)"/>
+      <ellipse cx="49" cy="18" rx="6" ry="8" transform="rotate(25 49 18)" fill="var(--ill-warm)"/>
+      <ellipse cx="32" cy="34" rx="14" ry="15" fill="var(--ill-warm)"/>
+      <ellipse cx="32" cy="45" rx="7.5" ry="6" fill="var(--ill-light)"/>
+      <ellipse cx="32" cy="42" rx="2.6" ry="2" fill="var(--ill-ink)"/>
+      <circle cx="25" cy="31" r="2.4" fill="var(--ill-ink)"/>
+      <circle cx="39" cy="31" r="2.4" fill="var(--ill-ink)"/>
+      <circle cx="21" cy="22" r="2" fill="var(--ill-light)"/>
+      <circle cx="43" cy="22" r="2" fill="var(--ill-light)"/>`
+  },
+
+  1944: {
+    text: 'в новогоднюю ночь по радио впервые прозвучал новый гимн страны',
+    art: `<rect x="8" y="20" width="46" height="32" rx="5" fill="var(--ill-warm)"/>
+      <circle cx="25" cy="36" r="10" fill="var(--ill-ink)"/>
+      <circle cx="25" cy="36" r="4" fill="var(--ill-stone)"/>
+      <circle cx="45" cy="30" r="4.5" fill="var(--ill-gold)"/>
+      <rect x="38" y="40" width="14" height="5" rx="2.5" fill="var(--ill-light)"/>
+      <path d="M45 20v-9" stroke="var(--ill-ink)" stroke-width="2"/>
+      <path d="M49 6a10 10 0 0 1 7 7M52 2a15 15 0 0 1 10 10" fill="none" stroke="var(--ill-gold)" stroke-width="2" stroke-linecap="round"/>`
+  },
+
+  1958: {
+    text: 'Борис Пастернак получил Нобелевскую премию по литературе',
+    art: `<path d="M4 14h20a4 4 0 0 1 4 4v30a6 6 0 0 0-6-4H4z" fill="var(--hse-blue)"/>
+      <path d="M28 18a4 4 0 0 1 4-4h4v34h-4a6 6 0 0 0-4 2z" fill="var(--ill-light)"/>
+      <path d="M38 8h14l-3 12H41z" fill="var(--ill-red)"/>
+      <circle cx="45" cy="38" r="14" fill="var(--ill-gold)"/>
+      <circle cx="45" cy="38" r="8" fill="var(--ill-light)" opacity="0.45"/>`
+  },
+
+  1972: {
+    text: 'сборная СССР сыграла с канадцами хоккейную Суперсерию',
+    art: `<path d="M16 6h7v34h22v7H16z" fill="var(--ill-warm)"/>
+      <path d="M23 40h22v7H23z" fill="var(--ill-ink)"/>
+      <ellipse cx="52" cy="50" rx="9" ry="5" fill="var(--ill-ink)"/>
+      <ellipse cx="52" cy="47" rx="9" ry="5" fill="var(--ill-stone)"/>`
+  },
+
+  1976: {
+    text: 'станция «Луна-24» привезла на Землю лунный грунт',
+    art: `<circle cx="48" cy="14" r="12" fill="var(--ill-stone)"/>
+      <circle cx="44" cy="10" r="3" fill="var(--ill-light)"/>
+      <circle cx="52" cy="18" r="2" fill="var(--ill-light)"/>
+      <path d="M10 34h32l-5 14H15z" fill="var(--ill-light)"/>
+      <rect x="20" y="22" width="12" height="12" rx="3" fill="var(--hse-blue)"/>
+      <path d="M14 48l-6 8M38 48l6 8" stroke="var(--ill-ink)" stroke-width="3" stroke-linecap="round"/>
+      <path d="M26 22v-8" stroke="var(--ill-ink)" stroke-width="2"/>
+      <circle cx="26" cy="11" r="3.5" fill="var(--ill-gold)"/>
+      <path d="M2 58h60" stroke="var(--ill-stone)" stroke-width="3" stroke-linecap="round"/>`
+  },
+
+  1984: {
+    text: 'Светлана Савицкая первой из женщин вышла в открытый космос',
+    art: `<circle cx="30" cy="30" r="19" fill="var(--ill-light)"/>
+      <path d="M17 27a13 13 0 0 1 26 0v5a13 13 0 0 1-26 0z" fill="var(--hse-blue)"/>
+      <path d="M22 26a8 8 0 0 1 7-4" fill="none" stroke="var(--ill-gold)" stroke-width="2.5" stroke-linecap="round"/>
+      <path d="M48 40c9 5 12 10 12 18" fill="none" stroke="var(--ill-stone)" stroke-width="2.5"/>
+      <circle cx="10" cy="8" r="2" fill="var(--ill-gold)"/>
+      <circle cx="54" cy="10" r="2.5" fill="var(--ill-gold)"/>
+      <circle cx="58" cy="26" r="1.8" fill="var(--ill-gold)"/>`
+  },
+
+  1990: {
+    text: 'Россия приняла Декларацию о государственном суверенитете',
+    art: `<rect x="10" y="6" width="4" height="52" rx="2" fill="var(--ill-ink)"/>
+      <rect x="14" y="12" width="40" height="10" fill="var(--card)"/>
+      <rect x="14" y="22" width="40" height="10" fill="var(--ill-blue)"/>
+      <rect x="14" y="32" width="40" height="10" fill="var(--ill-red)"/>
+      <rect x="14" y="12" width="40" height="30" fill="none" stroke="var(--ill-stone)" stroke-width="1"/>`
+  },
+
+  1998: {
+    text: 'на орбиту отправился первый модуль будущей МКС — российская «Заря»',
+    art: `<rect x="22" y="26" width="20" height="15" rx="7" fill="var(--ill-light)"/>
+      <rect x="30" y="17" width="5" height="9" fill="var(--ill-stone)"/>
+      <rect x="2" y="28" width="18" height="11" rx="1.5" fill="var(--hse-blue)"/>
+      <rect x="44" y="28" width="18" height="11" rx="1.5" fill="var(--hse-blue)"/>
+      <path d="M8 28v11M14 28v11M50 28v11M56 28v11" stroke="var(--ill-light)" stroke-width="1.2"/>
+      <circle cx="12" cy="10" r="2.2" fill="var(--ill-gold)"/>
+      <circle cx="52" cy="12" r="2.8" fill="var(--ill-gold)"/>
+      <circle cx="34" cy="52" r="2" fill="var(--ill-gold)"/>`
+  },
+
+  2012: {
+    text: 'во Владивостоке открыли Русский мост — самый большой вантовый в мире',
+    art: `<path d="M16 42V8M48 42V8" stroke="var(--ill-stone)" stroke-width="4" stroke-linecap="round"/>
+      <path d="M16 10L2 40M16 10l14 30M48 10l14 30M48 10L34 40" fill="none" stroke="var(--ill-stone)" stroke-width="1.5"/>
+      <rect x="0" y="40" width="64" height="6" fill="var(--ill-light)"/>
+      <path d="M4 56c5-4 9-4 14 0s9 4 14 0 9-4 14 0" fill="none" stroke="var(--ill-blue)" stroke-width="3" stroke-linecap="round"/>`
+  }
+};
+
 // Number and word formatting shared by every visualisation.
 
 // 48139 -> "48 139" (non-breaking thin space, so numbers never wrap).
@@ -1538,6 +1966,12 @@ function leadCard(section, K = CARD_K) {
   // or up to the top of the section, where it stays and reads as the heading.
   const parks = lead.dataset.exit === 'top';
 
+  // A screen of one line starts where the heading of the title card will be,
+  // so the swap is a move sideways and nothing hops. One that grows part by
+  // part can ask to stay in the middle instead: it then rises as its parts
+  // arrive, and each of them is read in the centre of the screen.
+  const centres = lead.dataset.fit === 'center';
+
   // Squeezed shut until their turn — see stageCards for why by height.
   const parts = [...lead.querySelectorAll('.intro-stage')];
   parts.forEach((el) => { el.style.overflow = 'hidden'; });
@@ -1550,7 +1984,8 @@ function leadCard(section, K = CARD_K) {
     // is fixed to the middle of the window instead, so it needs no top — but it
     // has to keep out of sight until the section itself arrives.
     const cardTop = container.clientHeight / 2 - (header.offsetHeight * K) / 2;
-    lead.style.top = narrow ? '' : `${Math.round(cardTop)}px`;
+    if (!narrow && !centres) lead.style.top = `${Math.round(cardTop)}px`;
+    if (narrow) lead.style.top = '';
     lead.style.visibility = narrow && section.getBoundingClientRect().top > 1
       ? 'hidden'
       : '';
@@ -1569,7 +2004,17 @@ function leadCard(section, K = CARD_K) {
       const grown = 1 - Math.pow(1 - v, 3);
       el.style.opacity = grown.toFixed(3);
       el.style.height = grown < 1 ? `${(el.scrollHeight * grown).toFixed(1)}px` : '';
+      // How far each part has come, for anyone who cares: a screen where one
+      // part replaces another has the earlier one leave by the same number.
+      section.style.setProperty(`--lead-stage-${k}`, grown.toFixed(3));
     });
+
+    // A screen that holds the middle is placed once its parts have grown: its
+    // height is what has just changed, and reading it before them would leave
+    // the screen a frame behind — plain to see when the reader stops.
+    if (!narrow && centres) {
+      lead.style.top = `${Math.round(container.clientHeight / 2 - lead.offsetHeight / 2)}px`;
+    }
 
     const t = clamp((q - hold) / (screens - hold));
     const e = 1 - Math.pow(1 - t, 3);
@@ -3248,10 +3693,15 @@ function init(root) {
 
   function segments() {
     const { kinds } = state;
+    // While the story runs a campus is one colour: it arrives as a whole, and
+    // there is nothing on screen yet to say what the second shade would mean.
+    // The split into students and staff appears with the controls, next to the
+    // legend that explains it.
+    const split = !root.classList.contains('is-telling');
     const out = [];
     CITIES.forEach((c) => {
       if (kinds.students) out.push({ key: c.key, n: c.students, color: c.color });
-      if (kinds.staff) out.push({ key: c.key, n: c.staff, color: c.colorLight });
+      if (kinds.staff) out.push({ key: c.key, n: c.staff, color: split ? c.colorLight : c.color });
     });
     if (kinds.lyceum) out.push({ key: 'lyceum', n: LYCEUM, color: LYCEUM_COLOR, always: true });
     return out;
@@ -5015,7 +5465,1420 @@ function init(root) {
 return { meta, init };
 })();
 
-const MODULES = [MOD_metro, MOD_stadium, MOD_world, MOD_area];
+const MOD_study = (() => {
+// Every HSE programme taken one after another — how long a single student
+// would sit through all of them.
+
+
+
+
+// Facts about the curriculum itself — they live here, not in data/hse.js,
+// which only knows about the people. A bachelor's or a specialist's degree
+// takes four years, a master's two.
+const PROGRAMS = {
+  msk: { bachelor: 80, master: 154 },
+  spb: { bachelor: 21, master: 27 },
+  nn: { bachelor: 17, master: 14 },
+  perm: { bachelor: 9, master: 7 }
+};
+
+// The two levels the checkboxes switch on and off. `shade` is the colour a
+// city lends to this level — the main one for the longer degree, the lighter
+// one for the shorter, same as on the stadium.
+const LEVELS = [
+  { key: 'bachelor', label: 'Бакалавриат и специалитет', short: 'бакалавриат', years: 4, shade: (c) => c.color },
+  { key: 'master', label: 'Магистратура', short: 'магистратура', years: 2, shade: (c) => c.colorLight }
+];
+
+// Специалитет lives in Moscow only, so only its card spells the level out
+// in full — the other three would just wrap the line for nothing.
+const SPECIALIST = ['msk'];
+
+const countOf = (city, level) => PROGRAMS[city.key][level.key];
+const PROGRAMS_TOTAL = CITIES.reduce(
+  (n, c) => n + LEVELS.reduce((m, l) => m + countOf(c, l), 0), 0
+);
+const YEARS_TOTAL = CITIES.reduce(
+  (n, c) => n + LEVELS.reduce((m, l) => m + countOf(c, l) * l.years, 0), 0
+);
+
+// The year the answer is counted back from. Pinned rather than taken from the
+// clock: every year the reader can land on has a historical event attached to
+// it in data/history.js, and a moving "now" would shift them all.
+const NOW = 2026;
+
+// The scale under the picture: from the earliest year the section can reach
+// (all the programmes at once) to today, with a tick every half century.
+const START = NOW - YEARS_TOTAL;
+const FOUNDED = 1992;              // the year the university itself started
+const TICK = 50;
+const TODAY_YEAR = new Date().getFullYear();
+
+// Half-century ticks on round years, every second one taller. The lead-in
+// screen shows the same scale, so they are laid out once and drawn twice —
+// as markup there, as elements in the block itself.
+const TICKS = [];
+for (let y = Math.ceil(START / TICK) * TICK; y < NOW; y += TICK) {
+  TICKS.push({ major: y % 100 === 0, at: ((y - START) / YEARS_TOTAL) * 100 });
+}
+
+// The figure each beat of the lead-in turns on, picked out in the corporate
+// blue — same as on the screens before this one. Painted inline: the shell
+// draws the screen before the styles of the module arrive.
+const mark = (text) =>
+  `<span class="study-lead-mark" style="background: var(--hse-blue); color: var(--card)">${text}</span>`;
+
+// One square per programme — all alike: the screen is about how many of them
+// there are, and the campuses have their own colours later on.
+const LEAD_DOTS = '<span class="study-lead-dot"></span>'.repeat(PROGRAMS_TOTAL);
+
+// What was happening in the world when a student taking every programme one
+// after another would have had to start — the far end of the scale.
+const FIRST = HISTORY[START];
+
+// The picture the second beat stands on: the year the studies would have to
+// start in, and what was happening in the world then. The scale under it is
+// the block's own business — here it would only be one thing too many.
+const LEAD_CARD = `
+  <span class="study-art"><svg viewBox="0 0 64 64" aria-hidden="true" focusable="false">${FIRST.art}</svg></span>
+  <span class="study-lead-col">
+    <span class="study-since">Начинать пришлось бы в <b>${START}</b> году</span>
+    <span class="study-event">Тогда ${FIRST.text}</span>
+  </span>
+`;
+
+const meta = {
+  id: 'study',
+  // Hands the reader over from the buildings: what goes on inside them, then
+  // all of it at once as a square apiece — and that gives way to how long it
+  // would take to sit through them one after another, and to the year such a
+  // student would have had to start in. The last line runs into the heading.
+  lead: {
+    // The screen grows by a whole block at a time, so it holds the middle of
+    // the screen rather than the top edge of the title card to come.
+    fit: 'center',
+    value: 'Во всех этих зданиях студенты обучаются не только экономике',
+    text: '<span class="study-lead-swap">'
+      + '<span class="study-lead-beat intro-stage" data-stage="1">'
+      +   `<span class="study-lead-gone">Вышка обучает по ${mark(`${nf(PROGRAMS_TOTAL)} образовательным программам`)}`
+      +   `<span class="study-lead-dots">${LEAD_DOTS}</span></span></span>`
+      + '<span class="study-lead-beat intro-stage" data-stage="2"><span class="study-lead-come">'
+      +   `Чтобы обучиться на каждой из них, потребуется ${mark(`${nf(YEARS_TOTAL)} ${plural(YEARS_TOTAL, 'год', 'года', 'лет')}`)}`
+      +   `<span class="study-lead-card">${LEAD_CARD}</span>`
+      + '</span></span></span>'
+      + '<span class="study-lead-outro intro-stage" data-stage="3">В общем нужно…</span>'
+  },
+  title: 'Учиться, учиться и еще раз учиться',
+  // The heading arrives on its own — the reader has just been told all this on
+  // the screen before it. The subtitle comes with the block underneath, on the
+  // same fade: --intro-body is how far that block has arrived.
+  subtitle: `<span class="study-sub" style="opacity: var(--intro-body, 1)">Вышка обучает по ${nf(PROGRAMS_TOTAL)} образовательным программам</span>`,
+  // Opens with that screen and then with the title card, like the sections
+  // before it.
+  intro: true
+};
+
+function init(root) {
+  'use strict';
+
+  // ---------- Markup ----------
+  // The stage with the big number is specific to this visualisation, so its
+  // styles live here and not in layout.css.
+  root.innerHTML = `
+    <style>
+      .study-stage {
+        flex: 1;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        padding: 12px;
+        text-align: center;
+      }
+
+      .study-years {
+        display: flex;
+        align-items: baseline;
+        gap: 0.18em;
+        line-height: 1;
+        letter-spacing: -0.04em;
+        font-weight: 700;
+        font-size: clamp(3rem, 11vw, 8.5rem);
+        font-variant-numeric: tabular-nums;
+        color: var(--hse-blue);
+      }
+
+      .study-years-unit {
+        font-size: 0.36em;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+        color: var(--text-secondary);
+      }
+
+      /* Three lines are always reserved: the text is two or three lines long
+         depending on the number in it, and without the floor everything below
+         would jump on every switch. */
+      .study-caption {
+        max-width: 30ch;
+        font-size: 0.9375rem;
+        line-height: 1.35;
+        min-height: 4.05em;
+        color: var(--text-secondary);
+      }
+
+      /* The date the studies would have to start at, with a picture of what
+         was happening then. A card of its own, so it reads as a separate
+         thought and not as a third line of the caption. */
+      .study-history {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        margin-top: 26px;
+        padding: 18px 26px 18px 20px;
+        border-radius: var(--r-canvas-card);
+        background: var(--bg);
+        max-width: 540px;
+        text-align: left;
+        opacity: 0;
+        transition: opacity 260ms ease;
+      }
+
+      .study-history.in { opacity: 1; }
+
+      .study-art {
+        flex: none;
+        width: 88px;
+        height: 88px;
+      }
+
+      .study-art svg {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+
+      .study-history-text {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 0;
+      }
+
+      .study-since {
+        font-size: 1.125rem;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+        color: var(--text);
+      }
+
+      .study-since b {
+        font-weight: 700;
+        color: var(--hse-blue);
+      }
+
+      .study-event {
+        font-size: 0.9375rem;
+        color: var(--text-secondary);
+      }
+
+      /* The same span of time as a line: 1114 on the left, today on the
+         right, and a pointer that slides to the year in question. */
+      .study-timeline {
+        width: 100%;
+        max-width: 540px;
+        margin-top: 24px;
+        padding: 0 24px;
+      }
+
+      .study-track {
+        position: relative;
+        height: 42px;
+      }
+
+      .study-line {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 10px;
+        height: 2px;
+        border-radius: 1px;
+        background: var(--empty);
+      }
+
+      .study-tick {
+        position: absolute;
+        bottom: 12px;
+        width: 1px;
+        height: 5px;
+        background: var(--empty);
+      }
+
+      .study-tick.major {
+        height: 9px;
+        background: var(--legend-swatch);
+      }
+
+      /* Sits on the line and is moved along it frame by frame, together with
+         the count — hence no transition of its own. */
+      .study-mark {
+        position: absolute;
+        bottom: 6px;
+        left: 0;
+        transform: translateX(-50%);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 3px;
+      }
+
+      .study-mark-label {
+        font-size: 0.75rem;
+        font-weight: 700;
+        line-height: 1;
+        color: var(--hse-blue);
+        font-variant-numeric: tabular-nums;
+        transition: opacity 160ms ease;
+      }
+
+      .study-mark-pin {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: var(--hse-blue);
+        box-shadow: 0 0 0 3px var(--card);
+      }
+
+      /* The footnote at the very bottom of the card, in the same voice as the
+         line about the event. */
+      .study-note {
+        flex: none;
+        padding: 6px 12px 4px;
+        text-align: center;
+        font-size: 0.9375rem;
+        color: var(--text-secondary);
+      }
+
+      .study-ends {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        margin-top: 2px;
+        font-size: 0.75rem;
+        color: var(--text-caption);
+        font-variant-numeric: tabular-nums;
+      }
+
+      /* ---------- The lead-in screen ---------- */
+
+      /* Both beats stand in one box, one over the other: the first leaves as
+         the second arrives, so the second takes its place instead of being
+         pushed down by it. Each of them grows into place by its own height,
+         so each needs a box of its own. */
+      .study-lead-swap {
+        display: grid;
+        margin-top: 0.45em;
+      }
+
+      .study-lead-beat {
+        grid-area: 1 / 1;
+        align-self: start;
+      }
+
+      /* The two share the box, so they must not be seen through each other:
+         the first is gone by the time the second has come two fifths of the
+         way, and the second only starts showing at half. The page shell owns
+         the opacity of a part while it grows — hence both from the inside, by
+         how far the second one has come. */
+      .study-lead-gone {
+        display: block;
+        opacity: calc(1 - var(--lead-stage-2, 0) * 2.5);
+      }
+
+      .study-lead-come {
+        display: block;
+        opacity: calc(var(--lead-stage-2, 1) * 2 - 1);
+      }
+
+      /* Every programme as a square, in one block under the line that counts
+         them. Spans, not divs — the shell puts the screen inside a <p>. */
+      .study-lead-dots {
+        display: grid;
+        grid-template-columns: repeat(30, 1fr);
+        gap: 4px;
+        max-width: 540px;
+        margin-top: 0.6em;
+      }
+
+      .study-lead-dot {
+        aspect-ratio: 1;
+        border-radius: 3px;
+        background: var(--hse-blue);
+      }
+
+      /* The year the second beat stands on, in the middle of the screen. Set
+         at its own size: the screen around it is scaled up, a card in it is
+         not. */
+      .study-lead-card {
+        display: flex;
+        align-items: center;
+        gap: 26px;
+        max-width: 640px;
+        margin: 0.7em auto 0;
+        padding: 26px 32px;
+        border-radius: var(--r-canvas-card);
+        background: var(--card);
+        box-shadow: var(--card-shadow);
+      }
+
+      .study-lead-col {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        min-width: 0;
+      }
+
+      .study-lead-card .study-art { width: 128px; height: 128px; }
+      .study-lead-card .study-since { font-size: 1.5rem; }
+      .study-lead-card .study-event { font-size: 1.125rem; }
+
+      /* The line that runs into the heading itself, so it is set larger than
+         the screen around it — and scaled with it, like everything else here. */
+      .study-lead-outro {
+        display: block;
+        margin-top: 0.7em;
+        font-size: calc(1.25rem * var(--intro-k, 1.55));
+        color: var(--text);
+      }
+
+      /* The patch on a figure of the screen. Colour comes inline with the
+         markup; what is left here is the shape of it. */
+      .study-lead-mark {
+        padding: 0.06em 0.3em;
+        border-radius: 0.2em;
+        -webkit-box-decoration-break: clone;
+        box-decoration-break: clone;
+      }
+
+      @media (max-width: 860px) {
+        .study-years { font-size: clamp(2.5rem, 15vw, 4.5rem); }
+        .study-caption { font-size: 0.875rem; }
+        .study-history { gap: 12px; margin-top: 14px; padding: 12px 16px; }
+        .study-art { width: 64px; height: 64px; }
+        .study-since { font-size: 1rem; }
+        .study-event { font-size: 0.875rem; }
+        .study-timeline { margin-top: 14px; padding: 0 20px; }
+        .study-track { height: 34px; }
+        .study-note { font-size: 0.875rem; }
+
+        /* Fewer squares to a row: at this width 28 of them would be specks. */
+        .study-lead-dots { grid-template-columns: repeat(22, 1fr); gap: 3px; }
+        .study-lead-dot { border-radius: 2px; }
+        .study-lead-card { gap: 14px; margin-top: 0.6em; padding: 16px 18px; }
+        .study-lead-card .study-art { width: 80px; height: 80px; }
+        .study-lead-card .study-since { font-size: 1.125rem; }
+        .study-lead-card .study-event { font-size: 0.9375rem; }
+        .study-lead-outro { font-size: 1.375rem; }
+
+        /* The picture has no fixed height of its own, unlike the canvases in
+           the other sections: a long event text must not be cut off. */
+        #study .canvas-card { height: auto; min-height: 40dvh; }
+      }
+    </style>
+
+    <div class="col-left">
+      <div class="kind-row" data-el="kindRow"></div>
+      <div class="city-list" data-el="cityList"></div>
+      <div class="actions">
+        <button type="button" class="btn" data-el="clearAll">Снять все</button>
+        <button type="button" class="btn" data-el="restoreAll">Вернуть все</button>
+      </div>
+    </div>
+
+    <div class="col-right">
+      <div class="meter-card">
+        <div class="meter-header">
+          <div class="meter-title">Образовательных программ</div>
+          <div class="meter-value"><strong data-el="programs"></strong> из ${nf(PROGRAMS_TOTAL)}</div>
+        </div>
+        <div class="meter-bar" data-el="bar"></div>
+      </div>
+
+      <div class="canvas-card">
+        <div class="study-stage">
+          <div class="study-years">
+            <span data-el="years">0</span>
+            <span class="study-years-unit" data-el="yearsWord">лет</span>
+          </div>
+          <div class="study-caption" data-el="caption"></div>
+          <div class="study-history" data-el="history" aria-hidden="true">
+            <span class="study-art" data-el="art" aria-hidden="true"></span>
+            <span class="study-history-text">
+              <span class="study-since" data-el="since"></span>
+              <span class="study-event" data-el="event"></span>
+            </span>
+          </div>
+
+          <div class="study-timeline">
+            <div class="study-track" data-el="track">
+              <div class="study-line"></div>
+              <div class="study-mark" data-el="mark">
+                <span class="study-mark-label" data-el="markYear"></span>
+                <span class="study-mark-pin"></span>
+              </div>
+            </div>
+            <div class="study-ends">
+              <span>${START}</span>
+              <span>${TODAY_YEAR}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="study-note" data-el="note"></div>
+      </div>
+    </div>
+  `;
+
+  const $ = (name) => root.querySelector(`[data-el="${name}"]`);
+
+  // ---------- State ----------
+  const state = {
+    active: { msk: true, spb: true, nn: true, perm: true },
+    levels: { bachelor: true, master: true }
+  };
+
+  const selected = (city, level) =>
+    state.active[city.key] && state.levels[level.key] ? countOf(city, level) : 0;
+
+  const totals = () => {
+    let programs = 0, years = 0;
+    CITIES.forEach((c) => LEVELS.forEach((l) => {
+      const n = selected(c, l);
+      programs += n;
+      years += n * l.years;
+    }));
+    return { programs, years };
+  };
+
+  // ---------- Counting animation ----------
+  // Both numbers run to their new value together, on the same curve as the
+  // rest of the page.
+  const shown = { programs: 0, years: 0 };
+  let tween = null;
+  let frame = null;
+
+  function animateTo(target, instant) {
+    if (instant) {
+      Object.assign(shown, target);
+      tween = null;
+      paint();
+      paintHistory();
+      return;
+    }
+    // The year runs together with the count, so the picture waits for both.
+    historyEl.classList.remove('in');
+    tween = { from: { ...shown }, to: target, t0: performance.now() };
+    if (frame === null) frame = requestAnimationFrame(tick);
+  }
+
+  function tick(now) {
+    frame = null;
+    if (!tween) return;
+    const raw = Math.min(1, Math.max(0, (now - tween.t0) / 620));
+    const p = 1 - Math.pow(1 - raw, 3);
+    Object.keys(shown).forEach((key) => {
+      shown[key] = tween.from[key] + (tween.to[key] - tween.from[key]) * p;
+    });
+    if (raw >= 1) tween = null; else frame = requestAnimationFrame(tick);
+    paint();
+    if (tween === null) paintHistory();
+  }
+
+  const yearsEl = $('years');
+  const yearsWordEl = $('yearsWord');
+  const programsEl = $('programs');
+  const captionEl = $('caption');
+  const historyEl = $('history');
+  const artEl = $('art');
+  const sinceEl = $('since');
+  const eventEl = $('event');
+  const markEl = $('mark');
+  const markYearEl = $('markYear');
+  const noteEl = $('note');
+
+  function paint() {
+    const years = Math.round(shown.years);
+    const programs = Math.round(shown.programs);
+
+    yearsEl.textContent = nf(years);
+    yearsWordEl.textContent = plural(years, 'год', 'года', 'лет');
+    programsEl.textContent = nf(programs);
+
+    captionEl.textContent = programs
+      ? `непрерывной учебы, чтобы пройти ${nf(programs)} ${plural(programs, 'выбранную программу', 'выбранные программы', 'выбранных программ')} одну за другой`
+      : 'Выберите города и уровни обучения';
+
+    // The pointer follows the count itself, not the rounded number, so it
+    // slides smoothly while the years run.
+    const pos = (1 - shown.years / YEARS_TOTAL) * 100;
+    markEl.style.left = `${pos}%`;
+    markYearEl.textContent = NOW - years;
+    // At the very ends the label would just repeat the caption under the line.
+    markYearEl.style.opacity = pos < 4 || pos > 96 ? '0' : '1';
+
+    // How far that year is from the university itself.
+    const from = NOW - years;
+    const gap = Math.abs(from - FOUNDED);
+    const word = plural(gap, 'год', 'года', 'лет');
+    noteEl.textContent = from === FOUNDED ? 'Вышка как раз появилась'
+      : from < FOUNDED ? `До создания Вышки еще ${gap} ${word}`
+      : `Вышке уже ${gap} ${word}`;
+  }
+
+  // The same span of time, counted backwards — a number of years is easier to
+  // feel as a date, and even easier with something that happened in it.
+  // Updated once the count has settled, not on every frame of it.
+  function paintHistory() {
+    const years = Math.round(shown.years);
+    const from = NOW - years;
+    const event = HISTORY[from];
+    // With nothing selected there is no year to show, but the block keeps its
+    // place: otherwise the scale under it would jump up.
+    if (years < 5 || !event) {
+      historyEl.classList.remove('in');
+      historyEl.setAttribute('aria-hidden', 'true');
+      return;
+    }
+    historyEl.setAttribute('aria-hidden', 'false');
+    artEl.innerHTML = `<svg viewBox="0 0 64 64" focusable="false">${event.art}</svg>`;
+    sinceEl.innerHTML = `Начинать пришлось бы в <b>${from}</b> году`;
+    eventEl.textContent = `Тогда ${event.text}`;
+    historyEl.classList.add('in');
+  }
+
+  // ---------- DOM rendering ----------
+  const kindRow = $('kindRow');
+  const cityList = $('cityList');
+  const bar = $('bar');
+
+  const kindEls = {};
+  LEVELS.forEach((level) => {
+    const item = document.createElement('button');
+    item.type = 'button';
+    item.className = 'kind-item';
+    item.innerHTML = `
+      <span class="kind-box"><span class="kind-check"></span></span>
+      <span class="kind-label">${level.label}</span>
+    `;
+    item.addEventListener('click', () => {
+      state.levels[level.key] = !state.levels[level.key];
+      render();
+    });
+    kindRow.appendChild(item);
+    kindEls[level.key] = item;
+  });
+
+  const cityEls = {};
+  CITIES.forEach((c) => {
+    const card = document.createElement('div');
+    card.className = 'city-card';
+    card.innerHTML = `
+      <div class="city-info">
+        <div class="city-name">${c.name}</div>
+        <div class="city-stats">
+          ${LEVELS.map((l) => `
+            <span class="city-stat" data-level="${l.key}">
+              <span class="city-dot" style="background:${l.shade(c)}"></span>
+              <span class="city-stat-text"></span>
+            </span>
+          `).join('')}
+        </div>
+      </div>
+      <button type="button" class="toggle" role="switch"><span class="toggle-knob"></span></button>
+    `;
+    const toggleBtn = card.querySelector('.toggle');
+    toggleBtn.addEventListener('click', () => {
+      state.active[c.key] = !state.active[c.key];
+      render();
+    });
+    cityList.appendChild(card);
+    cityEls[c.key] = {
+      toggle: toggleBtn,
+      rows: LEVELS.map((l) => card.querySelector(`.city-stat[data-level="${l.key}"]`))
+    };
+  });
+
+  const track = $('track');
+  TICKS.forEach((t) => {
+    const tick = document.createElement('div');
+    tick.className = 'study-tick' + (t.major ? ' major' : '');
+    tick.style.left = `${t.at}%`;
+    track.insertBefore(tick, markEl);
+  });
+
+  $('clearAll').addEventListener('click', () => {
+    CITIES.forEach((c) => { state.active[c.key] = false; });
+    LEVELS.forEach((l) => { state.levels[l.key] = false; });
+    render();
+  });
+  $('restoreAll').addEventListener('click', () => {
+    CITIES.forEach((c) => { state.active[c.key] = true; });
+    LEVELS.forEach((l) => { state.levels[l.key] = true; });
+    render();
+  });
+
+  // The bar is one segment per city per level, in the order of the cards.
+  const barSegs = [];
+  CITIES.forEach((c) => LEVELS.forEach((l) => {
+    const seg = document.createElement('div');
+    seg.className = 'meter-bar-seg';
+    seg.style.background = l.shade(c);
+    bar.appendChild(seg);
+    barSegs.push({ city: c, level: l, el: seg });
+  }));
+
+  function render(instant) {
+    LEVELS.forEach((l) => {
+      kindEls[l.key].classList.toggle('active', !!state.levels[l.key]);
+    });
+
+    CITIES.forEach((c) => {
+      const els = cityEls[c.key];
+      const on = !!state.active[c.key];
+      els.toggle.classList.toggle('on', on);
+      els.toggle.style.background = on ? c.color : '';
+      LEVELS.forEach((l, i) => {
+        const row = els.rows[i];
+        row.style.display = state.levels[l.key] ? '' : 'none';
+        const n = countOf(c, l);
+        const level = l.key === 'bachelor' && SPECIALIST.includes(c.key)
+          ? l.label.toLowerCase()
+          : l.short;
+        row.querySelector('.city-stat-text').textContent =
+          `${n} ${plural(n, 'программа', 'программы', 'программ')}, ${level}`;
+      });
+    });
+
+    barSegs.forEach(({ city, level, el }) => {
+      const n = selected(city, level);
+      el.style.width = `${(n / PROGRAMS_TOTAL) * 100}%`;
+    });
+
+    animateTo(totals(), instant);
+  }
+
+  // ---------- Column alignment ----------
+  // Only the left column starts with the filter row, so without this the meter
+  // card sits higher than the first city card.
+  const colLeft = root.querySelector('.col-left');
+  const colRight = root.querySelector('.col-right');
+  const stacked = window.matchMedia('(max-width: 860px)');
+
+  function alignColumns() {
+    if (stacked.matches) {
+      colRight.style.paddingTop = '';   // one column: nothing to line up with
+      return;
+    }
+    const gap = parseFloat(getComputedStyle(colLeft).rowGap) || 0;
+    colRight.style.paddingTop = `${kindRow.offsetHeight + gap}px`;
+  }
+
+  new ResizeObserver(alignColumns).observe(kindRow);
+  stacked.addEventListener('change', alignColumns);
+
+  render(true);
+  alignColumns();
+}
+
+return { meta, init };
+})();
+
+const MOD_each = (() => {
+// The last screen of the page: every figure it has counted, all at once and
+// without a word of explanation. Then they are added up into one number, and
+// that number is taken apart down to one. Nothing here is drawn — the whole
+// scene is the numbers themselves, set in the same face as the rest of the page.
+
+
+
+
+// The teaching part of the floor area — data/hse.js keeps it campus by campus.
+const AREA_STUDY = CITIES.reduce((n, c) => n + c.areaStudy, 0);
+
+// Figures the page has already shown. Each of them is counted in the section
+// that earned it, and a module knows nothing about its neighbours — so they
+// are quoted here by hand rather than imported. If a section ever changes its
+// answer, its line below has to change with it.
+const SEATS = 81000;        // seats in «Лужники» — the stadium
+const BUILDINGS = 196;      // buildings — the floor area section
+const PROGRAMS = 329;       // programmes — the studies section
+const YEARS = 912;          // years of study one after another — the same
+const CARS = 134;           // metro cars for this year's intake — the opening
+
+const meta = {
+  id: 'each',
+  title: 'На странице было много разных цифр',
+  // The heading says all of it; the numbers come with nothing under them.
+  subtitle: '',
+  intro: true,
+  // They all turn up, the question comes up over them, they are added up into
+  // one — and the last screen counts that one down and answers itself.
+  steps: 4
+};
+
+function init(root) {
+  'use strict';
+
+  const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const narrow = window.matchMedia('(max-width: 860px)');
+  const REF = 100;                                 // size everything is measured at
+  const EASE = 'cubic-bezier(0.33, 1, 0.68, 1)';   // 1 - (1 - p)³
+
+  const cityOf = (key) => CITIES.find((c) => c.key === key);
+
+  // Five colours for the board: the four campuses of the page and its plain
+  // text. The university's own blue is kept out of it — it belongs to the one
+  // figure at the end and to nothing else.
+  const INK = {
+    ink: 'var(--text)',
+    msk: cityOf('msk').color,
+    spb: cityOf('spb').color,
+    nn: cityOf('nn').color,
+    perm: cityOf('perm').color
+  };
+  const HSE = 'var(--hse-blue)';
+  // What the board fades to once the question has been asked: the figures are
+  // all still there, they have simply stopped being the point — so far back
+  // that the only dark thing left on the screen is the question itself.
+  const GREY = 'var(--text-faded)';
+
+  // Every figure of the page, in the order it turns up here. `w` is how much
+  // larger than the others it is set, `c` is which of the five colours it
+  // takes — laid out by hand so that no two neighbours share one.
+  const fig = (n, w, c, text) => ({ n, w, c, value: text || nf(n) });
+  const FIGURES = [
+    fig(STUDENTS, 1.5, 'ink'),
+    fig(STAFF, 1.05, 'msk'),
+    fig(LYCEUM, 0.75, 'spb'),
+    fig(ADMITTED, 1.2, 'nn'),
+    fig(CARS, 0.8, 'perm'),
+    fig(SEATS, 1.3, 'ink'),
+    fig(COUNTRIES.length, 0.9, 'spb'),
+    fig(FOREIGN, 0.85, 'msk', `${nf(FOREIGN)}+`),
+    fig(BUILDINGS, 1.05, 'nn'),
+    fig(AREA_TOTAL, 1.35, 'ink'),
+    fig(AREA_STUDY, 0.85, 'perm'),
+    fig(PROGRAMS, 1.1, 'msk'),
+    fig(YEARS, 1.2, 'spb'),
+    fig(cityOf('msk').students, 1.1, 'msk'),
+    fig(cityOf('spb').students, 0.75, 'spb'),
+    fig(cityOf('nn').students, 0.7, 'nn'),
+    fig(cityOf('perm').students, 0.7, 'perm'),
+    fig(HSE_TOTAL, 1.9, 'ink')
+  ];
+
+  // What the board comes to when it is added up. It is not a quantity of
+  // anything — square metres, years and people all go into it — and nothing on
+  // the screen claims otherwise: it is every figure of the page put together,
+  // and it is there to be taken apart again.
+  const TOTAL = FIGURES.reduce((n, f) => n + f.n, 0);
+  const ALL = FIGURES.map((_, i) => i);
+
+  // ---------- Markup ----------
+  root.innerHTML = `
+    <style>
+      /* The stage is one white field with nothing on it but figures, each put
+         in its place from JS — hence absolute positioning and no flow at all. */
+      .each-stage {
+        position: relative;
+        flex: 1;
+        min-height: 0;
+        overflow: hidden;
+      }
+
+      .each-tile {
+        position: absolute;
+        left: 0;
+        top: 0;
+        font-weight: 700;
+        line-height: 1;
+        letter-spacing: -0.03em;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+        opacity: 0;
+        will-change: transform, opacity;
+      }
+
+      /* The figure in the middle carries its own clearing: a soft field of the
+         card's own white, so the board draining around it never runs across
+         its digits. On a white card it is invisible — it only ever shows as
+         the room it makes. */
+      .each-sum.is-clearing {
+        box-shadow: 0 0 130px 42px var(--card);
+      }
+
+      /* The stand-in the figures are measured on: parked out of sight, never
+         moved, never scaled. */
+      .each-probe {
+        left: -99999px;
+        opacity: 0;
+        transform: none;
+      }
+
+      /* The question does not live in the white field at all: it takes the
+         place of the heading of the section. It is laid over the heading
+         instead of swapped into the flow, so the header keeps its height and
+         nothing underneath it moves. */
+      @media (min-width: 861px) {
+        .each-scene .viz-header {
+          position: relative;
+        }
+      }
+
+      .each-turn {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 0;
+        /* Larger than the heading it replaces — it has to be the one thing on
+           the screen that is read. The size gives way on a narrow window so
+           the sentence never breaks onto a second line and never reaches the
+           card underneath. */
+        font-size: clamp(1.125rem, 3.3vw, 2.25rem);
+        font-weight: 700;
+        line-height: 1.06;
+        letter-spacing: -0.02em;
+        color: var(--text);
+        opacity: 0;
+        transform: translateY(12px);
+        transition: opacity 620ms ease,
+                    transform 620ms cubic-bezier(0.33, 1, 0.68, 1);
+        pointer-events: none;
+      }
+
+      .each-turn.is-on {
+        opacity: 1;
+        transform: none;
+      }
+
+      /* What the whole screen turns on, picked out the way the page picks out
+         a figure that matters — and in the colour the answer arrives in. */
+      .each-mark {
+        padding: 0.06em 0.26em;
+        border-radius: 0.22em;
+        background: var(--hse-blue);
+        color: var(--card);
+        box-decoration-break: clone;
+        -webkit-box-decoration-break: clone;
+      }
+
+      /* The answer, along the bottom edge of the white field. */
+      .each-line {
+        position: absolute;
+        left: 12px;
+        right: 12px;
+        bottom: 4px;
+        text-align: center;
+        opacity: 0;
+        transition: opacity 620ms ease;
+        pointer-events: none;
+      }
+
+      .each-line.is-on {
+        opacity: 1;
+      }
+
+      /* And the heading of the section steps aside: from here on the screen
+         belongs to a single figure. It only fades — taking it out of the flow
+         would resize the card underneath and re-pack the whole board. */
+      /* Only the heading itself steps aside — the question standing in for it
+         is inside the same header and has to stay. */
+      .each-scene .viz-header h2,
+      .each-scene .viz-header > p {
+        transition: opacity 620ms ease;
+      }
+
+      .each-scene.each-hushed .viz-header h2,
+      .each-scene.each-hushed .viz-header > p {
+        opacity: 0;
+      }
+
+      /* The heading does not merely vanish: it steps up and out as the
+         question comes up from below to take its place. */
+      .each-scene .viz-header h2 {
+        transition: opacity 620ms ease,
+                    transform 620ms cubic-bezier(0.33, 1, 0.68, 1);
+      }
+
+      .each-scene.each-hushed .viz-header h2 {
+        transform: translateY(-12px);
+      }
+
+      .each-you {
+        font-size: 1.75rem;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        color: var(--hse-blue);
+      }
+
+      .each-why {
+        margin-top: 6px;
+        font-size: 1.125rem;
+        color: var(--text-secondary);
+      }
+
+      @media (max-width: 860px) {
+        /* One column and no scene here: the board and the answer stand
+           together on one screen, so it gets the room a canvas would have. */
+        .each-card {
+          flex: none;
+          height: 72dvh;
+          min-height: 380px;
+        }
+
+        .each-you { font-size: 1.375rem; }
+        .each-why { font-size: 0.9375rem; }
+      }
+    </style>
+
+    <div class="canvas-card each-card">
+      <div class="each-stage" data-el="stage">
+        <div class="each-line each-end" data-el="end">
+          <div class="each-you">Это ты</div>
+          <div class="each-why">Потому что для Вышки важен каждый</div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  const $ = (name) => root.querySelector(`[data-el="${name}"]`);
+  const stage = $('stage');
+
+  // The heading of this section — the shell draws it, but the scene sends it
+  // away and puts its own line in its place.
+  const host = root.closest('.viz-section') || root.parentElement;
+  host.classList.add('each-scene');
+  const hush = (on) => host.classList.toggle('each-hushed', on);
+
+  const turn = document.createElement('div');
+  turn.className = 'each-turn';
+  turn.innerHTML = 'Но несмотря на весь масштаб, есть '
+    + '<span class="each-mark">самая главная цифра</span>';
+  const header = host.querySelector('.viz-header');
+  if (header) header.appendChild(turn);
+
+  const tiles = FIGURES.map((f) => {
+    const el = document.createElement('div');
+    el.className = 'each-tile';
+    el.textContent = f.value;
+    el.style.color = INK[f.c];
+    stage.appendChild(el);
+    return { ...f, el, at: null };
+  });
+
+  // The figure in the middle: the board adds up into it, and it counts itself
+  // down to the one. It belongs to no campus, so it is set in plain text until
+  // the very end.
+  const sum = document.createElement('div');
+  sum.className = 'each-tile each-sum';
+  sum.style.color = INK.ink;
+  stage.appendChild(sum);
+
+  // The board is in colour while it is the point of the screen, and grey from
+  // the moment the question is asked over it.
+  const paint = (grey) => tiles.forEach((t) => { t.el.style.color = grey ? GREY : INK[t.c]; });
+
+  // ---------- The lines ----------
+  const lines = { turn, end: $('end') };
+  const say = (name) => Object.keys(lines).forEach((k) => lines[k].classList.toggle('is-on', k === name));
+
+  // ---------- Measuring ----------
+  // Every figure is read once at a reference size. Type is linear in its size,
+  // so from then on the whole scene is laid out in arithmetic, without asking
+  // the browser anything again.
+  //
+  // The reading is taken on a stand-in and never on the figures themselves:
+  // they are usually in the middle of moving, and the scale that carries them
+  // would be measured along with them — which is how a board comes out four
+  // per cent too wide for the screen it was packed into.
+  const probe = document.createElement('div');
+  probe.className = 'each-tile each-probe';
+  probe.setAttribute('aria-hidden', 'true');
+  stage.appendChild(probe);
+
+  let sumM = null;                                 // the widest the middle gets
+  let oneM = null;                                 // and the narrowest
+
+  function measure() {
+    probe.style.fontSize = `${REF}px`;
+    const read = (text) => {
+      probe.textContent = text;
+      const r = probe.getBoundingClientRect();
+      return { w: r.width, h: r.height };
+    };
+    tiles.forEach((t) => { t.m = read(t.value); });
+    sumM = read(nf(TOTAL));
+    oneM = read('1');
+  }
+
+  // ---------- Layout ----------
+  const sizeOf = (m, F) => ({ w: (m.w * F) / REF, h: (m.h * F) / REF, num: F });
+
+  // Packs figures into justified rows, the numbers of one row sitting on one
+  // line. Returns null when they do not fit — the search below then tries a
+  // smaller size.
+  function rows(entries, F, area, force) {
+    const gapX = F * 0.5, gapY = F * 0.42;
+    const sizes = entries.map((e) => sizeOf(e.m, F * e.w));
+    const packed = [];
+    let line = null;
+    for (let i = 0; i < sizes.length; i++) {
+      const s = sizes[i];
+      if (!force && s.w > area.w) return null;
+      if (!line) {
+        line = { idx: [i], w: s.w, h: s.h };
+      } else if (line.w + gapX + s.w > area.w) {
+        packed.push(line);
+        line = { idx: [i], w: s.w, h: s.h };
+      } else {
+        line.idx.push(i);
+        line.w += gapX + s.w;
+        line.h = Math.max(line.h, s.h);
+      }
+    }
+    if (line) packed.push(line);
+
+    const total = packed.reduce((n, l) => n + l.h, 0) + gapY * (packed.length - 1);
+    if (!force && total > area.h) return null;
+
+    const out = [];
+    let y = area.y + (area.h - total) / 2;
+    packed.forEach((l) => {
+      // Justified — but a short last line is centred rather than torn apart.
+      const n = l.idx.length;
+      const extra = n > 1 ? Math.min((area.w - l.w) / (n - 1), gapX * 1.5) : 0;
+      const used = l.w + extra * (n - 1);
+      let x = area.x + (area.w - used) / 2;
+      const bottom = y + l.h;                      // one line for the whole row
+      l.idx.forEach((i) => {
+        const s = sizes[i];
+        out[i] = { ...s, cx: x + s.w / 2, cy: bottom - s.h / 2 };
+        x += s.w + extra + gapX;
+      });
+      y += l.h + gapY;
+    });
+    return out;
+  }
+
+  // As large as the figures will go inside the area, never above `maxFont`.
+  function pack(entries, area, maxFont) {
+    let lo = 6, hi = maxFont, best = null;
+    for (let k = 0; k < 20; k++) {
+      const F = (lo + hi) / 2;
+      const got = rows(entries, F, area);
+      if (got) { best = got; lo = F; } else { hi = F; }
+    }
+    return best || rows(entries, 6, area, true);
+  }
+
+  let L = null;
+
+  function relayout() {
+    const w = stage.clientWidth || 900;
+    const h = stage.clientHeight || 500;
+    const area = { x: 0, y: 0, w, h };
+
+    // How much room the answer takes along the bottom edge. Measured, not
+    // guessed: on a narrow screen it runs to two rows.
+    const endH = lines.end.offsetHeight;
+
+    // The middle is sized for the longest thing it ever says — the whole sum —
+    // and keeps that size all the way down to the one.
+    const big = pack([{ m: sumM, w: 1 }], area, Math.min(area.h * 0.62, 300));
+
+    // Once the answer is there, the figure and the two lines under it stand as
+    // one block in the middle of the screen.
+    const numH = big[0].h;
+    const gap = Math.round(Math.min(40, h * 0.06));
+    const top = (h - (numH + gap + endH)) / 2;
+
+    L = {
+      board: pack(tiles.map((t) => ({ m: t.m, w: t.w })), area, 150),
+      big,
+      end: [{ ...big[0], cy: top + numH / 2 }],
+      endTop: Math.round(top + numH + gap),
+      // No scene on a narrow screen: the board and the answer under it are one
+      // still picture, so the reader gets the whole thought at once.
+      poster: pack(tiles.map((t) => ({ m: t.m, w: t.w })),
+        { x: 0, y: 0, w, h: Math.max(60, (h - endH - 16) * 0.66) }, 90),
+      posterOne: rows([{ m: oneM, w: 1 }],
+        Math.min(72, Math.max(34, h * 0.12)),
+        { x: 0, y: Math.max(60, (h - endH - 16) * 0.66), w, h: (h - endH - 16) * 0.34 }, true)
+    };
+  }
+
+  // ---------- Moving ----------
+  // Every change of state is the same move: each figure is told where it ends
+  // up and how large it is there, and is then carried over from wherever it
+  // was. The type size is set at once and the difference is taken up by a
+  // scale, so nothing is animated by reflow and the figures are crisp at rest.
+  function apply(targets, { dur = 620, fade = null, delay = () => 0 } = {}) {
+    const d = still ? 0 : dur;
+    const f = still ? 0 : (fade === null ? Math.min(d, 420) : fade);
+
+    tiles.forEach((t, i) => {
+      const to = targets[i];
+      const wait = still ? 0 : delay(i);
+      // Nowhere to go: it simply goes out where it stands.
+      if (!to || to.cx === undefined) {
+        t.el.style.transition = `opacity ${f}ms ease ${wait}ms`;
+        t.el.style.opacity = '0';
+        if (t.at) t.at = { ...t.at, a: 0 };
+        return;
+      }
+      t.el.style.fontSize = `${to.num}px`;
+
+      const from = t.at && t.at.a ? t.at : { cx: to.cx, cy: to.cy, num: to.num * 0.86, a: 0 };
+      t.el.style.transition = 'none';
+      t.el.style.transform = `translate(${from.cx}px, ${from.cy}px) translate(-50%, -50%)`
+        + ` scale(${from.num / to.num})`;
+      t.el.style.opacity = `${from.a}`;
+      t.next = { to, wait };
+    });
+
+    // One reflow for all of them, and then everybody sets off together.
+    void stage.offsetWidth;
+
+    tiles.forEach((t) => {
+      if (!t.next) return;
+      const { to, wait } = t.next;
+      t.next = null;
+      const a = to.a === undefined ? 1 : to.a;
+      t.el.style.transition = `transform ${d}ms ${EASE} ${wait}ms, opacity ${f}ms ease ${wait}ms,`
+        + ' color 620ms ease';
+      t.el.style.transform = `translate(${to.cx}px, ${to.cy}px) translate(-50%, -50%) scale(1)`;
+      t.el.style.opacity = `${a}`;
+      t.at = { ...to, a };
+    });
+  }
+
+  // The middle never moves sideways and never changes size, so it needs none
+  // of the above: it is put where it goes and told what to say.
+  function placeSum(at, { dur = 620, show = true, text = null, color = null } = {}) {
+    const d = still ? 0 : dur;
+    if (text !== null) sum.textContent = text;
+    if (color) sum.style.color = color;
+    sum.style.fontSize = `${at.num}px`;
+    sum.style.transition = `transform ${d}ms ${EASE}, opacity ${Math.min(d, 420)}ms ease,`
+      + ' color 620ms ease';
+    sum.style.transform = `translate(${at.cx}px, ${at.cy}px) translate(-50%, -50%)`;
+    sum.style.opacity = show ? '1' : '0';
+  }
+
+  // ---------- The counts ----------
+  let counting = null;
+  const stopCount = () => { if (counting) { cancelAnimationFrame(counting); counting = null; } };
+
+  // The board is added up. The figures come into the middle one after another,
+  // quicker and quicker, and the middle takes each of them on as it arrives —
+  // so the number growing there is the sum of everything that has landed.
+  function addUp() {
+    stopCount();
+    sum.classList.add('is-clearing');
+    const c = L.big[0];
+    const span = 1500;
+    const flight = 760;
+    const gone = 380;                              // how long one takes to go
+
+    // Nearest first: the middle of the board empties before the figure that
+    // is growing there has to share the room with anything, and the drain
+    // reads as one movement outwards rather than as a scatter.
+    const reach = (k) => Math.hypot(L.board[k].cx - c.cx, L.board[k].cy - c.cy);
+    const wait = rush(ALL.slice().sort((a, b) => reach(a) - reach(b)), span);
+
+    placeSum(c, { dur: 0, show: false, text: nf(0), color: INK.ink });
+
+    // A figure sets off towards the middle and is spent before it gets there:
+    // it fades out about half way, so nothing ever piles up on the number
+    // growing in the centre and no two of them cross in front of it. Only the
+    // way they are all heading is read, which is the whole point.
+    apply(tiles.map((t, k) => {
+      const from = L.board[k];
+      const half = 0.5;
+      return {
+        cx: from.cx + (c.cx - from.cx) * half,
+        cy: from.cy + (c.cy - from.cy) * half,
+        num: from.num * 0.62,
+        a: 0
+      };
+    }), { dur: flight, fade: gone, delay: wait });
+
+    if (still) { placeSum(c, { dur: 0, text: nf(TOTAL) }); return; }
+
+    // Each of them is taken on at the moment it disappears, so the number in
+    // the middle grows exactly as the board is spent.
+    const lands = ALL.map((k) => ({ n: FIGURES[k].n, at: wait(k) + gone * 0.9 }));
+    const last = Math.max(...lands.map((x) => x.at));
+    const t0 = performance.now();
+    sum.style.transition = 'opacity 320ms ease';
+    let shownYet = false;
+
+    const frame = (now) => {
+      const t = now - t0;
+      const got = lands.reduce((n, x) => n + (t >= x.at ? x.n : 0), 0);
+      sum.textContent = nf(got);
+      if (got > 0 && !shownYet) { shownYet = true; sum.style.opacity = '1'; }
+      if (t < last) { counting = requestAnimationFrame(frame); return; }
+      counting = null;
+      sum.textContent = nf(TOTAL);
+    };
+    counting = requestAnimationFrame(frame);
+  }
+
+  // And the sum falls to one, with an equal share of the time for every digit
+  // it loses: it slows down of its own accord and the last dozens can be read
+  // one by one. It keeps its size and simply grows shorter.
+  function countDown(done) {
+    stopCount();
+    if (still) { done(); return; }
+    const t0 = performance.now();
+    const dur = 3200;
+    const frame = (now) => {
+      const raw = Math.min(1, (now - t0) / dur);
+      const u = 1 - Math.pow(1 - raw, 1.6);
+      sum.textContent = nf(Math.max(1, Math.round(Math.pow(TOTAL, 1 - u))));
+      if (raw < 1) { counting = requestAnimationFrame(frame); return; }
+      counting = null;
+      done();
+    };
+    counting = requestAnimationFrame(frame);
+  }
+
+  // What is left takes the colour of the university itself — the only place on
+  // the page where it stands for something other than a campus.
+  function landOne() {
+    stopCount();
+    sum.textContent = '1';
+    sum.style.transition = 'color 620ms ease';
+    sum.style.color = HSE;
+  }
+
+  // ---------- The scene ----------
+  const timers = [];
+  const later = (fn, ms) => { timers.push(setTimeout(fn, still ? 0 : ms)); };
+  const clearLater = () => timers.splice(0).forEach(clearTimeout);
+
+  // Arrivals run on this curve: the gaps between them get shorter as it goes,
+  // so the screen fills up — and adds up — quicker and quicker.
+  function rush(order, span, hold = 0) {
+    const place = new Map(order.map((v, k) => [v, k]));
+    const n = Math.max(1, order.length - 1);
+    return (i) => {
+      const k = place.get(i);
+      return k === undefined ? 0 : hold + span * (1 - Math.pow(1 - k / n, 1.8));
+    };
+  }
+
+  // Where the two closing lines sit: under the figure while the scene is being
+  // played out, along the bottom edge of the still picture on a phone.
+  function endAt(top) {
+    lines.end.style.top = top === null ? '' : `${top}px`;
+    lines.end.style.bottom = top === null ? '' : 'auto';
+  }
+
+  // A narrow screen gets no scene at all, so it gets the whole thought at once
+  // instead: the board of figures, and the one they come down to under it.
+  function poster() {
+    hush(false);
+    paint(false);
+    // Nothing is flying past it here, and the clearing would only wash out the
+    // board standing right above it.
+    sum.classList.remove('is-clearing');
+    endAt(null);
+    apply(tiles.map((t, k) => ({ ...L.poster[k], a: 1 })), { delay: rush(ALL, 700, 100) });
+    placeSum(L.posterOne[0], { dur: 0, text: '1', color: HSE });
+    say('end');
+  }
+
+  function play(i) {
+    clearLater();
+    stopCount();
+    if (!L) relayout();
+    if (narrow.matches) { poster(); return; }
+
+    // Every figure of the page, one after another, quicker and quicker, until
+    // there is nowhere left to put them. The next step only holds still while
+    // the question that turns the scene comes up underneath.
+    if (i === 0 || i === 1) {
+      // The question turns up the moment the reader gets to it: on a delay it
+      // is missed by anyone scrolling quickly through this screen. It arrives
+      // in the place of the heading, and the board goes grey under it.
+      const asked = i === 1;
+      say(asked ? 'turn' : null);
+      hush(asked);
+      endAt(L.endTop);
+      sum.classList.remove('is-clearing');
+      placeSum(L.big[0], { dur: 0, show: false, text: nf(TOTAL), color: INK.ink });
+      apply(tiles.map((t, k) => ({ ...L.board[k], a: 1 })), { delay: rush(ALL, 1700) });
+      paint(asked);
+      return;
+    }
+
+    // The board adds itself up into the middle, with the question still
+    // standing where the heading was.
+    if (i === 2) {
+      say('turn');
+      hush(true);
+      paint(true);
+      addUp();
+      return;
+    }
+
+    // The last screen plays itself out: the sum counts down to one, and a
+    // moment later the answer arrives on its own — there is nothing left to
+    // scroll for.
+    say('turn');
+    hush(true);
+    apply(tiles.map(() => null), { dur: 0 });
+    placeSum(L.big[0], { dur: 0, text: nf(TOTAL), color: INK.ink });
+    later(() => countDown(() => {
+      landOne();
+      // The one is left alone for a moment before it is told what it is.
+      later(() => {
+        say('end');
+        placeSum(L.end[0], { dur: 620 });
+      }, 1200);
+    }), 300);
+  }
+
+  // ---------- Wiring ----------
+  let shown = -1;
+  const replay = () => { if (shown >= 0) play(shown); };
+
+  measure();
+  relayout();
+
+  // Type arrives after the page does; measure again once it is really there.
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(() => { measure(); relayout(); replay(); });
+  }
+
+  new ResizeObserver(() => { relayout(); replay(); }).observe(stage);
+  narrow.addEventListener('change', () => { relayout(); replay(); });
+
+  return {
+    step(i) {
+      shown = i;
+      play(i);
+    }
+  };
+}
+
+return { meta, init };
+})();
+
+const MODULES = [MOD_metro, MOD_stadium, MOD_world, MOD_area, MOD_study, MOD_each];
 const page = document.getElementById('page');
 
 MODULES.forEach((mod, index) => {
@@ -5025,7 +6888,7 @@ MODULES.forEach((mod, index) => {
     section.innerHTML = `
       <div class="viz-container">
         ${mod.meta.lead ? `
-          <div class="viz-lead" data-exit="${mod.meta.lead.exit || 'aside'}">
+          <div class="viz-lead" data-exit="${mod.meta.lead.exit || 'aside'}" data-fit="${mod.meta.lead.fit || 'top'}">
             <div class="viz-lead-value">${mod.meta.lead.value}</div>
             <p class="viz-lead-text">${mod.meta.lead.text}</p>
           </div>
