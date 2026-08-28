@@ -1,6 +1,7 @@
-// The last screen of the page: every figure it has counted, all at once — and
-// then only one of them. Nothing here is drawn; the whole scene is the numbers
-// themselves, set in the same face the page uses for all its figures.
+// The last screen of the page: every figure it has counted, all at once and
+// without a word of explanation. Then they are added up into one number, and
+// that number is taken apart down to one. Nothing here is drawn — the whole
+// scene is the numbers themselves, set in the same face as the rest of the page.
 
 import { CITIES, LYCEUM, STAFF, STUDENTS, FOREIGN, HSE_TOTAL, ADMITTED, AREA_TOTAL } from '../data/hse.js';
 import { COUNTRIES } from '../data/countries.js';
@@ -21,49 +22,71 @@ const CARS = 134;           // metro cars for this year's intake — the opening
 
 export const meta = {
   id: 'each',
-  title: 'Самая главная цифра',
-  subtitle: 'На этой странице их было много',
+  title: 'На странице было много разных цифр',
+  // The heading says all of it; the numbers come with nothing under them.
+  subtitle: '',
   intro: true,
-  // One figure, then three, then all of them; a held breath, the count down to
-  // one, the one itself, and the quiet board at the end.
-  steps: 8
+  // They all turn up, the question comes up over them, they are added up into
+  // one — and the last screen counts that one down and answers itself.
+  steps: 4
 };
 
 export function init(root) {
   'use strict';
 
   const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const narrow = window.matchMedia('(max-width: 860px)');
   const REF = 100;                                 // size everything is measured at
-  const SMALL = 13;                                // the caption size the count lands on
   const EASE = 'cubic-bezier(0.33, 1, 0.68, 1)';   // 1 - (1 - p)³
 
   const cityOf = (key) => CITIES.find((c) => c.key === key);
 
-  // Every figure of the page, in the order it turns up here: the three the
-  // scene opens with, then the rest in the order the page told them, and the
-  // whole university last. `w` is how much larger than the others it is set.
+  // Five colours for the board: the four campuses of the page and its plain
+  // text. The university's own blue is kept out of it — it belongs to the one
+  // figure at the end and to nothing else.
+  const INK = {
+    ink: 'var(--text)',
+    msk: cityOf('msk').color,
+    spb: cityOf('spb').color,
+    nn: cityOf('nn').color,
+    perm: cityOf('perm').color
+  };
+  const HSE = 'var(--hse-blue)';
+  // What the board fades to once the question has been asked: the figures are
+  // all still there, they have simply stopped being the point — so far back
+  // that the only dark thing left on the screen is the question itself.
+  const GREY = 'var(--text-faded)';
+
+  // Every figure of the page, in the order it turns up here. `w` is how much
+  // larger than the others it is set, `c` is which of the five colours it
+  // takes — laid out by hand so that no two neighbours share one.
+  const fig = (n, w, c, text) => ({ n, w, c, value: text || nf(n) });
   const FIGURES = [
-    { key: 'students', value: nf(STUDENTS), text: 'студентов', w: 1.5 },
-    { key: 'staff', value: nf(STAFF), text: 'сотрудников', w: 1.05 },
-    { key: 'lyceum', value: nf(LYCEUM), text: 'лицеистов', w: 0.75 },
-    { key: 'admitted', value: nf(ADMITTED), text: 'поступили в этом году', w: 1.2 },
-    { key: 'cars', value: nf(CARS), text: 'вагона метро', w: 0.8 },
-    { key: 'seats', value: nf(SEATS), text: 'мест на стадионе', w: 1.3 },
-    { key: 'countries', value: nf(COUNTRIES.length), text: 'флагов в гостях', w: 0.9 },
-    { key: 'foreign', value: `${nf(FOREIGN)}+`, text: 'приехали из-за рубежа', w: 0.85 },
-    { key: 'buildings', value: nf(BUILDINGS), text: 'зданий', w: 1.05 },
-    { key: 'area', value: nf(AREA_TOTAL), text: 'м² в них', w: 1.35 },
-    { key: 'areaStudy', value: nf(AREA_STUDY), text: 'м² учебных', w: 0.85 },
-    { key: 'programs', value: nf(PROGRAMS), text: 'образовательных программ', w: 1.1 },
-    { key: 'years', value: nf(YEARS), text: 'лет учебы подряд', w: 1.2 },
-    { key: 'msk', value: nf(cityOf('msk').students), text: 'студентов в Москве', w: 1.1 },
-    { key: 'spb', value: nf(cityOf('spb').students), text: 'студентов в Санкт-Петербурге', w: 0.75 },
-    { key: 'nn', value: nf(cityOf('nn').students), text: 'студентов в Нижнем Новгороде', w: 0.7 },
-    { key: 'perm', value: nf(cityOf('perm').students), text: 'студентов в Перми', w: 0.7 },
-    { key: 'total', value: nf(HSE_TOTAL), text: 'человек во всей Вышке', w: 1.9 }
+    fig(STUDENTS, 1.5, 'ink'),
+    fig(STAFF, 1.05, 'msk'),
+    fig(LYCEUM, 0.75, 'spb'),
+    fig(ADMITTED, 1.2, 'nn'),
+    fig(CARS, 0.8, 'perm'),
+    fig(SEATS, 1.3, 'ink'),
+    fig(COUNTRIES.length, 0.9, 'spb'),
+    fig(FOREIGN, 0.85, 'msk', `${nf(FOREIGN)}+`),
+    fig(BUILDINGS, 1.05, 'nn'),
+    fig(AREA_TOTAL, 1.35, 'ink'),
+    fig(AREA_STUDY, 0.85, 'perm'),
+    fig(PROGRAMS, 1.1, 'msk'),
+    fig(YEARS, 1.2, 'spb'),
+    fig(cityOf('msk').students, 1.1, 'msk'),
+    fig(cityOf('spb').students, 0.75, 'spb'),
+    fig(cityOf('nn').students, 0.7, 'nn'),
+    fig(cityOf('perm').students, 0.7, 'perm'),
+    fig(HSE_TOTAL, 1.9, 'ink')
   ];
 
-  const STAR = FIGURES.length - 1;                 // the whole university
+  // What the board comes to when it is added up. It is not a quantity of
+  // anything — square metres, years and people all go into it — and nothing on
+  // the screen claims otherwise: it is every figure of the page put together,
+  // and it is there to be taken apart again.
+  const TOTAL = FIGURES.reduce((n, f) => n + f.n, 0);
   const ALL = FIGURES.map((_, i) => i);
 
   // ---------- Markup ----------
@@ -82,41 +105,79 @@ export function init(root) {
         position: absolute;
         left: 0;
         top: 0;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
+        font-weight: 700;
+        line-height: 1;
+        letter-spacing: -0.03em;
+        font-variant-numeric: tabular-nums;
         white-space: nowrap;
         opacity: 0;
         will-change: transform, opacity;
       }
 
-      .each-num {
+      /* The figure in the middle carries its own clearing: a soft field of the
+         card's own white, so the board draining around it never runs across
+         its digits. On a white card it is invisible — it only ever shows as
+         the room it makes. */
+      .each-sum.is-clearing {
+        box-shadow: 0 0 130px 42px var(--card);
+      }
+
+      /* The stand-in the figures are measured on: parked out of sight, never
+         moved, never scaled. */
+      .each-probe {
+        left: -99999px;
+        opacity: 0;
+        transform: none;
+      }
+
+      /* The question does not live in the white field at all: it takes the
+         place of the heading of the section. It is laid over the heading
+         instead of swapped into the flow, so the header keeps its height and
+         nothing underneath it moves. */
+      @media (min-width: 861px) {
+        .each-scene .viz-header {
+          position: relative;
+        }
+      }
+
+      .each-turn {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 0;
+        /* Larger than the heading it replaces — it has to be the one thing on
+           the screen that is read. The size gives way on a narrow window so
+           the sentence never breaks onto a second line and never reaches the
+           card underneath. */
+        font-size: clamp(1.125rem, 3.3vw, 2.25rem);
         font-weight: 700;
-        line-height: 1;
-        letter-spacing: -0.03em;
-        font-variant-numeric: tabular-nums;
+        line-height: 1.06;
+        letter-spacing: -0.02em;
+        color: var(--text);
+        opacity: 0;
+        transform: translateY(12px);
+        transition: opacity 620ms ease,
+                    transform 620ms cubic-bezier(0.33, 1, 0.68, 1);
+        pointer-events: none;
       }
 
-      .each-cap {
-        line-height: 1.2;
-        color: var(--text-caption);
+      .each-turn.is-on {
+        opacity: 1;
+        transform: none;
       }
 
-      /* The count down to one, and the one itself: a bare figure with nothing
-         under it. Taken out of the flow rather than hidden, so the tile is
-         exactly as tall as the number and stays where it is put. */
-      .each-tile.is-bare .each-cap {
-        display: none;
+      /* What the whole screen turns on, picked out the way the page picks out
+         a figure that matters — and in the colour the answer arrives in. */
+      .each-mark {
+        padding: 0.06em 0.26em;
+        border-radius: 0.22em;
+        background: var(--hse-blue);
+        color: var(--card);
+        box-decoration-break: clone;
+        -webkit-box-decoration-break: clone;
       }
 
-      /* The only colour on this screen — and the only one on the page that
-         belongs to the university as a whole rather than to a campus. */
-      .each-tile.is-hse .each-num {
-        color: var(--hse-blue);
-      }
-
-      /* The three lines the scene speaks in, all in the same place along the
-         bottom edge: they replace each other and nothing has to move. */
+      /* The answer, along the bottom edge of the white field. */
       .each-line {
         position: absolute;
         left: 12px;
@@ -132,40 +193,65 @@ export function init(root) {
         opacity: 1;
       }
 
-      .each-turn,
+      /* And the heading of the section steps aside: from here on the screen
+         belongs to a single figure. It only fades — taking it out of the flow
+         would resize the card underneath and re-pack the whole board. */
+      /* Only the heading itself steps aside — the question standing in for it
+         is inside the same header and has to stay. */
+      .each-scene .viz-header h2,
+      .each-scene .viz-header > p {
+        transition: opacity 620ms ease;
+      }
+
+      .each-scene.each-hushed .viz-header h2,
+      .each-scene.each-hushed .viz-header > p {
+        opacity: 0;
+      }
+
+      /* The heading does not merely vanish: it steps up and out as the
+         question comes up from below to take its place. */
+      .each-scene .viz-header h2 {
+        transition: opacity 620ms ease,
+                    transform 620ms cubic-bezier(0.33, 1, 0.68, 1);
+      }
+
+      .each-scene.each-hushed .viz-header h2 {
+        transform: translateY(-12px);
+      }
+
       .each-you {
-        font-size: 1.0625rem;
+        font-size: 1.75rem;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        color: var(--hse-blue);
+      }
+
+      .each-why {
+        margin-top: 6px;
+        font-size: 1.125rem;
         color: var(--text-secondary);
       }
 
-      .each-last {
-        font-size: 1.5rem;
-        font-weight: 600;
-        letter-spacing: -0.01em;
-        color: var(--text);
-      }
-
       @media (max-width: 860px) {
-        /* One column and no scene here: the board is all there is, so it gets
-           the room a canvas would have got. */
+        /* One column and no scene here: the board and the answer stand
+           together on one screen, so it gets the room a canvas would have. */
         .each-card {
           flex: none;
-          height: 66dvh;
-          min-height: 320px;
+          height: 72dvh;
+          min-height: 380px;
         }
 
-        .each-last { font-size: 1.125rem; }
-
-        .each-turn,
-        .each-you { font-size: 0.9375rem; }
+        .each-you { font-size: 1.375rem; }
+        .each-why { font-size: 0.9375rem; }
       }
     </style>
 
     <div class="canvas-card each-card">
       <div class="each-stage" data-el="stage">
-        <div class="each-line each-turn" data-el="turn">Но среди всех этих цифр есть одна самая главная</div>
-        <div class="each-line each-you" data-el="you">Это вы</div>
-        <div class="each-line each-last" data-el="last">Потому что в Вышке и для Вышки важен каждый</div>
+        <div class="each-line each-end" data-el="end">
+          <div class="each-you">Это ты</div>
+          <div class="each-why">Потому что для Вышки важен каждый</div>
+        </div>
       </div>
     </div>
   `;
@@ -173,100 +259,115 @@ export function init(root) {
   const $ = (name) => root.querySelector(`[data-el="${name}"]`);
   const stage = $('stage');
 
+  // The heading of this section — the shell draws it, but the scene sends it
+  // away and puts its own line in its place.
+  const host = root.closest('.viz-section') || root.parentElement;
+  host.classList.add('each-scene');
+  const hush = (on) => host.classList.toggle('each-hushed', on);
+
+  const turn = document.createElement('div');
+  turn.className = 'each-turn';
+  turn.innerHTML = 'Но несмотря на весь масштаб, есть '
+    + '<span class="each-mark">самая главная цифра</span>';
+  const header = host.querySelector('.viz-header');
+  if (header) header.appendChild(turn);
+
   const tiles = FIGURES.map((f) => {
     const el = document.createElement('div');
     el.className = 'each-tile';
-    el.innerHTML = `<span class="each-num">${f.value}</span><span class="each-cap">${f.text}</span>`;
+    el.textContent = f.value;
+    el.style.color = INK[f.c];
     stage.appendChild(el);
-    return { ...f, el, numEl: el.querySelector('.each-num'), capEl: el.querySelector('.each-cap'), at: null };
+    return { ...f, el, at: null };
   });
-  const star = tiles[STAR];
 
-  // ---------- Measuring ----------
-  // Every number and caption is read once at a reference size. Type is linear
-  // in its size, so from then on the whole scene can be laid out in arithmetic
-  // without asking the browser anything again.
-  function measure() {
-    tiles.forEach((t) => {
-      t.numEl.style.fontSize = `${REF}px`;
-      t.capEl.style.fontSize = `${REF}px`;
-    });
-    tiles.forEach((t) => {
-      t.m = box(t);
-    });
-    // The star has a second face — what is left of it at the end.
-    star.numEl.textContent = '1';
-    star.capEl.textContent = 'вы';
-    star.one = box(star);
-    star.numEl.textContent = star.value;
-    star.capEl.textContent = star.text;
-  }
+  // The figure in the middle: the board adds up into it, and it counts itself
+  // down to the one. It belongs to no campus, so it is set in plain text until
+  // the very end.
+  const sum = document.createElement('div');
+  sum.className = 'each-tile each-sum';
+  sum.style.color = INK.ink;
+  stage.appendChild(sum);
 
-  function box(t) {
-    const n = t.numEl.getBoundingClientRect();
-    const c = t.capEl.getBoundingClientRect();
-    return { numW: n.width, numH: n.height, capW: c.width, capH: c.height };
-  }
+  // The board is in colour while it is the point of the screen, and grey from
+  // the moment the question is asked over it.
+  const paint = (grey) => tiles.forEach((t) => { t.el.style.color = grey ? GREY : INK[t.c]; });
 
   // ---------- The lines ----------
-  const lines = { turn: $('turn'), you: $('you'), last: $('last') };
+  const lines = { turn, end: $('end') };
   const say = (name) => Object.keys(lines).forEach((k) => lines[k].classList.toggle('is-on', k === name));
 
-  // ---------- Layout ----------
-  // A figure is its number with a caption under it; the caption keeps its own
-  // small size whatever the number does.
-  const capSize = (num) => Math.max(10.5, Math.min(15, num * 0.2));
+  // ---------- Measuring ----------
+  // Every figure is read once at a reference size. Type is linear in its size,
+  // so from then on the whole scene is laid out in arithmetic, without asking
+  // the browser anything again.
+  //
+  // The reading is taken on a stand-in and never on the figures themselves:
+  // they are usually in the middle of moving, and the scale that carries them
+  // would be measured along with them — which is how a board comes out four
+  // per cent too wide for the screen it was packed into.
+  const probe = document.createElement('div');
+  probe.className = 'each-tile each-probe';
+  probe.setAttribute('aria-hidden', 'true');
+  stage.appendChild(probe);
 
-  function sizeOf(m, F, bare) {
-    const cap = bare ? 0 : capSize(F);
-    const numW = (m.numW * F) / REF;
-    const numH = (m.numH * F) / REF;
-    const capW = bare ? 0 : (m.capW * cap) / REF;
-    const capH = bare ? 0 : (m.capH * cap) / REF;
-    const gap = bare ? 0 : Math.round(F * 0.06);
-    return { w: Math.max(numW, capW), h: numH + gap + capH, numH, num: F, cap, gap, bare: !!bare };
+  let sumM = null;                                 // the widest the middle gets
+  let oneM = null;                                 // and the narrowest
+
+  function measure() {
+    probe.style.fontSize = `${REF}px`;
+    const read = (text) => {
+      probe.textContent = text;
+      const r = probe.getBoundingClientRect();
+      return { w: r.width, h: r.height };
+    };
+    tiles.forEach((t) => { t.m = read(t.value); });
+    sumM = read(nf(TOTAL));
+    oneM = read('1');
   }
+
+  // ---------- Layout ----------
+  const sizeOf = (m, F) => ({ w: (m.w * F) / REF, h: (m.h * F) / REF, num: F });
 
   // Packs figures into justified rows, the numbers of one row sitting on one
   // line. Returns null when they do not fit — the search below then tries a
   // smaller size.
   function rows(entries, F, area, force) {
-    const gapX = F * 0.55, gapY = F * 0.5;
-    const sizes = entries.map((e) => sizeOf(e.m, F * e.w, e.bare));
-    const lines = [];
+    const gapX = F * 0.5, gapY = F * 0.42;
+    const sizes = entries.map((e) => sizeOf(e.m, F * e.w));
+    const packed = [];
     let line = null;
     for (let i = 0; i < sizes.length; i++) {
       const s = sizes[i];
       if (!force && s.w > area.w) return null;
       if (!line) {
-        line = { idx: [i], w: s.w, h: s.h, numH: s.numH };
+        line = { idx: [i], w: s.w, h: s.h };
       } else if (line.w + gapX + s.w > area.w) {
-        lines.push(line);
-        line = { idx: [i], w: s.w, h: s.h, numH: s.numH };
+        packed.push(line);
+        line = { idx: [i], w: s.w, h: s.h };
       } else {
         line.idx.push(i);
         line.w += gapX + s.w;
         line.h = Math.max(line.h, s.h);
-        line.numH = Math.max(line.numH, s.numH);
       }
     }
-    if (line) lines.push(line);
+    if (line) packed.push(line);
 
-    const total = lines.reduce((n, l) => n + l.h, 0) + gapY * (lines.length - 1);
+    const total = packed.reduce((n, l) => n + l.h, 0) + gapY * (packed.length - 1);
     if (!force && total > area.h) return null;
 
     const out = [];
     let y = area.y + (area.h - total) / 2;
-    lines.forEach((l) => {
+    packed.forEach((l) => {
       // Justified — but a short last line is centred rather than torn apart.
       const n = l.idx.length;
       const extra = n > 1 ? Math.min((area.w - l.w) / (n - 1), gapX * 1.5) : 0;
       const used = l.w + extra * (n - 1);
       let x = area.x + (area.w - used) / 2;
-      const baseline = y + l.numH;                 // one line for the whole row
+      const bottom = y + l.h;                      // one line for the whole row
       l.idx.forEach((i) => {
         const s = sizes[i];
-        out[i] = { ...s, cx: x + s.w / 2, cy: baseline - s.numH + s.h / 2 };
+        out[i] = { ...s, cx: x + s.w / 2, cy: bottom - s.h / 2 };
         x += s.w + extra + gapX;
       });
       y += l.h + gapY;
@@ -285,39 +386,39 @@ export function init(root) {
     return best || rows(entries, 6, area, true);
   }
 
-  const inset = (a, kw, kh) => ({
-    x: a.x + (a.w * (1 - kw)) / 2,
-    y: a.y + (a.h * (1 - kh)) / 2,
-    w: a.w * kw,
-    h: a.h * kh
-  });
-
-  const entry = (t, w, opts = {}) => ({ m: opts.one ? t.one : t.m, w, bare: !!opts.bare });
-
   let L = null;
 
   function relayout() {
     const w = stage.clientWidth || 900;
     const h = stage.clientHeight || 500;
-    // A strip along the bottom edge belongs to whatever line the scene is
-    // speaking, so nothing has to move aside when one of them turns up. It is
-    // measured, not guessed: on a narrow screen the last line takes two rows.
-    const strip = Math.max(30, lines.last.offsetHeight + 14);
-    const area = { x: 0, y: 0, w, h: Math.max(80, h - strip) };
+    const area = { x: 0, y: 0, w, h };
 
-    const board = tiles.map((t) => entry(t, t.w));
-    const flat = tiles.map((t, i) => entry(t, 1, { one: i === STAR }));
-    const one = entry(star, 1, { one: true, bare: true });
-    const hero = Math.min(area.h * 0.78, (area.w * 0.9 * REF) / star.one.numW);
+    // How much room the answer takes along the bottom edge. Measured, not
+    // guessed: on a narrow screen it runs to two rows.
+    const endH = lines.end.offsetHeight;
+
+    // The middle is sized for the longest thing it ever says — the whole sum —
+    // and keeps that size all the way down to the one.
+    const big = pack([{ m: sumM, w: 1 }], area, Math.min(area.h * 0.62, 300));
+
+    // Once the answer is there, the figure and the two lines under it stand as
+    // one block in the middle of the screen.
+    const numH = big[0].h;
+    const gap = Math.round(Math.min(40, h * 0.06));
+    const top = (h - (numH + gap + endH)) / 2;
 
     L = {
-      solo: pack([entry(tiles[0], 1)], inset(area, 0.88, 0.62), 340),
-      trio: pack([0, 1, 2].map((i) => entry(tiles[i], tiles[i].w)), inset(area, 0.94, 0.5), 220),
-      board: pack(board, area, 140),
-      alone: pack([entry(star, 1)], inset(area, 0.8, 0.5), 280),
-      hero: rows([one], hero, area, true),
-      small: rows([one], SMALL, area, true),
-      flat: pack(flat, area, 60)
+      board: pack(tiles.map((t) => ({ m: t.m, w: t.w })), area, 150),
+      big,
+      end: [{ ...big[0], cy: top + numH / 2 }],
+      endTop: Math.round(top + numH + gap),
+      // No scene on a narrow screen: the board and the answer under it are one
+      // still picture, so the reader gets the whole thought at once.
+      poster: pack(tiles.map((t) => ({ m: t.m, w: t.w })),
+        { x: 0, y: 0, w, h: Math.max(60, (h - endH - 16) * 0.66) }, 90),
+      posterOne: rows([{ m: oneM, w: 1 }],
+        Math.min(72, Math.max(34, h * 0.12)),
+        { x: 0, y: Math.max(60, (h - endH - 16) * 0.66), w, h: (h - endH - 16) * 0.34 }, true)
     };
   }
 
@@ -326,28 +427,21 @@ export function init(root) {
   // up and how large it is there, and is then carried over from wherever it
   // was. The type size is set at once and the difference is taken up by a
   // scale, so nothing is animated by reflow and the figures are crisp at rest.
-  function apply(targets, { dur = 620, delay = () => 0 } = {}) {
+  function apply(targets, { dur = 620, fade = null, delay = () => 0 } = {}) {
     const d = still ? 0 : dur;
-    const fade = Math.min(d, 420);
+    const f = still ? 0 : (fade === null ? Math.min(d, 420) : fade);
 
     tiles.forEach((t, i) => {
       const to = targets[i];
       const wait = still ? 0 : delay(i);
-      if (!to || !to.a) {
-        t.el.style.transition = `opacity ${fade}ms ease ${wait}ms`;
+      // Nowhere to go: it simply goes out where it stands.
+      if (!to || to.cx === undefined) {
+        t.el.style.transition = `opacity ${f}ms ease ${wait}ms`;
         t.el.style.opacity = '0';
         if (t.at) t.at = { ...t.at, a: 0 };
         return;
       }
-      if (to.face) {
-        t.numEl.textContent = to.face === 'one' ? '1' : t.value;
-        t.capEl.textContent = to.face === 'one' ? 'вы' : t.text;
-      }
-      t.numEl.style.fontSize = `${to.num}px`;
-      t.capEl.style.fontSize = `${to.cap}px`;
-      t.el.style.gap = `${to.gap}px`;
-      t.el.classList.toggle('is-bare', !!to.bare);
-      t.el.classList.toggle('is-hse', !!to.hse);
+      t.el.style.fontSize = `${to.num}px`;
 
       const from = t.at && t.at.a ? t.at : { cx: to.cx, cy: to.cy, num: to.num * 0.86, a: 0 };
       t.el.style.transition = 'none';
@@ -364,51 +458,100 @@ export function init(root) {
       if (!t.next) return;
       const { to, wait } = t.next;
       t.next = null;
-      t.el.style.transition = `transform ${d}ms ${EASE} ${wait}ms, opacity ${fade}ms ease ${wait}ms`;
+      const a = to.a === undefined ? 1 : to.a;
+      t.el.style.transition = `transform ${d}ms ${EASE} ${wait}ms, opacity ${f}ms ease ${wait}ms,`
+        + ' color 620ms ease';
       t.el.style.transform = `translate(${to.cx}px, ${to.cy}px) translate(-50%, -50%) scale(1)`;
-      t.el.style.opacity = '1';
-      t.at = { ...to, a: 1 };
+      t.el.style.opacity = `${a}`;
+      t.at = { ...to, a };
     });
   }
 
-  // Builds a target for every figure: `keys` says which of them are on screen
-  // and in what order they sit in the layout.
-  function state(layout, keys, extra = {}) {
-    return tiles.map((t, i) => {
-      const k = keys.indexOf(i);
-      if (k < 0) return { a: 0 };
-      return { ...layout[k], a: 1, ...(extra[i] || {}) };
-    });
+  // The middle never moves sideways and never changes size, so it needs none
+  // of the above: it is put where it goes and told what to say.
+  function placeSum(at, { dur = 620, show = true, text = null, color = null } = {}) {
+    const d = still ? 0 : dur;
+    if (text !== null) sum.textContent = text;
+    if (color) sum.style.color = color;
+    sum.style.fontSize = `${at.num}px`;
+    sum.style.transition = `transform ${d}ms ${EASE}, opacity ${Math.min(d, 420)}ms ease,`
+      + ' color 620ms ease';
+    sum.style.transform = `translate(${at.cx}px, ${at.cy}px) translate(-50%, -50%)`;
+    sum.style.opacity = show ? '1' : '0';
   }
 
-  const alone = (extra = {}) => tiles.map((t, i) => (i === STAR ? { ...L.alone[0], a: 1, ...extra } : { a: 0 }));
-
-  // ---------- The count ----------
+  // ---------- The counts ----------
   let counting = null;
   const stopCount = () => { if (counting) { cancelAnimationFrame(counting); counting = null; } };
 
-  // 77 687 falling to 1, with an equal share of the time for every digit it
-  // loses: the fall slows down of its own accord and the last dozens can be
-  // read one by one. The figure shrinks to the size of a caption on the way.
-  function count(done) {
+  // The board is added up. The figures come into the middle one after another,
+  // quicker and quicker, and the middle takes each of them on as it arrives —
+  // so the number growing there is the sum of everything that has landed.
+  function addUp() {
     stopCount();
-    const from = L.alone[0], to = L.small[0];
+    sum.classList.add('is-clearing');
+    const c = L.big[0];
+    const span = 1500;
+    const flight = 760;
+    const gone = 380;                              // how long one takes to go
+
+    // Nearest first: the middle of the board empties before the figure that
+    // is growing there has to share the room with anything, and the drain
+    // reads as one movement outwards rather than as a scatter.
+    const reach = (k) => Math.hypot(L.board[k].cx - c.cx, L.board[k].cy - c.cy);
+    const wait = rush(ALL.slice().sort((a, b) => reach(a) - reach(b)), span);
+
+    placeSum(c, { dur: 0, show: false, text: nf(0), color: INK.ink });
+
+    // A figure sets off towards the middle and is spent before it gets there:
+    // it fades out about half way, so nothing ever piles up on the number
+    // growing in the centre and no two of them cross in front of it. Only the
+    // way they are all heading is read, which is the whole point.
+    apply(tiles.map((t, k) => {
+      const from = L.board[k];
+      const half = 0.5;
+      return {
+        cx: from.cx + (c.cx - from.cx) * half,
+        cy: from.cy + (c.cy - from.cy) * half,
+        num: from.num * 0.62,
+        a: 0
+      };
+    }), { dur: flight, fade: gone, delay: wait });
+
+    if (still) { placeSum(c, { dur: 0, text: nf(TOTAL) }); return; }
+
+    // Each of them is taken on at the moment it disappears, so the number in
+    // the middle grows exactly as the board is spent.
+    const lands = ALL.map((k) => ({ n: FIGURES[k].n, at: wait(k) + gone * 0.9 }));
+    const last = Math.max(...lands.map((x) => x.at));
     const t0 = performance.now();
-    const dur = 3000;
-    star.el.classList.add('is-bare');
-    star.el.style.transition = 'none';
+    sum.style.transition = 'opacity 320ms ease';
+    let shownYet = false;
 
+    const frame = (now) => {
+      const t = now - t0;
+      const got = lands.reduce((n, x) => n + (t >= x.at ? x.n : 0), 0);
+      sum.textContent = nf(got);
+      if (got > 0 && !shownYet) { shownYet = true; sum.style.opacity = '1'; }
+      if (t < last) { counting = requestAnimationFrame(frame); return; }
+      counting = null;
+      sum.textContent = nf(TOTAL);
+    };
+    counting = requestAnimationFrame(frame);
+  }
+
+  // And the sum falls to one, with an equal share of the time for every digit
+  // it loses: it slows down of its own accord and the last dozens can be read
+  // one by one. It keeps its size and simply grows shorter.
+  function countDown(done) {
+    stopCount();
     if (still) { done(); return; }
-
+    const t0 = performance.now();
+    const dur = 3200;
     const frame = (now) => {
       const raw = Math.min(1, (now - t0) / dur);
       const u = 1 - Math.pow(1 - raw, 1.6);
-      const left = Math.max(1, Math.round(Math.pow(HSE_TOTAL, 1 - u)));
-      star.numEl.textContent = nf(left);
-      star.numEl.style.fontSize = `${from.num + (to.num - from.num) * u}px`;
-      star.el.style.transform =
-        `translate(${from.cx + (to.cx - from.cx) * u}px, ${from.cy + (to.cy - from.cy) * u}px)`
-        + ' translate(-50%, -50%) scale(1)';
+      sum.textContent = nf(Math.max(1, Math.round(Math.pow(TOTAL, 1 - u))));
       if (raw < 1) { counting = requestAnimationFrame(frame); return; }
       counting = null;
       done();
@@ -416,26 +559,13 @@ export function init(root) {
     counting = requestAnimationFrame(frame);
   }
 
-  // Lands the star on its small «1», wherever the count happened to get to.
+  // What is left takes the colour of the university itself — the only place on
+  // the page where it stands for something other than a campus.
   function landOne() {
     stopCount();
-    const to = L.small[0];
-    star.numEl.textContent = '1';
-    star.capEl.textContent = 'вы';
-    star.numEl.style.fontSize = `${to.num}px`;
-    star.el.classList.add('is-bare');
-    star.el.classList.remove('is-hse');
-    star.el.style.transition = 'none';
-    star.el.style.transform = `translate(${to.cx}px, ${to.cy}px) translate(-50%, -50%) scale(1)`;
-    star.el.style.opacity = '1';
-    star.at = { ...to, a: 1 };
-  }
-
-  // Back from the end of the scene: the star is the whole university again.
-  function restore() {
-    star.numEl.textContent = star.value;
-    star.capEl.textContent = star.text;
-    star.el.classList.remove('is-bare', 'is-hse');
+    sum.textContent = '1';
+    sum.style.transition = 'color 620ms ease';
+    sum.style.color = HSE;
   }
 
   // ---------- The scene ----------
@@ -443,15 +573,8 @@ export function init(root) {
   const later = (fn, ms) => { timers.push(setTimeout(fn, still ? 0 : ms)); };
   const clearLater = () => timers.splice(0).forEach(clearTimeout);
 
-  // Figures leave in a shuffled order — but always the same shuffle, so
-  // scrolling back and forth does not deal the screen again.
-  const OUT = ALL.filter((i) => i !== STAR)
-    .map((i) => ({ i, k: (Math.sin(i * 12.9898) * 43758.5453) % 1 }))
-    .sort((a, b) => a.k - b.k)
-    .map((x) => x.i);
-
-  // Both floods run on the same curve: the gaps between arrivals get shorter
-  // as they go, so the screen fills up — and empties — quicker and quicker.
+  // Arrivals run on this curve: the gaps between them get shorter as it goes,
+  // so the screen fills up — and adds up — quicker and quicker.
   function rush(order, span, hold = 0) {
     const place = new Map(order.map((v, k) => [v, k]));
     const n = Math.max(1, order.length - 1);
@@ -461,81 +584,92 @@ export function init(root) {
     };
   }
 
-  const LATE = ALL.filter((i) => i > 2);           // everything past the opening three
+  // Where the two closing lines sit: under the figure while the scene is being
+  // played out, along the bottom edge of the still picture on a phone.
+  function endAt(top) {
+    lines.end.style.top = top === null ? '' : `${top}px`;
+    lines.end.style.bottom = top === null ? '' : 'auto';
+  }
+
+  // A narrow screen gets no scene at all, so it gets the whole thought at once
+  // instead: the board of figures, and the one they come down to under it.
+  function poster() {
+    hush(false);
+    paint(false);
+    // Nothing is flying past it here, and the clearing would only wash out the
+    // board standing right above it.
+    sum.classList.remove('is-clearing');
+    endAt(null);
+    apply(tiles.map((t, k) => ({ ...L.poster[k], a: 1 })), { delay: rush(ALL, 700, 100) });
+    placeSum(L.posterOne[0], { dur: 0, text: '1', color: HSE });
+    say('end');
+  }
 
   function play(i) {
     clearLater();
     stopCount();
     if (!L) relayout();
-    if (i <= 5) restore();
-    say(null);
-
-    // One number, alone, in the middle of the screen.
-    if (i === 0) { apply(state(L.solo, [0])); return; }
-
-    // It steps aside and shrinks; two more come and stand next to it.
-    if (i === 1) { apply(state(L.trio, [0, 1, 2])); return; }
+    if (narrow.matches) { poster(); return; }
 
     // Every figure of the page, one after another, quicker and quicker, until
     // there is nowhere left to put them. The next step only holds still while
     // the question that turns the scene comes up underneath.
-    if (i === 2 || i === 3) {
-      apply(state(L.board, ALL), { delay: rush(LATE, 1500, 120) });
-      if (i === 3) later(() => say('turn'), 900);
+    if (i === 0 || i === 1) {
+      // The question turns up the moment the reader gets to it: on a delay it
+      // is missed by anyone scrolling quickly through this screen. It arrives
+      // in the place of the heading, and the board goes grey under it.
+      const asked = i === 1;
+      say(asked ? 'turn' : null);
+      hush(asked);
+      endAt(L.endTop);
+      sum.classList.remove('is-clearing');
+      placeSum(L.big[0], { dur: 0, show: false, text: nf(TOTAL), color: INK.ink });
+      apply(tiles.map((t, k) => ({ ...L.board[k], a: 1 })), { delay: rush(ALL, 1700) });
+      paint(asked);
       return;
     }
 
-    // They go out one by one, and the largest of them is left on its own.
-    if (i === 4) {
-      apply(alone(), { dur: 800, delay: (k) => (k === STAR ? 1350 : rush(OUT, 1400)(k)) });
+    // The board adds itself up into the middle, with the question still
+    // standing where the heading was.
+    if (i === 2) {
+      say('turn');
+      hush(true);
+      paint(true);
+      addUp();
       return;
     }
 
-    // And it falls.
-    if (i === 5) {
-      apply(alone(), { dur: 0 });
-      later(() => count(landOne), 300);
-      return;
-    }
-
-    // One. It stands there for a moment, and then grows past everything that
-    // has been on this screen.
-    if (i === 6) {
-      apply(tiles.map(() => ({ a: 0 })), { dur: 0 });
+    // The last screen plays itself out: the sum counts down to one, and a
+    // moment later the answer arrives on its own — there is nothing left to
+    // scroll for.
+    say('turn');
+    hush(true);
+    apply(tiles.map(() => null), { dur: 0 });
+    placeSum(L.big[0], { dur: 0, text: nf(TOTAL), color: INK.ink });
+    later(() => countDown(() => {
       landOne();
+      // The one is left alone for a moment before it is told what it is.
       later(() => {
-        apply(tiles.map((t, k) => (k === STAR ? { ...L.hero[0], a: 1, hse: true } : { a: 0 })), { dur: 760 });
-      }, 900);
-      later(() => say('you'), 1600);
-      return;
-    }
-
-    // Everything comes back, all of it the same size, and the one stands among
-    // the rest — no larger than any of them.
-    apply(state(L.flat, ALL, { [STAR]: { face: 'one', hse: true } }),
-      { dur: 760, delay: rush(ALL.filter((k) => k !== STAR), 700, 140) });
-    later(() => say('last'), 800);
+        say('end');
+        placeSum(L.end[0], { dur: 620 });
+      }, 1200);
+    }), 300);
   }
 
   // ---------- Wiring ----------
   let shown = -1;
+  const replay = () => { if (shown >= 0) play(shown); };
 
   measure();
   relayout();
 
   // Type arrives after the page does; measure again once it is really there.
   if (document.fonts && document.fonts.ready) {
-    document.fonts.ready.then(() => {
-      measure();
-      relayout();
-      if (shown >= 0) play(shown);
-    });
+    document.fonts.ready.then(() => { measure(); relayout(); replay(); });
   }
 
-  new ResizeObserver(() => {
-    relayout();
-    if (shown >= 0) play(shown);
-  }).observe(stage);
+  new ResizeObserver(() => { relayout(); replay(); }).observe(stage);
+  narrow.addEventListener('change', () => { relayout(); replay(); });
 
   return {
     step(i) {
