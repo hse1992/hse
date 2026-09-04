@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" fill="none" aria-hidden="true" focusable="false">
+  <!-- Специалист по международным отношениям -->
+  <circle cx="28" cy="34" r="24" fill="var(--brand-cyan, #0FA0D7)"/>
+  <path d="M28 10c-6 7-9 15-9 24s3 17 9 24" fill="none" stroke="var(--brand-grey-light, #E6E6E6)" stroke-width="2.5"/>
+  <path d="M28 10c6 7 9 15 9 24s-3 17-9 24" fill="none" stroke="var(--brand-grey-light, #E6E6E6)" stroke-width="2.5"/>
+  <path d="M4 34h48" stroke="var(--brand-grey-light, #E6E6E6)" stroke-width="2.5"/>
+  <rect x="45" y="4" width="4" height="36" rx="2" fill="var(--brand-grey, #929292)"/>
+  <path d="M49 6h13l-4 5.5 4 5.5H49z" fill="var(--brand-red, #E61E3C)"/>
+</svg>

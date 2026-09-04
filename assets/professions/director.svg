@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" fill="none" aria-hidden="true" focusable="false">
+  <!-- Режиссёр -->
+  <rect x="6" y="10" width="52" height="13" rx="2" fill="var(--brand-grey-mid, #C6C6C6)"/>
+  <path d="M14 10h6l-6 13H8zM26 10h6l-6 13h-6zM38 10h6l-6 13h-6zM50 10h6l-6 13h-6z" fill="var(--brand-grey-light, #E6E6E6)"/>
+  <rect x="6" y="25" width="52" height="30" rx="3" fill="var(--brand-navy, #0F2D69)"/>
+  <path d="M26 33l14 8-14 8z" fill="var(--brand-yellow, #FAB900)"/>
+</svg>

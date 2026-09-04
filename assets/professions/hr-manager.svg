@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" fill="none" aria-hidden="true" focusable="false">
+  <!-- HR-менеджер -->
+  <circle cx="24" cy="18" r="11" fill="var(--brand-navy, #0F2D69)"/>
+  <path d="M4 54c0-11 9-20 20-20s20 9 20 20z" fill="var(--brand-cyan, #0FA0D7)"/>
+  <circle cx="48" cy="44" r="13" fill="var(--brand-green, #009B64)"/>
+  <path d="M42 44l4.5 4.5L55 39" fill="none" stroke="var(--brand-grey-light, #E6E6E6)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

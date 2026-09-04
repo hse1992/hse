@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" fill="none" aria-hidden="true" focusable="false">
+  <!-- Искусствовед -->
+  <rect x="5" y="9" width="54" height="46" rx="3" fill="var(--brand-orange, #EB691E)"/>
+  <rect x="12" y="16" width="40" height="32" fill="var(--brand-grey-light, #E6E6E6)"/>
+  <circle cx="22" cy="26" r="5" fill="var(--brand-yellow, #FAB900)"/>
+  <path d="M12 48l13-15 8 8 8-11 11 18z" fill="var(--brand-green, #009B64)"/>
+</svg>

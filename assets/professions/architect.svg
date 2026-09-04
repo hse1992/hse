@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" fill="none" aria-hidden="true" focusable="false">
+  <!-- Архитектор -->
+  <rect x="4" y="8" width="40" height="42" rx="3" fill="var(--brand-navy, #0F2D69)"/>
+  <path d="M10 28l10-8 10 8v12H10z" fill="none" stroke="var(--brand-grey-light, #E6E6E6)" stroke-width="2.5" stroke-linejoin="round"/>
+  <path d="M16 40v-7h8v7" fill="none" stroke="var(--brand-grey-light, #E6E6E6)" stroke-width="2.5" stroke-linejoin="round"/>
+  <path fill-rule="evenodd" d="M24 16l34 34H24zm6 14.5V44h13.5z" fill="var(--brand-yellow, #FAB900)"/>
+</svg>

@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" fill="none" aria-hidden="true" focusable="false">
+  <!-- Социолог -->
+  <circle cx="13" cy="24" r="8" fill="var(--brand-green, #009B64)"/>
+  <path d="M1 50c0-7 5.4-12 12-12s12 5 12 12z" fill="var(--brand-green, #009B64)"/>
+  <circle cx="51" cy="24" r="8" fill="var(--brand-violet, #7D50B9)"/>
+  <path d="M39 50c0-7 5.4-12 12-12s12 5 12 12z" fill="var(--brand-violet, #7D50B9)"/>
+  <circle cx="32" cy="20" r="10.5" fill="var(--brand-navy, #0F2D69)"/>
+  <path d="M16 56c0-9 7.2-16 16-16s16 7 16 16z" fill="var(--brand-navy, #0F2D69)"/>
+</svg>

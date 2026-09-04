@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" fill="none" aria-hidden="true" focusable="false">
+  <!-- Специалист по данным / Data Scientist -->
+  <path d="M10 6v46h48" fill="none" stroke="var(--brand-grey-mid, #C6C6C6)" stroke-width="4" stroke-linecap="round"/>
+  <path d="M17 43l12-12 9 6 16-22" fill="none" stroke="var(--brand-navy, #0F2D69)" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="17" cy="43" r="4.5" fill="var(--brand-cyan, #0FA0D7)"/>
+  <circle cx="29" cy="31" r="4.5" fill="var(--brand-green, #009B64)"/>
+  <circle cx="38" cy="37" r="4.5" fill="var(--brand-yellow, #FAB900)"/>
+  <circle cx="54" cy="15" r="4.5" fill="var(--brand-red, #E61E3C)"/>
+</svg>

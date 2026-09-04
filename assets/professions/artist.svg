@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" fill="none" aria-hidden="true" focusable="false">
+  <!-- Художник -->
+  <path d="M30 5C16 5 5 15 5 28c0 10 8 17 15 17 4.5 0 6 2 6 5s2 7 6.5 7C46 57 59 46 59 31 59 17 46 5 30 5z" fill="var(--brand-grey-mid, #C6C6C6)"/>
+  <circle cx="20" cy="22" r="5" fill="var(--brand-red, #E61E3C)"/>
+  <circle cx="32" cy="15" r="5" fill="var(--brand-cyan, #0FA0D7)"/>
+  <circle cx="45" cy="19" r="5" fill="var(--brand-yellow, #FAB900)"/>
+  <circle cx="48" cy="34" r="5" fill="var(--brand-green, #009B64)"/>
+  <circle cx="26" cy="37" r="5.5" fill="var(--brand-grey-light, #E6E6E6)"/>
+</svg>

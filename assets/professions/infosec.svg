@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" fill="none" aria-hidden="true" focusable="false">
+  <!-- Специалист по информационной безопасности -->
+  <path d="M32 4l24 9v17c0 14-10 23-24 28C18 53 8 44 8 30V13z" fill="var(--brand-navy, #0F2D69)"/>
+  <circle cx="32" cy="27" r="6.5" fill="var(--brand-yellow, #FAB900)"/>
+  <path d="M28.5 31h7l1.5 11h-10z" fill="var(--brand-yellow, #FAB900)"/>
+</svg>

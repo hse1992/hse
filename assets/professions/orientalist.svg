@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" fill="none" aria-hidden="true" focusable="false">
+  <!-- Востоковед -->
+  <rect x="30" y="0" width="4" height="8" rx="2" fill="var(--brand-yellow, #FAB900)"/>
+  <path d="M32 6l17 11H15z" fill="var(--brand-red, #E61E3C)"/>
+  <path d="M6 30h52L45 19H19z" fill="var(--brand-red, #E61E3C)"/>
+  <rect x="16" y="30" width="32" height="22" fill="var(--brand-grey-light, #E6E6E6)"/>
+  <rect x="26" y="36" width="12" height="16" rx="2" fill="var(--brand-navy, #0F2D69)"/>
+  <rect x="9" y="52" width="46" height="6" rx="2" fill="var(--brand-grey-mid, #C6C6C6)"/>
+</svg>

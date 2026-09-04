@@ -34,6 +34,22 @@
   --pitch: #8CC63F;
   --hse-blue: #102D69;      /* corporate blue of the university */
 
+  /* Corporate palette of the university, as in the brand book. The primary
+     pair is the navy and the blue, backed by the three greys; the six bright
+     ones are accents only — never more than a quarter of a drawing. Used by
+     the profession icons in assets/professions. */
+  --brand-navy: #0F2D69;
+  --brand-blue: #234B9B;
+  --brand-grey: #929292;
+  --brand-grey-mid: #C6C6C6;
+  --brand-grey-light: #E6E6E6;
+  --brand-cyan: #0FA0D7;
+  --brand-green: #009B64;
+  --brand-orange: #EB691E;
+  --brand-violet: #7D50B9;
+  --brand-red: #E61E3C;
+  --brand-yellow: #FAB900;
+
   /* Metro track (canvas) */
   --metro-rail: #C9CFD8;
   --metro-sleeper: #DCE0E6;

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" fill="none" aria-hidden="true" focusable="false">
+  <!-- Менеджер образования -->
+  <path d="M2 22 32 9l30 13-30 13z" fill="var(--brand-navy, #0F2D69)"/>
+  <path d="M14 30v10c0 5 8 8.5 18 8.5S50 45 50 40V30l-18 8z" fill="var(--brand-blue, #234B9B)"/>
+  <rect x="54" y="26" width="3.5" height="16" rx="1.75" fill="var(--brand-yellow, #FAB900)"/>
+  <circle cx="55.75" cy="46" r="5" fill="var(--brand-yellow, #FAB900)"/>
+</svg>

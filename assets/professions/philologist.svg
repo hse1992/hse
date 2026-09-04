@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" fill="none" aria-hidden="true" focusable="false">
+  <!-- Филолог -->
+  <path d="M30 18C25 13.5 18 11 8 11v34c10 0 17 2.5 22 7z" fill="var(--brand-grey-light, #E6E6E6)"/>
+  <path d="M34 18c5-4.5 12-7 22-7v34c-10 0-17 2.5-22 7z" fill="var(--brand-grey-mid, #C6C6C6)"/>
+  <rect x="28" y="16" width="8" height="36" rx="3" fill="var(--brand-navy, #0F2D69)"/>
+  <rect x="13" y="22" width="12" height="3" rx="1.5" fill="var(--brand-grey-mid, #C6C6C6)"/>
+  <rect x="13" y="29" width="12" height="3" rx="1.5" fill="var(--brand-grey-mid, #C6C6C6)"/>
+  <rect x="13" y="36" width="8" height="3" rx="1.5" fill="var(--brand-grey-mid, #C6C6C6)"/>
+</svg>
