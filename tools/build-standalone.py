@@ -29,6 +29,24 @@ BY_NAME = {
 }
 
 
+def sized_svg(text: str) -> str:
+    """Проставляет SVG собственный размер, если у него только viewBox.
+
+    Такой SVG знает свою пропорцию, но не размер. Chrome достраивает размер
+    сам, WebKit — нет: картинка растягивается по контейнеру, и object-fit
+    режет то, что вылезло. Флаги приходят как раз без width и height.
+    """
+    head = re.match(r"<svg\b[^>]*>", text)
+    if not head or re.search(r"\s(width|height)\s*=", head.group(0)):
+        return text
+    box = re.search(r'viewBox\s*=\s*"\s*[\d.eE+-]+[\s,]+[\d.eE+-]+[\s,]+'
+                    r'([\d.eE+-]+)[\s,]+([\d.eE+-]+)\s*"', head.group(0))
+    if not box:
+        return text
+    w, h = box.group(1), box.group(2)
+    return text[:4] + f' width="{w}" height="{h}"' + text[4:]
+
+
 def data_uri(path: pathlib.Path) -> str:
     mime = MIME.get(path.suffix.lower(), "application/octet-stream")
     raw = path.read_bytes()
@@ -36,6 +54,7 @@ def data_uri(path: pathlib.Path) -> str:
         # SVG короче в процентном кодировании, чем в base64
         text = re.sub(r"<\?xml[^>]*\?>", "", raw.decode("utf-8")).strip()
         text = re.sub(r"\s+", " ", text)
+        text = sized_svg(text)
         return f"data:{mime};charset=utf-8,{urllib.parse.quote(text, safe='')}"
     return f"data:{mime};base64,{base64.b64encode(raw).decode('ascii')}"
 
@@ -70,7 +89,7 @@ css = "\n".join([
 # ---------- библиотеки и данные ----------
 LIBS = ["lib/color.js", "data/hse.js", "data/countries.js", "data/history.js",
         "data/professions.js", "lib/format.js", "lib/ui.js", "lib/hse-mark.js",
-        "lib/page.js"]
+        "lib/page.js", "lib/stepper.js"]
 libs = "\n".join(strip_module((ROOT / f).read_text(encoding="utf-8")) for f in LIBS)
 # знак Вышки читается через fetch по адресу файла — подставляем его целиком
 libs = libs.replace("new URL('../assets/hse-znak.svg', import.meta.url)",
@@ -105,7 +124,10 @@ mods = "\n\n".join(mods)
 # ---------- каркас ----------
 header = inline_assets(re.search(r"<header class=\"page-header\">.*?</header>", index_src, re.S).group(0))
 footer = re.search(r"<footer class=\"page-footer\">.*?</footer>", index_src, re.S).group(0)
-shell = re.search(r"MODULES\.forEach\(\(mod, index\) => \{.*?\n  \}\);", index_src, re.S).group(0)
+# всё, что делает каркас: раскладка секций и запуск пошагового чтения.
+# Начало ищется по коду, а не по комментарию: тем же оборотом начинается
+# ранний скрипт про scrollRestoration, и поиск уезжал на него.
+shell = re.search(r"  const plan = MODULES\.map\(.*?mountStepper\(plan[^;]*;", index_src, re.S).group(0)
 
 html = f"""<!DOCTYPE html>
 <html lang="ru">
@@ -121,6 +143,12 @@ html = f"""<!DOCTYPE html>
 </style>
 </head>
 <body>
+<script>
+  // Same as in index.html: the page is read beat by beat, so a reload starts it
+  // over rather than dropping the reader where they had scrolled to.
+  if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+  window.scrollTo(0, 0);
+</script>
 <main>
 {header}
 
@@ -139,12 +167,21 @@ const MODULES = [{', '.join('MOD_' + n for n in NAMES)}];
 const page = document.getElementById('page');
 
 {shell}
-
-mountProgress();
 </script>
 </body>
 </html>
 """
+
+# ---------- проверка ----------
+# Автономный файл ничего не подгружает, поэтому уцелевший import — это молча
+# сломанная страница: скрипт не выполнится, останется одна титульная.
+for bad, why in [(r"^\s*import\s", "остался import"),
+                 (r"<script[^>]*type=\"module\"", "остался модульный скрипт"),
+                 # ${...} — подстановка внутри шаблонной строки, туда встанет data-URI
+                 (r"src=\"(?!data:|\$\{)", "остался внешний src"),
+                 (r"href=\"(?!data:|\$\{|#|https?:)", "осталась внешняя ссылка на файл")]:
+    if re.search(bad, html, re.M):
+        raise SystemExit(f"сборка испорчена: {why}")
 
 OUT.write_text(html, encoding="utf-8")
 print(f"{OUT.name}: {len(html.encode('utf-8')) / 1024 / 1024:.2f} МБ, разделов {len(NAMES)}")
