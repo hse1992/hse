@@ -40,9 +40,9 @@ export const meta = {
   // campus; the last step hands the stadium over to the reader.
   intro: true,
   introStages: 2,
-  // Empty arena, five arrivals, two screens with the full arena, then the
-  // stadium is handed over to the reader.
-  steps: 9
+  // Empty arena, five arrivals, one beat with the full one, then the stadium
+  // is handed over to the reader.
+  steps: 8
 };
 
 export function init(root) {
