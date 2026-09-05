@@ -9,6 +9,13 @@
 <link rel="stylesheet" href="styles/layout.css" />
 </head>
 <body>
+<script>
+  // The page is read beat by beat, so a reload starts it over: without this the
+  // browser puts the reader back where they had scrolled to, in the middle of a
+  // section that has not been told yet.
+  if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+  window.scrollTo(0, 0);
+</script>
 <main>
   <header class="page-header">
     <div class="page-header-inner">
@@ -45,7 +52,8 @@
   import * as study from './viz/study.js';
   import * as professions from './viz/professions.js';
   import * as each from './viz/each.js';
-  import { mountProgress, whenVisible, mountScene, mountIntro } from './lib/page.js';
+  import { mountProgress, introRunner } from './lib/page.js';
+  import { mountStepper } from './lib/stepper.js';
 
   // Every visualisation on the page, in the order it appears.
   // To add one: write viz/<name>.js, import it, append it here.
@@ -53,7 +61,9 @@
 
   const page = document.getElementById('page');
 
-  MODULES.forEach((mod, index) => {
+  // The page is read beat by beat: the shell lays the sections out and hands
+  // the stepper what each of them can play — see lib/stepper.js.
+  const plan = MODULES.map((mod, index) => {
     const section = document.createElement('section');
     section.className = 'viz-section';
     section.id = mod.meta.id;
@@ -76,34 +86,28 @@
     `;
     page.appendChild(section);
 
-    // A module that tells its story step by step declares `steps` in meta and
-    // returns { step } from init. The scene is set up right away so the section
-    // has its full height from the start; the steps start arriving once the
-    // module itself is there.
+    // The first section opens the page; any other can ask for the same card
+    // with `intro: true`, and for it to arrive in parts with `introStages`.
+    const opening = (index === 0 || mod.meta.intro)
+      ? introRunner(section, mod.meta.introStages, mod.meta.introScale)
+      : null;
+    if (opening) opening.run(0);
+
     let api = null;
-    const scene = mod.meta.steps
-      ? mountScene(section, mod.meta.steps, (i) => api && api.step(i),
-          { intro: !!mod.meta.intro, stages: mod.meta.introStages, scale: mod.meta.introScale })
-      : null;
-
-    // The first section hands over from the title of the page: its heading
-    // arrives on its own in the middle of the screen and then takes its place.
-    // Any other section can open the same way by asking for it with `intro`.
-    // With `introStages` in meta the card fills in part by part on the way.
-    const intro = !scene && (index === 0 || mod.meta.intro)
-      ? mountIntro(section, mod.meta.introStages, mod.meta.introScale)
-      : null;
-
-    // A section builds itself when the reader gets to it, so whatever it
-    // animates on start plays in front of them.
-    whenVisible(section, () => {
-      api = mod.init(section.querySelector('.viz-body'));
-      if (scene) scene.sync();
-      if (intro) intro.sync();
-    });
+    return {
+      section,
+      opening,
+      steps: mod.meta.steps || 0,
+      setStep: (i) => api && api.step && api.step(i),
+      // A section is built on its way onto the screen, not before: whatever it
+      // animates on start then plays in front of the reader.
+      build: () => { if (!api) api = mod.init(section.querySelector('.viz-body')) || {}; }
+    };
   });
 
-  mountProgress();
+  const progress = mountProgress();
+  mountStepper(plan, { onProgress: progress.set });
+
 </script>
 </body>
 </html>

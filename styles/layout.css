@@ -265,6 +265,45 @@ button { font-family: inherit; }
   }
 }
 
+/* ---------- Stepped reading ---------- */
+
+/* The page is read beat by beat, so no part of it scrolls on its own: a swipe
+   that lands on a list with its own scrollbar has to move the story, not the
+   list. Without this the browser claims the gesture before the page hears
+   about it, and the first swipe over such a block does nothing — the reason a
+   tap «unsticks» it. */
+.is-stepped,
+.is-stepped body {
+  touch-action: none;
+  overscroll-behavior: none;
+}
+
+.is-stepped .city-list,
+.is-stepped .viz-body,
+.is-stepped .viz-container {
+  overflow: visible;
+  touch-action: none;
+}
+
+/* A section is exactly one screen and keeps to it: a lead-in screen placed
+   against the middle of its own section would otherwise hang below it and be
+   read while the section before is still being told. */
+.is-stepped .viz-section {
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* The bar is the only cue to how far along the reader is, so the scrollbar
+   itself is out of the way. */
+.is-stepped {
+  scrollbar-width: none;
+}
+
+.is-stepped::-webkit-scrollbar {
+  display: none;
+}
+
 /* ---------- Section shell ---------- */
 
 .viz-section {
@@ -287,20 +326,9 @@ button { font-family: inherit; }
    then settles into place. Driven by mountIntro() in lib/page.js, which keeps
    --intro-k (size), --intro-dy (shift) and --intro-body (how far the body has
    faded in) up to date while scrolling. */
-.viz-intro {
-  height: calc(var(--intro-screens, 2.35) * 100vh);
-  min-height: 0;
-  display: block;
-  padding: 0;
-}
-
 .viz-intro > .viz-container {
-  position: sticky;
-  top: 0;
-  height: 100vh;
-  max-width: 1320px;
-  margin: 0 auto;
-  padding: 24px 24px 20px;
+  /* The lead-in screen is placed against this box. */
+  position: relative;
 }
 
 .viz-intro .viz-header {
@@ -333,25 +361,6 @@ button { font-family: inherit; }
    exactly the length of the intro zone. Invisible on a wide screen. */
 .viz-intro-hold {
   display: contents;
-}
-
-/* A section that tells its story step by step: it is several screens tall and
-   its contents stay pinned while the reader scrolls through them. Set up by
-   mountScene() in lib/page.js, and only ever on a wide screen. */
-.viz-scene {
-  height: calc(var(--scene-screens, 2) * 100vh);
-  min-height: 0;
-  display: block;
-  padding: 0;
-}
-
-.viz-scene > .viz-container {
-  position: sticky;
-  top: 0;
-  height: 100vh;
-  max-width: 1320px;
-  margin: 0 auto;
-  padding: 24px 24px 20px;
 }
 
 .viz-header {

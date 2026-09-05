@@ -40,9 +40,10 @@ export const meta = {
   // campus; the last step hands the stadium over to the reader.
   intro: true,
   introStages: 2,
-  // Empty arena, five arrivals, one beat with the full one, then the stadium
-  // is handed over to the reader.
-  steps: 8
+  // Empty arena, five arrivals, then the stadium is handed over to the reader.
+  // Every step changes something: a beat that only waits would be a «next»
+  // that does nothing.
+  steps: 7
 };
 
 export function init(root) {
@@ -617,7 +618,7 @@ export function init(root) {
     }
   }
 
-  function render() {
+  function render(instant) {
     // category checkboxes
     KIND_DEFS.forEach((def) => {
       kindEls[def.key].classList.toggle('active', !!state.kinds[def.key]);
@@ -650,7 +651,9 @@ export function init(root) {
     });
 
     // stadium
-    animateStripesTo(colorsFor(state.active));
+    const target = colorsFor(state.active);
+    if (instant) { currentColors = target; paint(); }
+    else animateStripesTo(target);
   }
 
   // ---------- Column alignment ----------
@@ -763,6 +766,8 @@ export function init(root) {
     noteEl.textContent = 'Стадион ваш: попробуйте выключить город или категорию';
   }
 
+  let firstFrame = true;
+
   function step(i) {
     const telling = i < LAST;
     root.classList.toggle('is-telling', telling);
@@ -786,8 +791,9 @@ export function init(root) {
       noteEl.textContent = 'Стадион ваш: попробуйте выключить город или категорию';
     }
 
-    render();
+    render(firstFrame);
     countTo(filledCount());
+    firstFrame = false;
     alignColumns();
   }
 
