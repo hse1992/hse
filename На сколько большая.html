@@ -2847,7 +2847,7 @@ const PROFESSIONS = [
     area: 'Искусство, дизайн, медиа',
     name: 'Продюсер',
     icon: 'producer',
-    kinds: 'кинопродюсер, музыкальный, театральный, медиапродюсер, медиаменеджер, продюсер в коммуникациях, менеджер креативных индустрий'
+    kinds: 'кинопродюсер, музыкальный продюсер, театральный продюсер, медиапродюсер, медиаменеджер, продюсер в коммуникациях, менеджер креативных индустрий'
   },
   {
     area: 'Искусство, дизайн, медиа',
@@ -6276,8 +6276,8 @@ const PROGRAMS = {
 // city lends to this level — the main one for the longer degree, the lighter
 // one for the shorter, same as on the stadium.
 const LEVELS = [
-  { key: 'bachelor', label: 'Бакалавриат и специалитет', short: 'бакалавриат', years: 4, shade: (c) => c.color },
-  { key: 'master', label: 'Магистратура', short: 'магистратура', years: 2, shade: (c) => c.colorLight }
+  { key: 'bachelor', label: 'Бакалавриат и специалитет', short: 'бакалавриат', of: 'бакалавриата и специалитета', years: 4, shade: (c) => c.color },
+  { key: 'master', label: 'Магистратура', short: 'магистратура', of: 'магистратуры', years: 2, shade: (c) => c.colorLight }
 ];
 
 // Специалитет lives in Moscow only, so only its card spells the level out
@@ -6318,9 +6318,29 @@ for (let y = Math.ceil(START / TICK) * TICK; y < NOW; y += TICK) {
 const mark = (text) =>
   `<span class="study-lead-mark" style="background: var(--hse-blue); color: var(--card)">${text}</span>`;
 
-// One square per programme — all alike: the screen is about how many of them
-// there are, and the campuses have their own colours later on.
-const LEAD_DOTS = '<span class="study-lead-dot"></span>'.repeat(PROGRAMS_TOTAL);
+// Two colours of the brand book, one to a level: the corporate blue and the
+// violet. They come inline with the markup — the shell draws the screen before
+// the styles of the module arrive — but the tokens themselves are in the head
+// from the first frame, so the names hold.
+const DOT = 'var(--hse-blue)';
+const DOT_LIGHT = 'var(--brand-violet)';
+
+// One square per programme, and they arrive a level at a time: first the
+// longer degree, then the shorter one under it. The campuses have their own
+// colours later on — here it is the levels that are told apart.
+// Each wave says what it is: the first over its squares, the second under
+// them, so the caption is on the outside of the field and the two blocks of
+// squares meet in the middle as one.
+const dotsOf = (level, stage, above) => {
+  const n = CITIES.reduce((sum, c) => sum + countOf(c, level), 0);
+  const dot = `<span class="study-lead-dot" style="background:${level.key === 'bachelor' ? DOT : DOT_LIGHT}"></span>`;
+  const legend = `<span class="study-lead-legend">${nf(n)} ${plural(n, 'программа', 'программы', 'программ')} ${level.of}</span>`;
+  return `<span class="study-lead-wave intro-stage" data-stage="${stage}">`
+    + (above ? legend : '')
+    + `<span class="study-lead-dots">${dot.repeat(n)}</span>`
+    + (above ? '' : legend)
+    + '</span>';
+};
 
 // What was happening in the world when a student taking every programme one
 // after another would have had to start — the far end of the scale.
@@ -6339,24 +6359,25 @@ const LEAD_CARD = `
 
 const meta = {
   id: 'study',
-  // Hands the reader over from the buildings: what goes on inside them, then
-  // all of it at once as a square apiece — and that gives way to how long it
-  // would take to sit through them one after another, and to the year such a
-  // student would have had to start in. The last line runs into the heading.
+  // Hands the reader over from the buildings: what they are all for, said at
+  // once and shown at once — a square for every programme. That gives way to
+  // how long it would take to sit through them one after another, and to the
+  // year such a student would have had to start in. The last line runs into
+  // the heading.
   lead: {
     // The screen grows by a whole block at a time, so it holds the middle of
     // the screen rather than the top edge of the title card to come.
     fit: 'center',
-    value: 'Во всех этих зданиях студенты обучаются не только экономике',
+    value: `Все эти здания нужны для того, чтобы студенты могли обучаться ${mark(`по ${nf(PROGRAMS_TOTAL)} образовательным программам`)}`,
     text: '<span class="study-lead-swap">'
-      + '<span class="study-lead-beat intro-stage" data-stage="1">'
-      +   `<span class="study-lead-gone">Вышка обучает по ${mark(`${nf(PROGRAMS_TOTAL)} образовательным программам`)}`
-      +   `<span class="study-lead-dots">${LEAD_DOTS}</span></span></span>`
-      + '<span class="study-lead-beat intro-stage" data-stage="2"><span class="study-lead-come">'
+      + '<span class="study-lead-beat"><span class="study-lead-gone">'
+      +   `${dotsOf(LEVELS[0], 1, true)}${dotsOf(LEVELS[1], 2, false)}`
+      + '</span></span>'
+      + '<span class="study-lead-beat intro-stage" data-stage="3"><span class="study-lead-come">'
       +   `Чтобы обучиться на каждой из них, потребуется ${mark(`${nf(YEARS_TOTAL)} ${plural(YEARS_TOTAL, 'год', 'года', 'лет')}`)}`
       +   `<span class="study-lead-card">${LEAD_CARD}</span>`
       + '</span></span></span>'
-      + '<span class="study-lead-outro intro-stage" data-stage="3">В общем нужно…</span>'
+      + '<span class="study-lead-outro intro-stage" data-stage="4">В общем нужно…</span>'
   },
   title: 'Учиться, учиться и еще раз учиться',
   // The heading arrives on its own — the reader has just been told all this on
@@ -6562,10 +6583,10 @@ function init(root) {
 
       /* ---------- The lead-in screen ---------- */
 
-      /* Both beats stand in one box, one over the other: the first leaves as
-         the second arrives, so the second takes its place instead of being
-         pushed down by it. Each of them grows into place by its own height,
-         so each needs a box of its own. */
+      /* The squares and the beat that follows them stand in one box, one over
+         the other: the squares leave as the next arrives, so it takes their
+         place instead of being pushed down by them. The one that grows into
+         place needs a box of its own. */
       .study-lead-swap {
         display: grid;
         margin-top: 0.45em;
@@ -6577,34 +6598,56 @@ function init(root) {
       }
 
       /* The two share the box, so they must not be seen through each other:
-         the first is gone by the time the second has come two fifths of the
-         way, and the second only starts showing at half. The page shell owns
-         the opacity of a part while it grows — hence both from the inside, by
-         how far the second one has come. */
+         the squares are gone by the time the beat after them has come two
+         fifths of the way, and it only starts showing at half. The page shell
+         owns the opacity of a part while it grows — hence both from the
+         inside, by how far that beat has come. */
       .study-lead-gone {
         display: block;
-        opacity: calc(1 - var(--lead-stage-2, 0) * 2.5);
+        opacity: calc(1 - var(--lead-stage-3, 0) * 2.5);
       }
 
       .study-lead-come {
         display: block;
-        opacity: calc(var(--lead-stage-2, 1) * 2 - 1);
+        opacity: calc(var(--lead-stage-3, 1) * 2 - 1);
       }
 
-      /* Every programme as a square, in one block under the line that counts
-         them. Spans, not divs — the shell puts the screen inside a <p>. */
+      /* Every programme as a square, a level to a wave. The waves meet with
+         exactly the gap the squares have between them, so the two of them read
+         as one field with a lighter half. Spans, not divs — the shell puts the
+         screen inside a <p>. */
+      .study-lead-wave {
+        display: block;
+      }
+
+      .study-lead-wave:first-child {
+        margin-top: 0.6em;
+      }
+
+      .study-lead-wave + .study-lead-wave {
+        margin-top: 5px;
+      }
+
+      .study-lead-legend {
+        display: block;
+        font-size: calc(0.8125rem * var(--intro-k, 1.55));
+        line-height: 1.3;
+        color: var(--text-secondary);
+      }
+
+      .study-lead-legend:first-child { margin-bottom: 0.5em; }
+      .study-lead-legend:last-child { margin-top: 0.6em; }
+
       .study-lead-dots {
         display: grid;
-        grid-template-columns: repeat(30, 1fr);
-        gap: 4px;
-        max-width: 540px;
-        margin-top: 0.6em;
+        grid-template-columns: repeat(32, 1fr);
+        gap: 5px;
+        max-width: 880px;
       }
 
       .study-lead-dot {
         aspect-ratio: 1;
         border-radius: 3px;
-        background: var(--hse-blue);
       }
 
       /* The year the second beat stands on, in the middle of the screen. Set
@@ -6642,6 +6685,14 @@ function init(root) {
         color: var(--text);
       }
 
+      /* The line of the screen carries a patch that runs over more than one
+         line, and the headline leading of the shell would have the patches
+         overlap. Scoped to this section — it is this screen that needs the
+         air, not every lead-in on the page. */
+      #study .viz-lead-value {
+        line-height: 1.28;
+      }
+
       /* The patch on a figure of the screen. Colour comes inline with the
          markup; what is left here is the shape of it. */
       .study-lead-mark {
@@ -6663,7 +6714,9 @@ function init(root) {
         .study-note { font-size: 0.875rem; }
 
         /* Fewer squares to a row: at this width 28 of them would be specks. */
-        .study-lead-dots { grid-template-columns: repeat(22, 1fr); gap: 3px; }
+        /* The line above them is long, and on a phone the two together have
+           only one screen: the squares keep the size they can. */
+        .study-lead-dots { grid-template-columns: repeat(23, 1fr); gap: 3px; }
         .study-lead-dot { border-radius: 2px; }
         .study-lead-card { gap: 14px; margin-top: 0.6em; padding: 16px 18px; }
         .study-lead-card .study-art { width: 80px; height: 80px; }
@@ -7017,13 +7070,13 @@ const meta = {
   // it is «Мы —» and the logo under it, and the logo opens up on a beat of its
   // own to let «не только» into its ring. Once the card settles, the heading of
   // the section takes its place — the same one the block is read under.
-  title: '<span class="prof-open">'
+  title: '<span class="prof-open" aria-hidden="true">'
     +   '<span class="prof-open-row">'
     +     '<span class="prof-open-we">Мы —</span>'
     +     '<span class="prof-open-logo" data-el="logo"></span>'
     +   '</span>'
     + '</span>'
-    + '<span class="prof-settled">Высшая школа '
+    + '<span class="prof-settled">Мы — Высшая школа '
     +   '<span class="prof-accent" style="background: var(--hse-blue); color: var(--card)">не только</span>'
     + ' экономики</span>',
   // The last beat of the card: what the wall under it is about.
@@ -7136,15 +7189,20 @@ function init(root) {
         flex: none;
         display: flex;
         align-items: stretch;
-        gap: 32px;
+        /* Measured against the height of the screen, like the wall under it:
+           on a short one the card gives up its room first. */
+        gap: clamp(18px, 3.4vh, 32px);
         min-height: 5.8rem;
-        padding: 16px 20px;
+        padding: clamp(10px, 1.8vh, 16px) 20px;
         border-radius: var(--r-card);
         background: var(--card);
         box-shadow: var(--card-shadow);
       }
 
       /* Who it is: the icon over the name, down the whole height of the card. */
+      /* Kept at one width: a narrower column would only make the longest name
+         take another line, and the card taller — which is what the wall under
+         it would have to pay for. */
       .prof-detail-head {
         flex: none;
         width: 230px;
@@ -7158,8 +7216,8 @@ function init(root) {
 
       .prof-detail-art {
         flex: none;
-        width: 72px;
-        height: 72px;
+        width: clamp(44px, 8vh, 72px);
+        height: clamp(44px, 8vh, 72px);
       }
 
       .prof-detail-art img,
@@ -7185,7 +7243,7 @@ function init(root) {
       }
 
       .prof-detail-name {
-        font-size: 1.125rem;
+        font-size: clamp(0.9375rem, 2.2vh, 1.125rem);
         font-weight: 700;
         line-height: 1.2;
         letter-spacing: -0.01em;
@@ -7218,7 +7276,7 @@ function init(root) {
         padding: 0 0 0 1.1em;
         columns: 15em;
         column-gap: 28px;
-        font-size: 0.875rem;
+        font-size: clamp(0.75rem, 1.7vh, 0.875rem);
         line-height: 1.5;
         color: var(--text-secondary);
       }
@@ -7236,7 +7294,7 @@ function init(root) {
          the card is simply that profession, and nothing else. */
       .prof-note {
         margin: 0;
-        font-size: 0.875rem;
+        font-size: clamp(0.75rem, 1.7vh, 0.875rem);
         line-height: 1.5;
         color: var(--text-secondary);
       }
@@ -7245,10 +7303,13 @@ function init(root) {
          push the card taller than the section. All 44 fit in it at once — the
          columns are what makes them fit, so nothing here ever scrolls.
 
-         Areas of science are not named here: a group is simply kept whole
-         inside one column, with air above and below it, and the eye reads the
-         clusters without being told. */
+         Everything in the wall is measured against the height of the screen:
+         it is the height that the wall has to fit into, so on a short one the
+         tiles are smaller rather than the columns more numerous. */
       .prof-grid {
+        --prof-icon: calc(clamp(20px, 3vh, 30px) * var(--prof-fit, 1));
+        --prof-name: calc(clamp(0.6875rem, 1.55vh, 0.8125rem) * var(--prof-fit, 1));
+        --prof-area: calc(clamp(0.625rem, 1.35vh, 0.75rem) * var(--prof-fit, 1));
         position: absolute;
         inset: 0;
         overflow: hidden;
@@ -7271,13 +7332,13 @@ function init(root) {
         margin-bottom: 0;
       }
 
-      /* The name of the area is for a phone, where the wall is one long column
-         and the groups have nothing but a caption to tell them apart. */
+      /* Every group says which area of science it is: the fill tells where a
+         group ends, the caption tells what it was. */
       .prof-group-title {
-        display: none;
-        font-size: 0.7188rem;
+        margin: 1px 0 3px 8px;
+        font-size: var(--prof-area);
         font-weight: 600;
-        line-height: 1.25;
+        line-height: 1.2;
         letter-spacing: 0.02em;
         color: var(--text-caption);
       }
@@ -7313,8 +7374,8 @@ function init(root) {
       .prof-item-art {
         flex: none;
         display: block;
-        width: 28px;
-        height: 28px;
+        width: var(--prof-icon);
+        height: var(--prof-icon);
       }
 
       /* Long names hold the tile together rather than pushing it apart. */
@@ -7325,7 +7386,7 @@ function init(root) {
       /* The name is never cut: five lines are enough for the longest of them
          even in the narrowest column the wall ever comes to. */
       .prof-item-name {
-        font-size: 0.75rem;
+        font-size: var(--prof-name);
         font-weight: 600;
         line-height: 1.25;
         /* A column can come out narrower than a word like
@@ -7377,8 +7438,8 @@ function init(root) {
         }
 
         .prof-group-title {
-          display: block;
           margin: 2px 0 6px 2px;
+          font-size: 0.7188rem;
         }
 
         .prof-group-items { gap: 4px; }
@@ -7565,22 +7626,48 @@ function init(root) {
   }
 
   // All 44 have to stand in the box at once — the section is one screen tall
-  // and nothing here scrolls. Groups are not broken across columns, so how
-  // many columns it takes is not a matter of width alone: the wall is laid out
-  // again with one more column until nothing hangs out of the box.
+  // and nothing here scrolls. Groups are not broken across columns, so what it
+  // takes to fit them is not a matter of width alone.
+  //
+  // There are two ways of winning room, and they pull against each other: one
+  // more column, and smaller tiles. Columns come at the price of width, and a
+  // narrow column breaks a name like «Инженер электронных и телекоммуника-
+  // ционных систем» into a stack of syllables — so the wall first tries to
+  // shrink a little, and only takes another column when shrinking is not
+  // enough.
   const MAX_COLUMNS = 8;
+  const SHRINK = [1, 0.94, 0.88, 0.82];
+  const wrap = grid.parentElement;
+  const COLUMN = 250;                    // the width a column would like to be
   const stacked = window.matchMedia('(max-width: 860px)');
 
   function fit() {
     if (stacked.matches) {
       grid.style.columnCount = '';       // one long column, scrolling with the page
+      grid.style.removeProperty('--prof-fit');
       return;
     }
-    const from = Math.max(3, Math.floor(grid.clientWidth / 230));
+    const from = Math.max(3, Math.floor(grid.clientWidth / COLUMN));
+    grid.style.position = '';
+    wrap.style.overflowY = '';
     for (let n = from; n <= MAX_COLUMNS; n++) {
       grid.style.columnCount = n;
-      if (grid.scrollWidth <= grid.clientWidth + 1) return;
+      for (const k of SHRINK) {
+        grid.style.setProperty('--prof-fit', k);
+        if (grid.scrollWidth <= grid.clientWidth + 1) return;
+      }
     }
+
+    // A window too short for all of it even shrunk — a laptop turned sideways,
+    // a browser with three toolbars. Better a wall the reader can scroll than
+    // one that quietly keeps nine professions off the screen: the wall leaves
+    // its fixed box, becomes as tall as it needs and the box scrolls. One
+    // column more than the width would like, at full size: it is scrolled
+    // anyway, so the tiles may as well be readable and the scroll short.
+    grid.style.columnCount = Math.min(MAX_COLUMNS, from + 1);
+    grid.style.setProperty('--prof-fit', 1);
+    grid.style.position = 'static';
+    wrap.style.overflowY = 'auto';
   }
 
   function measure() {
@@ -7590,16 +7677,24 @@ function init(root) {
 
   window.addEventListener('resize', measure);
   stacked.addEventListener('change', measure);
+  // The first measurement is taken before the page has finished settling —
+  // fonts land, the logo in the card arrives — and the wall is laid out
+  // against what it sees. So it is taken again once all that is over.
+  requestAnimationFrame(measure);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(measure);
 
   // The box the wall stands in is not the same size all the way through: while
   // the card holds, the heading is a logo and takes most of the screen. So the
   // wall is laid out again whenever its box changes, not only on a resize.
+  //
+  // The box is watched, not the wall itself: laying the wall out changes its
+  // size, and watching it would have it lay itself out for ever.
   let pending = false;
   new ResizeObserver(() => {
     if (pending) return;
     pending = true;
     requestAnimationFrame(() => { pending = false; fit(); });
-  }).observe(grid);
+  }).observe(wrap);
 
   // ---------- The wall ----------
   let current = null;

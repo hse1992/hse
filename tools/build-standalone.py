@@ -15,7 +15,7 @@ import pathlib
 import urllib.parse
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-OUT = ROOT / "metro-standalone.html"
+OUT = ROOT / "На сколько большая.html"
 
 MIME = {
     ".svg": "image/svg+xml", ".png": "image/png", ".jpg": "image/jpeg",
