@@ -179,10 +179,13 @@ button { font-family: inherit; }
    between screens. Driven by leadCard() in lib/page.js. */
 /* `top` is set from JS to the top edge of the title card, so the two swap
    places without shifting vertically. */
+/* Placed against the container, which is already inside the padding of the
+   section — so it takes its edges, and the lead-in lines up with the heading
+   that follows it. */
 .viz-lead {
   position: absolute;
-  left: 24px;
-  right: 24px;
+  left: 0;
+  right: 0;
   display: flex;
   flex-direction: column;
   /* The card is scaled up as a whole, so its 14px gap reads as 14 × k. The
