@@ -312,10 +312,13 @@ button { font-family: inherit; }
    between screens. Driven by leadCard() in lib/page.js. */
 /* `top` is set from JS to the top edge of the title card, so the two swap
    places without shifting vertically. */
+/* Placed against the container, which is already inside the padding of the
+   section — so it takes its edges, and the lead-in lines up with the heading
+   that follows it. */
 .viz-lead {
   position: absolute;
-  left: 24px;
-  right: 24px;
+  left: 0;
+  right: 0;
   display: flex;
   flex-direction: column;
   /* The card is scaled up as a whole, so its 14px gap reads as 14 × k. The
@@ -1052,8 +1055,8 @@ button { font-family: inherit; }
   <div id="page"></div>
 
 <footer class="page-footer">
-    <span>Данные на 2025 год</span>
-    <a href="https://data.hse.ru" target="_blank" rel="noopener">© Дирекция по аналитике и управлению данными</a>
+    <span>Показатели за 2025 год</span>
+    <a href="https://data.hse.ru" target="_blank" rel="noopener">© Дирекция по аналитике и управлению данными НИУ ВШЭ</a>
   </footer>
 </main>
 
@@ -1237,6 +1240,630 @@ const PROFS = {
   'writer': 'data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2264%22%20height%3D%2264%22%20viewBox%3D%220%200%2064%2064%22%20fill%3D%22none%22%20aria-hidden%3D%22true%22%20focusable%3D%22false%22%3E%20%3C%21--%20%D0%9F%D0%B8%D1%81%D0%B0%D1%82%D0%B5%D0%BB%D1%8C%20--%3E%20%3Cpath%20d%3D%22M58%206C42%209%2029%2019%2023%2033l8%208C45%2035%2055%2021%2058%206z%22%20fill%3D%22var%28--brand-grey-mid%2C%20%23C6C6C6%29%22%2F%3E%20%3Cpath%20d%3D%22M54%2011%2027%2038%22%20fill%3D%22none%22%20stroke%3D%22var%28--brand-yellow%2C%20%23FAB900%29%22%20stroke-width%3D%223%22%20stroke-linecap%3D%22round%22%2F%3E%20%3Cpath%20d%3D%22M23%2033l8%208-13%205z%22%20fill%3D%22var%28--brand-grey%2C%20%23929292%29%22%2F%3E%20%3Crect%20x%3D%229%22%20y%3D%2242%22%20width%3D%2215%22%20height%3D%225%22%20rx%3D%222%22%20fill%3D%22var%28--brand-grey%2C%20%23929292%29%22%2F%3E%20%3Crect%20x%3D%226%22%20y%3D%2246%22%20width%3D%2221%22%20height%3D%2212%22%20rx%3D%223%22%20fill%3D%22var%28--brand-navy%2C%20%230F2D69%29%22%2F%3E%20%3C%2Fsvg%3E'
 };
 
+const { mountProgress, introRunner } = (() => {
+// Page-level behaviour shared by every section: the reading progress bar,
+// starting a section when the reader gets to it, and sticky scenes.
+
+// Thin bar along the top edge showing how far down the page the reader is.
+function mountProgress() {
+  const bar = document.createElement('div');
+  bar.className = 'page-progress';
+  bar.setAttribute('aria-hidden', 'true');
+  document.body.appendChild(bar);
+
+  // The arrow on the opening screen has done its job once the story moves.
+  const hint = document.querySelector('.scroll-hint');
+
+  const set = (p) => {
+    bar.style.transform = `scaleX(${Math.min(1, Math.max(0, p))})`;
+    if (hint) hint.classList.toggle('is-gone', p > 0.001);
+  };
+
+  set(0);
+  return { set };
+}
+
+// How much bigger the heading is while it holds as a title card. The lead-in
+// screen is laid out against the same number, so the two line up. A section
+// can ask for another one — with 1 the card holds at the size it will settle
+// at, and the reader sees it move without it changing.
+const CARD_K = 1.55;
+
+// Gives a section a title card: it starts with its heading alone in the middle
+// of the screen, larger than usual but smaller than the title of the page, and
+// as the reader scrolls the heading settles into its normal place and size
+// while the visualisation itself fades in underneath.
+//
+// The heading is scaled rather than re-typeset, and its layout width is divided
+// by the same factor — so the line breaks never move, only the size does.
+// Moves a heading between its title-card state (p = 0: big, centred, body
+// hidden) and its normal one (p = 1). Used by mountIntro and by scenes that
+// open with a title card.
+function titleCard(section, zone = INTRO_SCREENS, K = CARD_K, fullHeight = null) {
+  const container = section.querySelector('.viz-container');
+  const header = section.querySelector('.viz-header');
+
+  return (p, narrow) => {
+    const k = K - (K - 1) * p;
+    // Measured with every part of the card open: parts arrive one after
+    // another, and centring on the height of the moment would nudge the
+    // heading down each time one of them does.
+    const h = (fullHeight ? fullHeight(k) : header.offsetHeight) * k;
+    // Where the heading ends up differs between the two layouts: on a wide
+    // screen the whole container is pinned and the heading settles at its top;
+    // on a narrow one the heading is pinned by itself to the top of the screen.
+    const centred = narrow
+      ? window.innerHeight / 2 - h / 2
+      : container.clientHeight / 2
+        - (parseFloat(getComputedStyle(container).paddingTop) + h / 2);
+
+    section.style.setProperty('--intro-k', k.toFixed(4));
+    section.style.setProperty('--intro-dy', `${(centred * (1 - p)).toFixed(1)}px`);
+    section.style.setProperty('--intro-body', p.toFixed(3));
+
+    // The zone the pinned heading lives in is one heading taller than the
+    // intro itself: it settles at the top of the screen and waits there while
+    // the block comes up to meet it.
+    if (narrow) {
+      const hold = window.innerHeight * zone + header.offsetHeight;
+      section.style.setProperty('--intro-hold', `${Math.round(hold)}px`);
+    }
+  };
+}
+
+// One beat — the scrolling it takes for one thing to happen. Everything the
+// page does on the way is a whole number of these: a part of a card arriving,
+// a screen sliding aside, a step of a scene. Written down once so the story
+// keeps an even pace and the whole of it can be sped up or slowed down here.
+const BEAT = 0.7;
+
+// A section can open with a lead-in screen — one figure and one line — that
+// slides away to the left while the title card comes in from the right: one
+// beat to read it, one to see it go.
+const LEAD_SCREENS = 2 * BEAT;
+const LEAD_HOLD = 0.5;                 // the share of that spent holding
+
+// The lead-in can arrive in parts, the same way the title card does: what is
+// marked `.intro-stage` inside it waits its turn and then grows into place
+// while the screen still holds. A beat each, one after another.
+const LEAD_STAGE_SCREENS = BEAT;
+const LEAD_STAGE_AT = 0;
+const LEAD_STAGE_SPAN = BEAT;
+
+// Drives that swap. Returns how many screens the lead-in holds for and the
+// painter itself; `q` is how far the card has scrolled, in screens.
+function leadCard(section, K = CARD_K) {
+  const lead = section.querySelector('.viz-lead');
+  if (!lead) return null;
+  const container = section.querySelector('.viz-container');
+  const header = section.querySelector('.viz-header');
+
+  // Where it goes when its turn is over: aside, making way for the title card,
+  // or up to the top of the section, where it stays and reads as the heading.
+  const parks = lead.dataset.exit === 'top';
+
+  // A screen of one line starts where the heading of the title card will be,
+  // so the swap is a move sideways and nothing hops. One that grows part by
+  // part can ask to stay in the middle instead: it then rises as its parts
+  // arrive, and each of them is read in the centre of the screen.
+  const centres = lead.dataset.fit === 'center';
+
+  // Squeezed shut until their turn — see stageCards for why by height.
+  const parts = [...lead.querySelectorAll('.intro-stage')];
+  parts.forEach((el) => { el.style.overflow = 'hidden'; });
+  const screens = LEAD_SCREENS + parts.length * LEAD_STAGE_SCREENS;
+  const hold = LEAD_HOLD + parts.length * LEAD_STAGE_SCREENS;
+
+  const paint = (q, narrow) => {
+    // Sit exactly where the title card will: same top edge, so the swap is a
+    // move sideways and nothing hops up or down. On a narrow screen the lead-in
+    // is fixed to the middle of the window instead, so it needs no top — but it
+    // has to keep out of sight until the section itself arrives.
+    const cardTop = container.clientHeight / 2 - (header.offsetHeight * K) / 2;
+    if (!narrow && !centres) lead.style.top = `${Math.round(cardTop)}px`;
+    if (narrow) lead.style.top = '';
+    lead.style.visibility = narrow && section.getBoundingClientRect().top > 1
+      ? 'hidden'
+      : '';
+    // Centred against the same screen height as the heading — in pixels, not
+    // dvh, so the two agree even while the address bar of a phone is moving.
+    if (narrow) {
+      section.style.setProperty('--lead-screen', `${window.innerHeight}px`);
+    }
+
+    // The parts come first, one after another, and the screen only starts
+    // moving once the last of them is there.
+    parts.forEach((el) => {
+      const k = Number(el.dataset.stage) || 1;
+      const from = (k - 1) * LEAD_STAGE_SCREENS + LEAD_STAGE_AT;
+      const v = clamp((q - from) / LEAD_STAGE_SPAN);
+      const grown = 1 - Math.pow(1 - v, 3);
+      el.style.opacity = grown.toFixed(3);
+      el.style.height = grown < 1 ? `${(el.scrollHeight * grown).toFixed(1)}px` : '';
+      // How far each part has come, for anyone who cares: a screen where one
+      // part replaces another has the earlier one leave by the same number.
+      section.style.setProperty(`--lead-stage-${k}`, grown.toFixed(3));
+    });
+
+    // A screen that holds the middle is placed once its parts have grown: its
+    // height is what has just changed, and reading it before them would leave
+    // the screen a frame behind — plain to see when the reader stops.
+    if (!narrow && centres) {
+      lead.style.top = `${Math.round(container.clientHeight / 2 - lead.offsetHeight / 2)}px`;
+    }
+
+    const t = clamp((q - hold) / (screens - hold));
+    const e = 1 - Math.pow(1 - t, 3);
+
+    // Parking only works where the whole section is pinned: the screen goes up
+    // to the top of the container and stays there, at its own size, while the
+    // block comes up underneath it — so the block starts below it, and the
+    // heading of the section keeps waiting off to the right. On a narrow
+    // screen nothing is pinned as a whole, so the usual swap happens instead.
+    if (parks && !narrow) {
+      const pad = parseFloat(getComputedStyle(container).paddingTop);
+      lead.style.setProperty('--lead-x', '0px');
+      lead.style.setProperty('--lead-y', `${(-e * (cardTop - pad)).toFixed(1)}px`);
+      lead.style.opacity = '';
+      section.style.setProperty('--card-x', '108vw');
+      section.style.setProperty('--lead-hold',
+        `${Math.max(0, Math.round(lead.offsetHeight - header.offsetHeight))}px`);
+      return;
+    }
+
+    lead.style.setProperty('--lead-y', '0px');
+    lead.style.setProperty('--lead-x', `${(-e * 108).toFixed(2)}vw`);
+    lead.style.opacity = (1 - clamp(t * 1.6)).toFixed(3);
+    // The heading waits off to the right until its turn.
+    section.style.setProperty('--card-x', `${((1 - e) * 108).toFixed(2)}vw`);
+  };
+
+  return { screens, hold, parts: parts.length, paint };
+}
+
+// The title card: a beat to read it where it stands, then it settles into
+// place. A card that arrives in parts gets a beat for each of them first.
+const INTRO_SCREENS = 2 * BEAT;
+const STAGE_SCREENS = BEAT;
+const HOLD = 0.5;                      // half of it holding, half settling
+const DONE = 1;
+
+const clamp = (v) => Math.min(1, Math.max(0, v));
+
+// How far the section has scrolled through its intro phase, 0..1. On a wide
+// screen the whole section is pinned, so the phase is measured against its
+// travel; on a narrow one only the heading is pinned and the phase is the
+// intro zone above the block.
+function introProgress(section, narrow, zone = INTRO_SCREENS) {
+  const box = section.getBoundingClientRect();
+  const span = narrow
+    ? zone * window.innerHeight
+    : box.height - window.innerHeight;
+  if (span <= 0) return null;
+  return clamp(-box.top / span);
+}
+
+// The card stands still for a while and then settles into its place over the
+// rest of its screen. Takes the raw progress of that screen, gives back how far
+// the card has settled.
+function settleCurve(raw) {
+  const t = clamp((raw - HOLD) / (DONE - HOLD));
+  return 1 - Math.pow(1 - t, 3);            // same easing as everywhere else
+}
+
+// A title card can arrive in stages: blocks inside the heading marked
+// `.intro-stage` with a number wait their turn and then grow into place, one
+// per screen of scrolling, while the card is still holding in the middle. What
+// is not marked is there from the first frame.
+//
+// The block is squeezed shut by its height, so it keeps reporting through
+// scrollHeight the height it would have had if it were open — that is what the
+// share is taken of. Once it is fully there the height goes back to auto and
+// the block is free to change on its own again.
+function stageCards(section, stages) {
+  const blocks = [...section.querySelectorAll('.intro-stage')];
+  blocks.forEach((el) => { el.style.overflow = 'hidden'; });
+
+  const grown = (q, k) =>
+    1 - Math.pow(1 - clamp((q - (k - 1) * STAGE_SCREENS) / STAGE_SCREENS), 3);
+
+  // `q` is how far the card has scrolled, counted in screens. A part takes a
+  // beat to arrive, and the next one starts where it finished.
+  return (q) => {
+    // Every beat says how far it has come, whether or not a block is tied to
+    // it: a card can play something else on one — a logo opening up, a phrase
+    // wedging itself into the heading — and that is driven from the module.
+    for (let k = 1; k < stages; k++) {
+      section.style.setProperty(`--stage-${k}`, grown(q, k).toFixed(3));
+    }
+
+    blocks.forEach((el) => {
+      const e = grown(q, Number(el.dataset.stage) || 1);
+      el.style.opacity = e.toFixed(3);
+      el.style.height = e < 1 ? `${(el.scrollHeight * e).toFixed(1)}px` : '';
+    });
+  };
+}
+
+// Whether the reader has asked for less movement: then a section shows its
+// finished state and nothing plays at all.
+const still = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+// Builds the opening of a section — the lead-in screen, the parts of the card
+// and the card settling into place — as one function of progress 0..1, plus
+// how many beats it is worth.
+function introRunner(section, stages = 1, scale = CARD_K) {
+  const lead = leadCard(section, scale);
+  const leadScreens = lead ? lead.screens : 0;
+  const zone = leadScreens + INTRO_SCREENS + (stages - 1) * STAGE_SCREENS;
+  const header = section.querySelector('.viz-header');
+
+  let drawn = null;
+  const draw = (q) => {
+    drawn = q;
+    if (lead) lead.paint(q, false);
+    if (reveal) reveal(q - leadScreens);
+    paint(settleCurve((q - (zone - INTRO_SCREENS)) / INTRO_SCREENS), false);
+  };
+  // How tall the card is with all of its parts open — the heading is placed
+  // against that from the first frame, so it does not shift as they arrive.
+  // The card is scaled, and a scaled card is also narrower in layout terms, so
+  // its text wraps differently: the height is measured at both ends and read
+  // off in between.
+  let tallOpen = 0;      // held out in the middle of the screen
+  let tallSettled = 0;   // sitting in its place
+  const measure = () => {
+    const parts = [...header.querySelectorAll('.intro-stage')];
+    const keptParts = parts.map((el) => [el.style.height, el.style.opacity]);
+    const keptK = section.style.getPropertyValue('--intro-k');
+    parts.forEach((el) => { el.style.height = ''; el.style.opacity = '1'; });
+
+    // Whatever else plays on those beats follows --stage-N — a phrase wedging
+    // itself into the heading, say, which can push it onto another line. Those
+    // are opened for the measurement too, so the card is placed against the
+    // height it will end up with.
+    const keptStages = [];
+    for (let k = 1; k < stages; k++) {
+      keptStages.push(section.style.getPropertyValue(`--stage-${k}`));
+      section.style.setProperty(`--stage-${k}`, '1');
+    }
+
+    // Both variables together, not just the size: a card can hold something
+    // that belongs to one state only — a logo instead of the heading, say —
+    // and --intro-body is what such a thing follows.
+    const keptBody = section.style.getPropertyValue('--intro-body');
+    section.style.setProperty('--intro-k', String(scale));
+    section.style.setProperty('--intro-body', '0');
+    tallOpen = header.offsetHeight;
+    section.style.setProperty('--intro-k', '1');
+    section.style.setProperty('--intro-body', '1');
+    tallSettled = header.offsetHeight;
+    if (keptBody) section.style.setProperty('--intro-body', keptBody);
+    else section.style.removeProperty('--intro-body');
+
+    parts.forEach((el, i) => { [el.style.height, el.style.opacity] = keptParts[i]; });
+    keptStages.forEach((v, i) => {
+      if (v) section.style.setProperty(`--stage-${i + 1}`, v);
+      else section.style.removeProperty(`--stage-${i + 1}`);
+    });
+    if (keptK) section.style.setProperty('--intro-k', keptK);
+    else section.style.removeProperty('--intro-k');
+
+    // Restoring the inline styles is not enough: before the first frame there
+    // were none, and «no inline height» means fully open. Redraw the frame the
+    // opening was on, so a part cannot flash into view.
+    if (drawn !== null) draw(drawn);
+  };
+  measure();
+  window.addEventListener('resize', measure);
+  // A heading can carry pictures — a station board, a scarf — and they arrive
+  // after the shell has drawn it. Anything that changes its height means the
+  // measurement has to be taken again.
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(measure);
+  header.querySelectorAll('img').forEach((img) => {
+    if (!img.complete) img.addEventListener('load', measure, { once: true });
+  });
+
+  const heightAt = (k) => {
+    if (!tallOpen) return header.offsetHeight;
+    if (scale === 1) return tallSettled;
+    return tallSettled + (tallOpen - tallSettled) * ((k - 1) / (scale - 1));
+  };
+
+  const paint = titleCard(section, zone, scale, heightAt);
+  const reveal = stages > 1 ? stageCards(section, stages) : null;
+
+  section.classList.add('viz-intro');
+
+  // Where one thing happens and the next begins. The opening is not a smooth
+  // ramp: parts arrive one after another, the lead-in slides aside, the card
+  // settles — and between some of those it simply waits. Whoever plays this
+  // walks the list and gives each stretch its own beat, so nothing is spent on
+  // the waiting.
+  const beats = [];
+  if (lead) {
+    for (let k = 1; k <= lead.parts; k++) {
+      beats.push([(k - 1) * LEAD_STAGE_SCREENS, k * LEAD_STAGE_SCREENS]);
+    }
+    beats.push([lead.hold, leadScreens]);            // sliding aside
+  }
+  for (let k = 1; k < stages; k++) {
+    beats.push([leadScreens + (k - 1) * STAGE_SCREENS, leadScreens + k * STAGE_SCREENS]);
+  }
+  beats.push([zone - INTRO_SCREENS * (1 - HOLD), zone]);   // the card settling
+
+
+
+  return {
+    beats,
+    zone,
+    // Whoever plays this calls it before a beat: by then the pictures have
+    // loaded and the card knows its real height.
+    remeasure: measure,
+    // p from 0 to 1 across the whole opening — used to put it in its opening
+    // or finished state in one go.
+    run(p) { draw(p * zone); },
+    // One stretch of it, p from 0 to 1 within that stretch.
+    runBeat(i, p) {
+      const [from, to] = beats[i];
+      draw(from + (to - from) * p);
+    }
+  };
+}
+
+return { mountProgress, introRunner };
+})();
+
+const { mountStepper } = (() => {
+// The page as a sequence of beats.
+//
+// Scrolling does not scrub anything and does not carry the reader past what
+// they have not seen yet: one movement of the wheel — or one swipe, or one
+// press of the space bar — plays the next beat and nothing more. While a beat
+// is playing, input is ignored; when it lands, the page waits for the reader
+// again. Sections are settled onto the screen the same way: a beat of their
+// own carries the page from one to the next.
+
+const BEAT_MS = 700;         // how long one beat plays
+const SETTLE_MS = 520;       // moving the page from one section to the next
+
+// A trackpad keeps sending events for a second or so after the fingers have
+// left it, and a mouse wheel sends a burst per notch. Anything arriving within
+// this of the previous event is the same movement, still going — only the
+// first event of a movement counts as «next».
+const GESTURE_GAP = 200;
+
+const REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+// Runs fn(p) from 0 to 1 over ms, then done(). Time is counted frame to frame,
+// and a gap longer than a stutter is dropped — a tab nobody is looking at gets
+// no frames, and counting from the start would skip the beat to its end.
+function play(ms, fn, done) {
+  let last = performance.now();
+  let spent = 0;
+  const tick = (now) => {
+    const dt = now - last;
+    last = now;
+    spent += dt > 250 ? 16 : dt;
+    const p = Math.min(1, spent / ms);
+    fn(p);
+    if (p < 1) requestAnimationFrame(tick);
+    else if (done) done();
+  };
+  requestAnimationFrame(tick);
+}
+
+// Eases the same way everything else on the page does.
+const settle = (p) => 1 - Math.pow(1 - p, 3);
+
+// Carries the window to `y` over SETTLE_MS.
+function glide(y, done) {
+  const from = window.scrollY;
+  const span = y - from;
+  if (Math.abs(span) < 2 || REDUCED.matches) {
+    window.scrollTo(0, y);
+    if (done) done();
+    return;
+  }
+  play(SETTLE_MS, (p) => window.scrollTo(0, from + span * settle(p)), done);
+}
+
+// Collects the beats of one section: settling it onto the screen, its title
+// card (which may arrive in parts), and the steps of its scene.
+function beatsOf(entry) {
+  const { section, opening, steps, setStep, build } = entry;
+  const list = [];
+
+  // 1. Bring the section onto the screen, and build it while it travels.
+  list.push({
+    section,
+    run: (done) => {
+      build();
+      // The block has just been put together and the section is on its way in:
+      // this is the moment the card can be measured for real.
+      if (opening) { opening.remeasure(); opening.runBeat(0, 0); }
+      glide(section.offsetTop, done);
+    }
+  });
+
+  // 2. The opening, one beat per thing that happens in it: a part of the
+  //    lead-in arriving, the lead-in sliding aside, a part of the card, the
+  //    card settling. The stretches where it only waits are not beats at all.
+  if (opening) {
+    opening.beats.forEach((_, i) => {
+      list.push({
+        section,
+        run: (done) => {
+          if (opening.remeasure) opening.remeasure();
+          play(BEAT_MS, (p) => opening.runBeat(i, p), done);
+        }
+      });
+    });
+  }
+
+  // 3. The scene, one step per beat. The module animates the step itself; the
+  //    beat is over when that animation has had its time.
+  for (let i = 0; i < steps; i++) {
+    list.push({
+      section,
+      run: (done) => { setStep(i); play(BEAT_MS, () => {}, done); }
+    });
+  }
+
+  return list;
+}
+
+// `entries` describe the sections in order. Each is
+// { section, opening, steps, setStep, build } — see beatsOf.
+function mountStepper(entries, { onProgress, finale } = {}) {
+  const beats = entries.flatMap(beatsOf);
+
+  // The story ends with the credits. They are not a section and have no screen
+  // of their own: the page lifts just far enough to bring them into view under
+  // the last block.
+  const bottom = () => Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+  if (finale) beats.push({ top: bottom, run: (done) => glide(bottom(), done) });
+  let at = -1;                 // the last beat played
+  let busy = false;
+  let lastInput = 0;           // when the current movement last said anything
+  let peak = 0;                // the hardest it has pushed
+  let quietest = Infinity;     // and how gently it has got since that peak
+  let queued = 0;              // one movement may wait for the beat to finish
+
+  // Nothing to watch: everything is put in its finished state at once, and the
+  // page is left to scroll normally.
+  if (REDUCED.matches) {
+    entries.forEach((e) => {
+      e.build();
+      if (e.opening) e.opening.run(1);
+      if (e.steps) e.setStep(e.steps - 1);
+    });
+    if (onProgress) onProgress(1);
+    return { free: true };
+  }
+
+  document.documentElement.classList.add('is-stepped');
+
+  // A reload would otherwise drop the reader back where they were scrolled to,
+  // while the story itself starts from the beginning — a page standing in the
+  // middle of a section that has not been told yet.
+  if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+  window.scrollTo(0, 0);
+  // Pictures and fonts land after this, and the browser can nudge the page
+  // again while it settles.
+  window.addEventListener('load', () => { if (at < 0) window.scrollTo(0, 0); });
+
+  const report = () => onProgress && onProgress((at + 1) / beats.length);
+
+  // A movement that arrives mid-beat is not thrown away — it waits its turn.
+  // Only one waits, so a flurry of swipes cannot run the story off ahead.
+  const done = () => {
+    busy = false;
+    const next = queued;
+    queued = 0;
+    if (next > 0) forward();
+    else if (next < 0) back();
+  };
+
+  const forward = () => {
+    if (at >= beats.length - 1) return;
+    if (busy) { queued = 1; return; }
+    busy = true;
+    at += 1;
+    report();
+    beats[at].run(done);
+  };
+
+  // Going back does not replay anything: the page steps to where the reader
+  // was, in one move, and waits there.
+  const back = () => {
+    if (at <= 0) return;
+    if (busy) { queued = -1; return; }
+    at -= 1;
+    report();
+    const target = beats[Math.max(0, at)];
+    busy = true;
+    glide(target.top ? target.top() : target.section.offsetTop, done);
+  };
+
+  // Only the first event of a movement acts. Every event pushes the mark
+  // forward, so the tail of a flick — and anything arriving while a beat plays
+  // — keeps the movement alive instead of queueing up more beats behind it.
+  const onWheel = (e) => {
+    e.preventDefault();
+    const force = Math.abs(e.deltaY);
+    if (force < 2) return;
+    const now = performance.now();
+
+    // Two things tell a new movement from the tail of the last one. A pause is
+    // the plain case. The other is a shove: once a movement has passed its
+    // peak it only ever fades, so a push several times harder than the gentlest
+    // it has got since then is a hand starting again — that is what a second
+    // swipe looks like when it lands before the previous flick has died away.
+    //
+    // Only the fading half counts. A swipe first speeds up, and measuring the
+    // gentlest against that run-up would make the swipe shove itself: one
+    // movement, two beats.
+    const paused = now - lastInput > GESTURE_GAP;
+    const shove = force > Math.max(quietest * 3, 12);
+    lastInput = now;
+
+    if (!paused && !shove) {
+      if (force >= peak) peak = force;            // still speeding up
+      else quietest = Math.min(quietest, force);  // past the peak, fading
+      return;
+    }
+    peak = force;
+    quietest = Infinity;
+    (e.deltaY > 0 ? forward : back)();
+  };
+
+  // One swipe is one beat: the finger has to come off and go on again.
+  let touchY = 0;
+  let swiped = false;
+  const onTouchStart = (e) => { touchY = e.touches[0].clientY; swiped = false; };
+  const onTouchMove = (e) => {
+    e.preventDefault();
+    if (swiped) return;
+    const dy = touchY - e.touches[0].clientY;
+    if (Math.abs(dy) < 40) return;
+    swiped = true;
+    lastInput = performance.now();
+    (dy > 0 ? forward : back)();
+  };
+
+  const KEYS_FORWARD = [' ', 'PageDown', 'ArrowDown', 'ArrowRight', 'Enter'];
+  const KEYS_BACK = ['PageUp', 'ArrowUp', 'ArrowLeft'];
+  const onKey = (e) => {
+    if (e.repeat) { e.preventDefault(); return; }   // holding a key is one press
+    if (KEYS_FORWARD.includes(e.key)) { e.preventDefault(); forward(); }
+    else if (KEYS_BACK.includes(e.key)) { e.preventDefault(); back(); }
+    else if (e.key === 'Home') { e.preventDefault(); while (at > 0) back(); }
+  };
+
+  // Capture, not bubble: a list with its own scrollbar would otherwise take
+  // the movement for itself and the page would stand still until the reader
+  // tapped somewhere neutral first.
+  const grab = { passive: false, capture: true };
+  document.addEventListener('wheel', onWheel, grab);
+  document.addEventListener('touchstart', onTouchStart, { passive: true, capture: true });
+  document.addEventListener('touchmove', onTouchMove, grab);
+  document.addEventListener('keydown', onKey, true);
+
+  // Belt and braces: anything sent straight at the window never passes through
+  // the document, and a second call on the same event is harmless — the
+  // gesture check swallows it.
+  window.addEventListener('wheel', onWheel, { passive: false });
+  window.addEventListener('touchmove', onTouchMove, { passive: false });
+
+  report();
+  return { forward, back };
+}
+
+return { mountStepper };
+})();
+
+const { tint } = (() => {
 // Colour helpers. Canvas needs plain strings, so colours live in JS, not CSS.
 
 // Mixes a hex colour towards white. amount 0 = unchanged, 1 = white.
@@ -1247,9 +1874,12 @@ function tint(hex, amount) {
   return '#' + ((1 << 24) | (r << 16) | (g << 8) | b).toString(16).slice(1).toUpperCase();
 }
 
+return { tint };
+})();
+
+const { CITIES, LYCEUM, LYCEUM_COLOR, FOREIGN, STUDENTS, STAFF, HSE_TOTAL, AREA_TOTAL, ADMITTED } = (() => {
 // Shared HSE figures, 2025. Every visualisation reads its numbers from here
 // so the whole page can never disagree with itself.
-
 
 // How much lighter the secondary shade of a city is (staff on the stadium,
 // any second series elsewhere). Same hue, just mixed towards white.
@@ -1284,6 +1914,87 @@ const HSE_TOTAL = STUDENTS + STAFF + LYCEUM;
 const AREA_TOTAL = CITIES.reduce((n, c) => n + c.area, 0);
 const ADMITTED = CITIES.reduce((n, c) => n + c.admitted, 0);
 
+return { CITIES, LYCEUM, LYCEUM_COLOR, FOREIGN, STUDENTS, STAFF, HSE_TOTAL, AREA_TOTAL, ADMITTED };
+})();
+
+const { nf, pct, dec, plural } = (() => {
+// Number and word formatting shared by every visualisation.
+
+// 48139 -> "48 139" (non-breaking thin space, so numbers never wrap).
+const nf = (n) => n.toLocaleString('ru-RU').replace(/ /g, ' ');
+
+// 12.5 -> "12,5"
+const pct = (part, whole, digits = 1) => {
+  const f = Math.pow(10, digits);
+  return `${(Math.round((part / whole) * 100 * f) / f).toString().replace('.', ',')}%`;
+};
+
+// 96.265 -> "96,3"
+const dec = (n, digits = 1) => (n.toFixed(digits)).replace('.', ',');
+
+// plural(2, 'студент', 'студента', 'студентов') -> 'студента'
+const plural = (n, one, few, many) => {
+  const m10 = n % 10, m100 = n % 100;
+  if (m100 >= 11 && m100 <= 14) return many;
+  if (m10 === 1) return one;
+  if (m10 >= 2 && m10 <= 4) return few;
+  return many;
+};
+
+return { nf, pct, dec, plural };
+})();
+
+const { mountCanvas } = (() => {
+// Small markup helpers for pieces that repeat across visualisations.
+
+// Sets up a canvas that fills its .canvas-wrap parent and repaints on resize.
+// Returns { canvas, ctx, resize } — call resize() once after the first paint
+// setup if the module needs to force a redraw.
+function mountCanvas(wrap, paint) {
+  const canvas = document.createElement('canvas');
+  wrap.appendChild(canvas);
+  const ctx = canvas.getContext('2d');
+  new ResizeObserver(() => paint()).observe(wrap);
+  window.addEventListener('resize', paint);
+  return { canvas, ctx };
+}
+
+return { mountCanvas };
+})();
+
+const { loadMark } = (() => {
+// The HSE mark from data:image/svg+xml;charset=utf-8,%3Csvg%20width%3D%22283.47%22%20height%3D%22283.47%22%20version%3D%221.1%22%20id%3D%22Layer_1%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20xmlns%3Axlink%3D%22http%3A%2F%2Fwww.w3.org%2F1999%2Fxlink%22%20x%3D%220px%22%20y%3D%220px%22%20viewBox%3D%220%200%20283.47%20283.47%22%20style%3D%22enable-background%3Anew%200%200%20283.47%20283.47%3B%22%20xml%3Aspace%3D%22preserve%22%3E%20%3Ccircle%20class%3D%22st0%22%20cx%3D%22141.73%22%20cy%3D%22141.74%22%20r%3D%22141.73%22%3E%3C%2Fcircle%3E%20%3Cpath%20class%3D%22st1%22%20d%3D%22M135.6%2C133.32c32.26%2C0%2C44.81%2C21.45%2C44.81%2C60.69v29.51h-20.69v-63.35h-23.9v63.42h-18.28V53.65h18.78%26%23xA%3B%26%23x9%3Bc7.03%2C0%2C17.71%2C1.58%2C25.25%2C10.95c3.93%2C4.73%2C6.34%2C11.04%2C7.19%2C17.38h-32.94v9.35h33.23c-0.27%2C6.04-1.49%2C12.8-7.42%2C19.97%26%23xA%3B%26%23x9%3Bc-5.2%2C6.51-13.76%2C12.56-25.83%2C12.56c-0.06%2C0-0.13%2C0-0.2%2C0V133.32%20M206.41%2C197.55c0-34.86-11.26-58.29-40.45-68.6%26%23xA%3B%26%23x9%3Bc9.21-3.77%2C14.82-9.58%2C18.49-13.99c7.01-8.06%2C9.88-17.96%2C9.88-27.31c0-7.56-2.08-22.65-15.35-33.04%26%23xA%3B%26%23x9%3Bc-9.1-7.04-17.16-10.43-36.43-10.43h-9.75c-0.3-0.01-0.6-0.01-0.96-0.01H91.65v189.79h114.76V197.55z%22%3E%3C%2Fpath%3E%20%3C%2Fsvg%3E, ready to be drawn on a canvas.
+// The file has no colours of its own — the disc and the mark cut out of it are
+// two separate paths, and whoever draws them picks the fill.
+
+let loading = null;
+
+// Resolves to { disc, mark, cx, cy, r } — paths in the coordinates of the
+// file — or to null if the file could not be read (opening the page over
+// file:// instead of a local server, for one).
+function loadMark() {
+  if (!loading) {
+    loading = fetch('data:image/svg+xml;charset=utf-8,%3Csvg%20width%3D%22283.47%22%20height%3D%22283.47%22%20version%3D%221.1%22%20id%3D%22Layer_1%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20xmlns%3Axlink%3D%22http%3A%2F%2Fwww.w3.org%2F1999%2Fxlink%22%20x%3D%220px%22%20y%3D%220px%22%20viewBox%3D%220%200%20283.47%20283.47%22%20style%3D%22enable-background%3Anew%200%200%20283.47%20283.47%3B%22%20xml%3Aspace%3D%22preserve%22%3E%20%3Ccircle%20class%3D%22st0%22%20cx%3D%22141.73%22%20cy%3D%22141.74%22%20r%3D%22141.73%22%3E%3C%2Fcircle%3E%20%3Cpath%20class%3D%22st1%22%20d%3D%22M135.6%2C133.32c32.26%2C0%2C44.81%2C21.45%2C44.81%2C60.69v29.51h-20.69v-63.35h-23.9v63.42h-18.28V53.65h18.78%26%23xA%3B%26%23x9%3Bc7.03%2C0%2C17.71%2C1.58%2C25.25%2C10.95c3.93%2C4.73%2C6.34%2C11.04%2C7.19%2C17.38h-32.94v9.35h33.23c-0.27%2C6.04-1.49%2C12.8-7.42%2C19.97%26%23xA%3B%26%23x9%3Bc-5.2%2C6.51-13.76%2C12.56-25.83%2C12.56c-0.06%2C0-0.13%2C0-0.2%2C0V133.32%20M206.41%2C197.55c0-34.86-11.26-58.29-40.45-68.6%26%23xA%3B%26%23x9%3Bc9.21-3.77%2C14.82-9.58%2C18.49-13.99c7.01-8.06%2C9.88-17.96%2C9.88-27.31c0-7.56-2.08-22.65-15.35-33.04%26%23xA%3B%26%23x9%3Bc-9.1-7.04-17.16-10.43-36.43-10.43h-9.75c-0.3-0.01-0.6-0.01-0.96-0.01H91.65v189.79h114.76V197.55z%22%3E%3C%2Fpath%3E%20%3C%2Fsvg%3E')
+      .then((res) => res.text())
+      .then((text) => {
+        const svg = new DOMParser().parseFromString(text, 'image/svg+xml');
+        const circle = svg.querySelector('circle');
+        const cx = Number(circle.getAttribute('cx'));
+        const cy = Number(circle.getAttribute('cy'));
+        const r = Number(circle.getAttribute('r'));
+        const disc = new Path2D();
+        disc.arc(cx, cy, r, 0, Math.PI * 2);
+        return { disc, mark: new Path2D(svg.querySelector('path').getAttribute('d')), cx, cy, r };
+      })
+      .catch(() => null);
+  }
+  return loading;
+}
+
+return { loadMark };
+})();
+
+const { COUNTRIES, REGIONS, BY_CITY } = (() => {
 // Countries HSE students come from, by campus. Generated from the source
 // spreadsheet: one row per city-country pair. Codes are ISO 3166-1 alpha-2
 // and match the file names in assets/flags/ ('ab' and 'os' are drawn by hand,
@@ -1440,6 +2151,10 @@ const BY_CITY = {
   perm: ['az', 'by', 'ge', 'kz', 'kg', 'cn', 'lv', 'md', 'mn', 'tj', 'tm', 'uz', 'ua'],
 };
 
+return { COUNTRIES, REGIONS, BY_CITY };
+})();
+
+const { HISTORY } = (() => {
 // What was happening in the year a run through the programmes would have to
 // start. The sums of programmes are fixed, so the set of years the studies
 // section can land on is fixed too — one entry here for each of them.
@@ -1867,6 +2582,10 @@ const HISTORY = {
   }
 };
 
+return { HISTORY };
+})();
+
+const { PROFESSIONS } = (() => {
 // Кем становятся выпускники Вышки: 44 укрупненные профессии по десяти
 // областям науки, и что входит в каждую из них. Из assets/proff.xlsx.
 // `icon` — имя файла в assets/professions без расширения; список файлов и
@@ -2150,654 +2869,173 @@ const PROFESSIONS = [
   }
 ];
 
-// Number and word formatting shared by every visualisation.
+return { PROFESSIONS };
+})();
 
-// 48139 -> "48 139" (non-breaking thin space, so numbers never wrap).
-const nf = (n) => n.toLocaleString('ru-RU').replace(/ /g, ' ');
-
-// 12.5 -> "12,5"
-const pct = (part, whole, digits = 1) => {
-  const f = Math.pow(10, digits);
-  return `${(Math.round((part / whole) * 100 * f) / f).toString().replace('.', ',')}%`;
-};
-
-// 96.265 -> "96,3"
-const dec = (n, digits = 1) => (n.toFixed(digits)).replace('.', ',');
-
-// plural(2, 'студент', 'студента', 'студентов') -> 'студента'
-const plural = (n, one, few, many) => {
-  const m10 = n % 10, m100 = n % 100;
-  if (m100 >= 11 && m100 <= 14) return many;
-  if (m10 === 1) return one;
-  if (m10 >= 2 && m10 <= 4) return few;
-  return many;
-};
-
-// Small markup helpers for pieces that repeat across visualisations.
-
-// Sets up a canvas that fills its .canvas-wrap parent and repaints on resize.
-// Returns { canvas, ctx, resize } — call resize() once after the first paint
-// setup if the module needs to force a redraw.
-function mountCanvas(wrap, paint) {
-  const canvas = document.createElement('canvas');
-  wrap.appendChild(canvas);
-  const ctx = canvas.getContext('2d');
-  new ResizeObserver(() => paint()).observe(wrap);
-  window.addEventListener('resize', paint);
-  return { canvas, ctx };
-}
-
-// The HSE mark from data:image/svg+xml;charset=utf-8,%3Csvg%20width%3D%22283.47%22%20height%3D%22283.47%22%20version%3D%221.1%22%20id%3D%22Layer_1%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20xmlns%3Axlink%3D%22http%3A%2F%2Fwww.w3.org%2F1999%2Fxlink%22%20x%3D%220px%22%20y%3D%220px%22%20viewBox%3D%220%200%20283.47%20283.47%22%20style%3D%22enable-background%3Anew%200%200%20283.47%20283.47%3B%22%20xml%3Aspace%3D%22preserve%22%3E%20%3Ccircle%20class%3D%22st0%22%20cx%3D%22141.73%22%20cy%3D%22141.74%22%20r%3D%22141.73%22%3E%3C%2Fcircle%3E%20%3Cpath%20class%3D%22st1%22%20d%3D%22M135.6%2C133.32c32.26%2C0%2C44.81%2C21.45%2C44.81%2C60.69v29.51h-20.69v-63.35h-23.9v63.42h-18.28V53.65h18.78%26%23xA%3B%26%23x9%3Bc7.03%2C0%2C17.71%2C1.58%2C25.25%2C10.95c3.93%2C4.73%2C6.34%2C11.04%2C7.19%2C17.38h-32.94v9.35h33.23c-0.27%2C6.04-1.49%2C12.8-7.42%2C19.97%26%23xA%3B%26%23x9%3Bc-5.2%2C6.51-13.76%2C12.56-25.83%2C12.56c-0.06%2C0-0.13%2C0-0.2%2C0V133.32%20M206.41%2C197.55c0-34.86-11.26-58.29-40.45-68.6%26%23xA%3B%26%23x9%3Bc9.21-3.77%2C14.82-9.58%2C18.49-13.99c7.01-8.06%2C9.88-17.96%2C9.88-27.31c0-7.56-2.08-22.65-15.35-33.04%26%23xA%3B%26%23x9%3Bc-9.1-7.04-17.16-10.43-36.43-10.43h-9.75c-0.3-0.01-0.6-0.01-0.96-0.01H91.65v189.79h114.76V197.55z%22%3E%3C%2Fpath%3E%20%3C%2Fsvg%3E, ready to be drawn on a canvas.
-// The file has no colours of its own — the disc and the mark cut out of it are
-// two separate paths, and whoever draws them picks the fill.
-
-let loading = null;
-
-// Resolves to { disc, mark, cx, cy, r } — paths in the coordinates of the
-// file — or to null if the file could not be read (opening the page over
-// file:// instead of a local server, for one).
-function loadMark() {
-  if (!loading) {
-    loading = fetch('data:image/svg+xml;charset=utf-8,%3Csvg%20width%3D%22283.47%22%20height%3D%22283.47%22%20version%3D%221.1%22%20id%3D%22Layer_1%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20xmlns%3Axlink%3D%22http%3A%2F%2Fwww.w3.org%2F1999%2Fxlink%22%20x%3D%220px%22%20y%3D%220px%22%20viewBox%3D%220%200%20283.47%20283.47%22%20style%3D%22enable-background%3Anew%200%200%20283.47%20283.47%3B%22%20xml%3Aspace%3D%22preserve%22%3E%20%3Ccircle%20class%3D%22st0%22%20cx%3D%22141.73%22%20cy%3D%22141.74%22%20r%3D%22141.73%22%3E%3C%2Fcircle%3E%20%3Cpath%20class%3D%22st1%22%20d%3D%22M135.6%2C133.32c32.26%2C0%2C44.81%2C21.45%2C44.81%2C60.69v29.51h-20.69v-63.35h-23.9v63.42h-18.28V53.65h18.78%26%23xA%3B%26%23x9%3Bc7.03%2C0%2C17.71%2C1.58%2C25.25%2C10.95c3.93%2C4.73%2C6.34%2C11.04%2C7.19%2C17.38h-32.94v9.35h33.23c-0.27%2C6.04-1.49%2C12.8-7.42%2C19.97%26%23xA%3B%26%23x9%3Bc-5.2%2C6.51-13.76%2C12.56-25.83%2C12.56c-0.06%2C0-0.13%2C0-0.2%2C0V133.32%20M206.41%2C197.55c0-34.86-11.26-58.29-40.45-68.6%26%23xA%3B%26%23x9%3Bc9.21-3.77%2C14.82-9.58%2C18.49-13.99c7.01-8.06%2C9.88-17.96%2C9.88-27.31c0-7.56-2.08-22.65-15.35-33.04%26%23xA%3B%26%23x9%3Bc-9.1-7.04-17.16-10.43-36.43-10.43h-9.75c-0.3-0.01-0.6-0.01-0.96-0.01H91.65v189.79h114.76V197.55z%22%3E%3C%2Fpath%3E%20%3C%2Fsvg%3E')
-      .then((res) => res.text())
-      .then((text) => {
-        const svg = new DOMParser().parseFromString(text, 'image/svg+xml');
-        const circle = svg.querySelector('circle');
-        const cx = Number(circle.getAttribute('cx'));
-        const cy = Number(circle.getAttribute('cy'));
-        const r = Number(circle.getAttribute('r'));
-        const disc = new Path2D();
-        disc.arc(cx, cy, r, 0, Math.PI * 2);
-        return { disc, mark: new Path2D(svg.querySelector('path').getAttribute('d')), cx, cy, r };
-      })
-      .catch(() => null);
-  }
-  return loading;
-}
-
-// Page-level behaviour shared by every section: the reading progress bar,
-// starting a section when the reader gets to it, and sticky scenes.
-
-// Thin bar along the top edge showing how far down the page the reader is.
-function mountProgress() {
-  const bar = document.createElement('div');
-  bar.className = 'page-progress';
-  bar.setAttribute('aria-hidden', 'true');
-  document.body.appendChild(bar);
-
-  // The arrow on the opening screen has done its job once the story moves.
-  const hint = document.querySelector('.scroll-hint');
-
-  const set = (p) => {
-    bar.style.transform = `scaleX(${Math.min(1, Math.max(0, p))})`;
-    if (hint) hint.classList.toggle('is-gone', p > 0.001);
-  };
-
-  set(0);
-  return { set };
-}
-
-// How much bigger the heading is while it holds as a title card. The lead-in
-// screen is laid out against the same number, so the two line up. A section
-// can ask for another one — with 1 the card holds at the size it will settle
-// at, and the reader sees it move without it changing.
-const CARD_K = 1.55;
-
-// Gives a section a title card: it starts with its heading alone in the middle
-// of the screen, larger than usual but smaller than the title of the page, and
-// as the reader scrolls the heading settles into its normal place and size
-// while the visualisation itself fades in underneath.
+const { mountLogo } = (() => {
+// Круглый логотип Вышки — и то, как его кольцо раскрывается, чтобы впустить
+// еще два слова.
 //
-// The heading is scaled rather than re-typeset, and its layout width is divided
-// by the same factor — so the line breaks never move, only the size does.
-// Moves a heading between its title-card state (p = 0: big, centred, body
-// hidden) and its normal one (p = 1). Used by mountIntro and by scenes that
-// open with a title card.
-function titleCard(section, zone = INTRO_SCREENS, K = CARD_K, fullHeight = null) {
-  const container = section.querySelector('.viz-container');
-  const header = section.querySelector('.viz-header');
+// The ring is rebuilt rather than taken from data:image/svg+xml;charset=utf-8,%3C%21--%20Generator%3A%20Adobe%20Illustrator%2026.0.1%2C%20SVG%20Export%20Plug-In%20.%20SVG%20Version%3A%206.00%20Build%200%29%20--%3E%20%3Csvg%20version%3D%221.1%22%20id%3D%22Layer_1%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20xmlns%3Axlink%3D%22http%3A%2F%2Fwww.w3.org%2F1999%2Fxlink%22%20x%3D%220px%22%20y%3D%220px%22%20viewBox%3D%220%200%2051.02%2051.02%22%20style%3D%22enable-background%3Anew%200%200%2051.02%2051.02%3B%22%20xml%3Aspace%3D%22preserve%22%3E%20%3Cstyle%20type%3D%22text%2Fcss%22%3E%20.st0%7Bfill%3A%23102D69%3B%7D%20.st1%7Bfill%3A%23FFFFFF%3B%7D%20%3C%2Fstyle%3E%20%3Cg%3E%20%3Cellipse%20transform%3D%22matrix%280.2011%20-0.9796%200.9796%200.2011%20-4.6085%2045.373%29%22%20class%3D%22st0%22%20cx%3D%2225.51%22%20cy%3D%2225.51%22%20rx%3D%2225.51%22%20ry%3D%2225.51%22%2F%3E%20%3Cg%3E%20%3Cpath%20class%3D%22st1%22%20d%3D%22M44.02%2C22.61l1.65-0.15l0.02%2C0c0.06%2C0.38%2C0.1%2C0.77%2C0.14%2C1.15c0.04%2C0.38%2C0.06%2C0.77%2C0.08%2C1.16l-0.02%2C0%20l-1.65%2C0.15l0.02%2C0.71l4-0.38l-0.03-0.71l-1.68%2C0.16l-0.01%2C0c-0.02-0.39-0.04-0.77-0.08-1.16c-0.04-0.38-0.08-0.77-0.14-1.15%20l0.01%2C0l1.69-0.16l-0.11-0.7l-4%2C0.38L44.02%2C22.61z%22%2F%3E%20%3Cpath%20class%3D%22st1%22%20d%3D%22M14.91%2C10.08l-0.87-1.43l0.42-0.26l1.19%2C0.46c0.6%2C0.24%2C1.19%2C0.32%2C1.61-0.15l-0.32-0.53%20c-0.2%2C0.22-0.52%2C0.21-0.98%2C0.05l-1.3-0.47l0.43-2.45l-0.72%2C0.41l-0.31%2C2.15l-0.35%2C0.22l-0.88-1.44l-0.58%2C0.41l2.09%2C3.42%20L14.91%2C10.08z%22%2F%3E%20%3Cpath%20class%3D%22st1%22%20d%3D%22M23.67%2C3.86l-0.03-0.39c0.07-0.01%2C0.14-0.01%2C0.2-0.02c0.4-0.03%2C0.8-0.05%2C1.2-0.06l0.26%2C3.39l0.71-0.05%20L25.75%2C3.4L25.7%2C2.76c-0.38%2C0-0.77%2C0-1.15%2C0.02L23.03%2C2.9c-0.03%2C0-0.07%2C0.01-0.1%2C0.01l0.05%2C0.63l0.01%2C0.16%20c0.18%2C2.42-0.18%2C2.71-0.59%2C2.74c-0.09%2C0.01-0.18%2C0-0.23-0.02l-0.02%2C0.59c0.11%2C0.02%2C0.34%2C0.04%2C0.5%2C0.03%20C23.43%2C6.98%2C23.86%2C6.43%2C23.67%2C3.86z%22%2F%3E%20%3Cpath%20class%3D%22st1%22%20d%3D%22M19.75%2C7.78c1.18-0.39%2C1.73-1.57%2C1.37-2.65c-0.36-1.1-1.47-1.73-2.66-1.34c-1.18%2C0.39-1.73%2C1.57-1.37%2C2.65%20C17.45%2C7.54%2C18.57%2C8.17%2C19.75%2C7.78z%20M18.66%2C4.42c0.77-0.25%2C1.51%2C0.2%2C1.76%2C0.95c0.12%2C0.38%2C0.1%2C0.77-0.05%2C1.09%20c-0.15%2C0.32-0.42%2C0.58-0.81%2C0.71c-0.77%2C0.25-1.51-0.2-1.76-0.95c-0.2-0.63%2C0.01-1.26%2C0.52-1.6C18.43%2C4.54%2C18.53%2C4.46%2C18.66%2C4.42z%22%20%2F%3E%20%3Cpath%20class%3D%22st1%22%20d%3D%22M41.02%2C11.53c0.77-0.84%2C0.76-2.14-0.16-2.98C40.3%2C8.05%2C39.63%2C7.88%2C39%2C8.02l0.16%2C0.71%20c0.43-0.11%2C0.89-0.02%2C1.26%2C0.31c0.51%2C0.47%2C0.57%2C1.16%2C0.23%2C1.72c-0.3-0.31-0.61-0.61-0.93-0.89c-0.13-0.12-0.27-0.24-0.4-0.36%20l-0.41%2C0.48c0.13%2C0.11%2C0.26%2C0.23%2C0.39%2C0.34c0.32%2C0.29%2C0.63%2C0.59%2C0.93%2C0.9c-0.53%2C0.39-1.24%2C0.4-1.76-0.07%20c-0.38-0.34-0.51-0.81-0.42-1.26l-0.71-0.1c-0.09%2C0.65%2C0.13%2C1.34%2C0.7%2C1.85C38.96%2C12.49%2C40.24%2C12.38%2C41.02%2C11.53z%22%2F%3E%20%3Cpath%20class%3D%22st1%22%20d%3D%22M30.9%2C22.16c0.88-1.02%2C1.25-2.26%2C1.25-3.44c0-0.95-0.26-2.85-1.93-4.16c-1.15-0.89-2.16-1.31-4.59-1.31H24.4%20c-0.04%2C0-0.07%2C0-0.12%2C0h-5.06v23.91h14.45v-4.59c0-4.39-1.42-7.34-5.09-8.64C29.73%2C23.45%2C30.44%2C22.72%2C30.9%2C22.16z%20M28.03%2C21.7%20c-0.66%2C0.82-1.73%2C1.58-3.25%2C1.58c-0.01%2C0-0.02%2C0-0.03%2C0v1.19c4.06%2C0%2C5.65%2C2.7%2C5.65%2C7.64v3.72h0h-2.61v-7.98h-3.01v7.99h-2.3V14.44%20l2.37%2C0c0.89%2C0%2C2.23%2C0.2%2C3.18%2C1.38c0.49%2C0.6%2C0.8%2C1.39%2C0.9%2C2.19h-4.15v1.18h4.18C28.93%2C19.95%2C28.77%2C20.8%2C28.03%2C21.7z%22%2F%3E%20%3Cpath%20class%3D%22st1%22%20d%3D%22M34.51%2C7.74c0.4%2C0.2%2C0.89%2C0.04%2C1.09-0.36c0.2-0.4%2C0.04-0.89-0.36-1.09c-0.4-0.2-0.89-0.04-1.09%2C0.36%20C33.95%2C7.05%2C34.11%2C7.54%2C34.51%2C7.74z%22%2F%3E%20%3Cpath%20class%3D%22st1%22%20d%3D%22M28.2%2C6.03L28.2%2C6.03c0.32%2C0.04%2C0.63%2C0.09%2C0.95%2C0.15c0.31%2C0.06%2C0.63%2C0.13%2C0.94%2C0.2v0L30.3%2C7.4l0.75%2C0.21%20l-1-4.4L29.4%2C3.1l-2.53%2C3.73l0.76%2C0.07L28.2%2C6.03z%20M29.55%2C4l0.39%2C1.71c-0.23-0.05-0.45-0.1-0.68-0.14%20c-0.23-0.04-0.45-0.08-0.68-0.12L29.55%2C4z%22%2F%3E%20%3Cpath%20class%3D%22st1%22%20d%3D%22M44.26%2C16.32c-1.08%2C0.4-1.66%2C1.54-1.23%2C2.71c0.43%2C1.17%2C1.64%2C1.66%2C2.71%2C1.26c1.08-0.4%2C1.66-1.54%2C1.23-2.71%20C46.53%2C16.41%2C45.33%2C15.92%2C44.26%2C16.32z%20M46.35%2C17.8c0.28%2C0.75-0.13%2C1.52-0.87%2C1.79c-0.07%2C0.03-0.14%2C0.02-0.2%2C0.04%20c-0.68%2C0.16-1.37-0.13-1.62-0.82c-0.18-0.47-0.08-0.95%2C0.2-1.3c0.04-0.06%2C0.1-0.11%2C0.15-0.16c0.01-0.01%2C0.02-0.03%2C0.03-0.04%20c0.03-0.03%2C0.07-0.05%2C0.11-0.08c0.04-0.03%2C0.08-0.06%2C0.12-0.09c0%2C0%2C0%2C0%2C0.01%2C0c0.08-0.05%2C0.16-0.09%2C0.25-0.12%20c0.37-0.14%2C0.76-0.13%2C1.09%2C0C45.94%2C17.16%2C46.21%2C17.42%2C46.35%2C17.8z%22%2F%3E%20%3Cpath%20class%3D%22st1%22%20d%3D%22M40.6%2C14.41l1.4-0.92l0.27%2C0.41l-0.42%2C1.2c-0.22%2C0.61-0.28%2C1.2%2C0.2%2C1.61l0.52-0.34%20c-0.22-0.19-0.22-0.51-0.08-0.97l0.42-1.32l2.46%2C0.35l-0.44-0.71l-2.16-0.24l-0.23-0.34l1.41-0.93l-0.43-0.57l-3.35%2C2.2%20L40.6%2C14.41z%22%2F%3E%20%3Cpath%20class%3D%22st1%22%20d%3D%22M6.19%2C18.61c0.45%2C0.04%2C0.84-0.28%2C0.89-0.73c0.04-0.45-0.28-0.84-0.73-0.89c-0.45-0.04-0.84%2C0.28-0.89%2C0.73%20C5.41%2C18.17%2C5.74%2C18.56%2C6.19%2C18.61z%22%2F%3E%20%3Cpolygon%20class%3D%22st1%22%20points%3D%2232.32%2C42.96%2031.09%2C46.46%2030.19%2C43.65%2029.5%2C43.81%2030.74%2C47.65%2031.41%2C47.48%2032.62%2C44.01%2033.52%2C46.8%2034.17%2C46.54%2032.94%2C42.71%20%22%2F%3E%20%3Cpath%20class%3D%22st1%22%20d%3D%22M25.52%2C45.47c-0.45%2C0-0.81%2C0.36-0.81%2C0.81c0%2C0.45%2C0.36%2C0.81%2C0.81%2C0.81c0.45%2C0%2C0.81-0.36%2C0.81-0.81%20C26.33%2C45.84%2C25.97%2C45.47%2C25.52%2C45.47z%22%2F%3E%20%3Cpath%20class%3D%22st1%22%20d%3D%22M36.22%2C40.88l0.88%2C1.43l-0.42%2C0.26l-1.19-0.45c-0.6-0.24-1.19-0.31-1.61%2C0.16l0.33%2C0.53%20c0.2-0.22%2C0.52-0.21%2C0.98-0.05l1.31%2C0.46l-0.41%2C2.45l0.72-0.42l0.3-2.16l0.35-0.22l0.89%2C1.43l0.58-0.41l-2.11-3.41L36.22%2C40.88z%22%20%2F%3E%20%3Cpolygon%20class%3D%22st1%22%20points%3D%2240.05%2C37.32%2040.71%2C40.97%2038.54%2C38.97%2038.03%2C39.45%2041%2C42.18%2041.5%2C41.69%2040.84%2C38.08%2043%2C40.06%2043.44%2C39.52%2040.47%2C36.79%20%22%2F%3E%20%3Cpath%20class%3D%22st1%22%20d%3D%22M46.35%2C27.06c-1.14-0.2-2.22%2C0.49-2.43%2C1.72c-0.22%2C1.23%2C0.57%2C2.26%2C1.7%2C2.46c1.14%2C0.2%2C2.22-0.49%2C2.43-1.72%20S47.47%2C27.25%2C46.35%2C27.06z%20M47.4%2C29.39c-0.03%2C0.2-0.11%2C0.38-0.21%2C0.53c-0.3%2C0.45-0.87%2C0.68-1.45%2C0.58%20c-0.69-0.12-1.18-0.65-1.2-1.31c0-0.09%2C0-0.19%2C0.02-0.29c0.03-0.2%2C0.11-0.38%2C0.21-0.53c0.3-0.45%2C0.87-0.68%2C1.45-0.58%20C47.01%2C27.93%2C47.54%2C28.6%2C47.4%2C29.39z%22%2F%3E%20%3Cpath%20class%3D%22st1%22%20d%3D%22M18.53%2C44.12c-0.16%2C0.54%2C0.08%2C0.89%2C0.49%2C1.18c-0.33%2C0.07-0.67%2C0.24-0.81%2C0.71c-0.08%2C0.27-0.05%2C0.51%2C0.07%2C0.73%20c0.16%2C0.29%2C0.47%2C0.54%2C0.91%2C0.67l1.48%2C0.38l1.12-3.87l-1.52-0.44C19.42%2C43.22%2C18.74%2C43.42%2C18.53%2C44.12z%20M19.47%2C46.8%20c-0.44-0.13-0.63-0.39-0.54-0.69c0.02-0.07%2C0.05-0.13%2C0.08-0.18c0.11-0.15%2C0.28-0.21%2C0.5-0.2c0.1%2C0%2C0.2%2C0.02%2C0.31%2C0.05l0.66%2C0.19%20L20.18%2C47L19.47%2C46.8z%20M19.84%2C45.16C19.3%2C45%2C19.1%2C44.73%2C19.19%2C44.4c0.08-0.27%2C0.29-0.4%2C0.58-0.38c0.1%2C0%2C0.21%2C0.02%2C0.32%2C0.06%20l0.86%2C0.25l-0.31%2C1.07L19.84%2C45.16z%22%2F%3E%20%3Cpath%20class%3D%22st1%22%20d%3D%22M42.98%2C32.28l1.42%2C0.81c0.48%2C0.27%2C1.05%2C0.58%2C1.52%2C0.84l-0.01%2C0.01c-0.51-0.12-3.47-0.48-3.47-0.48L42.18%2C34%20c0%2C0%2C2.04%2C2.24%2C2.43%2C2.58L44.6%2C36.6c-0.49-0.25-1.07-0.5-1.55-0.71l-1.52-0.66l-0.4%2C0.64l3.76%2C1.57l0.51-0.87%20c0%2C0-1.89-2.06-2.24-2.35l0.01-0.02c0.45%2C0.1%2C3.2%2C0.4%2C3.2%2C0.4l0.39-0.95l-3.52-2.07L42.98%2C32.28z%22%2F%3E%20%3Cpath%20class%3D%22st1%22%20d%3D%22M7.29%2C29.82l-1.01-0.25h0c-0.07-0.31-0.12-0.63-0.17-0.94C6.05%2C28.32%2C6.01%2C28%2C5.98%2C27.68l0%2C0l0.88-0.55%20l-0.05-0.78l-3.8%2C2.43l0.1%2C0.65l4.37%2C1.12L7.29%2C29.82z%20M5.38%2C28.05c0.03%2C0.23%2C0.06%2C0.46%2C0.1%2C0.69c0.04%2C0.23%2C0.08%2C0.45%2C0.12%2C0.68%20l-1.7-0.43L5.38%2C28.05z%22%2F%3E%20%3Cpath%20class%3D%22st1%22%20d%3D%22M14.69%2C42.37c-0.41%2C0.7-0.11%2C1.4%2C0.67%2C1.87l0.55%2C0.33l-0.74%2C1.26l0.61%2C0.36l2.06-3.49L16.68%2C42%20C15.87%2C41.53%2C15.1%2C41.67%2C14.69%2C42.37z%20M16.22%2C44.03l-0.53-0.31c-0.46-0.27-0.61-0.62-0.4-0.98c0.12-0.2%2C0.27-0.31%2C0.45-0.34%20c0.18-0.03%2C0.39%2C0.03%2C0.62%2C0.16l0.54%2C0.32L16.22%2C44.03z%22%2F%3E%20%3Cpath%20class%3D%22st1%22%20d%3D%22M9.77%2C15.43c0.96-1.5%2C2.13-2.85%2C3.47-4.02l-0.5-0.44l-2.58-2.23C9.99%2C8.9%2C9.81%2C9.06%2C9.65%2C9.23l2.58%2C2.22%20c-0.39%2C0.37-0.76%2C0.75-1.12%2C1.15l-2.56-2.21c-0.16%2C0.18-0.31%2C0.36-0.47%2C0.54l2.56%2C2.21c-0.34%2C0.4-0.66%2C0.82-0.96%2C1.26L7.1%2C12.18%20c-0.14%2C0.19-0.27%2C0.39-0.41%2C0.58l2.58%2C2.23L9.77%2C15.43z%22%2F%3E%20%3Cpath%20class%3D%22st1%22%20d%3D%22M4.02%2C25.02c0.69%2C0.06%2C1.08-0.36%2C1.22-0.69l0.71%2C0.61c0.19%2C0.17%2C0.32%2C0.49%2C0.24%2C0.71l0.61-0.01%20c0.15-0.33%2C0.07-0.81-0.41-1.21l-0.95-0.8l0.04-0.5l1.45%2C0.13l0.1-0.72l-4.01-0.32c-0.04%2C0.22-0.13%2C1.11-0.14%2C1.23%20C2.78%2C24.56%2C3.32%2C24.97%2C4.02%2C25.02z%20M3.61%2C22.99l1.2%2C0.1l-0.04%2C0.46c-0.03%2C0.41-0.27%2C0.76-0.69%2C0.72%20c-0.32-0.03-0.57-0.22-0.53-0.8C3.57%2C23.34%2C3.58%2C23.18%2C3.61%2C22.99z%22%2F%3E%20%3Cpath%20class%3D%22st1%22%20d%3D%22M10.07%2C36.1c-1.01-1.47-1.79-3.07-2.34-4.77l-0.6%2C0.29l-3.06%2C1.5c0.08%2C0.22%2C0.16%2C0.44%2C0.25%2C0.67l3.05-1.51%20c0.19%2C0.5%2C0.39%2C1%2C0.62%2C1.48l-3.04%2C1.49c0.1%2C0.22%2C0.21%2C0.43%2C0.31%2C0.64L8.3%2C34.4c0.24%2C0.47%2C0.5%2C0.93%2C0.78%2C1.38l-3.04%2C1.51%20c0.12%2C0.2%2C0.25%2C0.4%2C0.38%2C0.6l3.06-1.5L10.07%2C36.1z%22%2F%3E%20%3Crect%20x%3D%2211.21%22%20y%3D%2241.93%22%20transform%3D%22matrix%280.5751%20-0.8181%200.8181%200.5751%20-28.9676%2028.7895%29%22%20class%3D%22st1%22%20width%3D%224.05%22%20height%3D%220.71%22%2F%3E%20%3Cpath%20class%3D%22st1%22%20d%3D%22M11.82%2C38.15c-0.52-0.56-1.21-0.77-1.85-0.68l0.1%2C0.71c0.45-0.09%2C0.92%2C0.03%2C1.26%2C0.41%20c0.55%2C0.59%2C0.46%2C1.46-0.12%2C1.99c-0.59%2C0.54-1.44%2C0.57-1.99-0.02c-0.34-0.36-0.43-0.83-0.32-1.26l-0.71-0.15%20c-0.13%2C0.62%2C0.04%2C1.3%2C0.54%2C1.84c0.85%2C0.91%2C2.15%2C0.91%2C2.98%2C0.14C12.56%2C40.34%2C12.66%2C39.07%2C11.82%2C38.15z%22%2F%3E%20%3C%2Fg%3E%20%3C%2Fg%3E%20%3C%2Fsvg%3E: in the file the
+// words are outlines and cannot move. The circle and the monogram are the real
+// ones, copied from it; the ring is set in HSE Sans and laid out around the
+// same radius. Everything is in the units of the original viewBox.
 
-  return (p, narrow) => {
-    const k = K - (K - 1) * p;
-    // Measured with every part of the card open: parts arrive one after
-    // another, and centring on the height of the moment would nudge the
-    // heading down each time one of them does.
-    const h = (fullHeight ? fullHeight(k) : header.offsetHeight) * k;
-    // Where the heading ends up differs between the two layouts: on a wide
-    // screen the whole container is pinned and the heading settles at its top;
-    // on a narrow one the heading is pinned by itself to the top of the screen.
-    const centred = narrow
-      ? window.innerHeight / 2 - h / 2
-      : container.clientHeight / 2
-        - (parseFloat(getComputedStyle(container).paddingTop) + h / 2);
+const R_BASE = 18.70;              // baseline of the ring text
+const CAP = 2.95;                  // cap height of it
+const R_ADV = R_BASE + CAP / 2;    // radius the advances are laid out on
+const R_DOT = 20.73;               // centre of the separator dots
+const DOT_R = 0.81;
+const DOT_W = 3.00;                // room a dot takes in the line — dots get air
+const WEIGHT = 600;
+const ANCHOR = 340.25;             // where the middle of «ШКОЛА» sits in the original
 
-    section.style.setProperty('--intro-k', k.toFixed(4));
-    section.style.setProperty('--intro-dy', `${(centred * (1 - p)).toFixed(1)}px`);
-    section.style.setProperty('--intro-body', p.toFixed(3));
+const RING = 'ВЫСШАЯ•ШКОЛА•ЭКОНОМИКИ•';
+const ADDED = 'НЕ ТОЛЬКО•';
+const CUT = 13;                    // right after «ШКОЛА•»
+const OPEN = RING.slice(0, CUT) + ADDED + RING.slice(CUT);
+const FRESH = new Set([...ADDED].map((_, i) => CUT + i));
 
-    // The zone the pinned heading lives in is one heading taller than the
-    // intro itself: it settles at the top of the screen and waits there while
-    // the block comes up to meet it.
-    if (narrow) {
-      const hold = window.innerHeight * zone + header.offsetHeight;
-      section.style.setProperty('--intro-hold', `${Math.round(hold)}px`);
-    }
-  };
-}
+const SVGNS = 'http://www.w3.org/2000/svg';
+const CIRCLE = '#102D69';
+const MONOGRAM = 'M30.9,22.16c0.88-1.02,1.25-2.26,1.25-3.44c0-0.95-0.26-2.85-1.93-4.16c-1.15-0.89-2.16-1.31-4.59-1.31H24.4 c-0.04,0-0.07,0-0.12,0h-5.06v23.91h14.45v-4.59c0-4.39-1.42-7.34-5.09-8.64C29.73,23.45,30.44,22.72,30.9,22.16z M28.03,21.7 c-0.66,0.82-1.73,1.58-3.25,1.58c-0.01,0-0.02,0-0.03,0v1.19c4.06,0,5.65,2.7,5.65,7.64v3.72h0h-2.61v-7.98h-3.01v7.99h-2.3V14.44 l2.37,0c0.89,0,2.23,0.2,3.18,1.38c0.49,0.6,0.8,1.39,0.9,2.19h-4.15v1.18h4.18C28.93,19.95,28.77,20.8,28.03,21.7z';
 
-// One beat — the scrolling it takes for one thing to happen. Everything the
-// page does on the way is a whole number of these: a part of a card arriving,
-// a screen sliding aside, a step of a scene. Written down once so the story
-// keeps an even pace and the whole of it can be sped up or slowed down here.
-const BEAT = 0.7;
+const ease = (p) => 1 - Math.pow(1 - p, 3);
+const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+const turn = (a) => (a % 360 + 360) % 360;
 
-// A section can open with a lead-in screen — one figure and one line — that
-// slides away to the left while the title card comes in from the right: one
-// beat to read it, one to see it go.
-const LEAD_SCREENS = 2 * BEAT;
-const LEAD_HOLD = 0.5;                 // the share of that spent holding
+// Builds the logo inside `host` and gives back a way to move it: place(0) is
+// the logo as it is, place(1) the one with «НЕ ТОЛЬКО» in it. The type has to
+// be measured, so the font is waited for — until it lands the untouched file
+// stands in for the drawing.
+async function mountLogo(host, { label = 'Высшая школа не только экономики' } = {}) {
+  host.innerHTML = `
+    <svg viewBox="0 0 51.02 51.02" role="img" aria-label="${label}">
+      <circle cx="25.51" cy="25.51" r="25.51" fill="${CIRCLE}"/>
+      <path fill="#fff" d="${MONOGRAM}"/>
+      <g class="logo-ring" data-el="ring" transform="translate(25.51 25.51)"></g>
+    </svg>
+    <img class="logo-orig" src="data:image/svg+xml;charset=utf-8,%3C%21--%20Generator%3A%20Adobe%20Illustrator%2026.0.1%2C%20SVG%20Export%20Plug-In%20.%20SVG%20Version%3A%206.00%20Build%200%29%20--%3E%20%3Csvg%20version%3D%221.1%22%20id%3D%22Layer_1%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20xmlns%3Axlink%3D%22http%3A%2F%2Fwww.w3.org%2F1999%2Fxlink%22%20x%3D%220px%22%20y%3D%220px%22%20viewBox%3D%220%200%2051.02%2051.02%22%20style%3D%22enable-background%3Anew%200%200%2051.02%2051.02%3B%22%20xml%3Aspace%3D%22preserve%22%3E%20%3Cstyle%20type%3D%22text%2Fcss%22%3E%20.st0%7Bfill%3A%23102D69%3B%7D%20.st1%7Bfill%3A%23FFFFFF%3B%7D%20%3C%2Fstyle%3E%20%3Cg%3E%20%3Cellipse%20transform%3D%22matrix%280.2011%20-0.9796%200.9796%200.2011%20-4.6085%2045.373%29%22%20class%3D%22st0%22%20cx%3D%2225.51%22%20cy%3D%2225.51%22%20rx%3D%2225.51%22%20ry%3D%2225.51%22%2F%3E%20%3Cg%3E%20%3Cpath%20class%3D%22st1%22%20d%3D%22M44.02%2C22.61l1.65-0.15l0.02%2C0c0.06%2C0.38%2C0.1%2C0.77%2C0.14%2C1.15c0.04%2C0.38%2C0.06%2C0.77%2C0.08%2C1.16l-0.02%2C0%20l-1.65%2C0.15l0.02%2C0.71l4-0.38l-0.03-0.71l-1.68%2C0.16l-0.01%2C0c-0.02-0.39-0.04-0.77-0.08-1.16c-0.04-0.38-0.08-0.77-0.14-1.15%20l0.01%2C0l1.69-0.16l-0.11-0.7l-4%2C0.38L44.02%2C22.61z%22%2F%3E%20%3Cpath%20class%3D%22st1%22%20d%3D%22M14.91%2C10.08l-0.87-1.43l0.42-0.26l1.19%2C0.46c0.6%2C0.24%2C1.19%2C0.32%2C1.61-0.15l-0.32-0.53%20c-0.2%2C0.22-0.52%2C0.21-0.98%2C0.05l-1.3-0.47l0.43-2.45l-0.72%2C0.41l-0.31%2C2.15l-0.35%2C0.22l-0.88-1.44l-0.58%2C0.41l2.09%2C3.42%20L14.91%2C10.08z%22%2F%3E%20%3Cpath%20class%3D%22st1%22%20d%3D%22M23.67%2C3.86l-0.03-0.39c0.07-0.01%2C0.14-0.01%2C0.2-0.02c0.4-0.03%2C0.8-0.05%2C1.2-0.06l0.26%2C3.39l0.71-0.05%20L25.75%2C3.4L25.7%2C2.76c-0.38%2C0-0.77%2C0-1.15%2C0.02L23.03%2C2.9c-0.03%2C0-0.07%2C0.01-0.1%2C0.01l0.05%2C0.63l0.01%2C0.16%20c0.18%2C2.42-0.18%2C2.71-0.59%2C2.74c-0.09%2C0.01-0.18%2C0-0.23-0.02l-0.02%2C0.59c0.11%2C0.02%2C0.34%2C0.04%2C0.5%2C0.03%20C23.43%2C6.98%2C23.86%2C6.43%2C23.67%2C3.86z%22%2F%3E%20%3Cpath%20class%3D%22st1%22%20d%3D%22M19.75%2C7.78c1.18-0.39%2C1.73-1.57%2C1.37-2.65c-0.36-1.1-1.47-1.73-2.66-1.34c-1.18%2C0.39-1.73%2C1.57-1.37%2C2.65%20C17.45%2C7.54%2C18.57%2C8.17%2C19.75%2C7.78z%20M18.66%2C4.42c0.77-0.25%2C1.51%2C0.2%2C1.76%2C0.95c0.12%2C0.38%2C0.1%2C0.77-0.05%2C1.09%20c-0.15%2C0.32-0.42%2C0.58-0.81%2C0.71c-0.77%2C0.25-1.51-0.2-1.76-0.95c-0.2-0.63%2C0.01-1.26%2C0.52-1.6C18.43%2C4.54%2C18.53%2C4.46%2C18.66%2C4.42z%22%20%2F%3E%20%3Cpath%20class%3D%22st1%22%20d%3D%22M41.02%2C11.53c0.77-0.84%2C0.76-2.14-0.16-2.98C40.3%2C8.05%2C39.63%2C7.88%2C39%2C8.02l0.16%2C0.71%20c0.43-0.11%2C0.89-0.02%2C1.26%2C0.31c0.51%2C0.47%2C0.57%2C1.16%2C0.23%2C1.72c-0.3-0.31-0.61-0.61-0.93-0.89c-0.13-0.12-0.27-0.24-0.4-0.36%20l-0.41%2C0.48c0.13%2C0.11%2C0.26%2C0.23%2C0.39%2C0.34c0.32%2C0.29%2C0.63%2C0.59%2C0.93%2C0.9c-0.53%2C0.39-1.24%2C0.4-1.76-0.07%20c-0.38-0.34-0.51-0.81-0.42-1.26l-0.71-0.1c-0.09%2C0.65%2C0.13%2C1.34%2C0.7%2C1.85C38.96%2C12.49%2C40.24%2C12.38%2C41.02%2C11.53z%22%2F%3E%20%3Cpath%20class%3D%22st1%22%20d%3D%22M30.9%2C22.16c0.88-1.02%2C1.25-2.26%2C1.25-3.44c0-0.95-0.26-2.85-1.93-4.16c-1.15-0.89-2.16-1.31-4.59-1.31H24.4%20c-0.04%2C0-0.07%2C0-0.12%2C0h-5.06v23.91h14.45v-4.59c0-4.39-1.42-7.34-5.09-8.64C29.73%2C23.45%2C30.44%2C22.72%2C30.9%2C22.16z%20M28.03%2C21.7%20c-0.66%2C0.82-1.73%2C1.58-3.25%2C1.58c-0.01%2C0-0.02%2C0-0.03%2C0v1.19c4.06%2C0%2C5.65%2C2.7%2C5.65%2C7.64v3.72h0h-2.61v-7.98h-3.01v7.99h-2.3V14.44%20l2.37%2C0c0.89%2C0%2C2.23%2C0.2%2C3.18%2C1.38c0.49%2C0.6%2C0.8%2C1.39%2C0.9%2C2.19h-4.15v1.18h4.18C28.93%2C19.95%2C28.77%2C20.8%2C28.03%2C21.7z%22%2F%3E%20%3Cpath%20class%3D%22st1%22%20d%3D%22M34.51%2C7.74c0.4%2C0.2%2C0.89%2C0.04%2C1.09-0.36c0.2-0.4%2C0.04-0.89-0.36-1.09c-0.4-0.2-0.89-0.04-1.09%2C0.36%20C33.95%2C7.05%2C34.11%2C7.54%2C34.51%2C7.74z%22%2F%3E%20%3Cpath%20class%3D%22st1%22%20d%3D%22M28.2%2C6.03L28.2%2C6.03c0.32%2C0.04%2C0.63%2C0.09%2C0.95%2C0.15c0.31%2C0.06%2C0.63%2C0.13%2C0.94%2C0.2v0L30.3%2C7.4l0.75%2C0.21%20l-1-4.4L29.4%2C3.1l-2.53%2C3.73l0.76%2C0.07L28.2%2C6.03z%20M29.55%2C4l0.39%2C1.71c-0.23-0.05-0.45-0.1-0.68-0.14%20c-0.23-0.04-0.45-0.08-0.68-0.12L29.55%2C4z%22%2F%3E%20%3Cpath%20class%3D%22st1%22%20d%3D%22M44.26%2C16.32c-1.08%2C0.4-1.66%2C1.54-1.23%2C2.71c0.43%2C1.17%2C1.64%2C1.66%2C2.71%2C1.26c1.08-0.4%2C1.66-1.54%2C1.23-2.71%20C46.53%2C16.41%2C45.33%2C15.92%2C44.26%2C16.32z%20M46.35%2C17.8c0.28%2C0.75-0.13%2C1.52-0.87%2C1.79c-0.07%2C0.03-0.14%2C0.02-0.2%2C0.04%20c-0.68%2C0.16-1.37-0.13-1.62-0.82c-0.18-0.47-0.08-0.95%2C0.2-1.3c0.04-0.06%2C0.1-0.11%2C0.15-0.16c0.01-0.01%2C0.02-0.03%2C0.03-0.04%20c0.03-0.03%2C0.07-0.05%2C0.11-0.08c0.04-0.03%2C0.08-0.06%2C0.12-0.09c0%2C0%2C0%2C0%2C0.01%2C0c0.08-0.05%2C0.16-0.09%2C0.25-0.12%20c0.37-0.14%2C0.76-0.13%2C1.09%2C0C45.94%2C17.16%2C46.21%2C17.42%2C46.35%2C17.8z%22%2F%3E%20%3Cpath%20class%3D%22st1%22%20d%3D%22M40.6%2C14.41l1.4-0.92l0.27%2C0.41l-0.42%2C1.2c-0.22%2C0.61-0.28%2C1.2%2C0.2%2C1.61l0.52-0.34%20c-0.22-0.19-0.22-0.51-0.08-0.97l0.42-1.32l2.46%2C0.35l-0.44-0.71l-2.16-0.24l-0.23-0.34l1.41-0.93l-0.43-0.57l-3.35%2C2.2%20L40.6%2C14.41z%22%2F%3E%20%3Cpath%20class%3D%22st1%22%20d%3D%22M6.19%2C18.61c0.45%2C0.04%2C0.84-0.28%2C0.89-0.73c0.04-0.45-0.28-0.84-0.73-0.89c-0.45-0.04-0.84%2C0.28-0.89%2C0.73%20C5.41%2C18.17%2C5.74%2C18.56%2C6.19%2C18.61z%22%2F%3E%20%3Cpolygon%20class%3D%22st1%22%20points%3D%2232.32%2C42.96%2031.09%2C46.46%2030.19%2C43.65%2029.5%2C43.81%2030.74%2C47.65%2031.41%2C47.48%2032.62%2C44.01%2033.52%2C46.8%2034.17%2C46.54%2032.94%2C42.71%20%22%2F%3E%20%3Cpath%20class%3D%22st1%22%20d%3D%22M25.52%2C45.47c-0.45%2C0-0.81%2C0.36-0.81%2C0.81c0%2C0.45%2C0.36%2C0.81%2C0.81%2C0.81c0.45%2C0%2C0.81-0.36%2C0.81-0.81%20C26.33%2C45.84%2C25.97%2C45.47%2C25.52%2C45.47z%22%2F%3E%20%3Cpath%20class%3D%22st1%22%20d%3D%22M36.22%2C40.88l0.88%2C1.43l-0.42%2C0.26l-1.19-0.45c-0.6-0.24-1.19-0.31-1.61%2C0.16l0.33%2C0.53%20c0.2-0.22%2C0.52-0.21%2C0.98-0.05l1.31%2C0.46l-0.41%2C2.45l0.72-0.42l0.3-2.16l0.35-0.22l0.89%2C1.43l0.58-0.41l-2.11-3.41L36.22%2C40.88z%22%20%2F%3E%20%3Cpolygon%20class%3D%22st1%22%20points%3D%2240.05%2C37.32%2040.71%2C40.97%2038.54%2C38.97%2038.03%2C39.45%2041%2C42.18%2041.5%2C41.69%2040.84%2C38.08%2043%2C40.06%2043.44%2C39.52%2040.47%2C36.79%20%22%2F%3E%20%3Cpath%20class%3D%22st1%22%20d%3D%22M46.35%2C27.06c-1.14-0.2-2.22%2C0.49-2.43%2C1.72c-0.22%2C1.23%2C0.57%2C2.26%2C1.7%2C2.46c1.14%2C0.2%2C2.22-0.49%2C2.43-1.72%20S47.47%2C27.25%2C46.35%2C27.06z%20M47.4%2C29.39c-0.03%2C0.2-0.11%2C0.38-0.21%2C0.53c-0.3%2C0.45-0.87%2C0.68-1.45%2C0.58%20c-0.69-0.12-1.18-0.65-1.2-1.31c0-0.09%2C0-0.19%2C0.02-0.29c0.03-0.2%2C0.11-0.38%2C0.21-0.53c0.3-0.45%2C0.87-0.68%2C1.45-0.58%20C47.01%2C27.93%2C47.54%2C28.6%2C47.4%2C29.39z%22%2F%3E%20%3Cpath%20class%3D%22st1%22%20d%3D%22M18.53%2C44.12c-0.16%2C0.54%2C0.08%2C0.89%2C0.49%2C1.18c-0.33%2C0.07-0.67%2C0.24-0.81%2C0.71c-0.08%2C0.27-0.05%2C0.51%2C0.07%2C0.73%20c0.16%2C0.29%2C0.47%2C0.54%2C0.91%2C0.67l1.48%2C0.38l1.12-3.87l-1.52-0.44C19.42%2C43.22%2C18.74%2C43.42%2C18.53%2C44.12z%20M19.47%2C46.8%20c-0.44-0.13-0.63-0.39-0.54-0.69c0.02-0.07%2C0.05-0.13%2C0.08-0.18c0.11-0.15%2C0.28-0.21%2C0.5-0.2c0.1%2C0%2C0.2%2C0.02%2C0.31%2C0.05l0.66%2C0.19%20L20.18%2C47L19.47%2C46.8z%20M19.84%2C45.16C19.3%2C45%2C19.1%2C44.73%2C19.19%2C44.4c0.08-0.27%2C0.29-0.4%2C0.58-0.38c0.1%2C0%2C0.21%2C0.02%2C0.32%2C0.06%20l0.86%2C0.25l-0.31%2C1.07L19.84%2C45.16z%22%2F%3E%20%3Cpath%20class%3D%22st1%22%20d%3D%22M42.98%2C32.28l1.42%2C0.81c0.48%2C0.27%2C1.05%2C0.58%2C1.52%2C0.84l-0.01%2C0.01c-0.51-0.12-3.47-0.48-3.47-0.48L42.18%2C34%20c0%2C0%2C2.04%2C2.24%2C2.43%2C2.58L44.6%2C36.6c-0.49-0.25-1.07-0.5-1.55-0.71l-1.52-0.66l-0.4%2C0.64l3.76%2C1.57l0.51-0.87%20c0%2C0-1.89-2.06-2.24-2.35l0.01-0.02c0.45%2C0.1%2C3.2%2C0.4%2C3.2%2C0.4l0.39-0.95l-3.52-2.07L42.98%2C32.28z%22%2F%3E%20%3Cpath%20class%3D%22st1%22%20d%3D%22M7.29%2C29.82l-1.01-0.25h0c-0.07-0.31-0.12-0.63-0.17-0.94C6.05%2C28.32%2C6.01%2C28%2C5.98%2C27.68l0%2C0l0.88-0.55%20l-0.05-0.78l-3.8%2C2.43l0.1%2C0.65l4.37%2C1.12L7.29%2C29.82z%20M5.38%2C28.05c0.03%2C0.23%2C0.06%2C0.46%2C0.1%2C0.69c0.04%2C0.23%2C0.08%2C0.45%2C0.12%2C0.68%20l-1.7-0.43L5.38%2C28.05z%22%2F%3E%20%3Cpath%20class%3D%22st1%22%20d%3D%22M14.69%2C42.37c-0.41%2C0.7-0.11%2C1.4%2C0.67%2C1.87l0.55%2C0.33l-0.74%2C1.26l0.61%2C0.36l2.06-3.49L16.68%2C42%20C15.87%2C41.53%2C15.1%2C41.67%2C14.69%2C42.37z%20M16.22%2C44.03l-0.53-0.31c-0.46-0.27-0.61-0.62-0.4-0.98c0.12-0.2%2C0.27-0.31%2C0.45-0.34%20c0.18-0.03%2C0.39%2C0.03%2C0.62%2C0.16l0.54%2C0.32L16.22%2C44.03z%22%2F%3E%20%3Cpath%20class%3D%22st1%22%20d%3D%22M9.77%2C15.43c0.96-1.5%2C2.13-2.85%2C3.47-4.02l-0.5-0.44l-2.58-2.23C9.99%2C8.9%2C9.81%2C9.06%2C9.65%2C9.23l2.58%2C2.22%20c-0.39%2C0.37-0.76%2C0.75-1.12%2C1.15l-2.56-2.21c-0.16%2C0.18-0.31%2C0.36-0.47%2C0.54l2.56%2C2.21c-0.34%2C0.4-0.66%2C0.82-0.96%2C1.26L7.1%2C12.18%20c-0.14%2C0.19-0.27%2C0.39-0.41%2C0.58l2.58%2C2.23L9.77%2C15.43z%22%2F%3E%20%3Cpath%20class%3D%22st1%22%20d%3D%22M4.02%2C25.02c0.69%2C0.06%2C1.08-0.36%2C1.22-0.69l0.71%2C0.61c0.19%2C0.17%2C0.32%2C0.49%2C0.24%2C0.71l0.61-0.01%20c0.15-0.33%2C0.07-0.81-0.41-1.21l-0.95-0.8l0.04-0.5l1.45%2C0.13l0.1-0.72l-4.01-0.32c-0.04%2C0.22-0.13%2C1.11-0.14%2C1.23%20C2.78%2C24.56%2C3.32%2C24.97%2C4.02%2C25.02z%20M3.61%2C22.99l1.2%2C0.1l-0.04%2C0.46c-0.03%2C0.41-0.27%2C0.76-0.69%2C0.72%20c-0.32-0.03-0.57-0.22-0.53-0.8C3.57%2C23.34%2C3.58%2C23.18%2C3.61%2C22.99z%22%2F%3E%20%3Cpath%20class%3D%22st1%22%20d%3D%22M10.07%2C36.1c-1.01-1.47-1.79-3.07-2.34-4.77l-0.6%2C0.29l-3.06%2C1.5c0.08%2C0.22%2C0.16%2C0.44%2C0.25%2C0.67l3.05-1.51%20c0.19%2C0.5%2C0.39%2C1%2C0.62%2C1.48l-3.04%2C1.49c0.1%2C0.22%2C0.21%2C0.43%2C0.31%2C0.64L8.3%2C34.4c0.24%2C0.47%2C0.5%2C0.93%2C0.78%2C1.38l-3.04%2C1.51%20c0.12%2C0.2%2C0.25%2C0.4%2C0.38%2C0.6l3.06-1.5L10.07%2C36.1z%22%2F%3E%20%3Crect%20x%3D%2211.21%22%20y%3D%2241.93%22%20transform%3D%22matrix%280.5751%20-0.8181%200.8181%200.5751%20-28.9676%2028.7895%29%22%20class%3D%22st1%22%20width%3D%224.05%22%20height%3D%220.71%22%2F%3E%20%3Cpath%20class%3D%22st1%22%20d%3D%22M11.82%2C38.15c-0.52-0.56-1.21-0.77-1.85-0.68l0.1%2C0.71c0.45-0.09%2C0.92%2C0.03%2C1.26%2C0.41%20c0.55%2C0.59%2C0.46%2C1.46-0.12%2C1.99c-0.59%2C0.54-1.44%2C0.57-1.99-0.02c-0.34-0.36-0.43-0.83-0.32-1.26l-0.71-0.15%20c-0.13%2C0.62%2C0.04%2C1.3%2C0.54%2C1.84c0.85%2C0.91%2C2.15%2C0.91%2C2.98%2C0.14C12.56%2C40.34%2C12.66%2C39.07%2C11.82%2C38.15z%22%2F%3E%20%3C%2Fg%3E%20%3C%2Fg%3E%20%3C%2Fsvg%3E" alt="" aria-hidden="true">
+  `;
+  const ring = host.querySelector('[data-el="ring"]');
+  const orig = host.querySelector('.logo-orig');
 
-// The lead-in can arrive in parts, the same way the title card does: what is
-// marked `.intro-stage` inside it waits its turn and then grows into place
-// while the screen still holds. A beat each, one after another.
-const LEAD_STAGE_SCREENS = BEAT;
-const LEAD_STAGE_AT = 0;
-const LEAD_STAGE_SPAN = BEAT;
+  // ---------- type metrics ----------
+  const ctx = document.createElement('canvas').getContext('2d');
+  const font = `${WEIGHT} 100px "HSE Sans"`;
+  if (document.fonts) await document.fonts.load(font);
+  ctx.font = font;
+  const SIZE = CAP / (ctx.measureText('Ш').actualBoundingBoxAscent / 100);
+  const width = (ch) =>
+    ch === '•' ? DOT_W
+      : ch === ' ' ? ctx.measureText(' ').width / 100 * SIZE + 0.7
+        : ctx.measureText(ch).width / 100 * SIZE;
 
-// Drives that swap. Returns how many screens the lead-in holds for and the
-// painter itself; `q` is how far the card has scrolled, in screens.
-function leadCard(section, K = CARD_K) {
-  const lead = section.querySelector('.viz-lead');
-  if (!lead) return null;
-  const container = section.querySelector('.viz-container');
-  const header = section.querySelector('.viz-header');
-
-  // Where it goes when its turn is over: aside, making way for the title card,
-  // or up to the top of the section, where it stays and reads as the heading.
-  const parks = lead.dataset.exit === 'top';
-
-  // A screen of one line starts where the heading of the title card will be,
-  // so the swap is a move sideways and nothing hops. One that grows part by
-  // part can ask to stay in the middle instead: it then rises as its parts
-  // arrive, and each of them is read in the centre of the screen.
-  const centres = lead.dataset.fit === 'center';
-
-  // Squeezed shut until their turn — see stageCards for why by height.
-  const parts = [...lead.querySelectorAll('.intro-stage')];
-  parts.forEach((el) => { el.style.overflow = 'hidden'; });
-  const screens = LEAD_SCREENS + parts.length * LEAD_STAGE_SCREENS;
-  const hold = LEAD_HOLD + parts.length * LEAD_STAGE_SCREENS;
-
-  const paint = (q, narrow) => {
-    // Sit exactly where the title card will: same top edge, so the swap is a
-    // move sideways and nothing hops up or down. On a narrow screen the lead-in
-    // is fixed to the middle of the window instead, so it needs no top — but it
-    // has to keep out of sight until the section itself arrives.
-    const cardTop = container.clientHeight / 2 - (header.offsetHeight * K) / 2;
-    if (!narrow && !centres) lead.style.top = `${Math.round(cardTop)}px`;
-    if (narrow) lead.style.top = '';
-    lead.style.visibility = narrow && section.getBoundingClientRect().top > 1
-      ? 'hidden'
-      : '';
-    // Centred against the same screen height as the heading — in pixels, not
-    // dvh, so the two agree even while the address bar of a phone is moving.
-    if (narrow) {
-      section.style.setProperty('--lead-screen', `${window.innerHeight}px`);
-    }
-
-    // The parts come first, one after another, and the screen only starts
-    // moving once the last of them is there.
-    parts.forEach((el) => {
-      const k = Number(el.dataset.stage) || 1;
-      const from = (k - 1) * LEAD_STAGE_SCREENS + LEAD_STAGE_AT;
-      const v = clamp((q - from) / LEAD_STAGE_SPAN);
-      const grown = 1 - Math.pow(1 - v, 3);
-      el.style.opacity = grown.toFixed(3);
-      el.style.height = grown < 1 ? `${(el.scrollHeight * grown).toFixed(1)}px` : '';
-      // How far each part has come, for anyone who cares: a screen where one
-      // part replaces another has the earlier one leave by the same number.
-      section.style.setProperty(`--lead-stage-${k}`, grown.toFixed(3));
+  // ---------- where every letter sits ----------
+  // The ring is a closed loop: every item is followed by one gap, and the
+  // tracking is whatever is left of the circumference.
+  function layout(seq) {
+    const items = [...seq];
+    const sum = items.reduce((s, ch) => s + width(ch), 0);
+    const track = (2 * Math.PI * R_ADV - sum) / items.length;
+    let cursor = 0;
+    return items.map((ch) => {
+      const a = (cursor + width(ch) / 2) / R_ADV * 180 / Math.PI;
+      cursor += width(ch) + track;
+      return a;
     });
+  }
 
-    // A screen that holds the middle is placed once its parts have grown: its
-    // height is what has just changed, and reading it before them would leave
-    // the screen a frame behind — plain to see when the reader stops.
-    if (!narrow && centres) {
-      lead.style.top = `${Math.round(container.clientHeight / 2 - lead.offsetHeight / 2)}px`;
-    }
+  // Closed: the middle of «ШКОЛА» where the real logo has it.
+  const rawShut = layout(RING);
+  const school = RING.indexOf('ШКОЛА');
+  const shut = rawShut.map((a) =>
+    turn(a + ANCHOR - (rawShut[school] + rawShut[school + 4]) / 2));
 
-    const t = clamp((q - hold) / (screens - hold));
-    const e = 1 - Math.pow(1 - t, 3);
-
-    // Parking only works where the whole section is pinned: the screen goes up
-    // to the top of the container and stays there, at its own size, while the
-    // block comes up underneath it — so the block starts below it, and the
-    // heading of the section keeps waiting off to the right. On a narrow
-    // screen nothing is pinned as a whole, so the usual swap happens instead.
-    if (parks && !narrow) {
-      const pad = parseFloat(getComputedStyle(container).paddingTop);
-      lead.style.setProperty('--lead-x', '0px');
-      lead.style.setProperty('--lead-y', `${(-e * (cardTop - pad)).toFixed(1)}px`);
-      lead.style.opacity = '';
-      section.style.setProperty('--card-x', '108vw');
-      section.style.setProperty('--lead-hold',
-        `${Math.max(0, Math.round(lead.offsetHeight - header.offsetHeight))}px`);
-      return;
-    }
-
-    lead.style.setProperty('--lead-y', '0px');
-    lead.style.setProperty('--lead-x', `${(-e * 108).toFixed(2)}vw`);
-    lead.style.opacity = (1 - clamp(t * 1.6)).toFixed(3);
-    // The heading waits off to the right until its turn.
-    section.style.setProperty('--card-x', `${((1 - e) * 108).toFixed(2)}vw`);
-  };
-
-  return { screens, hold, parts: parts.length, paint };
-}
-
-// The title card: a beat to read it where it stands, then it settles into
-// place. A card that arrives in parts gets a beat for each of them first.
-const INTRO_SCREENS = 2 * BEAT;
-const STAGE_SCREENS = BEAT;
-const HOLD = 0.5;                      // half of it holding, half settling
-const DONE = 1;
-
-const clamp = (v) => Math.min(1, Math.max(0, v));
-
-// How far the section has scrolled through its intro phase, 0..1. On a wide
-// screen the whole section is pinned, so the phase is measured against its
-// travel; on a narrow one only the heading is pinned and the phase is the
-// intro zone above the block.
-function introProgress(section, narrow, zone = INTRO_SCREENS) {
-  const box = section.getBoundingClientRect();
-  const span = narrow
-    ? zone * window.innerHeight
-    : box.height - window.innerHeight;
-  if (span <= 0) return null;
-  return clamp(-box.top / span);
-}
-
-// The card stands still for a while and then settles into its place over the
-// rest of its screen. Takes the raw progress of that screen, gives back how far
-// the card has settled.
-function settleCurve(raw) {
-  const t = clamp((raw - HOLD) / (DONE - HOLD));
-  return 1 - Math.pow(1 - t, 3);            // same easing as everywhere else
-}
-
-// A title card can arrive in stages: blocks inside the heading marked
-// `.intro-stage` with a number wait their turn and then grow into place, one
-// per screen of scrolling, while the card is still holding in the middle. What
-// is not marked is there from the first frame.
-//
-// The block is squeezed shut by its height, so it keeps reporting through
-// scrollHeight the height it would have had if it were open — that is what the
-// share is taken of. Once it is fully there the height goes back to auto and
-// the block is free to change on its own again.
-function stageCards(section) {
-  const blocks = [...section.querySelectorAll('.intro-stage')];
-  blocks.forEach((el) => { el.style.overflow = 'hidden'; });
-
-  // `q` is how far the card has scrolled, counted in screens. A part takes a
-  // beat to arrive, and the next one starts where it finished.
-  return (q) => blocks.forEach((el) => {
-    const k = Number(el.dataset.stage) || 1;
-    const v = clamp((q - (k - 1) * STAGE_SCREENS) / STAGE_SCREENS);
-    const e = 1 - Math.pow(1 - v, 3);
-    el.style.opacity = e.toFixed(3);
-    el.style.height = e < 1 ? `${(el.scrollHeight * e).toFixed(1)}px` : '';
+  // Open: hung on the item opposite the insertion, so the ring opens up
+  // towards the new words instead of swinging round as a whole.
+  const rawOpen = layout(OPEN);
+  const moved = (i) => (i < CUT ? i : i + ADDED.length);
+  let pivot = 0;
+  let best = Infinity;
+  shut.forEach((a, i) => {
+    const d = Math.abs(180 - Math.abs(((a - shut[CUT - 1] + 540) % 360) - 180));
+    if (d < best) { best = d; pivot = i; }
   });
-}
+  const open = rawOpen.map((a) => turn(a + shut[pivot] - rawOpen[moved(pivot)]));
 
-// Whether the reader has asked for less movement: then a section shows its
-// finished state and nothing plays at all.
-const still = window.matchMedia('(prefers-reduced-motion: reduce)');
+  // ---------- the letters themselves ----------
+  // The new words are the point of the whole thing, so they keep the light
+  // blue of the brand book; everything else stays white, dots included.
+  const accent = getComputedStyle(document.documentElement)
+    .getPropertyValue('--brand-cyan').trim() || '#0FA0D7';
 
-// Builds the opening of a section — the lead-in screen, the parts of the card
-// and the card settling into place — as one function of progress 0..1, plus
-// how many beats it is worth.
-function introRunner(section, stages = 1, scale = CARD_K) {
-  const lead = leadCard(section, scale);
-  const leadScreens = lead ? lead.screens : 0;
-  const zone = leadScreens + INTRO_SCREENS + (stages - 1) * STAGE_SCREENS;
-  const header = section.querySelector('.viz-header');
-
-  let drawn = null;
-  const draw = (q) => {
-    drawn = q;
-    if (lead) lead.paint(q, false);
-    if (reveal) reveal(q - leadScreens);
-    paint(settleCurve((q - (zone - INTRO_SCREENS)) / INTRO_SCREENS), false);
-  };
-  // How tall the card is with all of its parts open — the heading is placed
-  // against that from the first frame, so it does not shift as they arrive.
-  // The card is scaled, and a scaled card is also narrower in layout terms, so
-  // its text wraps differently: the height is measured at both ends and read
-  // off in between.
-  let tallOpen = 0;      // held out in the middle of the screen
-  let tallSettled = 0;   // sitting in its place
-  const measure = () => {
-    const parts = [...header.querySelectorAll('.intro-stage')];
-    const keptParts = parts.map((el) => [el.style.height, el.style.opacity]);
-    const keptK = section.style.getPropertyValue('--intro-k');
-    parts.forEach((el) => { el.style.height = ''; el.style.opacity = '1'; });
-
-    section.style.setProperty('--intro-k', String(scale));
-    tallOpen = header.offsetHeight;
-    section.style.setProperty('--intro-k', '1');
-    tallSettled = header.offsetHeight;
-
-    parts.forEach((el, i) => { [el.style.height, el.style.opacity] = keptParts[i]; });
-    if (keptK) section.style.setProperty('--intro-k', keptK);
-    else section.style.removeProperty('--intro-k');
-
-    // Restoring the inline styles is not enough: before the first frame there
-    // were none, and «no inline height» means fully open. Redraw the frame the
-    // opening was on, so a part cannot flash into view.
-    if (drawn !== null) draw(drawn);
-  };
-  measure();
-  window.addEventListener('resize', measure);
-  // A heading can carry pictures — a station board, a scarf — and they arrive
-  // after the shell has drawn it. Anything that changes its height means the
-  // measurement has to be taken again.
-  if (document.fonts && document.fonts.ready) document.fonts.ready.then(measure);
-  header.querySelectorAll('img').forEach((img) => {
-    if (!img.complete) img.addEventListener('load', measure, { once: true });
+  const nodes = [...OPEN].map((ch, i) => {
+    const g = document.createElementNS(SVGNS, 'g');
+    const pop = document.createElementNS(SVGNS, 'g');
+    if (ch === '•') {
+      const c = document.createElementNS(SVGNS, 'circle');
+      c.setAttribute('r', DOT_R);
+      c.setAttribute('fill', '#fff');
+      pop.appendChild(c);
+    } else if (ch !== ' ') {
+      const t = document.createElementNS(SVGNS, 'text');
+      t.setAttribute('text-anchor', 'middle');
+      t.setAttribute('font-size', SIZE);
+      t.setAttribute('font-weight', WEIGHT);
+      t.setAttribute('font-family', 'HSE Sans');
+      t.setAttribute('fill', FRESH.has(i) ? accent : '#fff');
+      t.textContent = ch;
+      pop.appendChild(t);
+    }
+    g.appendChild(pop);
+    ring.appendChild(g);
+    return { ch, g, pop, i, fresh: FRESH.has(i) };
   });
 
-  const heightAt = (k) => {
-    if (!tallOpen) return header.offsetHeight;
-    if (scale === 1) return tallSettled;
-    return tallSettled + (tallOpen - tallSettled) * ((k - 1) / (scale - 1));
-  };
+  // Where each item that was there all along starts from.
+  const start = [];
+  for (let i = 0, k = 0; i < OPEN.length; i++) start.push(FRESH.has(i) ? null : shut[k++]);
 
-  const paint = titleCard(section, zone, scale, heightAt);
-  const reveal = stages > 1 ? stageCards(section) : null;
+  const SEED = CUT - 1;                 // the dot the new words grow out of
+  const order = nodes.filter((n) => n.fresh && n.ch !== ' ');
 
-  section.classList.add('viz-intro');
+  function place(p) {
+    const seed = start[SEED] + (((open[SEED] - start[SEED] + 540) % 360) - 180) * p;
 
-  // Where one thing happens and the next begins. The opening is not a smooth
-  // ramp: parts arrive one after another, the lead-in slides aside, the card
-  // settles — and between some of those it simply waits. Whoever plays this
-  // walks the list and gives each stretch its own beat, so nothing is spent on
-  // the waiting.
-  const beats = [];
-  if (lead) {
-    for (let k = 1; k <= lead.parts; k++) {
-      beats.push([(k - 1) * LEAD_STAGE_SCREENS, k * LEAD_STAGE_SCREENS]);
+    for (const n of nodes) {
+      // A newcomer rides along with the dot it comes from, then fans out.
+      const base = n.fresh ? seed : start[n.i];
+      const goal = n.fresh ? open[n.i] - open[SEED] + seed : open[n.i];
+      const a = base + (((goal - base + 540) % 360) - 180) * p;
+      n.g.setAttribute('transform', `rotate(${a.toFixed(3)})`);
+
+      // ...and they arrive one after another, not all at once.
+      const t = n.fresh ? clamp((p - 0.20 - order.indexOf(n) * 0.032) / 0.42) : 1;
+      const s = n.fresh ? 0.2 + 0.8 * ease(t) : 1;
+      const y = n.ch === '•' ? -R_DOT : -R_BASE;
+      const anchor = n.ch === '•' ? 0 : -CAP / 2;
+      n.pop.setAttribute('transform',
+        `translate(0 ${(y - anchor).toFixed(3)}) scale(${s.toFixed(3)}) translate(0 ${anchor.toFixed(3)})`);
+      n.pop.style.opacity = ease(t).toFixed(3);
     }
-    beats.push([lead.hold, leadScreens]);            // sliding aside
+
+    // The rebuilt ring is a hair away from the printed one, so the file itself
+    // is what the reader sees until the drawing starts moving.
+    orig.style.opacity = p > 0.001 ? '0' : '1';
   }
-  for (let k = 1; k < stages; k++) {
-    beats.push([leadScreens + (k - 1) * STAGE_SCREENS, leadScreens + k * STAGE_SCREENS]);
-  }
-  beats.push([zone - INTRO_SCREENS * (1 - HOLD), zone]);   // the card settling
 
-
-
-  return {
-    beats,
-    zone,
-    // Whoever plays this calls it before a beat: by then the pictures have
-    // loaded and the card knows its real height.
-    remeasure: measure,
-    // p from 0 to 1 across the whole opening — used to put it in its opening
-    // or finished state in one go.
-    run(p) { draw(p * zone); },
-    // One stretch of it, p from 0 to 1 within that stretch.
-    runBeat(i, p) {
-      const [from, to] = beats[i];
-      draw(from + (to - from) * p);
-    }
-  };
+  place(0);
+  return { place };
 }
 
-// The page as a sequence of beats.
-//
-// Scrolling does not scrub anything and does not carry the reader past what
-// they have not seen yet: one movement of the wheel — or one swipe, or one
-// press of the space bar — plays the next beat and nothing more. While a beat
-// is playing, input is ignored; when it lands, the page waits for the reader
-// again. Sections are settled onto the screen the same way: a beat of their
-// own carries the page from one to the next.
-
-const BEAT_MS = 700;         // how long one beat plays
-const SETTLE_MS = 520;       // moving the page from one section to the next
-
-// A trackpad keeps sending events for a second or so after the fingers have
-// left it, and a mouse wheel sends a burst per notch. Anything arriving within
-// this of the previous event is the same movement, still going — only the
-// first event of a movement counts as «next».
-const GESTURE_GAP = 200;
-
-const REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)');
-
-// Runs fn(p) from 0 to 1 over ms, then done(). Time is counted frame to frame,
-// and a gap longer than a stutter is dropped — a tab nobody is looking at gets
-// no frames, and counting from the start would skip the beat to its end.
-function play(ms, fn, done) {
-  let last = performance.now();
-  let spent = 0;
-  const tick = (now) => {
-    const dt = now - last;
-    last = now;
-    spent += dt > 250 ? 16 : dt;
-    const p = Math.min(1, spent / ms);
-    fn(p);
-    if (p < 1) requestAnimationFrame(tick);
-    else if (done) done();
-  };
-  requestAnimationFrame(tick);
-}
-
-// Eases the same way everything else on the page does.
-const settle = (p) => 1 - Math.pow(1 - p, 3);
-
-// Carries the window to `y` over SETTLE_MS.
-function glide(y, done) {
-  const from = window.scrollY;
-  const span = y - from;
-  if (Math.abs(span) < 2 || REDUCED.matches) {
-    window.scrollTo(0, y);
-    if (done) done();
-    return;
-  }
-  play(SETTLE_MS, (p) => window.scrollTo(0, from + span * settle(p)), done);
-}
-
-// Collects the beats of one section: settling it onto the screen, its title
-// card (which may arrive in parts), and the steps of its scene.
-function beatsOf(entry) {
-  const { section, opening, steps, setStep, build } = entry;
-  const list = [];
-
-  // 1. Bring the section onto the screen, and build it while it travels.
-  list.push({
-    section,
-    run: (done) => {
-      build();
-      // The block has just been put together and the section is on its way in:
-      // this is the moment the card can be measured for real.
-      if (opening) { opening.remeasure(); opening.runBeat(0, 0); }
-      glide(section.offsetTop, done);
-    }
-  });
-
-  // 2. The opening, one beat per thing that happens in it: a part of the
-  //    lead-in arriving, the lead-in sliding aside, a part of the card, the
-  //    card settling. The stretches where it only waits are not beats at all.
-  if (opening) {
-    opening.beats.forEach((_, i) => {
-      list.push({
-        section,
-        run: (done) => {
-          if (opening.remeasure) opening.remeasure();
-          play(BEAT_MS, (p) => opening.runBeat(i, p), done);
-        }
-      });
-    });
-  }
-
-  // 3. The scene, one step per beat. The module animates the step itself; the
-  //    beat is over when that animation has had its time.
-  for (let i = 0; i < steps; i++) {
-    list.push({
-      section,
-      run: (done) => { setStep(i); play(BEAT_MS, () => {}, done); }
-    });
-  }
-
-  return list;
-}
-
-// `entries` describe the sections in order. Each is
-// { section, opening, steps, setStep, build } — see beatsOf.
-function mountStepper(entries, { onProgress } = {}) {
-  const beats = entries.flatMap(beatsOf);
-  let at = -1;                 // the last beat played
-  let busy = false;
-  let lastInput = 0;           // when the current movement last said anything
-  let peak = 0;                // the hardest it has pushed
-  let quietest = Infinity;     // and how gently it has got since that peak
-  let queued = 0;              // one movement may wait for the beat to finish
-
-  // Nothing to watch: everything is put in its finished state at once, and the
-  // page is left to scroll normally.
-  if (REDUCED.matches) {
-    entries.forEach((e) => {
-      e.build();
-      if (e.opening) e.opening.run(1);
-      if (e.steps) e.setStep(e.steps - 1);
-    });
-    if (onProgress) onProgress(1);
-    return { free: true };
-  }
-
-  document.documentElement.classList.add('is-stepped');
-
-  // A reload would otherwise drop the reader back where they were scrolled to,
-  // while the story itself starts from the beginning — a page standing in the
-  // middle of a section that has not been told yet.
-  if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
-  window.scrollTo(0, 0);
-  // Pictures and fonts land after this, and the browser can nudge the page
-  // again while it settles.
-  window.addEventListener('load', () => { if (at < 0) window.scrollTo(0, 0); });
-
-  const report = () => onProgress && onProgress((at + 1) / beats.length);
-
-  // A movement that arrives mid-beat is not thrown away — it waits its turn.
-  // Only one waits, so a flurry of swipes cannot run the story off ahead.
-  const done = () => {
-    busy = false;
-    const next = queued;
-    queued = 0;
-    if (next > 0) forward();
-    else if (next < 0) back();
-  };
-
-  const forward = () => {
-    if (at >= beats.length - 1) return;
-    if (busy) { queued = 1; return; }
-    busy = true;
-    at += 1;
-    report();
-    beats[at].run(done);
-  };
-
-  // Going back does not replay anything: the page steps to where the reader
-  // was, in one move, and waits there.
-  const back = () => {
-    if (at <= 0) return;
-    if (busy) { queued = -1; return; }
-    at -= 1;
-    report();
-    const target = beats[Math.max(0, at)].section;
-    busy = true;
-    glide(target.offsetTop, done);
-  };
-
-  // Only the first event of a movement acts. Every event pushes the mark
-  // forward, so the tail of a flick — and anything arriving while a beat plays
-  // — keeps the movement alive instead of queueing up more beats behind it.
-  const onWheel = (e) => {
-    e.preventDefault();
-    const force = Math.abs(e.deltaY);
-    if (force < 2) return;
-    const now = performance.now();
-
-    // Two things tell a new movement from the tail of the last one. A pause is
-    // the plain case. The other is a shove: once a movement has passed its
-    // peak it only ever fades, so a push several times harder than the gentlest
-    // it has got since then is a hand starting again — that is what a second
-    // swipe looks like when it lands before the previous flick has died away.
-    //
-    // Only the fading half counts. A swipe first speeds up, and measuring the
-    // gentlest against that run-up would make the swipe shove itself: one
-    // movement, two beats.
-    const paused = now - lastInput > GESTURE_GAP;
-    const shove = force > Math.max(quietest * 3, 12);
-    lastInput = now;
-
-    if (!paused && !shove) {
-      if (force >= peak) peak = force;            // still speeding up
-      else quietest = Math.min(quietest, force);  // past the peak, fading
-      return;
-    }
-    peak = force;
-    quietest = Infinity;
-    (e.deltaY > 0 ? forward : back)();
-  };
-
-  // One swipe is one beat: the finger has to come off and go on again.
-  let touchY = 0;
-  let swiped = false;
-  const onTouchStart = (e) => { touchY = e.touches[0].clientY; swiped = false; };
-  const onTouchMove = (e) => {
-    e.preventDefault();
-    if (swiped) return;
-    const dy = touchY - e.touches[0].clientY;
-    if (Math.abs(dy) < 40) return;
-    swiped = true;
-    lastInput = performance.now();
-    (dy > 0 ? forward : back)();
-  };
-
-  const KEYS_FORWARD = [' ', 'PageDown', 'ArrowDown', 'ArrowRight', 'Enter'];
-  const KEYS_BACK = ['PageUp', 'ArrowUp', 'ArrowLeft'];
-  const onKey = (e) => {
-    if (e.repeat) { e.preventDefault(); return; }   // holding a key is one press
-    if (KEYS_FORWARD.includes(e.key)) { e.preventDefault(); forward(); }
-    else if (KEYS_BACK.includes(e.key)) { e.preventDefault(); back(); }
-    else if (e.key === 'Home') { e.preventDefault(); while (at > 0) back(); }
-  };
-
-  // Capture, not bubble: a list with its own scrollbar would otherwise take
-  // the movement for itself and the page would stand still until the reader
-  // tapped somewhere neutral first.
-  const grab = { passive: false, capture: true };
-  document.addEventListener('wheel', onWheel, grab);
-  document.addEventListener('touchstart', onTouchStart, { passive: true, capture: true });
-  document.addEventListener('touchmove', onTouchMove, grab);
-  document.addEventListener('keydown', onKey, true);
-
-  // Belt and braces: anything sent straight at the window never passes through
-  // the document, and a second call on the same event is harmless — the
-  // gesture check swallows it.
-  window.addEventListener('wheel', onWheel, { passive: false });
-  window.addEventListener('touchmove', onTouchMove, { passive: false });
-
-  report();
-  return { forward, back };
-}
-
+return { mountLogo };
+})();
 
 const MOD_metro = (() => {
 // Trains long enough to carry everyone the university admits in a year.
 // They snake down the screen from the top left corner and disappear into the
 // tunnel at the bottom right, only to come out of the first one again.
-
 
 
 
@@ -3987,7 +4225,6 @@ const MOD_stadium = (() => {
 
 
 
-
 // Seats in the arena — the figure the subtitle and the meter both quote.
 const TOTAL = 81000;
 
@@ -4796,7 +5033,6 @@ const MOD_world = (() => {
 
 
 
-
 // The world to compare against: 193 UN members plus 2 observer states, split
 // by part of the world the same way the countries above are (UN M49, so the
 // Caucasus, Turkey and Kazakhstan count as Asia).
@@ -5240,7 +5476,6 @@ return { meta, init };
 
 const MOD_area = (() => {
 // Total floor area of HSE buildings, measured in things you can picture.
-
 
 
 
@@ -6027,7 +6262,6 @@ const MOD_study = (() => {
 
 
 
-
 // Facts about the curriculum itself — they live here, not in data/hse.js,
 // which only knows about the people. A bachelor's or a specialist's degree
 // takes four years, a master's two.
@@ -6779,15 +7013,25 @@ const mark = (text) =>
 
 const meta = {
   id: 'professions',
-  // Two words of the heading carry the whole thought, so they are picked out
-  // the way the figures are — on a patch of the corporate blue. Painted inline
-  // again: the heading is drawn before the styles of the module arrive.
-  title: 'Высшая школа <span class="prof-accent" style="background: var(--hse-blue); color: var(--card)">не только</span> экономики',
-  // Comes a screen after the heading, while the card still holds the middle:
-  // first what the section says, then the wall that shows it.
-  subtitle: `<span class="prof-lead intro-stage" data-stage="1">В Вышке можно стать кем угодно. ${mark(`${nf(KINDS_TOTAL)} ${plural(KINDS_TOTAL, 'специализация', 'специализации', 'специализаций')}`)}, где раскроется любой талант. Укрупненно из них можно выделить ${mark(`${PROFESSIONS.length} профессии`)}</span>`,
+  // The card and the section have different headings. While the card holds,
+  // it is «Мы —» and the logo under it, and the logo opens up on a beat of its
+  // own to let «не только» into its ring. Once the card settles, the heading of
+  // the section takes its place — the same one the block is read under.
+  title: '<span class="prof-open">'
+    +   '<span class="prof-open-row">'
+    +     '<span class="prof-open-we">Мы —</span>'
+    +     '<span class="prof-open-logo" data-el="logo"></span>'
+    +   '</span>'
+    + '</span>'
+    + '<span class="prof-settled">Высшая школа '
+    +   '<span class="prof-accent" style="background: var(--hse-blue); color: var(--card)">не только</span>'
+    + ' экономики</span>',
+  // The last beat of the card: what the wall under it is about.
+  subtitle: `<span class="prof-lead intro-stage" data-stage="2">В Вышке можно стать кем угодно. ${mark(`${nf(KINDS_TOTAL)} ${plural(KINDS_TOTAL, 'специализация', 'специализации', 'специализаций')}`)}, где раскроется любой талант. Укрупненно из них можно выделить ${mark(`${PROFESSIONS.length} профессии`)}</span>`,
   intro: true,
-  introStages: 2
+  // Three beats before the block: the logo as it is, the logo opening up, and
+  // the line under it.
+  introStages: 3
 };
 
 function init(root) {
@@ -6807,6 +7051,75 @@ function init(root) {
         border-radius: 0.2em;
         -webkit-box-decoration-break: clone;
         box-decoration-break: clone;
+      }
+
+      /* The two headings of the card hand over to each other: each holds as
+         much height as the other has given up, so the card is one thing all
+         the way down and the shell can centre it at both ends. Both heights
+         are measured — see measureHeads() below. */
+      .prof-open,
+      .prof-settled {
+        display: block;
+        overflow: hidden;
+      }
+
+      .prof-open {
+        /* Everything on this card is measured against the logo: it is the one
+           thing on the screen, and the words beside it are its size. */
+        --prof-logo: min(26vh, 25vw, 240px);
+        height: calc(var(--prof-open-h, 0px) * (1 - var(--intro-body, 1)));
+        opacity: calc(1 - var(--intro-body, 1));
+      }
+
+      /* «Мы —» and the logo stand side by side in the middle of the screen.
+         The heading is as wide as the section, so centring them here centres
+         them on the screen. */
+      .prof-open-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: center;
+        gap: calc(var(--prof-logo) * 0.1);
+      }
+
+      .prof-settled {
+        height: calc(var(--prof-settled-h, 1.2em) * var(--intro-body, 1));
+        opacity: var(--intro-body, 1);
+      }
+
+      .prof-open-we {
+        font-size: calc(var(--prof-logo) * 0.4);
+        line-height: 1;
+        letter-spacing: -0.03em;
+      }
+
+      /* The logo is laid out at the size it settles at and blown up with the
+         card, like everything else in the heading. */
+      .prof-open-logo {
+        display: block;
+        width: var(--prof-logo);
+      }
+
+      .prof-open-logo,
+      .prof-rest-logo {
+        position: relative;
+        aspect-ratio: 1;
+      }
+
+      .prof-open-logo svg,
+      .prof-open-logo img,
+      .prof-rest-logo svg,
+      .prof-rest-logo img {
+        position: absolute;
+        inset: 0;
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+
+      .prof-rest-logo {
+        display: block;
+        width: 100%;
       }
 
       /* Nothing to switch here, so the section has no left column: the card
@@ -6882,10 +7195,25 @@ function init(root) {
          allows. How tall the longest of the 44 lists comes out depends on that
          width, so the room kept for it is measured rather than guessed — see
          reserve() below. */
-      .prof-kinds {
+      /* The list and the caption over it stand together beside the head. */
+      .prof-kinds-box {
         flex: 1;
         min-width: 0;
         align-self: center;
+      }
+
+      /* Kept in place even when there is nothing under it — the card holds one
+         height whatever it shows. */
+      .prof-kinds-title {
+        margin-bottom: 6px;
+        font-size: 0.7188rem;
+        font-weight: 600;
+        line-height: 1.25;
+        letter-spacing: 0.02em;
+        color: var(--text-caption);
+      }
+
+      .prof-kinds {
         margin: 0;
         padding: 0 0 0 1.1em;
         columns: 15em;
@@ -6907,9 +7235,6 @@ function init(root) {
          A profession with no specializations beside it says nothing at all —
          the card is simply that profession, and nothing else. */
       .prof-note {
-        flex: 1;
-        min-width: 0;
-        align-self: center;
         margin: 0;
         font-size: 0.875rem;
         line-height: 1.5;
@@ -6997,8 +7322,8 @@ function init(root) {
         min-width: 0;
       }
 
-      /* The name is never cut: four lines are enough for the longest of them
-         even in a narrow column. */
+      /* The name is never cut: five lines are enough for the longest of them
+         even in the narrowest column the wall ever comes to. */
       .prof-item-name {
         font-size: 0.75rem;
         font-weight: 600;
@@ -7008,7 +7333,7 @@ function init(root) {
         hyphens: auto;
         overflow-wrap: break-word;
         display: -webkit-box;
-        -webkit-line-clamp: 4;
+        -webkit-line-clamp: 5;
         -webkit-box-orient: vertical;
         overflow: hidden;
       }
@@ -7091,8 +7416,11 @@ function init(root) {
             <span class="prof-detail-name" data-el="name"></span>
           </span>
         </div>
-        <ul class="prof-kinds" data-el="kinds"></ul>
-        <p class="prof-note" data-el="note"></p>
+        <div class="prof-kinds-box">
+          <div class="prof-kinds-title" data-el="kindsTitle">Специализации</div>
+          <ul class="prof-kinds" data-el="kinds"></ul>
+          <p class="prof-note" data-el="note"></p>
+        </div>
       </div>
 
       <div class="canvas-card">
@@ -7105,25 +7433,70 @@ function init(root) {
 
   const $ = (name) => root.querySelector(`[data-el="${name}"]`);
 
+  // ---------- The opening ----------
+  const section = root.closest('.viz-section');
+  const openEl = section.querySelector('.prof-open');
+  const settledEl = section.querySelector('.prof-settled');
+
+  // Each of the two headings holds the height the other has given up, and a
+  // height cannot be handed over in the abstract: both are measured here, and
+  // again whenever anything that could change them does.
+  function measureHeads() {
+    if (!openEl || !settledEl) return;
+    [openEl, settledEl].forEach((el) => { el.style.height = 'auto'; });
+    const open = openEl.offsetHeight;
+    const settled = settledEl.offsetHeight;
+    [openEl, settledEl].forEach((el) => { el.style.height = ''; });
+    section.style.setProperty('--prof-open-h', `${open}px`);
+    section.style.setProperty('--prof-settled-h', `${settled}px`);
+  }
+
+  measureHeads();
+  window.addEventListener('resize', measureHeads);
+
+  // The logo opens its ring on the first beat of the card. The shell tells the
+  // beat through --stage-1 and has no other way of reaching a module, so the
+  // drawing follows that variable — one change of it is one frame of the beat.
+  const logoHost = section.querySelector('.prof-open-logo');
+  let logo = null;
+  let placed = -1;
+
+  const follow = () => {
+    if (!logo) return;
+    const p = parseFloat(section.style.getPropertyValue('--stage-1')) || 0;
+    if (p === placed) return;
+    placed = p;
+    logo.place(p);
+  };
+
+  if (logoHost) {
+    mountLogo(logoHost).then((it) => {
+      logo = it;
+      follow();
+      measureHeads();
+      new MutationObserver(follow)
+        .observe(section, { attributes: true, attributeFilter: ['style'] });
+    });
+  }
+
   const headEl = $('head');
   const artEl = $('art');
   const areaEl = $('area');
   const nameEl = $('name');
   const kindsEl = $('kinds');
+  const kindsTitleEl = $('kindsTitle');
   const noteEl = $('note');
   const grid = $('grid');
 
   // ---------- The card ----------
-  // The mark of the university, drawn here rather than taken from
-  // data:image/svg+xml;charset=utf-8,%3Csvg%20width%3D%22283.47%22%20height%3D%22283.47%22%20version%3D%221.1%22%20id%3D%22Layer_1%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20xmlns%3Axlink%3D%22http%3A%2F%2Fwww.w3.org%2F1999%2Fxlink%22%20x%3D%220px%22%20y%3D%220px%22%20viewBox%3D%220%200%20283.47%20283.47%22%20style%3D%22enable-background%3Anew%200%200%20283.47%20283.47%3B%22%20xml%3Aspace%3D%22preserve%22%3E%20%3Ccircle%20class%3D%22st0%22%20cx%3D%22141.73%22%20cy%3D%22141.74%22%20r%3D%22141.73%22%3E%3C%2Fcircle%3E%20%3Cpath%20class%3D%22st1%22%20d%3D%22M135.6%2C133.32c32.26%2C0%2C44.81%2C21.45%2C44.81%2C60.69v29.51h-20.69v-63.35h-23.9v63.42h-18.28V53.65h18.78%26%23xA%3B%26%23x9%3Bc7.03%2C0%2C17.71%2C1.58%2C25.25%2C10.95c3.93%2C4.73%2C6.34%2C11.04%2C7.19%2C17.38h-32.94v9.35h33.23c-0.27%2C6.04-1.49%2C12.8-7.42%2C19.97%26%23xA%3B%26%23x9%3Bc-5.2%2C6.51-13.76%2C12.56-25.83%2C12.56c-0.06%2C0-0.13%2C0-0.2%2C0V133.32%20M206.41%2C197.55c0-34.86-11.26-58.29-40.45-68.6%26%23xA%3B%26%23x9%3Bc9.21-3.77%2C14.82-9.58%2C18.49-13.99c7.01-8.06%2C9.88-17.96%2C9.88-27.31c0-7.56-2.08-22.65-15.35-33.04%26%23xA%3B%26%23x9%3Bc-9.1-7.04-17.16-10.43-36.43-10.43h-9.75c-0.3-0.01-0.6-0.01-0.96-0.01H91.65v189.79h114.76V197.55z%22%3E%3C%2Fpath%3E%20%3C%2Fsvg%3E: that file is painted by the page around it, and in
-  // an <img> it would come out a black disc.
-  const HSE_MARK = '<svg viewBox="0 0 283.47 283.47" aria-hidden="true" focusable="false">'
-    + '<circle fill="var(--hse-blue)" cx="141.73" cy="141.74" r="141.73"/>'
-    + '<path fill="var(--card)" d="M135.6,133.32c32.26,0,44.81,21.45,44.81,60.69v29.51h-20.69v-63.35h-23.9v63.42h-18.28V53.65h18.78c7.03,0,17.71,1.58,25.25,10.95c3.93,4.73,6.34,11.04,7.19,17.38h-32.94v9.35h33.23c-0.27,6.04-1.49,12.8-7.42,19.97c-5.2,6.51-13.76,12.56-25.83,12.56c-0.06,0-0.13,0-0.2,0V133.32 M206.41,197.55c0-34.86-11.26-58.29-40.45-68.6c9.21-3.77,14.82-9.58,18.49-13.99c7.01-8.06,9.88-17.96,9.88-27.31c0-7.56-2.08-22.65-15.35-33.04c-9.1-7.04-17.16-10.43-36.43-10.43h-9.75c-0.3-0.01-0.6-0.01-0.96-0.01H91.65v189.79h114.76V197.55z"/>'
-    + '</svg>';
+  // The logo the section has just opened, standing still with «не только» in
+  // its ring: that is what the card falls back to when nothing is picked.
+  const restLogo = document.createElement('span');
+  restLogo.className = 'prof-rest-logo';
+  mountLogo(restLogo).then((it) => it.place(1));
 
   // Before the reader has pointed at anything, the card speaks of the wall as
-  // a whole — under that mark.
+  // a whole — under that logo.
   const REST = {
     area: `${AREAS.length} ${plural(AREAS.length, 'область', 'области', 'областей')} науки`,
     name: `${PROFESSIONS.length} ${plural(PROFESSIONS.length, 'профессия', 'профессии', 'профессий')}`,
@@ -7134,9 +7507,8 @@ function init(root) {
 
   function show(p) {
     shown = p;
-    artEl.innerHTML = p
-      ? `<img src="${PROFS[p.icon] || ''}" alt="" aria-hidden="true">`
-      : HSE_MARK;
+    if (p) artEl.innerHTML = `<img src="${PROFS[p.icon] || ''}" alt="" aria-hidden="true">`;
+    else artEl.replaceChildren(restLogo);
     areaEl.textContent = p ? p.area : REST.area;
     nameEl.textContent = p ? p.name : REST.name;
 
@@ -7146,6 +7518,10 @@ function init(root) {
     // specializations beside it says nothing at all, and the card must not
     // shrink around that silence.
     kindsEl.hidden = !p;
+    // Hidden rather than dropped: the caption keeps its place over the
+    // invitation and over a profession that has nothing beside it, so the card
+    // stays one height.
+    kindsTitleEl.style.visibility = kinds.length ? '' : 'hidden';
     // The invitation stands only while nothing is picked.
     noteEl.hidden = !!p;
     noteEl.textContent = REST.note;
@@ -7215,6 +7591,16 @@ function init(root) {
   window.addEventListener('resize', measure);
   stacked.addEventListener('change', measure);
 
+  // The box the wall stands in is not the same size all the way through: while
+  // the card holds, the heading is a logo and takes most of the screen. So the
+  // wall is laid out again whenever its box changes, not only on a resize.
+  let pending = false;
+  new ResizeObserver(() => {
+    if (pending) return;
+    pending = true;
+    requestAnimationFrame(() => { pending = false; fit(); });
+  }).observe(grid);
+
   // ---------- The wall ----------
   let current = null;
 
@@ -7272,7 +7658,6 @@ const MOD_each = (() => {
 // without a word of explanation. Then they are added up into one number, and
 // that number is taken apart down to one. Nothing here is drawn — the whole
 // scene is the numbers themselves, set in the same face as the rest of the page.
-
 
 
 
@@ -7488,11 +7873,13 @@ function init(root) {
         transform: translateY(-12px);
       }
 
+      /* The answer is said in plain text, all but black: the blue is left to
+         the figure above it, which is the only thing on the page wearing it. */
       .each-you {
         font-size: 1.75rem;
         font-weight: 700;
         letter-spacing: -0.02em;
-        color: var(--hse-blue);
+        color: var(--text);
       }
 
       .each-why {
@@ -7997,7 +8384,11 @@ const page = document.getElementById('page');
   });
 
   const progress = mountProgress();
-  mountStepper(plan, { onProgress: progress.set });
+  mountStepper(plan, {
+    onProgress: progress.set,
+    // One last beat after the story: the page lifts to show the credits.
+    finale: document.querySelector('.page-footer')
+  });
 </script>
 </body>
 </html>

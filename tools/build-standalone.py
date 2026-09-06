@@ -9,6 +9,7 @@
 """
 
 import base64
+import os
 import re
 import pathlib
 import urllib.parse
@@ -61,8 +62,44 @@ def data_uri(path: pathlib.Path) -> str:
 
 def strip_module(src: str) -> str:
     """Убирает import/export — файл станет частью общего скрипта."""
-    src = re.sub(r"^import[^;]*;\s*$", "", src, flags=re.M)
+    src = re.sub(r"^\s*import[^;]*;\s*$", "", src, flags=re.M)
     return re.sub(r"^export\s+", "", src, flags=re.M)
+
+
+IMPORT_RE = re.compile(r"^\s*import\s[^;]*?from\s+'([^']+)'", re.M)
+EXPORT_RE = re.compile(r"^export\s+(?:async\s+)?(?:const|let|var|function|class)\s+"
+                       r"([A-Za-z_$][\w$]*)", re.M)
+
+
+def imports_of(rel: str) -> list:
+    """Что файл импортирует — путями от корня проекта."""
+    src = (ROOT / rel).read_text(encoding="utf-8")
+    here = pathlib.PurePosixPath(rel).parent
+    return [str(pathlib.PurePosixPath(os.path.normpath(here / m)))
+            for m in IMPORT_RE.findall(src)]
+
+
+def collect_libs(entries: list) -> list:
+    """Библиотеки и данные в порядке «сначала зависимости».
+
+    Список не пишется руками: новый lib/ или data/ попадает в выгрузку сам,
+    как только его кто-нибудь импортирует. Иначе он тихо теряется, и рассказ
+    останавливается посреди страницы на «X is not defined».
+    """
+    order, seen = [], set()
+
+    def walk(rel):
+        if rel in seen or rel.startswith("viz/"):
+            return                      # визуализации собираются отдельно
+        seen.add(rel)
+        for dep in imports_of(rel):
+            walk(dep)
+        order.append(rel)
+
+    for entry in entries:
+        for dep in imports_of(entry):
+            walk(dep)
+    return order
 
 
 def inline_assets(text: str) -> str:
@@ -86,11 +123,28 @@ css = "\n".join([
     inline_assets((ROOT / "styles/layout.css").read_text(encoding="utf-8")),
 ])
 
+# ---------- состав страницы ----------
+index_src = (ROOT / "index.html").read_text(encoding="utf-8")
+NAMES = [n.strip() for n in
+         re.search(r"const MODULES = \[([^\]]+)\]", index_src).group(1).split(",")
+         if n.strip()]
+
 # ---------- библиотеки и данные ----------
-LIBS = ["lib/color.js", "data/hse.js", "data/countries.js", "data/history.js",
-        "data/professions.js", "lib/format.js", "lib/ui.js", "lib/hse-mark.js",
-        "lib/page.js", "lib/stepper.js"]
-libs = "\n".join(strip_module((ROOT / f).read_text(encoding="utf-8")) for f in LIBS)
+LIBS = collect_libs(["index.html"] + [f"viz/{n}.js" for n in NAMES])
+print("  библиотеки:", ", ".join(LIBS))
+
+# Каждая библиотека заворачивается в свою функцию и отдаёт наружу только то,
+# что экспортировала. Иначе служебные имена вроде clamp сталкиваются, когда
+# такое есть в двух файлах, и скрипт не выполняется целиком.
+parts = []
+for f in LIBS:
+    src = (ROOT / f).read_text(encoding="utf-8")
+    out = ", ".join(EXPORT_RE.findall(src))
+    body = strip_module(src)
+    if not out:
+        raise SystemExit(f"сборка испорчена: {f} ничего не экспортирует")
+    parts.append(f"const {{ {out} }} = (() => {{\n{body}\nreturn {{ {out} }};\n}})();")
+libs = "\n\n".join(parts)
 # знак Вышки читается через fetch по адресу файла — подставляем его целиком
 libs = libs.replace("new URL('../assets/hse-znak.svg', import.meta.url)",
                     f"'{data_uri(ROOT / 'assets/hse-znak.svg')}'")
@@ -107,11 +161,6 @@ for folder, (name, _, _) in BY_NAME.items():
 tables = "\n".join(tables)
 
 # ---------- визуализации ----------
-index_src = (ROOT / "index.html").read_text(encoding="utf-8")
-NAMES = [n.strip() for n in
-         re.search(r"const MODULES = \[([^\]]+)\]", index_src).group(1).split(",")
-         if n.strip()]
-
 mods = []
 for name in NAMES:
     src = strip_module((ROOT / f"viz/{name}.js").read_text(encoding="utf-8"))
