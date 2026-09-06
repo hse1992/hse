@@ -82,24 +82,24 @@ const LEAD_CARD = `
 
 export const meta = {
   id: 'study',
-  // Hands the reader over from the buildings: what goes on inside them, then
-  // all of it at once as a square apiece — and that gives way to how long it
-  // would take to sit through them one after another, and to the year such a
-  // student would have had to start in. The last line runs into the heading.
+  // Hands the reader over from the buildings: what they are all for, said at
+  // once and shown at once — a square for every programme. That gives way to
+  // how long it would take to sit through them one after another, and to the
+  // year such a student would have had to start in. The last line runs into
+  // the heading.
   lead: {
     // The screen grows by a whole block at a time, so it holds the middle of
     // the screen rather than the top edge of the title card to come.
     fit: 'center',
-    value: 'Во всех этих зданиях студенты обучаются не только экономике',
+    value: `Все эти здания нужны для того, чтобы студенты могли обучаться ${mark(`по ${nf(PROGRAMS_TOTAL)} образовательным программам`)}`,
     text: '<span class="study-lead-swap">'
-      + '<span class="study-lead-beat intro-stage" data-stage="1">'
-      +   `<span class="study-lead-gone">Вышка обучает по ${mark(`${nf(PROGRAMS_TOTAL)} образовательным программам`)}`
-      +   `<span class="study-lead-dots">${LEAD_DOTS}</span></span></span>`
-      + '<span class="study-lead-beat intro-stage" data-stage="2"><span class="study-lead-come">'
+      + '<span class="study-lead-beat">'
+      +   `<span class="study-lead-gone"><span class="study-lead-dots">${LEAD_DOTS}</span></span></span>`
+      + '<span class="study-lead-beat intro-stage" data-stage="1"><span class="study-lead-come">'
       +   `Чтобы обучиться на каждой из них, потребуется ${mark(`${nf(YEARS_TOTAL)} ${plural(YEARS_TOTAL, 'год', 'года', 'лет')}`)}`
       +   `<span class="study-lead-card">${LEAD_CARD}</span>`
       + '</span></span></span>'
-      + '<span class="study-lead-outro intro-stage" data-stage="3">В общем нужно…</span>'
+      + '<span class="study-lead-outro intro-stage" data-stage="2">В общем нужно…</span>'
   },
   title: 'Учиться, учиться и еще раз учиться',
   // The heading arrives on its own — the reader has just been told all this on
@@ -305,10 +305,10 @@ export function init(root) {
 
       /* ---------- The lead-in screen ---------- */
 
-      /* Both beats stand in one box, one over the other: the first leaves as
-         the second arrives, so the second takes its place instead of being
-         pushed down by it. Each of them grows into place by its own height,
-         so each needs a box of its own. */
+      /* The squares and the beat that follows them stand in one box, one over
+         the other: the squares leave as the next arrives, so it takes their
+         place instead of being pushed down by them. The one that grows into
+         place needs a box of its own. */
       .study-lead-swap {
         display: grid;
         margin-top: 0.45em;
@@ -320,27 +320,27 @@ export function init(root) {
       }
 
       /* The two share the box, so they must not be seen through each other:
-         the first is gone by the time the second has come two fifths of the
-         way, and the second only starts showing at half. The page shell owns
-         the opacity of a part while it grows — hence both from the inside, by
-         how far the second one has come. */
+         the squares are gone by the time the next beat has come two fifths of
+         the way, and it only starts showing at half. The page shell owns the
+         opacity of a part while it grows — hence both from the inside, by how
+         far that beat has come. */
       .study-lead-gone {
         display: block;
-        opacity: calc(1 - var(--lead-stage-2, 0) * 2.5);
+        opacity: calc(1 - var(--lead-stage-1, 0) * 2.5);
       }
 
       .study-lead-come {
         display: block;
-        opacity: calc(var(--lead-stage-2, 1) * 2 - 1);
+        opacity: calc(var(--lead-stage-1, 1) * 2 - 1);
       }
 
       /* Every programme as a square, in one block under the line that counts
          them. Spans, not divs — the shell puts the screen inside a <p>. */
       .study-lead-dots {
         display: grid;
-        grid-template-columns: repeat(30, 1fr);
-        gap: 4px;
-        max-width: 540px;
+        grid-template-columns: repeat(32, 1fr);
+        gap: 5px;
+        max-width: 880px;
         margin-top: 0.6em;
       }
 
@@ -385,6 +385,14 @@ export function init(root) {
         color: var(--text);
       }
 
+      /* The line of the screen carries a patch that runs over more than one
+         line, and the headline leading of the shell would have the patches
+         overlap. Scoped to this section — it is this screen that needs the
+         air, not every lead-in on the page. */
+      #study .viz-lead-value {
+        line-height: 1.28;
+      }
+
       /* The patch on a figure of the screen. Colour comes inline with the
          markup; what is left here is the shape of it. */
       .study-lead-mark {
@@ -406,7 +414,9 @@ export function init(root) {
         .study-note { font-size: 0.875rem; }
 
         /* Fewer squares to a row: at this width 28 of them would be specks. */
-        .study-lead-dots { grid-template-columns: repeat(22, 1fr); gap: 3px; }
+        /* The line above them is long, and on a phone the two together have
+           only one screen: the squares keep the size they can. */
+        .study-lead-dots { grid-template-columns: repeat(23, 1fr); gap: 3px; }
         .study-lead-dot { border-radius: 2px; }
         .study-lead-card { gap: 14px; margin-top: 0.6em; padding: 16px 18px; }
         .study-lead-card .study-art { width: 80px; height: 80px; }
