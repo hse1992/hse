@@ -32,13 +32,13 @@ export const meta = {
   // it is «Мы —» and the logo under it, and the logo opens up on a beat of its
   // own to let «не только» into its ring. Once the card settles, the heading of
   // the section takes its place — the same one the block is read under.
-  title: '<span class="prof-open">'
+  title: '<span class="prof-open" aria-hidden="true">'
     +   '<span class="prof-open-row">'
     +     '<span class="prof-open-we">Мы —</span>'
     +     '<span class="prof-open-logo" data-el="logo"></span>'
     +   '</span>'
     + '</span>'
-    + '<span class="prof-settled">Высшая школа '
+    + '<span class="prof-settled">Мы — Высшая школа '
     +   '<span class="prof-accent" style="background: var(--hse-blue); color: var(--card)">не только</span>'
     + ' экономики</span>',
   // The last beat of the card: what the wall under it is about.
@@ -151,15 +151,20 @@ export function init(root) {
         flex: none;
         display: flex;
         align-items: stretch;
-        gap: 32px;
+        /* Measured against the height of the screen, like the wall under it:
+           on a short one the card gives up its room first. */
+        gap: clamp(18px, 3.4vh, 32px);
         min-height: 5.8rem;
-        padding: 16px 20px;
+        padding: clamp(10px, 1.8vh, 16px) 20px;
         border-radius: var(--r-card);
         background: var(--card);
         box-shadow: var(--card-shadow);
       }
 
       /* Who it is: the icon over the name, down the whole height of the card. */
+      /* Kept at one width: a narrower column would only make the longest name
+         take another line, and the card taller — which is what the wall under
+         it would have to pay for. */
       .prof-detail-head {
         flex: none;
         width: 230px;
@@ -173,8 +178,8 @@ export function init(root) {
 
       .prof-detail-art {
         flex: none;
-        width: 72px;
-        height: 72px;
+        width: clamp(44px, 8vh, 72px);
+        height: clamp(44px, 8vh, 72px);
       }
 
       .prof-detail-art img,
@@ -200,7 +205,7 @@ export function init(root) {
       }
 
       .prof-detail-name {
-        font-size: 1.125rem;
+        font-size: clamp(0.9375rem, 2.2vh, 1.125rem);
         font-weight: 700;
         line-height: 1.2;
         letter-spacing: -0.01em;
@@ -233,7 +238,7 @@ export function init(root) {
         padding: 0 0 0 1.1em;
         columns: 15em;
         column-gap: 28px;
-        font-size: 0.875rem;
+        font-size: clamp(0.75rem, 1.7vh, 0.875rem);
         line-height: 1.5;
         color: var(--text-secondary);
       }
@@ -251,7 +256,7 @@ export function init(root) {
          the card is simply that profession, and nothing else. */
       .prof-note {
         margin: 0;
-        font-size: 0.875rem;
+        font-size: clamp(0.75rem, 1.7vh, 0.875rem);
         line-height: 1.5;
         color: var(--text-secondary);
       }
@@ -260,10 +265,13 @@ export function init(root) {
          push the card taller than the section. All 44 fit in it at once — the
          columns are what makes them fit, so nothing here ever scrolls.
 
-         Areas of science are not named here: a group is simply kept whole
-         inside one column, with air above and below it, and the eye reads the
-         clusters without being told. */
+         Everything in the wall is measured against the height of the screen:
+         it is the height that the wall has to fit into, so on a short one the
+         tiles are smaller rather than the columns more numerous. */
       .prof-grid {
+        --prof-icon: calc(clamp(20px, 3vh, 30px) * var(--prof-fit, 1));
+        --prof-name: calc(clamp(0.6875rem, 1.55vh, 0.8125rem) * var(--prof-fit, 1));
+        --prof-area: calc(clamp(0.625rem, 1.35vh, 0.75rem) * var(--prof-fit, 1));
         position: absolute;
         inset: 0;
         overflow: hidden;
@@ -286,13 +294,13 @@ export function init(root) {
         margin-bottom: 0;
       }
 
-      /* The name of the area is for a phone, where the wall is one long column
-         and the groups have nothing but a caption to tell them apart. */
+      /* Every group says which area of science it is: the fill tells where a
+         group ends, the caption tells what it was. */
       .prof-group-title {
-        display: none;
-        font-size: 0.7188rem;
+        margin: 1px 0 3px 8px;
+        font-size: var(--prof-area);
         font-weight: 600;
-        line-height: 1.25;
+        line-height: 1.2;
         letter-spacing: 0.02em;
         color: var(--text-caption);
       }
@@ -328,8 +336,8 @@ export function init(root) {
       .prof-item-art {
         flex: none;
         display: block;
-        width: 28px;
-        height: 28px;
+        width: var(--prof-icon);
+        height: var(--prof-icon);
       }
 
       /* Long names hold the tile together rather than pushing it apart. */
@@ -340,7 +348,7 @@ export function init(root) {
       /* The name is never cut: five lines are enough for the longest of them
          even in the narrowest column the wall ever comes to. */
       .prof-item-name {
-        font-size: 0.75rem;
+        font-size: var(--prof-name);
         font-weight: 600;
         line-height: 1.25;
         /* A column can come out narrower than a word like
@@ -392,8 +400,8 @@ export function init(root) {
         }
 
         .prof-group-title {
-          display: block;
           margin: 2px 0 6px 2px;
+          font-size: 0.7188rem;
         }
 
         .prof-group-items { gap: 4px; }
@@ -580,22 +588,48 @@ export function init(root) {
   }
 
   // All 44 have to stand in the box at once — the section is one screen tall
-  // and nothing here scrolls. Groups are not broken across columns, so how
-  // many columns it takes is not a matter of width alone: the wall is laid out
-  // again with one more column until nothing hangs out of the box.
+  // and nothing here scrolls. Groups are not broken across columns, so what it
+  // takes to fit them is not a matter of width alone.
+  //
+  // There are two ways of winning room, and they pull against each other: one
+  // more column, and smaller tiles. Columns come at the price of width, and a
+  // narrow column breaks a name like «Инженер электронных и телекоммуника-
+  // ционных систем» into a stack of syllables — so the wall first tries to
+  // shrink a little, and only takes another column when shrinking is not
+  // enough.
   const MAX_COLUMNS = 8;
+  const SHRINK = [1, 0.94, 0.88, 0.82];
+  const wrap = grid.parentElement;
+  const COLUMN = 250;                    // the width a column would like to be
   const stacked = window.matchMedia('(max-width: 860px)');
 
   function fit() {
     if (stacked.matches) {
       grid.style.columnCount = '';       // one long column, scrolling with the page
+      grid.style.removeProperty('--prof-fit');
       return;
     }
-    const from = Math.max(3, Math.floor(grid.clientWidth / 230));
+    const from = Math.max(3, Math.floor(grid.clientWidth / COLUMN));
+    grid.style.position = '';
+    wrap.style.overflowY = '';
     for (let n = from; n <= MAX_COLUMNS; n++) {
       grid.style.columnCount = n;
-      if (grid.scrollWidth <= grid.clientWidth + 1) return;
+      for (const k of SHRINK) {
+        grid.style.setProperty('--prof-fit', k);
+        if (grid.scrollWidth <= grid.clientWidth + 1) return;
+      }
     }
+
+    // A window too short for all of it even shrunk — a laptop turned sideways,
+    // a browser with three toolbars. Better a wall the reader can scroll than
+    // one that quietly keeps nine professions off the screen: the wall leaves
+    // its fixed box, becomes as tall as it needs and the box scrolls. One
+    // column more than the width would like, at full size: it is scrolled
+    // anyway, so the tiles may as well be readable and the scroll short.
+    grid.style.columnCount = Math.min(MAX_COLUMNS, from + 1);
+    grid.style.setProperty('--prof-fit', 1);
+    grid.style.position = 'static';
+    wrap.style.overflowY = 'auto';
   }
 
   function measure() {
@@ -605,16 +639,24 @@ export function init(root) {
 
   window.addEventListener('resize', measure);
   stacked.addEventListener('change', measure);
+  // The first measurement is taken before the page has finished settling —
+  // fonts land, the logo in the card arrives — and the wall is laid out
+  // against what it sees. So it is taken again once all that is over.
+  requestAnimationFrame(measure);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(measure);
 
   // The box the wall stands in is not the same size all the way through: while
   // the card holds, the heading is a logo and takes most of the screen. So the
   // wall is laid out again whenever its box changes, not only on a resize.
+  //
+  // The box is watched, not the wall itself: laying the wall out changes its
+  // size, and watching it would have it lay itself out for ever.
   let pending = false;
   new ResizeObserver(() => {
     if (pending) return;
     pending = true;
     requestAnimationFrame(() => { pending = false; fit(); });
-  }).observe(grid);
+  }).observe(wrap);
 
   // ---------- The wall ----------
   let current = null;
