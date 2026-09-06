@@ -4,6 +4,7 @@
 import { CITIES } from '../data/hse.js';
 import { HISTORY } from '../data/history.js';
 import { nf, plural } from '../lib/format.js';
+import { tint } from '../lib/color.js';
 
 // Facts about the curriculum itself — they live here, not in data/hse.js,
 // which only knows about the people. A bachelor's or a specialist's degree
@@ -19,8 +20,8 @@ const PROGRAMS = {
 // city lends to this level — the main one for the longer degree, the lighter
 // one for the shorter, same as on the stadium.
 const LEVELS = [
-  { key: 'bachelor', label: 'Бакалавриат и специалитет', short: 'бакалавриат', years: 4, shade: (c) => c.color },
-  { key: 'master', label: 'Магистратура', short: 'магистратура', years: 2, shade: (c) => c.colorLight }
+  { key: 'bachelor', label: 'Бакалавриат и специалитет', short: 'бакалавриат', of: 'бакалавриата и специалитета', years: 4, shade: (c) => c.color },
+  { key: 'master', label: 'Магистратура', short: 'магистратура', of: 'магистратуры', years: 2, shade: (c) => c.colorLight }
 ];
 
 // Специалитет lives in Moscow only, so only its card spells the level out
@@ -61,9 +62,28 @@ for (let y = Math.ceil(START / TICK) * TICK; y < NOW; y += TICK) {
 const mark = (text) =>
   `<span class="study-lead-mark" style="background: var(--hse-blue); color: var(--card)">${text}</span>`;
 
-// One square per programme — all alike: the screen is about how many of them
-// there are, and the campuses have their own colours later on.
-const LEAD_DOTS = '<span class="study-lead-dot"></span>'.repeat(PROGRAMS_TOTAL);
+// The corporate blue and the same blue lighter — the shell draws the screen
+// before the styles of the module arrive, so both come inline with the markup.
+const DOT = '#102D69';
+const DOT_LIGHT = tint(DOT, 0.55);
+
+// One square per programme, and they arrive a level at a time: first the
+// longer degree, then the shorter one over it. The campuses have their own
+// colours later on — here it is the levels that are told apart, the way they
+// are told apart everywhere else on the page: one shade and a lighter one.
+// Each wave says what it is: the first over its squares, the second under
+// them, so the caption is on the outside of the field and the two blocks of
+// squares meet in the middle as one.
+const dotsOf = (level, stage, above) => {
+  const n = CITIES.reduce((sum, c) => sum + countOf(c, level), 0);
+  const dot = `<span class="study-lead-dot" style="background:${level.key === 'bachelor' ? DOT : DOT_LIGHT}"></span>`;
+  const legend = `<span class="study-lead-legend">${nf(n)} ${plural(n, 'программа', 'программы', 'программ')} ${level.of}</span>`;
+  return `<span class="study-lead-wave intro-stage" data-stage="${stage}">`
+    + (above ? legend : '')
+    + `<span class="study-lead-dots">${dot.repeat(n)}</span>`
+    + (above ? '' : legend)
+    + '</span>';
+};
 
 // What was happening in the world when a student taking every programme one
 // after another would have had to start — the far end of the scale.
@@ -93,13 +113,14 @@ export const meta = {
     fit: 'center',
     value: `Все эти здания нужны для того, чтобы студенты могли обучаться ${mark(`по ${nf(PROGRAMS_TOTAL)} образовательным программам`)}`,
     text: '<span class="study-lead-swap">'
-      + '<span class="study-lead-beat">'
-      +   `<span class="study-lead-gone"><span class="study-lead-dots">${LEAD_DOTS}</span></span></span>`
-      + '<span class="study-lead-beat intro-stage" data-stage="1"><span class="study-lead-come">'
+      + '<span class="study-lead-beat"><span class="study-lead-gone">'
+      +   `${dotsOf(LEVELS[0], 1, true)}${dotsOf(LEVELS[1], 2, false)}`
+      + '</span></span>'
+      + '<span class="study-lead-beat intro-stage" data-stage="3"><span class="study-lead-come">'
       +   `Чтобы обучиться на каждой из них, потребуется ${mark(`${nf(YEARS_TOTAL)} ${plural(YEARS_TOTAL, 'год', 'года', 'лет')}`)}`
       +   `<span class="study-lead-card">${LEAD_CARD}</span>`
       + '</span></span></span>'
-      + '<span class="study-lead-outro intro-stage" data-stage="2">В общем нужно…</span>'
+      + '<span class="study-lead-outro intro-stage" data-stage="4">В общем нужно…</span>'
   },
   title: 'Учиться, учиться и еще раз учиться',
   // The heading arrives on its own — the reader has just been told all this on
@@ -320,34 +341,56 @@ export function init(root) {
       }
 
       /* The two share the box, so they must not be seen through each other:
-         the squares are gone by the time the next beat has come two fifths of
-         the way, and it only starts showing at half. The page shell owns the
-         opacity of a part while it grows — hence both from the inside, by how
-         far that beat has come. */
+         the squares are gone by the time the beat after them has come two
+         fifths of the way, and it only starts showing at half. The page shell
+         owns the opacity of a part while it grows — hence both from the
+         inside, by how far that beat has come. */
       .study-lead-gone {
         display: block;
-        opacity: calc(1 - var(--lead-stage-1, 0) * 2.5);
+        opacity: calc(1 - var(--lead-stage-3, 0) * 2.5);
       }
 
       .study-lead-come {
         display: block;
-        opacity: calc(var(--lead-stage-1, 1) * 2 - 1);
+        opacity: calc(var(--lead-stage-3, 1) * 2 - 1);
       }
 
-      /* Every programme as a square, in one block under the line that counts
-         them. Spans, not divs — the shell puts the screen inside a <p>. */
+      /* Every programme as a square, a level to a wave. The waves meet with
+         exactly the gap the squares have between them, so the two of them read
+         as one field with a lighter half. Spans, not divs — the shell puts the
+         screen inside a <p>. */
+      .study-lead-wave {
+        display: block;
+      }
+
+      .study-lead-wave:first-child {
+        margin-top: 0.6em;
+      }
+
+      .study-lead-wave + .study-lead-wave {
+        margin-top: 5px;
+      }
+
+      .study-lead-legend {
+        display: block;
+        font-size: calc(0.8125rem * var(--intro-k, 1.55));
+        line-height: 1.3;
+        color: var(--text-secondary);
+      }
+
+      .study-lead-legend:first-child { margin-bottom: 0.5em; }
+      .study-lead-legend:last-child { margin-top: 0.6em; }
+
       .study-lead-dots {
         display: grid;
         grid-template-columns: repeat(32, 1fr);
         gap: 5px;
         max-width: 880px;
-        margin-top: 0.6em;
       }
 
       .study-lead-dot {
         aspect-ratio: 1;
         border-radius: 3px;
-        background: var(--hse-blue);
       }
 
       /* The year the second beat stands on, in the middle of the screen. Set
