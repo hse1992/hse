@@ -3,6 +3,7 @@
 
 import { PROFESSIONS } from '../data/professions.js';
 import { nf, plural } from '../lib/format.js';
+import { mountLogo } from '../lib/logo.js';
 
 // Every specialization the table lists under a profession. The lead-in of the
 // section speaks of them, so the figure is counted rather than written down.
@@ -27,15 +28,25 @@ const mark = (text) =>
 
 export const meta = {
   id: 'professions',
-  // Two words of the heading carry the whole thought, so they are picked out
-  // the way the figures are — on a patch of the corporate blue. Painted inline
-  // again: the heading is drawn before the styles of the module arrive.
-  title: 'Высшая школа <span class="prof-accent" style="background: var(--hse-blue); color: var(--card)">не только</span> экономики',
-  // Comes a screen after the heading, while the card still holds the middle:
-  // first what the section says, then the wall that shows it.
-  subtitle: `<span class="prof-lead intro-stage" data-stage="1">В Вышке можно стать кем угодно. ${mark(`${nf(KINDS_TOTAL)} ${plural(KINDS_TOTAL, 'специализация', 'специализации', 'специализаций')}`)}, где раскроется любой талант. Укрупненно из них можно выделить ${mark(`${PROFESSIONS.length} профессии`)}</span>`,
+  // The card and the section have different headings. While the card holds,
+  // it is «Мы —» and the logo under it, and the logo opens up on a beat of its
+  // own to let «не только» into its ring. Once the card settles, the heading of
+  // the section takes its place — the same one the block is read under.
+  title: '<span class="prof-open">'
+    +   '<span class="prof-open-row">'
+    +     '<span class="prof-open-we">Мы —</span>'
+    +     '<span class="prof-open-logo" data-el="logo"></span>'
+    +   '</span>'
+    + '</span>'
+    + '<span class="prof-settled">Высшая школа '
+    +   '<span class="prof-accent" style="background: var(--hse-blue); color: var(--card)">не только</span>'
+    + ' экономики</span>',
+  // The last beat of the card: what the wall under it is about.
+  subtitle: `<span class="prof-lead intro-stage" data-stage="2">В Вышке можно стать кем угодно. ${mark(`${nf(KINDS_TOTAL)} ${plural(KINDS_TOTAL, 'специализация', 'специализации', 'специализаций')}`)}, где раскроется любой талант. Укрупненно из них можно выделить ${mark(`${PROFESSIONS.length} профессии`)}</span>`,
   intro: true,
-  introStages: 2
+  // Three beats before the block: the logo as it is, the logo opening up, and
+  // the line under it.
+  introStages: 3
 };
 
 export function init(root) {
@@ -55,6 +66,75 @@ export function init(root) {
         border-radius: 0.2em;
         -webkit-box-decoration-break: clone;
         box-decoration-break: clone;
+      }
+
+      /* The two headings of the card hand over to each other: each holds as
+         much height as the other has given up, so the card is one thing all
+         the way down and the shell can centre it at both ends. Both heights
+         are measured — see measureHeads() below. */
+      .prof-open,
+      .prof-settled {
+        display: block;
+        overflow: hidden;
+      }
+
+      .prof-open {
+        /* Everything on this card is measured against the logo: it is the one
+           thing on the screen, and the words beside it are its size. */
+        --prof-logo: min(26vh, 25vw, 240px);
+        height: calc(var(--prof-open-h, 0px) * (1 - var(--intro-body, 1)));
+        opacity: calc(1 - var(--intro-body, 1));
+      }
+
+      /* «Мы —» and the logo stand side by side in the middle of the screen.
+         The heading is as wide as the section, so centring them here centres
+         them on the screen. */
+      .prof-open-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: center;
+        gap: calc(var(--prof-logo) * 0.1);
+      }
+
+      .prof-settled {
+        height: calc(var(--prof-settled-h, 1.2em) * var(--intro-body, 1));
+        opacity: var(--intro-body, 1);
+      }
+
+      .prof-open-we {
+        font-size: calc(var(--prof-logo) * 0.4);
+        line-height: 1;
+        letter-spacing: -0.03em;
+      }
+
+      /* The logo is laid out at the size it settles at and blown up with the
+         card, like everything else in the heading. */
+      .prof-open-logo {
+        display: block;
+        width: var(--prof-logo);
+      }
+
+      .prof-open-logo,
+      .prof-rest-logo {
+        position: relative;
+        aspect-ratio: 1;
+      }
+
+      .prof-open-logo svg,
+      .prof-open-logo img,
+      .prof-rest-logo svg,
+      .prof-rest-logo img {
+        position: absolute;
+        inset: 0;
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+
+      .prof-rest-logo {
+        display: block;
+        width: 100%;
       }
 
       /* Nothing to switch here, so the section has no left column: the card
@@ -130,10 +210,25 @@ export function init(root) {
          allows. How tall the longest of the 44 lists comes out depends on that
          width, so the room kept for it is measured rather than guessed — see
          reserve() below. */
-      .prof-kinds {
+      /* The list and the caption over it stand together beside the head. */
+      .prof-kinds-box {
         flex: 1;
         min-width: 0;
         align-self: center;
+      }
+
+      /* Kept in place even when there is nothing under it — the card holds one
+         height whatever it shows. */
+      .prof-kinds-title {
+        margin-bottom: 6px;
+        font-size: 0.7188rem;
+        font-weight: 600;
+        line-height: 1.25;
+        letter-spacing: 0.02em;
+        color: var(--text-caption);
+      }
+
+      .prof-kinds {
         margin: 0;
         padding: 0 0 0 1.1em;
         columns: 15em;
@@ -155,9 +250,6 @@ export function init(root) {
          A profession with no specializations beside it says nothing at all —
          the card is simply that profession, and nothing else. */
       .prof-note {
-        flex: 1;
-        min-width: 0;
-        align-self: center;
         margin: 0;
         font-size: 0.875rem;
         line-height: 1.5;
@@ -245,8 +337,8 @@ export function init(root) {
         min-width: 0;
       }
 
-      /* The name is never cut: four lines are enough for the longest of them
-         even in a narrow column. */
+      /* The name is never cut: five lines are enough for the longest of them
+         even in the narrowest column the wall ever comes to. */
       .prof-item-name {
         font-size: 0.75rem;
         font-weight: 600;
@@ -256,7 +348,7 @@ export function init(root) {
         hyphens: auto;
         overflow-wrap: break-word;
         display: -webkit-box;
-        -webkit-line-clamp: 4;
+        -webkit-line-clamp: 5;
         -webkit-box-orient: vertical;
         overflow: hidden;
       }
@@ -339,8 +431,11 @@ export function init(root) {
             <span class="prof-detail-name" data-el="name"></span>
           </span>
         </div>
-        <ul class="prof-kinds" data-el="kinds"></ul>
-        <p class="prof-note" data-el="note"></p>
+        <div class="prof-kinds-box">
+          <div class="prof-kinds-title" data-el="kindsTitle">Специализации</div>
+          <ul class="prof-kinds" data-el="kinds"></ul>
+          <p class="prof-note" data-el="note"></p>
+        </div>
       </div>
 
       <div class="canvas-card">
@@ -353,25 +448,70 @@ export function init(root) {
 
   const $ = (name) => root.querySelector(`[data-el="${name}"]`);
 
+  // ---------- The opening ----------
+  const section = root.closest('.viz-section');
+  const openEl = section.querySelector('.prof-open');
+  const settledEl = section.querySelector('.prof-settled');
+
+  // Each of the two headings holds the height the other has given up, and a
+  // height cannot be handed over in the abstract: both are measured here, and
+  // again whenever anything that could change them does.
+  function measureHeads() {
+    if (!openEl || !settledEl) return;
+    [openEl, settledEl].forEach((el) => { el.style.height = 'auto'; });
+    const open = openEl.offsetHeight;
+    const settled = settledEl.offsetHeight;
+    [openEl, settledEl].forEach((el) => { el.style.height = ''; });
+    section.style.setProperty('--prof-open-h', `${open}px`);
+    section.style.setProperty('--prof-settled-h', `${settled}px`);
+  }
+
+  measureHeads();
+  window.addEventListener('resize', measureHeads);
+
+  // The logo opens its ring on the first beat of the card. The shell tells the
+  // beat through --stage-1 and has no other way of reaching a module, so the
+  // drawing follows that variable — one change of it is one frame of the beat.
+  const logoHost = section.querySelector('.prof-open-logo');
+  let logo = null;
+  let placed = -1;
+
+  const follow = () => {
+    if (!logo) return;
+    const p = parseFloat(section.style.getPropertyValue('--stage-1')) || 0;
+    if (p === placed) return;
+    placed = p;
+    logo.place(p);
+  };
+
+  if (logoHost) {
+    mountLogo(logoHost).then((it) => {
+      logo = it;
+      follow();
+      measureHeads();
+      new MutationObserver(follow)
+        .observe(section, { attributes: true, attributeFilter: ['style'] });
+    });
+  }
+
   const headEl = $('head');
   const artEl = $('art');
   const areaEl = $('area');
   const nameEl = $('name');
   const kindsEl = $('kinds');
+  const kindsTitleEl = $('kindsTitle');
   const noteEl = $('note');
   const grid = $('grid');
 
   // ---------- The card ----------
-  // The mark of the university, drawn here rather than taken from
-  // assets/hse-znak.svg: that file is painted by the page around it, and in
-  // an <img> it would come out a black disc.
-  const HSE_MARK = '<svg viewBox="0 0 283.47 283.47" aria-hidden="true" focusable="false">'
-    + '<circle fill="var(--hse-blue)" cx="141.73" cy="141.74" r="141.73"/>'
-    + '<path fill="var(--card)" d="M135.6,133.32c32.26,0,44.81,21.45,44.81,60.69v29.51h-20.69v-63.35h-23.9v63.42h-18.28V53.65h18.78c7.03,0,17.71,1.58,25.25,10.95c3.93,4.73,6.34,11.04,7.19,17.38h-32.94v9.35h33.23c-0.27,6.04-1.49,12.8-7.42,19.97c-5.2,6.51-13.76,12.56-25.83,12.56c-0.06,0-0.13,0-0.2,0V133.32 M206.41,197.55c0-34.86-11.26-58.29-40.45-68.6c9.21-3.77,14.82-9.58,18.49-13.99c7.01-8.06,9.88-17.96,9.88-27.31c0-7.56-2.08-22.65-15.35-33.04c-9.1-7.04-17.16-10.43-36.43-10.43h-9.75c-0.3-0.01-0.6-0.01-0.96-0.01H91.65v189.79h114.76V197.55z"/>'
-    + '</svg>';
+  // The logo the section has just opened, standing still with «не только» in
+  // its ring: that is what the card falls back to when nothing is picked.
+  const restLogo = document.createElement('span');
+  restLogo.className = 'prof-rest-logo';
+  mountLogo(restLogo).then((it) => it.place(1));
 
   // Before the reader has pointed at anything, the card speaks of the wall as
-  // a whole — under that mark.
+  // a whole — under that logo.
   const REST = {
     area: `${AREAS.length} ${plural(AREAS.length, 'область', 'области', 'областей')} науки`,
     name: `${PROFESSIONS.length} ${plural(PROFESSIONS.length, 'профессия', 'профессии', 'профессий')}`,
@@ -382,9 +522,8 @@ export function init(root) {
 
   function show(p) {
     shown = p;
-    artEl.innerHTML = p
-      ? `<img src="assets/professions/${p.icon}.svg" alt="" aria-hidden="true">`
-      : HSE_MARK;
+    if (p) artEl.innerHTML = `<img src="assets/professions/${p.icon}.svg" alt="" aria-hidden="true">`;
+    else artEl.replaceChildren(restLogo);
     areaEl.textContent = p ? p.area : REST.area;
     nameEl.textContent = p ? p.name : REST.name;
 
@@ -394,6 +533,10 @@ export function init(root) {
     // specializations beside it says nothing at all, and the card must not
     // shrink around that silence.
     kindsEl.hidden = !p;
+    // Hidden rather than dropped: the caption keeps its place over the
+    // invitation and over a profession that has nothing beside it, so the card
+    // stays one height.
+    kindsTitleEl.style.visibility = kinds.length ? '' : 'hidden';
     // The invitation stands only while nothing is picked.
     noteEl.hidden = !!p;
     noteEl.textContent = REST.note;
@@ -462,6 +605,16 @@ export function init(root) {
 
   window.addEventListener('resize', measure);
   stacked.addEventListener('change', measure);
+
+  // The box the wall stands in is not the same size all the way through: while
+  // the card holds, the heading is a logo and takes most of the screen. So the
+  // wall is laid out again whenever its box changes, not only on a resize.
+  let pending = false;
+  new ResizeObserver(() => {
+    if (pending) return;
+    pending = true;
+    requestAnimationFrame(() => { pending = false; fit(); });
+  }).observe(grid);
 
   // ---------- The wall ----------
   let current = null;
