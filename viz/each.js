@@ -219,11 +219,13 @@ export function init(root) {
         transform: translateY(-12px);
       }
 
+      /* The answer is said in plain text, all but black: the blue is left to
+         the figure above it, which is the only thing on the page wearing it. */
       .each-you {
         font-size: 1.75rem;
         font-weight: 700;
         letter-spacing: -0.02em;
-        color: var(--hse-blue);
+        color: var(--text);
       }
 
       .each-why {
