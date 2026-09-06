@@ -4,7 +4,6 @@
 import { CITIES } from '../data/hse.js';
 import { HISTORY } from '../data/history.js';
 import { nf, plural } from '../lib/format.js';
-import { tint } from '../lib/color.js';
 
 // Facts about the curriculum itself — they live here, not in data/hse.js,
 // which only knows about the people. A bachelor's or a specialist's degree
@@ -62,15 +61,16 @@ for (let y = Math.ceil(START / TICK) * TICK; y < NOW; y += TICK) {
 const mark = (text) =>
   `<span class="study-lead-mark" style="background: var(--hse-blue); color: var(--card)">${text}</span>`;
 
-// The corporate blue and the same blue lighter — the shell draws the screen
-// before the styles of the module arrive, so both come inline with the markup.
-const DOT = '#102D69';
-const DOT_LIGHT = tint(DOT, 0.55);
+// Two colours of the brand book, one to a level: the corporate blue and the
+// violet. They come inline with the markup — the shell draws the screen before
+// the styles of the module arrive — but the tokens themselves are in the head
+// from the first frame, so the names hold.
+const DOT = 'var(--hse-blue)';
+const DOT_LIGHT = 'var(--brand-violet)';
 
 // One square per programme, and they arrive a level at a time: first the
-// longer degree, then the shorter one over it. The campuses have their own
-// colours later on — here it is the levels that are told apart, the way they
-// are told apart everywhere else on the page: one shade and a lighter one.
+// longer degree, then the shorter one under it. The campuses have their own
+// colours later on — here it is the levels that are told apart.
 // Each wave says what it is: the first over its squares, the second under
 // them, so the caption is on the outside of the field and the two blocks of
 // squares meet in the middle as one.
