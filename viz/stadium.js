@@ -16,7 +16,7 @@ export const meta = {
   // Hands the reader over from the trains: a number they have just met, and
   // the question it raises.
   lead: {
-    value: `Только первокурсников ${nf(ADMITTED_ROUND)}`,
+    value: `Только первокурсников ~${nf(ADMITTED_ROUND)} человек`,
     text: 'Похоже, чтобы собрать всех людей из Вышки, нужен целый стадион…'
   },
   // The scarf closes the line. Sized by width, like the station board in the
