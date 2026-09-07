@@ -42,8 +42,10 @@ export const meta = {
   introStages: 2,
   // Empty arena, five arrivals, then the stadium is handed over to the reader.
   // Every step changes something: a beat that only waits would be a «next»
-  // that does nothing.
-  steps: 7
+  // that does nothing. The empty arena comes with the block itself, so the
+  // beats start with the first arrival.
+  steps: 7,
+  opensOnStep: true
 };
 
 export function init(root) {

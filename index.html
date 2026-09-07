@@ -98,6 +98,7 @@
       section,
       opening,
       steps: mod.meta.steps || 0,
+      opensOnStep: !!mod.meta.opensOnStep,
       setStep: (i) => api && api.step && api.step(i),
       // A section is built on its way onto the screen, not before: whatever it
       // animates on start then plays in front of the reader.

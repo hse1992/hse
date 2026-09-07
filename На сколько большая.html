@@ -1677,13 +1677,17 @@ function glide(y, done) {
 // animate). Both the card and a scene step are a function of one number, so
 // putting either of them back where it was is exact, not an approximation.
 function beatsOf(entry) {
-  const { section, opening, steps, setStep, build } = entry;
+  const { section, opening, steps, setStep, build, opensOnStep } = entry;
   const list = [];
 
   // The block has just been put together and the section is on its way in:
   // this is the moment the card can be measured for real.
   const enter = () => {
     build();
+    // A block that opens already showing its first step is put into it here:
+    // that picture is what the section arrives with, and the beat that fades
+    // the block in is the one that brings it.
+    if (opensOnStep && steps) setStep(0);
     if (opening) { opening.remeasure(); opening.runBeat(0, 0); }
   };
 
@@ -1715,7 +1719,10 @@ function beatsOf(entry) {
   //    beat is over when that animation has had its time. Taking a step back
   //    is the same call with the step before it — the module animates that
   //    just as willingly.
-  for (let i = 0; i < steps; i++) {
+  //    A block that arrives on its first step has shown it already, so its
+  //    beats start with the one after — otherwise the first movement of the
+  //    wheel would land on a picture that is on the screen anyway.
+  for (let i = opensOnStep ? 1 : 0; i < steps; i++) {
     list.push({
       section,
       run: (done) => { setStep(i); play(BEAT_MS, () => {}, done); },
@@ -4285,8 +4292,10 @@ const meta = {
   introStages: 2,
   // Empty arena, five arrivals, then the stadium is handed over to the reader.
   // Every step changes something: a beat that only waits would be a «next»
-  // that does nothing.
-  steps: 7
+  // that does nothing. The empty arena comes with the block itself, so the
+  // beats start with the first arrival.
+  steps: 7,
+  opensOnStep: true
 };
 
 function init(root) {
@@ -5553,8 +5562,10 @@ const meta = {
   intro: true,
   // Steps: the area in pitches, the same area in blocks of flats beside it,
   // the question both raise, the answer under each of them, and then the
-  // visualisation itself.
-  steps: 6
+  // visualisation itself. The pitches are on the screen the moment the block
+  // fades in, so no beat is spent on showing what is already there.
+  steps: 6,
+  opensOnStep: true
 };
 
 // How many whole pitches the whole university comes to — the figure the first
@@ -8495,6 +8506,7 @@ const page = document.getElementById('page');
       section,
       opening,
       steps: mod.meta.steps || 0,
+      opensOnStep: !!mod.meta.opensOnStep,
       setStep: (i) => api && api.step && api.step(i),
       // A section is built on its way onto the screen, not before: whatever it
       // animates on start then plays in front of the reader.

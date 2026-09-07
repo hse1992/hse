@@ -54,8 +54,10 @@ export const meta = {
   intro: true,
   // Steps: the area in pitches, the same area in blocks of flats beside it,
   // the question both raise, the answer under each of them, and then the
-  // visualisation itself.
-  steps: 6
+  // visualisation itself. The pitches are on the screen the moment the block
+  // fades in, so no beat is spent on showing what is already there.
+  steps: 6,
+  opensOnStep: true
 };
 
 // How many whole pitches the whole university comes to — the figure the first
