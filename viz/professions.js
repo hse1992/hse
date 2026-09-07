@@ -58,6 +58,15 @@ export function init(root) {
   root.classList.add('prof-body');
   root.innerHTML = `
     <style>
+      /* A line of air over this line while the card holds: there it stands
+         under the logo, and without it the two read as one block. Once the
+         card settles it is the subtitle of a heading again and needs none —
+         so the air goes away with the card, by --intro-body. */
+      .prof-lead {
+        display: block;
+        margin-top: calc(1em * (1 - var(--intro-body, 1)));
+      }
+
       /* The patch under two words of the heading. Colour comes inline with the
          markup — the shell draws the heading before these styles arrive; what
          is left here is the shape of it. */
@@ -464,12 +473,21 @@ export function init(root) {
   // Each of the two headings holds the height the other has given up, and a
   // height cannot be handed over in the abstract: both are measured here, and
   // again whenever anything that could change them does.
+  //
+  // Measured at the settled size, not at whatever the card is doing at that
+  // moment: a card blown up half again is that much narrower in layout terms,
+  // and the heading wraps onto a second line there. Kept room for that line,
+  // the settled heading would carry an empty one under it for ever.
   function measureHeads() {
     if (!openEl || !settledEl) return;
+    const keptK = section.style.getPropertyValue('--intro-k');
+    section.style.setProperty('--intro-k', '1');
     [openEl, settledEl].forEach((el) => { el.style.height = 'auto'; });
     const open = openEl.offsetHeight;
     const settled = settledEl.offsetHeight;
     [openEl, settledEl].forEach((el) => { el.style.height = ''; });
+    if (keptK) section.style.setProperty('--intro-k', keptK);
+    else section.style.removeProperty('--intro-k');
     section.style.setProperty('--prof-open-h', `${open}px`);
     section.style.setProperty('--prof-settled-h', `${settled}px`);
   }
