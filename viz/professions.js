@@ -191,6 +191,14 @@ export function init(root) {
         height: clamp(44px, 8vh, 72px);
       }
 
+      /* At rest the head holds nothing but the logo, so it takes the room the
+         name and the area give up — as much of it as the card keeps for them
+         anyway, and no more, or the card would breathe. */
+      .prof-detail.at-rest .prof-detail-art {
+        width: clamp(68px, 12.5vh, 124px);
+        height: clamp(68px, 12.5vh, 124px);
+      }
+
       .prof-detail-art img,
       .prof-detail-art svg {
         display: block;
@@ -263,11 +271,29 @@ export function init(root) {
       /* Stands in place of the list before the reader has pointed at anything.
          A profession with no specializations beside it says nothing at all —
          the card is simply that profession, and nothing else. */
+      /* The invitation is one line in a box kept as tall as the longest list of
+         specializations, so it stands in the middle of it — beside the logo,
+         not above it. */
       .prof-note {
+        display: flex;
+        align-items: center;
+        /* A display of its own beats the browser's own rule for [hidden], and
+           the card would keep room for a line it is not showing. */
         margin: 0;
         font-size: clamp(0.75rem, 1.7vh, 0.875rem);
         line-height: 1.5;
         color: var(--text-secondary);
+      }
+
+      .prof-note[hidden] {
+        display: none;
+      }
+
+      /* At rest there is no list, so the caption over it does not hold its
+         place either — otherwise the invitation would sit that much below the
+         middle of the card. The card is as tall as the logo beside it anyway. */
+      .prof-detail.at-rest .prof-kinds-title {
+        display: none;
       }
 
       /* Absolute, like the canvases in the other sections: the wall must never
@@ -440,7 +466,7 @@ export function init(root) {
     </style>
 
     <div class="col-right">
-      <div class="prof-detail">
+      <div class="prof-detail" data-el="detail">
         <div class="prof-detail-head" data-el="head">
           <span class="prof-detail-art" data-el="art"></span>
           <span class="prof-detail-text">
@@ -520,6 +546,7 @@ export function init(root) {
     });
   }
 
+  const detailEl = $('detail');
   const headEl = $('head');
   const artEl = $('art');
   const areaEl = $('area');
@@ -536,13 +563,10 @@ export function init(root) {
   restLogo.className = 'prof-rest-logo';
   mountLogo(restLogo).then((it) => it.place(1));
 
-  // Before the reader has pointed at anything, the card speaks of the wall as
-  // a whole — under that logo.
-  const REST = {
-    area: `${AREAS.length} ${plural(AREAS.length, 'область', 'области', 'областей')} науки`,
-    name: `${PROFESSIONS.length} ${plural(PROFESSIONS.length, 'профессия', 'профессии', 'профессий')}`,
-    note: `и ${nf(KINDS_TOTAL)} ${plural(KINDS_TOTAL, 'специализация', 'специализации', 'специализаций')} внутри них. Наведите на любую профессию, чтобы увидеть, кем именно можно стать`
-  };
+  // Before the reader has pointed at anything the card holds the logo and the
+  // invitation, and says nothing else: the figures it used to carry are all in
+  // the line above the card anyway.
+  const REST_NOTE = 'Наведите на любую профессию, чтобы увидеть, кем именно можно стать';
 
   let shown = null;
 
@@ -550,8 +574,9 @@ export function init(root) {
     shown = p;
     if (p) artEl.innerHTML = `<img src="assets/professions/${p.icon}.svg" alt="" aria-hidden="true">`;
     else artEl.replaceChildren(restLogo);
-    areaEl.textContent = p ? p.area : REST.area;
-    nameEl.textContent = p ? p.name : REST.name;
+    detailEl.classList.toggle('at-rest', !p);
+    areaEl.textContent = p ? p.area : '';
+    nameEl.textContent = p ? p.name : '';
 
     const kinds = p ? kindsOf(p) : [];
     kindsEl.innerHTML = kinds.map((k) => `<li>${k}</li>`).join('');
@@ -565,7 +590,7 @@ export function init(root) {
     kindsTitleEl.style.visibility = kinds.length ? '' : 'hidden';
     // The invitation stands only while nothing is picked.
     noteEl.hidden = !!p;
-    noteEl.textContent = REST.note;
+    noteEl.textContent = REST_NOTE;
   }
 
   // The card must not breathe as the pointer runs along the wall, so it keeps
@@ -579,6 +604,10 @@ export function init(root) {
     // width to measure against — so it takes the place of the note for the
     // measurement, and the show() at the end puts both back.
     const back = shown;
+    // Measured as the card looks with a profession in it: at rest it holds the
+    // logo, which is bigger than any icon, and measuring against that would
+    // keep room the card never needs.
+    detailEl.classList.remove('at-rest');
     noteEl.hidden = true;
     kindsEl.hidden = false;
     const width = kindsEl.clientWidth;
