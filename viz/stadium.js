@@ -797,9 +797,11 @@ export function init(root) {
     alignColumns();
   }
 
-  render();
+  // The story starts on an empty arena. Built with the default state instead,
+  // the block would show a full stadium for the moment between the title card
+  // settling and the first beat of the scene.
+  step(0);
   paint();
-  alignColumns();
 
   return { step };
 }
