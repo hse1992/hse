@@ -1749,7 +1749,7 @@ function mountStepper(entries, { onProgress, finale } = {}) {
   let lastInput = 0;           // when the current movement last said anything
   let peak = 0;                // the hardest it has pushed
   let quietest = Infinity;     // and how gently it has got since that peak
-  let queued = 0;              // one movement may wait for the beat to finish
+  let lastBeat = 0;            // when the page last moved on its own account
 
   // Nothing to watch: everything is put in its finished state at once, and the
   // page is left to scroll normally.
@@ -1776,19 +1776,16 @@ function mountStepper(entries, { onProgress, finale } = {}) {
 
   const report = () => onProgress && onProgress((at + 1) / beats.length);
 
-  // A movement that arrives mid-beat is not thrown away — it waits its turn.
-  // Only one waits, so a flurry of swipes cannot run the story off ahead.
-  const done = () => {
-    busy = false;
-    const next = queued;
-    queued = 0;
-    if (next > 0) forward();
-    else if (next < 0) back();
-  };
+  const done = () => { busy = false; };
 
   const forward = () => {
     if (at >= beats.length - 1) return;
-    if (busy) { queued = 1; return; }
+    // While a beat plays the page takes no orders. Anything arriving then is
+    // the same movement still going — a trackpad keeps sending for a second
+    // after the fingers have left it — and nothing is remembered for later:
+    // a beat the reader did not ask for twice is worse than one they have to
+    // ask for again.
+    if (busy) return;
     busy = true;
     at += 1;
     report();
@@ -1801,7 +1798,7 @@ function mountStepper(entries, { onProgress, finale } = {}) {
   // section it returns to put straight away into the state it was left in.
   const back = () => {
     if (at < 0) return;
-    if (busy) { queued = -1; return; }
+    if (busy) return;
     const undoing = beats[at];
     at -= 1;
     report();
@@ -1837,7 +1834,10 @@ function mountStepper(entries, { onProgress, finale } = {}) {
     // gentlest against that run-up would make the swipe shove itself: one
     // movement, two beats.
     const paused = now - lastInput > GESTURE_GAP;
-    const shove = force > Math.max(quietest * 3, 12);
+    // A momentum tail is not smooth: it dips and bumps on the way down, and a
+    // bump three times the dip is nothing like a hand. A new swipe opens with
+    // a push of its own size — that is what is looked for here.
+    const shove = force > Math.max(quietest * 4, 30);
     lastInput = now;
 
     if (!paused && !shove) {
@@ -1845,6 +1845,17 @@ function mountStepper(entries, { onProgress, finale } = {}) {
       else quietest = Math.min(quietest, force);  // past the peak, fading
       return;
     }
+
+    // Two beats cannot follow each other closer than a beat lasts, whoever
+    // asked for them: one movement of the hand is one beat, and a tail that
+    // fooled the test above cannot make it two.
+    if (now - lastBeat < BEAT_MS) {
+      if (force >= peak) peak = force;
+      else quietest = Math.min(quietest, force);
+      return;
+    }
+
+    lastBeat = now;
     peak = force;
     quietest = Infinity;
     (e.deltaY > 0 ? forward : back)();
@@ -1861,6 +1872,7 @@ function mountStepper(entries, { onProgress, finale } = {}) {
     if (Math.abs(dy) < 40) return;
     swiped = true;
     lastInput = performance.now();
+    lastBeat = lastInput;
     (dy > 0 ? forward : back)();
   };
 
@@ -7149,6 +7161,15 @@ function init(root) {
   root.classList.add('prof-body');
   root.innerHTML = `
     <style>
+      /* A line of air over this line while the card holds: there it stands
+         under the logo, and without it the two read as one block. Once the
+         card settles it is the subtitle of a heading again and needs none —
+         so the air goes away with the card, by --intro-body. */
+      .prof-lead {
+        display: block;
+        margin-top: calc(1em * (1 - var(--intro-body, 1)));
+      }
+
       /* The patch under two words of the heading. Colour comes inline with the
          markup — the shell draws the heading before these styles arrive; what
          is left here is the shape of it. */
@@ -7273,6 +7294,14 @@ function init(root) {
         height: clamp(44px, 8vh, 72px);
       }
 
+      /* At rest the head holds nothing but the logo, so it takes the room the
+         name and the area give up — as much of it as the card keeps for them
+         anyway, and no more, or the card would breathe. */
+      .prof-detail.at-rest .prof-detail-art {
+        width: clamp(68px, 12.5vh, 124px);
+        height: clamp(68px, 12.5vh, 124px);
+      }
+
       .prof-detail-art img,
       .prof-detail-art svg {
         display: block;
@@ -7345,11 +7374,29 @@ function init(root) {
       /* Stands in place of the list before the reader has pointed at anything.
          A profession with no specializations beside it says nothing at all —
          the card is simply that profession, and nothing else. */
+      /* The invitation is one line in a box kept as tall as the longest list of
+         specializations, so it stands in the middle of it — beside the logo,
+         not above it. */
       .prof-note {
+        display: flex;
+        align-items: center;
+        /* A display of its own beats the browser's own rule for [hidden], and
+           the card would keep room for a line it is not showing. */
         margin: 0;
         font-size: clamp(0.75rem, 1.7vh, 0.875rem);
         line-height: 1.5;
         color: var(--text-secondary);
+      }
+
+      .prof-note[hidden] {
+        display: none;
+      }
+
+      /* At rest there is no list, so the caption over it does not hold its
+         place either — otherwise the invitation would sit that much below the
+         middle of the card. The card is as tall as the logo beside it anyway. */
+      .prof-detail.at-rest .prof-kinds-title {
+        display: none;
       }
 
       /* Absolute, like the canvases in the other sections: the wall must never
@@ -7522,7 +7569,7 @@ function init(root) {
     </style>
 
     <div class="col-right">
-      <div class="prof-detail">
+      <div class="prof-detail" data-el="detail">
         <div class="prof-detail-head" data-el="head">
           <span class="prof-detail-art" data-el="art"></span>
           <span class="prof-detail-text">
@@ -7555,12 +7602,21 @@ function init(root) {
   // Each of the two headings holds the height the other has given up, and a
   // height cannot be handed over in the abstract: both are measured here, and
   // again whenever anything that could change them does.
+  //
+  // Measured at the settled size, not at whatever the card is doing at that
+  // moment: a card blown up half again is that much narrower in layout terms,
+  // and the heading wraps onto a second line there. Kept room for that line,
+  // the settled heading would carry an empty one under it for ever.
   function measureHeads() {
     if (!openEl || !settledEl) return;
+    const keptK = section.style.getPropertyValue('--intro-k');
+    section.style.setProperty('--intro-k', '1');
     [openEl, settledEl].forEach((el) => { el.style.height = 'auto'; });
     const open = openEl.offsetHeight;
     const settled = settledEl.offsetHeight;
     [openEl, settledEl].forEach((el) => { el.style.height = ''; });
+    if (keptK) section.style.setProperty('--intro-k', keptK);
+    else section.style.removeProperty('--intro-k');
     section.style.setProperty('--prof-open-h', `${open}px`);
     section.style.setProperty('--prof-settled-h', `${settled}px`);
   }
@@ -7593,6 +7649,7 @@ function init(root) {
     });
   }
 
+  const detailEl = $('detail');
   const headEl = $('head');
   const artEl = $('art');
   const areaEl = $('area');
@@ -7609,13 +7666,10 @@ function init(root) {
   restLogo.className = 'prof-rest-logo';
   mountLogo(restLogo).then((it) => it.place(1));
 
-  // Before the reader has pointed at anything, the card speaks of the wall as
-  // a whole — under that logo.
-  const REST = {
-    area: `${AREAS.length} ${plural(AREAS.length, 'область', 'области', 'областей')} науки`,
-    name: `${PROFESSIONS.length} ${plural(PROFESSIONS.length, 'профессия', 'профессии', 'профессий')}`,
-    note: `и ${nf(KINDS_TOTAL)} ${plural(KINDS_TOTAL, 'специализация', 'специализации', 'специализаций')} внутри них. Наведите на любую профессию, чтобы увидеть, кем именно можно стать`
-  };
+  // Before the reader has pointed at anything the card holds the logo and the
+  // invitation, and says nothing else: the figures it used to carry are all in
+  // the line above the card anyway.
+  const REST_NOTE = 'Наведите на любую профессию, чтобы увидеть, кем именно можно стать';
 
   let shown = null;
 
@@ -7623,8 +7677,9 @@ function init(root) {
     shown = p;
     if (p) artEl.innerHTML = `<img src="${PROFS[p.icon] || ''}" alt="" aria-hidden="true">`;
     else artEl.replaceChildren(restLogo);
-    areaEl.textContent = p ? p.area : REST.area;
-    nameEl.textContent = p ? p.name : REST.name;
+    detailEl.classList.toggle('at-rest', !p);
+    areaEl.textContent = p ? p.area : '';
+    nameEl.textContent = p ? p.name : '';
 
     const kinds = p ? kindsOf(p) : [];
     kindsEl.innerHTML = kinds.map((k) => `<li>${k}</li>`).join('');
@@ -7638,7 +7693,7 @@ function init(root) {
     kindsTitleEl.style.visibility = kinds.length ? '' : 'hidden';
     // The invitation stands only while nothing is picked.
     noteEl.hidden = !!p;
-    noteEl.textContent = REST.note;
+    noteEl.textContent = REST_NOTE;
   }
 
   // The card must not breathe as the pointer runs along the wall, so it keeps
@@ -7652,6 +7707,10 @@ function init(root) {
     // width to measure against — so it takes the place of the note for the
     // measurement, and the show() at the end puts both back.
     const back = shown;
+    // Measured as the card looks with a profession in it: at rest it holds the
+    // logo, which is bigger than any icon, and measuring against that would
+    // keep room the card never needs.
+    detailEl.classList.remove('at-rest');
     noteEl.hidden = true;
     kindsEl.hidden = false;
     const width = kindsEl.clientWidth;
