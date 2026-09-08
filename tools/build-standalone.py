@@ -20,6 +20,7 @@ OUT = ROOT / "На сколько большая.html"
 MIME = {
     ".svg": "image/svg+xml", ".png": "image/png", ".jpg": "image/jpeg",
     ".jpeg": "image/jpeg", ".otf": "font/otf", ".avif": "image/avif",
+    ".woff2": "font/woff2",
 }
 
 # Папки, из которых файлы берутся по имени, собранному в коде: путь целиком
@@ -108,7 +109,7 @@ def inline_assets(text: str) -> str:
         path = ROOT / rel.lstrip("./").replace("../", "")
         return data_uri(path) if path.is_file() else rel
 
-    return re.sub(r"(?:\.\./)?assets/[A-Za-z0-9_\-./]+\.(?:svg|png|jpe?g|avif|otf)", repl, text)
+    return re.sub(r"(?:\.\./)?assets/[A-Za-z0-9_\-./]+\.(?:svg|png|jpe?g|avif|otf|woff2)", repl, text)
 
 
 # ---------- стили ----------
