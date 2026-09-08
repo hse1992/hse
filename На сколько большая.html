@@ -1137,6 +1137,13 @@ button { font-family: inherit; }
     font-size: 1.375rem;
   }
 
+  /* The bar only reports here. A slot is four pixels tall and the page scrolls
+     on its own, so making it a target would cost more mis-taps at the top edge
+     of the screen than it saves. */
+  .page-progress {
+    pointer-events: none;
+  }
+
   .viz-section {
     min-height: 0;
     padding: 8px 16px 32px;
@@ -1954,11 +1961,12 @@ function introRunner(section, stages = 1, scale = CARD_K) {
   };
 
   let drawn = null;
+  let narrow = false;
   const draw = (q) => {
     drawn = q;
-    if (lead) lead.paint(q, false);
+    if (lead) lead.paint(q, narrow);
     if (reveal) reveal(q - leadScreens);
-    paint(settleCurve((q - (zone - INTRO_SCREENS)) / INTRO_SCREENS), false);
+    paint(settleCurve((q - (zone - INTRO_SCREENS)) / INTRO_SCREENS), narrow);
   };
   // How tall the card is with all of its parts open — the heading is placed
   // against that from the first frame, so it does not shift as they arrive.
@@ -2061,6 +2069,16 @@ function introRunner(section, stages = 1, scale = CARD_K) {
     // p from 0 to 1 across the whole opening — used to put it in its opening
     // or finished state in one go.
     run(p) { draw(p * zone); },
+    // On a narrow screen the opening is not played beat by beat: nothing is
+    // pinned there, the page scrolls as a page, and the card follows the
+    // scroll — the heading holds the top of the screen for the length of the
+    // intro zone while the block comes up to meet it. Called on every scroll,
+    // it reads its own position and paints the frame that belongs to it.
+    follow() {
+      narrow = true;
+      const q = introProgress(section, true, zone);
+      if (q !== null) draw(q * zone);
+    },
     // One stretch of it, p from 0 to 1 within that stretch.
     runBeat(i, p) {
       const [from, to] = beats[i];
@@ -2092,6 +2110,10 @@ const SETTLE_MS = 520;       // moving the page from one section to the next
 const GESTURE_GAP = 200;
 
 const REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+// Below this the page is read by scrolling instead of beat by beat — the same
+// width at which the layout folds into one column. See mountScrolled.
+const NARROW = window.matchMedia('(max-width: 860px)');
 
 // Runs fn(p) from 0 to 1 over ms, then done(). Time is counted frame to frame,
 // and a gap longer than a stutter is dropped — a tab nobody is looking at gets
@@ -2192,6 +2214,84 @@ function beatsOf(entry) {
   return list;
 }
 
+// The page on a narrow screen: an ordinary scrolling page.
+//
+// Nothing is hijacked and nothing is pinned whole — a block laid out in one
+// column is a screen and a half tall, and holding it still would hide half of
+// it. What the beats did, the scrolling does: a block is put together as the
+// reader comes to it, its title card follows its own position on the screen,
+// and a scene shows the state it ends in, with its controls left to the reader.
+function mountScrolled(entries, onProgress) {
+  const near = (section, reach = 1.5) => {
+    const box = section.getBoundingClientRect();
+    return box.bottom > -window.innerHeight && box.top < window.innerHeight * reach;
+  };
+
+  // Built on the way in, like everywhere else: whatever a block animates on
+  // start then plays in front of the reader rather than behind their back.
+  const watch = new IntersectionObserver((rows) => {
+    rows.forEach((row) => {
+      if (!row.isIntersecting) return;
+      const entry = entries.find((e) => e.section === row.target);
+      if (!entry || entry.built) return;
+      entry.built = true;
+      entry.build();
+      // A scene is a story told in steps, and steps need a screen that holds
+      // still. Here it shows what it comes to in the end — the module says so
+      // itself by taking the last step.
+      if (entry.steps) entry.setStep(entry.steps - 1);
+      if (entry.opening) entry.opening.follow();
+    });
+  }, { rootMargin: '400px 0px' });
+  entries.forEach((e) => watch.observe(e.section));
+
+  // Which block the reader is looking at, and how far through it they are:
+  // measured against a line a little above the middle of the screen, which is
+  // where the eye sits while reading.
+  const place = () => {
+    const view = window.scrollY + window.innerHeight * 0.45;
+    let index = -1;
+    let part = 0;
+    entries.forEach((e, i) => {
+      if (view < e.section.offsetTop) return;
+      index = i;
+      part = Math.min(1, (view - e.section.offsetTop) / Math.max(1, e.section.offsetHeight));
+    });
+    return { index, part, count: entries.length, seen: entries.length - 1 };
+  };
+
+  const height = () => Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
+
+  let queued = false;
+  const paint = () => {
+    queued = false;
+    entries.forEach((e) => { if (e.opening && near(e.section)) e.opening.follow(); });
+    if (onProgress) onProgress(window.scrollY / height(), place());
+  };
+
+  // Every card is painted once at the start, even the ones far below: until a
+  // card has been through this it is placed by the rules of a wide screen, and
+  // a lead-in screen — fixed to the window here — would hang over the title.
+  entries.forEach((e) => { if (e.opening) e.opening.follow(); });
+  paint();
+
+  const onScroll = () => { if (!queued) { queued = true; requestAnimationFrame(paint); } };
+  window.addEventListener('scroll', onScroll, { passive: true });
+  window.addEventListener('resize', () => {
+    entries.forEach((e) => { if (e.opening) e.opening.follow(); });
+    onScroll();
+  });
+
+  // The blocks of the progress bar still lead somewhere: here it is simply a
+  // scroll to the top of that block.
+  const toBlock = (i) => {
+    const entry = entries[i];
+    if (entry) window.scrollTo({ top: entry.section.offsetTop, behavior: 'smooth' });
+  };
+
+  return { free: true, toBlock };
+}
+
 // `entries` describe the sections in order. Each is
 // { section, opening, steps, setStep, build } — see beatsOf.
 function mountStepper(entries, { onProgress, finale } = {}) {
@@ -2221,6 +2321,18 @@ function mountStepper(entries, { onProgress, finale } = {}) {
     if (onProgress) onProgress(1);
     return { free: true };
   }
+
+  // A phone is read with the thumb, and a block does not fit its screen: laid
+  // out in one column, every one of them is a screen and a half tall. Beats
+  // would have to hide half of what they show, so here the page is a page —
+  // it scrolls, and the story is told by that scrolling instead. The title
+  // cards still play: each follows its own place on the screen.
+  if (NARROW.matches) return mountScrolled(entries, onProgress);
+
+  // A tablet turned on its side crosses that width, and the two ways of reading
+  // cannot be swapped under the reader's feet: the page starts over in the
+  // other one. Rare enough to be worth the simplicity.
+  NARROW.addEventListener('change', () => location.reload());
 
   document.documentElement.classList.add('is-stepped');
 
