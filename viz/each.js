@@ -26,8 +26,12 @@ export const meta = {
   // The heading says all of it; the numbers come with nothing under them.
   subtitle: '',
   intro: true,
-  // They all turn up, the question comes up over them, they are added up into
-  // one — and the last screen counts that one down and answers itself.
+  // The board is what the section arrives with — the card settling into place
+  // brings the figures with it, instead of fading in an empty field and
+  // spending a beat of the reader's on filling it.
+  opensOnStep: true,
+  // The board is there, the question comes up over it, the figures are added
+  // up into one — and the last screen counts that one down and answers itself.
   steps: 4
 };
 
@@ -613,9 +617,10 @@ export function init(root) {
     if (!L) relayout();
     if (narrow.matches) { poster(); return; }
 
-    // Every figure of the page, one after another, quicker and quicker, until
-    // there is nowhere left to put them. The next step only holds still while
-    // the question that turns the scene comes up underneath.
+    // The whole board at once. It is put up without an arrival of its own: the
+    // section is still coming in when this is called, so anything played here
+    // would be played to nobody — and a reader quick on the wheel would catch
+    // it half filled. The block fading in brings it whole.
     if (i === 0 || i === 1) {
       // The question turns up the moment the reader gets to it: on a delay it
       // is missed by anyone scrolling quickly through this screen. It arrives
@@ -626,7 +631,7 @@ export function init(root) {
       endAt(L.endTop);
       sum.classList.remove('is-clearing');
       placeSum(L.big[0], { dur: 0, show: false, text: nf(TOTAL), color: INK.ink });
-      apply(tiles.map((t, k) => ({ ...L.board[k], a: 1 })), { delay: rush(ALL, 1700) });
+      apply(tiles.map((t, k) => ({ ...L.board[k], a: 1 })), { dur: asked ? 620 : 0 });
       paint(asked);
       return;
     }
