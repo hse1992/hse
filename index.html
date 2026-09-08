@@ -19,7 +19,7 @@
 <main>
   <header class="page-header">
     <div class="page-header-inner">
-      <h1>На сколько б<svg class="hse-o" viewBox="0 0 283.47 283.47" aria-hidden="true" focusable="false"><circle class="hse-o-disc" cx="141.73" cy="141.74" r="141.73"/><path class="hse-o-mark" d="M135.6,133.32c32.26,0,44.81,21.45,44.81,60.69v29.51h-20.69v-63.35h-23.9v63.42h-18.28V53.65h18.78c7.03,0,17.71,1.58,25.25,10.95c3.93,4.73,6.34,11.04,7.19,17.38h-32.94v9.35h33.23c-0.27,6.04-1.49,12.8-7.42,19.97c-5.2,6.51-13.76,12.56-25.83,12.56c-0.06,0-0.13,0-0.2,0V133.32 M206.41,197.55c0-34.86-11.26-58.29-40.45-68.6c9.21-3.77,14.82-9.58,18.49-13.99c7.01-8.06,9.88-17.96,9.88-27.31c0-7.56-2.08-22.65-15.35-33.04c-9.1-7.04-17.16-10.43-36.43-10.43h-9.75c-0.3-0.01-0.6-0.01-0.96-0.01H91.65v189.79h114.76V197.55z"/></svg><span class="sr-only">о</span>льш<span class="stressed">а<i></i></span>я</h1>
+      <h1><span class="title-word">На</span> <span class="title-word">сколько</span> <span class="title-word">б<svg class="hse-o" viewBox="0 0 283.47 283.47" aria-hidden="true" focusable="false"><circle class="hse-o-disc" cx="141.73" cy="141.74" r="141.73"/><path class="hse-o-mark" d="M135.6,133.32c32.26,0,44.81,21.45,44.81,60.69v29.51h-20.69v-63.35h-23.9v63.42h-18.28V53.65h18.78c7.03,0,17.71,1.58,25.25,10.95c3.93,4.73,6.34,11.04,7.19,17.38h-32.94v9.35h33.23c-0.27,6.04-1.49,12.8-7.42,19.97c-5.2,6.51-13.76,12.56-25.83,12.56c-0.06,0-0.13,0-0.2,0V133.32 M206.41,197.55c0-34.86-11.26-58.29-40.45-68.6c9.21-3.77,14.82-9.58,18.49-13.99c7.01-8.06,9.88-17.96,9.88-27.31c0-7.56-2.08-22.65-15.35-33.04c-9.1-7.04-17.16-10.43-36.43-10.43h-9.75c-0.3-0.01-0.6-0.01-0.96-0.01H91.65v189.79h114.76V197.55z"/></svg><span class="sr-only">о</span>льш<span class="stressed">а<i></i></span>я</span></h1>
       <div class="page-header-text">
         <p>Высшая школа экономики — один из самых крупных университетов России. Но даже зная основные показатели, непросто осознать реальный масштаб Вышки.</p>
         <p>Этот проект поможет тебе прочувствовать, на сколько большой наш университет</p>
@@ -28,6 +28,7 @@
 
     <!-- Nudge to scroll: fades out as soon as the reader does. -->
     <div class="scroll-hint" data-el="scrollHint" aria-hidden="true">
+      <span class="scroll-hint-text">Листай<span class="on-keys"> или жми пробел</span></span>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"
            stroke-linecap="round" stroke-linejoin="round">
         <path d="M12 3 L12 17" />
@@ -52,7 +53,7 @@
   import * as study from './viz/study.js';
   import * as professions from './viz/professions.js';
   import * as each from './viz/each.js';
-  import { mountProgress, introRunner } from './lib/page.js';
+  import { mountProgress, introRunner, mountTitleMark } from './lib/page.js';
   import { mountStepper } from './lib/stepper.js';
 
   // Every visualisation on the page, in the order it appears.
@@ -107,6 +108,7 @@
   });
 
   const progress = mountProgress();
+  mountTitleMark();
   mountStepper(plan, {
     onProgress: progress.set,
     // One last beat after the story: the page lifts to show the credits.

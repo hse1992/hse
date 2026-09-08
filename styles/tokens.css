@@ -8,6 +8,7 @@
 
   /* Text */
   --text: #14171C;
+  --text-lead: #3D4451;     /* the opening paragraph — a step below the title */
   --text-secondary: #6B7280;
   --text-caption: #9AA1AC;
   --text-faded: #C3C9D3;    /* type that has stepped back but is still there */
@@ -89,6 +90,14 @@
   --house-window: #5C82A6;
   --house-door: #6B5B48;
   --house-window-lit: #FFC85C;
+
+  /* Opening screen: two soft blooms of the corporate blue over the page
+     background, so the first screen has depth instead of a flat fill. */
+  --header-glow: rgba(35, 75, 155, 0.5);
+  --header-glow-soft: rgba(16, 45, 105, 0.3);
+
+  /* The reading hint floats over whatever is on the screen at the time. */
+  --hint-veil: rgba(255, 255, 255, 0.74);
 
   /* Elevation */
   --card-shadow: 0 1px 2px rgba(16, 24, 40, 0.06);

@@ -55,7 +55,21 @@ button { font-family: inherit; }
   justify-content: center;
 }
 
+/* Light behind the title: a bloom up where the heading is and a fainter one in
+   the far corner, both fading out well before the edges — the screen has depth,
+   and the story below still starts on the plain page background. */
+.page-header::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(110% 85% at 16% 24%, var(--header-glow), transparent 62%),
+    radial-gradient(85% 70% at 88% 88%, var(--header-glow-soft), transparent 66%);
+  pointer-events: none;
+}
+
 .page-header-inner {
+  position: relative;
   flex: 1;
   max-width: 1320px;
   display: flex;
@@ -72,6 +86,22 @@ button { font-family: inherit; }
   text-wrap: balance;
 }
 
+/* The title puts itself together when the page opens: the words rise one after
+   another, and the mark drops into the slot of the «о» once they have landed —
+   the slot is held open for it, so nothing shifts. */
+.page-header h1 .title-word {
+  display: inline-block;
+  animation: rise-in 620ms cubic-bezier(0.215, 0.61, 0.355, 1) backwards;
+}
+
+.page-header h1 .title-word:nth-of-type(1) { animation-delay: 120ms; }
+.page-header h1 .title-word:nth-of-type(2) { animation-delay: 240ms; }
+.page-header h1 .title-word:nth-of-type(3) { animation-delay: 360ms; }
+
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(0.26em); }
+}
+
 /* HSE mark standing in for the "о" in «большая».
    Sized from the real glyph: 0.479em wide, sitting 0.014em below the
    baseline, with the same side bearings — so it occupies the letter's slot. */
@@ -80,6 +110,14 @@ button { font-family: inherit; }
   height: 0.479em;
   margin: 0 0.031em;
   vertical-align: -0.014em;
+  transform-origin: 50% 50%;
+  animation: hse-o-land 620ms cubic-bezier(0.215, 0.61, 0.355, 1) 620ms backwards;
+  /* Following the cursor, the mark trails it slightly instead of snapping. */
+  transition: transform 160ms ease-out;
+}
+
+@keyframes hse-o-land {
+  from { opacity: 0; transform: scale(0.3) rotate(-140deg); }
 }
 
 .hse-o-disc { fill: var(--hse-blue); }
@@ -104,6 +142,14 @@ button { font-family: inherit; }
   border-radius: 0.04em;
   background: currentColor;
   transform: translateX(-50%) rotate(20deg);
+  /* Falls in last, once the word it belongs to and the mark have landed. */
+  animation: stress-drop 480ms cubic-bezier(0.55, 0, 0.35, 1) 1180ms backwards;
+}
+
+@keyframes stress-drop {
+  from { opacity: 0; transform: translate(-50%, -1.1em) rotate(20deg); }
+  70%  { opacity: 1; transform: translate(-50%, 0.035em) rotate(20deg); }
+  to   { opacity: 1; transform: translateX(-50%) rotate(20deg); }
 }
 
 /* The letter the mark replaces: invisible, but still copied and read aloud. */
@@ -118,56 +164,103 @@ button { font-family: inherit; }
 }
 
 /* Two paragraphs with a blank line between them — the gap is one line of the
-   text itself, so it stays a blank line at any size. */
+   text itself, so it stays a blank line at any size.
+   Line length is held to something readable: across the full width of the page
+   the lines would run past a hundred characters. */
 .page-header-text {
   display: flex;
   flex-direction: column;
+  max-width: 46rem;
   font-size: 1.625rem;
-  gap: 1.45em;
+  gap: 1.3em;
 }
 
 .page-header p {
   margin: 0;
-  font-size: 1.625rem;
   font-weight: 400;
   line-height: 1.45;
-  color: var(--text-secondary);
   text-wrap: pretty;
+  /* The text arrives after the title has put itself together. */
+  animation: rise-in 620ms cubic-bezier(0.215, 0.61, 0.355, 1) backwards;
+}
+
+/* Three steps down from the title: what the university is, then the invitation.
+   Sizes are relative to the block, so a narrow screen scales the whole ladder
+   by changing one number. */
+.page-header p:first-child {
+  font-size: 1.08em;
+  color: var(--text-lead);
+  animation-delay: 700ms;
+}
+
+.page-header p + p {
+  font-size: 0.86em;
+  color: var(--text-secondary);
+  animation-delay: 840ms;
 }
 
 /* ---------- Scroll hint ---------- */
 
-/* A thin arrow at the foot of the opening screen. It drifts down and back,
-   and leaves for good the moment the reader starts scrolling. */
+/* A line and a thin arrow at the foot of the opening screen. The page is read
+   beat by beat, which no scrollbar tells the reader — so the hint says how to
+   move, and the arrow under it drifts down and back. Both leave for good the
+   moment the reader starts. */
 .scroll-hint {
-  position: absolute;
+  position: fixed;
   left: 50%;
   bottom: 44px;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  /* It can come back over a drawing, not only over the empty opening screen,
+     so it carries its own light backing. */
+  padding: 9px 15px 5px;
+  border-radius: 999px;
+  background: var(--hint-veil);
+  backdrop-filter: blur(8px);
   color: var(--text-caption);
+  opacity: 0;
+  transform: translate(-50%, 8px);
+  transition: opacity 420ms ease, transform 420ms ease;
+  pointer-events: none;
+}
+
+/* Put there by lib/page.js when the reader has been still long enough. */
+.scroll-hint.is-here {
   opacity: 0.85;
   transform: translate(-50%, 0);
-  animation: scroll-hint 2.8s ease-in-out infinite;
-  transition: opacity 420ms ease;
-  pointer-events: none;
+}
+
+.scroll-hint-text {
+  font-size: 0.9375rem;
+  line-height: 1;
+}
+
+/* Nothing to press on a touch screen. */
+@media (hover: none) {
+  .scroll-hint-text .on-keys { display: none; }
 }
 
 .scroll-hint svg {
   display: block;
-  width: 30px;
-  height: 30px;
-}
-
-.scroll-hint.is-gone {
-  opacity: 0;
+  width: 24px;
+  height: 24px;
+  animation: scroll-hint 2.8s ease-in-out infinite;
 }
 
 @keyframes scroll-hint {
-  0%, 100% { transform: translate(-50%, 0); }
-  50% { transform: translate(-50%, 7px); }
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(7px); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .scroll-hint { animation: none; }
+  .scroll-hint svg { animation: none; }
+  .page-header h1 .title-word,
+  .page-header p,
+  .stressed i,
+  .hse-o { animation: none; }
 }
 
 /* ---------- Interlude ---------- */
@@ -758,8 +851,8 @@ button { font-family: inherit; }
     gap: 26px;
   }
 
-  .page-header-text,
-  .page-header p {
+  /* One number scales the whole ladder: the paragraphs are sized off it. */
+  .page-header-text {
     font-size: 1.375rem;
   }
 
@@ -887,5 +980,46 @@ button { font-family: inherit; }
 
   .city-card {
     padding: 12px 14px;
+  }
+}
+
+/* A short screen — a small phone, or any phone held sideways. The opening
+   screen is one screen tall by definition, so the title, the two paragraphs
+   and the hint have to fit into it: the whole ladder steps down a size and the
+   hint moves closer to the edge. */
+@media (max-height: 700px) {
+  .page-header-inner {
+    gap: 22px;
+  }
+
+  .page-header h1 {
+    font-size: clamp(2.5rem, 8vw, 3.5rem);
+  }
+
+  .page-header-text {
+    font-size: 1.125rem;
+  }
+
+  .scroll-hint {
+    bottom: 24px;
+  }
+}
+
+/* A phone lying on its side: barely 400px of height for the whole screen. */
+@media (max-height: 460px) {
+  .page-header-inner {
+    gap: 16px;
+  }
+
+  .page-header h1 {
+    font-size: clamp(2rem, 6vw, 2.75rem);
+  }
+
+  .page-header-text {
+    font-size: 1rem;
+  }
+
+  .scroll-hint {
+    bottom: 16px;
   }
 }
