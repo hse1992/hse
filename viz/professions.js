@@ -566,7 +566,7 @@ export function init(root) {
   // Before the reader has pointed at anything the card holds the logo and the
   // invitation, and says nothing else: the figures it used to carry are all in
   // the line above the card anyway.
-  const REST_NOTE = 'Наведите на любую профессию, чтобы увидеть, кем именно можно стать';
+  const REST_NOTE = 'Наведи на любую профессию, чтобы увидеть, кем именно можно стать';
 
   let shown = null;
 

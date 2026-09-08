@@ -603,7 +603,7 @@ export function init(root) {
 
     captionEl.textContent = programs
       ? `непрерывной учебы, чтобы пройти ${nf(programs)} ${plural(programs, 'выбранную программу', 'выбранные программы', 'выбранных программ')} одну за другой`
-      : 'Выберите города и уровни обучения';
+      : 'Выбери города и уровни обучения';
 
     // The pointer follows the count itself, not the rounded number, so it
     // slides smoothly while the years run.

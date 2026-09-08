@@ -765,7 +765,7 @@ export function init(root) {
   function takeOver() {
     if (userDrives) return;
     userDrives = true;
-    noteEl.textContent = 'Стадион ваш: попробуйте выключить город или категорию';
+    noteEl.textContent = 'Стадион твой: попробуй выключить город или категорию';
   }
 
   let firstFrame = true;
@@ -790,7 +790,7 @@ export function init(root) {
     } else if (!userDrives) {
       CITIES.forEach((c) => { state.active[c.key] = true; });
       KIND_DEFS.forEach((k) => { state.kinds[k.key] = true; });
-      noteEl.textContent = 'Стадион ваш: попробуйте выключить город или категорию';
+      noteEl.textContent = 'Стадион твой: попробуй выключить город или категорию';
     }
 
     render(firstFrame);
