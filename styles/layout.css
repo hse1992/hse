@@ -37,22 +37,84 @@ button { font-family: inherit; }
   top: 0;
   left: 0;
   width: 100%;
-  height: 3px;
+  height: 4px;
   display: flex;
-  gap: 2px;
+  gap: 3px;
   z-index: 50;
+  /* It grows a little under the cursor: four pixels is enough to read but not
+     to aim at, and the slots are what the reader goes back through. */
+  transition: height 160ms ease;
+}
+
+.page-progress:hover {
+  height: 9px;
+}
+
+/* The empty slots have to be readable against the page, or the bar says
+   nothing until the first block is behind the reader. */
+.page-progress-slot {
+  position: relative;
+  flex: 1;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: var(--empty);
+  cursor: pointer;
+  /* The bar is four pixels tall; the place to click is twenty. */
+  outline-offset: 3px;
+}
+
+.page-progress-slot::after {
+  content: "";
+  position: absolute;
+  top: -8px;
+  right: 0;
+  bottom: -8px;
+  left: 0;
+}
+
+/* Never opened: there is nowhere to go yet. */
+.page-progress-slot:disabled {
+  cursor: default;
+}
+
+.page-progress-slot:enabled:hover {
+  background: var(--toggle-off);
+}
+
+/* The name of the block under the cursor, just below the bar. */
+.page-progress-tip {
+  position: fixed;
+  top: 16px;
+  z-index: 50;
+  padding: 5px 11px;
+  border-radius: 999px;
+  background: var(--hint-veil);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  line-height: 1;
+  white-space: nowrap;
+  opacity: 0;
+  transform: translate(-50%, -4px);
+  transition: opacity 160ms ease, transform 160ms ease;
   pointer-events: none;
 }
 
-.page-progress-slot {
-  flex: 1;
-  background: var(--shell);
-  overflow: hidden;
+.page-progress-tip.is-here {
+  opacity: 1;
+  transform: translate(-50%, 0);
 }
 
+/* Pinned to the slot rather than given height: 100% — inside a stretched flex
+   item WebKit reads a percentage height as nothing, and the fill disappears. */
 .page-progress-slot i {
-  display: block;
-  height: 100%;
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
   background: var(--hse-blue);
   transform: scaleX(0);
   transform-origin: 0 50%;
@@ -146,7 +208,33 @@ button { font-family: inherit; }
   from { opacity: 0; transform: scale(0.3) rotate(-140deg); }
 }
 
-.hse-o-disc { fill: var(--hse-blue); }
+/* The mark is also the way to the university itself. A logo that leads to the
+   home page needs no caption, and the letter is already the one thing on the
+   screen that answers the cursor — this is what that movement was promising.
+   Inline, with no width of its own, so the letter keeps its place in the word;
+   the padding is vertical only, which makes the mark easier to hit with a
+   finger without moving anything. */
+.hse-o-link {
+  padding: 0.08em 0;
+  cursor: pointer;
+}
+
+.hse-o-link:focus-visible {
+  outline: 2px solid var(--link);
+  outline-offset: 4px;
+  border-radius: 0.1em;
+}
+
+.hse-o-disc {
+  fill: var(--hse-blue);
+  transition: fill 160ms ease;
+}
+
+.hse-o-link:hover .hse-o-disc,
+.hse-o-link:focus-visible .hse-o-disc {
+  fill: var(--brand-blue);
+}
+
 .hse-o-mark { fill: #FFFFFF; }
 
 /* Stress mark. HSE Sans has no combining acute, so a combining character makes
@@ -245,6 +333,7 @@ button { font-family: inherit; }
   padding: 9px 15px 5px;
   border-radius: 999px;
   background: var(--hint-veil);
+  -webkit-backdrop-filter: blur(8px);   /* Safari reads the prefixed one */
   backdrop-filter: blur(8px);
   color: var(--text-caption);
   opacity: 0;
@@ -262,6 +351,23 @@ button { font-family: inherit; }
 .scroll-hint-text {
   font-size: 0.9375rem;
   line-height: 1;
+}
+
+/* Said only once there is a block behind the reader to go back to. */
+.scroll-hint-back {
+  display: none;
+  font-size: 0.8125rem;
+  line-height: 1;
+  color: var(--text-faded);
+}
+
+.scroll-hint.has-way-back .scroll-hint-back {
+  display: block;
+}
+
+/* Nothing to click on a touch screen — there the bar is only a bar. */
+@media (hover: none) {
+  .scroll-hint-back { display: none !important; }
 }
 
 /* Nothing to press on a touch screen. */

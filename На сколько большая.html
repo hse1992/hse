@@ -179,22 +179,84 @@ button { font-family: inherit; }
   top: 0;
   left: 0;
   width: 100%;
-  height: 3px;
+  height: 4px;
   display: flex;
-  gap: 2px;
+  gap: 3px;
   z-index: 50;
+  /* It grows a little under the cursor: four pixels is enough to read but not
+     to aim at, and the slots are what the reader goes back through. */
+  transition: height 160ms ease;
+}
+
+.page-progress:hover {
+  height: 9px;
+}
+
+/* The empty slots have to be readable against the page, or the bar says
+   nothing until the first block is behind the reader. */
+.page-progress-slot {
+  position: relative;
+  flex: 1;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: var(--empty);
+  cursor: pointer;
+  /* The bar is four pixels tall; the place to click is twenty. */
+  outline-offset: 3px;
+}
+
+.page-progress-slot::after {
+  content: "";
+  position: absolute;
+  top: -8px;
+  right: 0;
+  bottom: -8px;
+  left: 0;
+}
+
+/* Never opened: there is nowhere to go yet. */
+.page-progress-slot:disabled {
+  cursor: default;
+}
+
+.page-progress-slot:enabled:hover {
+  background: var(--toggle-off);
+}
+
+/* The name of the block under the cursor, just below the bar. */
+.page-progress-tip {
+  position: fixed;
+  top: 16px;
+  z-index: 50;
+  padding: 5px 11px;
+  border-radius: 999px;
+  background: var(--hint-veil);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  line-height: 1;
+  white-space: nowrap;
+  opacity: 0;
+  transform: translate(-50%, -4px);
+  transition: opacity 160ms ease, transform 160ms ease;
   pointer-events: none;
 }
 
-.page-progress-slot {
-  flex: 1;
-  background: var(--shell);
-  overflow: hidden;
+.page-progress-tip.is-here {
+  opacity: 1;
+  transform: translate(-50%, 0);
 }
 
+/* Pinned to the slot rather than given height: 100% — inside a stretched flex
+   item WebKit reads a percentage height as nothing, and the fill disappears. */
 .page-progress-slot i {
-  display: block;
-  height: 100%;
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
   background: var(--hse-blue);
   transform: scaleX(0);
   transform-origin: 0 50%;
@@ -288,7 +350,33 @@ button { font-family: inherit; }
   from { opacity: 0; transform: scale(0.3) rotate(-140deg); }
 }
 
-.hse-o-disc { fill: var(--hse-blue); }
+/* The mark is also the way to the university itself. A logo that leads to the
+   home page needs no caption, and the letter is already the one thing on the
+   screen that answers the cursor — this is what that movement was promising.
+   Inline, with no width of its own, so the letter keeps its place in the word;
+   the padding is vertical only, which makes the mark easier to hit with a
+   finger without moving anything. */
+.hse-o-link {
+  padding: 0.08em 0;
+  cursor: pointer;
+}
+
+.hse-o-link:focus-visible {
+  outline: 2px solid var(--link);
+  outline-offset: 4px;
+  border-radius: 0.1em;
+}
+
+.hse-o-disc {
+  fill: var(--hse-blue);
+  transition: fill 160ms ease;
+}
+
+.hse-o-link:hover .hse-o-disc,
+.hse-o-link:focus-visible .hse-o-disc {
+  fill: var(--brand-blue);
+}
+
 .hse-o-mark { fill: #FFFFFF; }
 
 /* Stress mark. HSE Sans has no combining acute, so a combining character makes
@@ -387,6 +475,7 @@ button { font-family: inherit; }
   padding: 9px 15px 5px;
   border-radius: 999px;
   background: var(--hint-veil);
+  -webkit-backdrop-filter: blur(8px);   /* Safari reads the prefixed one */
   backdrop-filter: blur(8px);
   color: var(--text-caption);
   opacity: 0;
@@ -404,6 +493,23 @@ button { font-family: inherit; }
 .scroll-hint-text {
   font-size: 0.9375rem;
   line-height: 1;
+}
+
+/* Said only once there is a block behind the reader to go back to. */
+.scroll-hint-back {
+  display: none;
+  font-size: 0.8125rem;
+  line-height: 1;
+  color: var(--text-faded);
+}
+
+.scroll-hint.has-way-back .scroll-hint-back {
+  display: block;
+}
+
+/* Nothing to click on a touch screen — there the bar is only a bar. */
+@media (hover: none) {
+  .scroll-hint-back { display: none !important; }
 }
 
 /* Nothing to press on a touch screen. */
@@ -1211,7 +1317,7 @@ button { font-family: inherit; }
 <main>
 <header class="page-header">
     <div class="page-header-inner">
-      <h1><span class="title-word">На</span> <span class="title-word">сколько</span> <span class="title-word">б<svg class="hse-o" viewBox="0 0 283.47 283.47" aria-hidden="true" focusable="false"><circle class="hse-o-disc" cx="141.73" cy="141.74" r="141.73"/><path class="hse-o-mark" d="M135.6,133.32c32.26,0,44.81,21.45,44.81,60.69v29.51h-20.69v-63.35h-23.9v63.42h-18.28V53.65h18.78c7.03,0,17.71,1.58,25.25,10.95c3.93,4.73,6.34,11.04,7.19,17.38h-32.94v9.35h33.23c-0.27,6.04-1.49,12.8-7.42,19.97c-5.2,6.51-13.76,12.56-25.83,12.56c-0.06,0-0.13,0-0.2,0V133.32 M206.41,197.55c0-34.86-11.26-58.29-40.45-68.6c9.21-3.77,14.82-9.58,18.49-13.99c7.01-8.06,9.88-17.96,9.88-27.31c0-7.56-2.08-22.65-15.35-33.04c-9.1-7.04-17.16-10.43-36.43-10.43h-9.75c-0.3-0.01-0.6-0.01-0.96-0.01H91.65v189.79h114.76V197.55z"/></svg><span class="sr-only">о</span>льш<span class="stressed">а<i></i></span>я</span></h1>
+      <h1><span class="title-word">На</span> <span class="title-word">сколько</span> <span class="title-word">б<a class="hse-o-link" href="https://www.hse.ru/" target="_blank" rel="noopener" title="Сайт Вышки" aria-label="Сайт НИУ ВШЭ"><svg class="hse-o" viewBox="0 0 283.47 283.47" aria-hidden="true" focusable="false"><circle class="hse-o-disc" cx="141.73" cy="141.74" r="141.73"/><path class="hse-o-mark" d="M135.6,133.32c32.26,0,44.81,21.45,44.81,60.69v29.51h-20.69v-63.35h-23.9v63.42h-18.28V53.65h18.78c7.03,0,17.71,1.58,25.25,10.95c3.93,4.73,6.34,11.04,7.19,17.38h-32.94v9.35h33.23c-0.27,6.04-1.49,12.8-7.42,19.97c-5.2,6.51-13.76,12.56-25.83,12.56c-0.06,0-0.13,0-0.2,0V133.32 M206.41,197.55c0-34.86-11.26-58.29-40.45-68.6c9.21-3.77,14.82-9.58,18.49-13.99c7.01-8.06,9.88-17.96,9.88-27.31c0-7.56-2.08-22.65-15.35-33.04c-9.1-7.04-17.16-10.43-36.43-10.43h-9.75c-0.3-0.01-0.6-0.01-0.96-0.01H91.65v189.79h114.76V197.55z"/></svg></a><span class="sr-only">о</span>льш<span class="stressed">а<i></i></span>я</span></h1>
       <div class="page-header-text">
         <p>Высшая школа экономики — один из самых крупных университетов России. Но даже зная основные показатели, непросто осознать реальный масштаб Вышки.</p>
         <p>Этот проект поможет тебе прочувствовать, на сколько большой наш университет</p>
@@ -1221,6 +1327,8 @@ button { font-family: inherit; }
     <!-- Nudge to scroll: fades out as soon as the reader does. -->
     <div class="scroll-hint" data-el="scrollHint" aria-hidden="true">
       <span class="scroll-hint-text">Листай<span class="on-keys"> или жми пробел</span></span>
+      <!-- Appears once there is something to go back to. -->
+      <span class="scroll-hint-back">Назад — клик по полоске сверху</span>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"
            stroke-linecap="round" stroke-linejoin="round">
         <path d="M12 3 L12 17" />
@@ -1424,24 +1532,66 @@ const { mountProgress, mountTitleMark, introRunner } = (() => {
 // Thin bar along the top edge showing how far down the page the reader is —
 // divided into the blocks of the story, one slot each, so it also says how many
 // of them there are and which one is being read.
-function mountProgress() {
-  const bar = document.createElement('div');
+// It is also the way back: a click on a slot goes to that block. Reading is
+// slow on purpose — a beat at a time — and without this, coming back from the
+// end of the story means playing the whole of it backwards.
+//
+// `titles` name the blocks, in order; `pick` is handed the stepper's jump once
+// there is one.
+function mountProgress(titles = []) {
+  const bar = document.createElement('nav');
   bar.className = 'page-progress';
-  bar.setAttribute('aria-hidden', 'true');
+  bar.setAttribute('aria-label', 'Разделы');
   document.body.appendChild(bar);
+
+  // The name of the block under the cursor, since the bar itself is four
+  // pixels of colour and says nothing about what is in them.
+  const tip = document.createElement('div');
+  tip.className = 'page-progress-tip';
+  tip.setAttribute('aria-hidden', 'true');
+  document.body.appendChild(tip);
+
+  let jump = null;
+  // A heading is markup: it can carry a picture that says a word — the station
+  // board of the metro block — and a second copy of itself for the card to open
+  // with. What is hidden from screen readers is hidden here too; what a picture
+  // stands for is read off its alt.
+  const plain = (html) => {
+    const box = document.createElement('div');
+    box.innerHTML = html || '';
+    box.querySelectorAll('[aria-hidden="true"]').forEach((el) => el.remove());
+    box.querySelectorAll('img').forEach((img) => img.replaceWith(` ${img.alt || ''} `));
+    return box.textContent.replace(/\s+/g, ' ').trim();
+  };
 
   // The slots are built once, when the stepper first says how many there are.
   let slots = [];
   const slotsFor = (count) => {
     if (slots.length === count) return;
     bar.textContent = '';
-    slots = Array.from({ length: count }, () => {
-      const slot = document.createElement('div');
+    slots = Array.from({ length: count }, (_, i) => {
+      const name = plain(titles[i]) || `Раздел ${i + 1}`;
+      const slot = document.createElement('button');
+      slot.type = 'button';
       slot.className = 'page-progress-slot';
-      const fill = document.createElement('i');
-      slot.appendChild(fill);
+      slot.setAttribute('aria-label', name);
+      slot.appendChild(document.createElement('i'));
+      slot.addEventListener('click', () => jump && jump(i));
+      slot.addEventListener('pointerenter', () => {
+        if (slot.disabled) return;
+        tip.textContent = name;
+        // Over the middle of the slot, but kept inside the window: the first
+        // and last names are wider than half a slot and would be cut off.
+        const half = tip.offsetWidth / 2;
+        const middle = slot.getBoundingClientRect().left + slot.offsetWidth / 2;
+        const edge = 10;
+        tip.style.left = `${Math.round(Math.min(Math.max(middle, half + edge),
+                                                window.innerWidth - half - edge))}px`;
+        tip.classList.add('is-here');
+      });
+      slot.addEventListener('pointerleave', () => tip.classList.remove('is-here'));
       bar.appendChild(slot);
-      return fill;
+      return slot;
     });
   };
 
@@ -1459,10 +1609,14 @@ function mountProgress() {
   const set = (p, place) => {
     if (place && place.count) {
       slotsFor(place.count);
-      slots.forEach((fill, i) => {
+      slots.forEach((slot, i) => {
         const full = i < place.index ? 1 : i === place.index ? place.part : 0;
-        fill.style.transform = `scaleX(${full.toFixed(3)})`;
+        slot.firstChild.style.transform = `scaleX(${full.toFixed(3)})`;
+        // A block nobody has opened yet is not a place to go to: the page does
+        // not hand the reader a picture it has not shown them.
+        slot.disabled = i > place.seen;
       });
+      if (hint) hint.classList.toggle('has-way-back', place.seen >= 1);
     }
     if (!hint) return;
     ended = p > 0.999;              // the story is over, there is nothing to prompt
@@ -1473,7 +1627,7 @@ function mountProgress() {
   };
 
   set(0);
-  return { set };
+  return { set, pick: (fn) => { jump = fn; } };
 }
 
 // The mark standing in for the «о» of the title turns towards the cursor, like
@@ -2049,6 +2203,7 @@ function mountStepper(entries, { onProgress, finale } = {}) {
   const bottom = () => Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
   if (finale) beats.push({ top: bottom, run: (done) => glide(bottom(), done) });
   let at = -1;                 // the last beat played
+  let reached = -1;            // and the furthest one ever played
   let busy = false;
   let lastInput = 0;           // when the current movement last said anything
   let peak = 0;                // the hardest it has pushed
@@ -2083,14 +2238,28 @@ function mountStepper(entries, { onProgress, finale } = {}) {
   // page as its blocks, so «three of seven, halfway» is readable at a glance —
   // one long line says only «somewhere in the middle».
   const order = entries.map((e) => e.section);
+  // The beat each block starts with — the one that brings it onto the screen.
+  const starts = order.map((s) => beats.findIndex((b) => b.section === s));
+  const blockOf = (i) => {
+    if (i < 0) return -1;
+    const beat = beats[i];
+    // The credits at the end belong to no block: the story is simply over.
+    return beat.section ? order.indexOf(beat.section) : order.length - 1;
+  };
+
   const place = () => {
     const count = order.length;
-    if (at < 0) return { index: -1, part: 0, count };
+    const seen = blockOf(reached);          // the furthest block ever opened
+    if (at < 0) return { index: -1, part: 0, count, seen };
     const beat = beats[at];
-    // The credits at the end belong to no block: the story is simply over.
-    if (!beat.section) return { index: count - 1, part: 1, count };
+    if (!beat.section) return { index: count - 1, part: 1, count, seen };
     const mine = beats.filter((b) => b.section === beat.section);
-    return { index: order.indexOf(beat.section), part: (mine.indexOf(beat) + 1) / mine.length, count };
+    return {
+      index: order.indexOf(beat.section),
+      part: (mine.indexOf(beat) + 1) / mine.length,
+      count,
+      seen
+    };
   };
 
   const report = () => onProgress && onProgress((at + 1) / beats.length, place());
@@ -2107,8 +2276,46 @@ function mountStepper(entries, { onProgress, finale } = {}) {
     if (busy) return;
     busy = true;
     at += 1;
+    if (at > reached) reached = at;      // the story has never been further
     report();
     beats[at].run(done);
+  };
+
+  // Going to a block, rather than to the next picture: everything before it is
+  // put into the state it was left in, everything after it back to the way it
+  // opens, and the page travels there in one movement. The reader is not
+  // carried past what they have not seen — a block they have never opened
+  // cannot be jumped to, only read up to.
+  const toBlock = (i) => {
+    if (busy || i < 0 || i >= starts.length) return;
+    const target = starts[i];
+    if (target < 0 || target > reached || target === at) return;
+    busy = true;
+    entries.forEach((e) => {
+      if (e.opening) e.opening.run(0);
+      if (e.steps) e.setStep(0);
+    });
+    for (let k = 0; k <= target; k++) if (beats[k].settle) beats[k].settle();
+    at = target;
+    report();
+    glide(beats[target].section.offsetTop, done);
+  };
+
+  // A block at a time in either direction — but forward only into what has
+  // already been read. Where there is nothing to jump to, the page simply
+  // takes the next beat, so the key never does nothing.
+  const nextBlock = () => {
+    const i = blockOf(at) + 1;
+    if (i < starts.length && starts[i] <= reached) toBlock(i);
+    else forward();
+  };
+
+  const prevBlock = () => {
+    const here = blockOf(at);
+    // Standing at the very start of a block, «back» means the one before it.
+    const i = at === starts[here] ? here - 1 : here;
+    if (i < 0) rewind();
+    else toBlock(i);
   };
 
   // Going back takes the last beat back the way it came: the same movement,
@@ -2210,12 +2417,16 @@ function mountStepper(entries, { onProgress, finale } = {}) {
     glide(0, done);
   };
 
-  const KEYS_FORWARD = [' ', 'PageDown', 'ArrowDown', 'ArrowRight', 'Enter'];
-  const KEYS_BACK = ['PageUp', 'ArrowUp', 'ArrowLeft'];
+  // Three sizes of step: a beat on the arrows, a whole block on PageUp and
+  // PageDown, the title screen on Home.
+  const KEYS_FORWARD = [' ', 'ArrowDown', 'ArrowRight', 'Enter'];
+  const KEYS_BACK = ['ArrowUp', 'ArrowLeft'];
   const onKey = (e) => {
     if (e.repeat) { e.preventDefault(); return; }   // holding a key is one press
     if (KEYS_FORWARD.includes(e.key)) { e.preventDefault(); forward(); }
     else if (KEYS_BACK.includes(e.key)) { e.preventDefault(); back(); }
+    else if (e.key === 'PageDown') { e.preventDefault(); nextBlock(); }
+    else if (e.key === 'PageUp') { e.preventDefault(); prevBlock(); }
     else if (e.key === 'Home') { e.preventDefault(); rewind(); }
   };
 
@@ -2235,7 +2446,7 @@ function mountStepper(entries, { onProgress, finale } = {}) {
   window.addEventListener('touchmove', onTouchMove, { passive: false });
 
   report();
-  return { forward, back };
+  return { forward, back, toBlock };
 }
 
 return { mountStepper };
@@ -8915,13 +9126,15 @@ const page = document.getElementById('page');
     };
   });
 
-  const progress = mountProgress();
+  const progress = mountProgress(MODULES.map((mod) => mod.meta.title));
   mountTitleMark();
-  mountStepper(plan, {
+  const story = mountStepper(plan, {
     onProgress: progress.set,
     // One last beat after the story: the page lifts to show the credits.
     finale: document.querySelector('.page-footer')
   });
+  // The progress bar doubles as the way back: a click on a block goes there.
+  progress.pick(story.toBlock);
 </script>
 </body>
 </html>
