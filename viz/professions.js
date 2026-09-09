@@ -296,6 +296,21 @@ export function init(root) {
         display: none;
       }
 
+      /* Where the card's two halves are measured: out of sight, out of the
+         flow, and every block in it at its own natural height. */
+      .prof-probe {
+        position: absolute;
+        left: -10000px;
+        top: 0;
+        visibility: hidden;
+        pointer-events: none;
+      }
+
+      .prof-probe .prof-kinds,
+      .prof-probe .prof-detail-head {
+        min-height: 0;
+      }
+
       /* Absolute, like the canvases in the other sections: the wall must never
          push the card taller than the section. All 44 fit in it at once — the
          columns are what makes them fit, so nothing here ever scrolls.
@@ -617,21 +632,37 @@ export function init(root) {
     }
     measuredAt = width;
 
-    kindsEl.style.minHeight = '0px';
-    headEl.style.minHeight = '0px';
-    let list = 0;
-    let head = 0;
-    PROFESSIONS.forEach((p) => {
-      kindsEl.innerHTML = kindsOf(p).map((k) => `<li>${k}</li>`).join('');
-      nameEl.textContent = p.name;
-      areaEl.textContent = p.area;
-      list = Math.max(list, kindsEl.scrollHeight);
-      head = Math.max(head, headEl.scrollHeight);
-    });
+    // All 44 at once, not one after another: reading a height back straight
+    // after writing the text makes the browser lay the whole page out again,
+    // and 88 of those is most of what building this section used to cost. Here
+    // they are written into one hidden probe and read in a single pass.
+    const list = tallest(width, PROFESSIONS.map((p) =>
+      `<ul class="prof-kinds">${kindsOf(p).map((k) => `<li>${k}</li>`).join('')}</ul>`).join(''));
+    const head = tallest(headEl.clientWidth, PROFESSIONS.map((p) =>
+      '<div class="prof-detail-head">'
+      + '<span class="prof-detail-art"></span>'
+      + '<span class="prof-detail-text">'
+      +   `<span class="prof-detail-area">${p.area}</span>`
+      +   `<span class="prof-detail-name">${p.name}</span>`
+      + '</span></div>').join(''));
+
     kindsEl.style.minHeight = `${list}px`;
     noteEl.style.minHeight = `${list}px`;
     headEl.style.minHeight = `${head}px`;
     show(back);
+  }
+
+  // Lays the given blocks out side by side in a box of that width, out of
+  // sight, and gives back the tallest of them.
+  function tallest(width, html) {
+    const probe = document.createElement('div');
+    probe.className = 'prof-probe';
+    probe.style.width = `${width}px`;
+    probe.innerHTML = html;
+    root.appendChild(probe);
+    const height = Math.max(...[...probe.children].map((el) => el.offsetHeight));
+    probe.remove();
+    return height;
   }
 
   // All 44 have to stand in the box at once — the section is one screen tall
@@ -646,11 +677,34 @@ export function init(root) {
   // enough.
   const MAX_COLUMNS = 8;
   const SHRINK = [1, 0.94, 0.88, 0.82];
+  const idle = window.requestIdleCallback
+    ? (fn, opts) => window.requestIdleCallback(fn, opts)
+    : (fn) => setTimeout(fn, 60);
   const wrap = grid.parentElement;
   const COLUMN = 250;                    // the width a column would like to be
   const stacked = window.matchMedia('(max-width: 860px)');
 
+  // What is over the edge is whole columns wide, so how many the wall would
+  // take can be read off instead of searched for: every trial costs a full
+  // layout of all 44, and there is no need to walk to the answer one column
+  // at a time.
+  const columnsNeeded = () => {
+    const gap = parseFloat(getComputedStyle(grid).columnGap) || 0;
+    const n = Number(grid.style.columnCount) || 1;
+    const column = (grid.clientWidth - gap * (n - 1)) / n;
+    return Math.round((grid.scrollWidth + gap) / (column + gap));
+  };
+
+  // A trial is a layout of all 44, and a run of them in one go is a stutter
+  // the reader can see. So the trials are taken one at a time, in the moments
+  // the page has nothing else to do: the first right away — on a wide screen
+  // it is usually the only one — and the rest as they come.
+  let walk = null;
+
   function fit() {
+    if (walk) walk.stopped = true;
+    walk = null;
+
     if (stacked.matches) {
       grid.style.columnCount = '';       // one long column, scrolling with the page
       grid.style.removeProperty('--prof-fit');
@@ -659,24 +713,40 @@ export function init(root) {
     const from = Math.max(3, Math.floor(grid.clientWidth / COLUMN));
     grid.style.position = '';
     wrap.style.overflowY = '';
-    for (let n = from; n <= MAX_COLUMNS; n++) {
-      grid.style.columnCount = n;
-      for (const k of SHRINK) {
-        grid.style.setProperty('--prof-fit', k);
-        if (grid.scrollWidth <= grid.clientWidth + 1) return;
-      }
-    }
 
-    // A window too short for all of it even shrunk — a laptop turned sideways,
-    // a browser with three toolbars. Better a wall the reader can scroll than
-    // one that quietly keeps nine professions off the screen: the wall leaves
-    // its fixed box, becomes as tall as it needs and the box scrolls. One
-    // column more than the width would like, at full size: it is scrolled
-    // anyway, so the tiles may as well be readable and the scroll short.
-    grid.style.columnCount = Math.min(MAX_COLUMNS, from + 1);
-    grid.style.setProperty('--prof-fit', 1);
-    grid.style.position = 'static';
-    wrap.style.overflowY = 'auto';
+    const state = { n: from, left: [...SHRINK], stopped: false };
+    walk = state;
+
+    const trial = () => {
+      if (state.stopped) return;
+      grid.style.columnCount = state.n;
+      grid.style.setProperty('--prof-fit', state.left.shift());
+      if (grid.scrollWidth <= grid.clientWidth + 1) { walk = null; return; }
+
+      if (!state.left.length) {
+        state.n = Math.max(state.n + 1, columnsNeeded());
+        state.left = [...SHRINK];
+      }
+
+      if (state.n > MAX_COLUMNS) {
+        // A window too short for all of it even shrunk — a laptop turned
+        // sideways, a browser with three toolbars. Better a wall the reader
+        // can scroll than one that quietly keeps nine professions off the
+        // screen: the wall leaves its fixed box, becomes as tall as it needs
+        // and the box scrolls. One column more than the width would like, at
+        // full size: it is scrolled anyway, so the tiles may as well be
+        // readable and the scroll short.
+        grid.style.columnCount = Math.min(MAX_COLUMNS, from + 1);
+        grid.style.setProperty('--prof-fit', 1);
+        grid.style.position = 'static';
+        wrap.style.overflowY = 'auto';
+        walk = null;
+        return;
+      }
+      idle(trial, { timeout: 120 });
+    };
+
+    trial();
   }
 
   function measure() {
@@ -751,5 +821,9 @@ export function init(root) {
   });
 
   show(null);
-  measure();
+  // Laying the wall out is the expensive part of this module, and nobody is
+  // looking at it yet: the card holds the screen for three beats first. So the
+  // section is built now and laid out when the page has a moment — the beat
+  // that brings it in, and the one that carries the page to it, stay smooth.
+  idle(measure, { timeout: 500 });
 }
