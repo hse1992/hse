@@ -153,11 +153,13 @@ export function init(root) {
 
       /* Flags keep a fixed order and never move — only their colour changes,
          so the eye can follow one country while the cities are switched. */
+      /* The flag fills the tile exactly, so it is rounded off itself instead of
+         being clipped by one: the wall is drawn for the first time on the frame
+         it slides in, and 129 clipping layers are 129 things to do in it. */
       .world-tile {
         width: var(--tile, 40px);
         aspect-ratio: 4 / 3;
         border-radius: 3px;
-        overflow: hidden;
         background: var(--shell);
         box-shadow: 0 0 0 1px rgba(16, 24, 40, 0.10);
         /* The delay is set per flag, so switching a city runs a wave across
@@ -171,6 +173,7 @@ export function init(root) {
         display: block;
         width: 100%;
         height: 100%;
+        border-radius: inherit;
         object-fit: cover;
       }
 
@@ -314,7 +317,7 @@ export function init(root) {
       // The wave crosses the whole wall in about the same time a repaint takes
       // elsewhere on the page.
       tile.style.setProperty('--d', `${Math.round(index * (340 / COUNTRIES.length))}ms`);
-      tile.innerHTML = `<img src="assets/flags/${code}.svg" alt="${name}" loading="lazy">`;
+      tile.innerHTML = `<img src="assets/flags/${code}.svg" alt="${name}">`;
       flags.appendChild(tile);
       tiles.set(code, tile);
       index++;
@@ -355,6 +358,14 @@ export function init(root) {
       grid.style.setProperty('--tile', `${size}px`);
     }
   }
+
+  // The block is built a screen before it is shown, and then the whole wall
+  // arrives in one movement. A flag left to be decoded on the frame it appears
+  // is one of 129 doing the same thing at once — so they are decoded here,
+  // while the reader is still reading the title card.
+  grid.querySelectorAll('img').forEach((img) => {
+    if (img.decode) img.decode().catch(() => {});
+  });
 
   new ResizeObserver(layout).observe(grid);
   phone.addEventListener('change', layout);

@@ -2019,7 +2019,30 @@ function introRunner(section, stages = 1, scale = CARD_K) {
     // were none, and «no inline height» means fully open. Redraw the frame the
     // opening was on, so a part cannot flash into view.
     if (drawn !== null) draw(drawn);
+    taken = state();
+    edited = false;
   };
+
+  // Measuring walks the whole section several times over — the heading is laid
+  // out at half a dozen sizes to find the one that keeps its line breaks — and
+  // in a block of hundreds of elements that is more work than a frame can hold.
+  // Whoever plays the opening asks for it before every beat, so the reader
+  // would feel it as a hitch at the very moment they scroll.
+  //
+  // What can change the answer: the size of the window, the fonts, the
+  // pictures inside the heading — and the heading itself, since a module is
+  // free to write into it. The first three are read off in a line; the last is
+  // watched, because it changes rarely and asking would cost as much as
+  // measuring. While all of them stand still the last measurement holds.
+  const state = () => `${window.innerWidth}×${window.innerHeight}`
+    + `|${document.fonts ? document.fonts.status : ''}`
+    + `|${[...header.querySelectorAll('img')].filter((img) => img.complete).length}`;
+  let taken = null;
+  let edited = false;
+  new MutationObserver(() => { edited = true; })
+    .observe(header, { childList: true, characterData: true, subtree: true });
+  const remeasure = () => { if (edited || state() !== taken) measure(); };
+
   measure();
   window.addEventListener('resize', measure);
   // A heading can carry pictures — a station board, a scarf — and they arrive
@@ -2064,8 +2087,9 @@ function introRunner(section, stages = 1, scale = CARD_K) {
     beats,
     zone,
     // Whoever plays this calls it before a beat: by then the pictures have
-    // loaded and the card knows its real height.
-    remeasure: measure,
+    // loaded and the card knows its real height. Free when nothing that the
+    // measurement depends on has moved since the last one.
+    remeasure,
     // p from 0 to 1 across the whole opening — used to put it in its opening
     // or finished state in one go.
     run(p) { draw(p * zone); },
@@ -5887,11 +5911,13 @@ function init(root) {
 
       /* Flags keep a fixed order and never move — only their colour changes,
          so the eye can follow one country while the cities are switched. */
+      /* The flag fills the tile exactly, so it is rounded off itself instead of
+         being clipped by one: the wall is drawn for the first time on the frame
+         it slides in, and 129 clipping layers are 129 things to do in it. */
       .world-tile {
         width: var(--tile, 40px);
         aspect-ratio: 4 / 3;
         border-radius: 3px;
-        overflow: hidden;
         background: var(--shell);
         box-shadow: 0 0 0 1px rgba(16, 24, 40, 0.10);
         /* The delay is set per flag, so switching a city runs a wave across
@@ -5905,6 +5931,7 @@ function init(root) {
         display: block;
         width: 100%;
         height: 100%;
+        border-radius: inherit;
         object-fit: cover;
       }
 
@@ -6048,7 +6075,7 @@ function init(root) {
       // The wave crosses the whole wall in about the same time a repaint takes
       // elsewhere on the page.
       tile.style.setProperty('--d', `${Math.round(index * (340 / COUNTRIES.length))}ms`);
-      tile.innerHTML = `<img src="${FLAGS[code] || ''}" alt="${name}" loading="lazy">`;
+      tile.innerHTML = `<img src="${FLAGS[code] || ''}" alt="${name}">`;
       flags.appendChild(tile);
       tiles.set(code, tile);
       index++;
@@ -6089,6 +6116,14 @@ function init(root) {
       grid.style.setProperty('--tile', `${size}px`);
     }
   }
+
+  // The block is built a screen before it is shown, and then the whole wall
+  // arrives in one movement. A flag left to be decoded on the frame it appears
+  // is one of 129 doing the same thing at once — so they are decoded here,
+  // while the reader is still reading the title card.
+  grid.querySelectorAll('img').forEach((img) => {
+    if (img.decode) img.decode().catch(() => {});
+  });
 
   new ResizeObserver(layout).observe(grid);
   phone.addEventListener('change', layout);
