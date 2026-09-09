@@ -772,6 +772,11 @@ button { font-family: inherit; }
   display: flex;
   gap: 16px;
   align-items: stretch;
+  /* A block is hundreds of elements, and the card above it is measured by
+     reading heights — which makes the browser lay the page out again, block
+     and all. Nothing inside a block changes anything outside it, and saying so
+     lets that work be skipped: a measurement costs a third to a half less. */
+  contain: layout style;
 }
 
 /* Not built yet — hold the space so the page keeps its height and the
@@ -1695,6 +1700,16 @@ function titleCard(section, zone = INTRO_SCREENS, K = () => CARD_K, fullHeight =
   const container = section.querySelector('.viz-container');
   const header = section.querySelector('.viz-header');
 
+  // The padding of the container is a stylesheet value: it cannot change
+  // while a beat plays, and asking for it every frame makes the browser
+  // recalculate style for the whole page each time.
+  let pad = null;
+  const padding = () => {
+    if (pad === null) pad = parseFloat(getComputedStyle(container).paddingTop);
+    return pad;
+  };
+  window.addEventListener('resize', () => { pad = null; });
+
   return (p, narrow) => {
     const big = K();
     const k = big - (big - 1) * p;
@@ -1707,8 +1722,7 @@ function titleCard(section, zone = INTRO_SCREENS, K = () => CARD_K, fullHeight =
     // on a narrow one the heading is pinned by itself to the top of the screen.
     const centred = narrow
       ? window.innerHeight / 2 - h / 2
-      : container.clientHeight / 2
-        - (parseFloat(getComputedStyle(container).paddingTop) + h / 2);
+      : container.clientHeight / 2 - (padding() + h / 2);
 
     section.style.setProperty('--intro-k', k.toFixed(4));
     section.style.setProperty('--intro-dy', `${(centred * (1 - p)).toFixed(1)}px`);
@@ -1721,6 +1735,23 @@ function titleCard(section, zone = INTRO_SCREENS, K = () => CARD_K, fullHeight =
       const hold = window.innerHeight * zone + header.offsetHeight;
       section.style.setProperty('--intro-hold', `${Math.round(hold)}px`);
     }
+  };
+}
+
+// A part waiting its turn is squeezed shut by its height, and reports through
+// scrollHeight the height it would have open. That reading makes the browser
+// lay the page out, and it is wanted on every frame of a beat — so it is taken
+// once and kept. What can change it is the width of the window and the content
+// itself; both say so, and the next frame reads it afresh.
+function openHeights(watched) {
+  let kept = new WeakMap();
+  const forget = () => { kept = new WeakMap(); };
+  window.addEventListener('resize', forget);
+  new MutationObserver(forget).observe(watched,
+    { childList: true, characterData: true, subtree: true });
+  return (el) => {
+    if (!kept.has(el)) kept.set(el, el.scrollHeight);
+    return kept.get(el);
   };
 }
 
@@ -1764,6 +1795,15 @@ function leadCard(section, K = () => CARD_K) {
   // Squeezed shut until their turn — see stageCards for why by height.
   const parts = [...lead.querySelectorAll('.intro-stage')];
   parts.forEach((el) => { el.style.overflow = 'hidden'; });
+  const openHeight = openHeights(lead);
+
+  // Stylesheet value: it cannot change while a beat plays.
+  let pad = null;
+  const padding = () => {
+    if (pad === null) pad = parseFloat(getComputedStyle(container).paddingTop);
+    return pad;
+  };
+  window.addEventListener('resize', () => { pad = null; });
   const screens = LEAD_SCREENS + parts.length * LEAD_STAGE_SCREENS;
   const hold = LEAD_HOLD + parts.length * LEAD_STAGE_SCREENS;
 
@@ -1815,7 +1855,7 @@ function leadCard(section, K = () => CARD_K) {
       const v = clamp((q - from) / LEAD_STAGE_SPAN);
       const grown = 1 - Math.pow(1 - v, 3);
       el.style.opacity = grown.toFixed(3);
-      el.style.height = grown < 1 ? `${(el.scrollHeight * grown).toFixed(1)}px` : '';
+      el.style.height = grown < 1 ? `${(openHeight(el) * grown).toFixed(1)}px` : '';
       // How far each part has come, for anyone who cares: a screen where one
       // part replaces another has the earlier one leave by the same number.
       section.style.setProperty(`--lead-stage-${k}`, grown.toFixed(3));
@@ -1837,9 +1877,8 @@ function leadCard(section, K = () => CARD_K) {
     // heading of the section keeps waiting off to the right. On a narrow
     // screen nothing is pinned as a whole, so the usual swap happens instead.
     if (parks && !narrow) {
-      const pad = parseFloat(getComputedStyle(container).paddingTop);
       lead.style.setProperty('--lead-x', '0px');
-      lead.style.setProperty('--lead-y', `${(-e * (cardTop - pad)).toFixed(1)}px`);
+      lead.style.setProperty('--lead-y', `${(-e * (cardTop - padding())).toFixed(1)}px`);
       lead.style.opacity = '';
       section.style.setProperty('--card-x', '108vw');
       section.style.setProperty('--lead-hold',
@@ -1899,6 +1938,7 @@ function settleCurve(raw) {
 function stageCards(section, stages) {
   const blocks = [...section.querySelectorAll('.intro-stage')];
   blocks.forEach((el) => { el.style.overflow = 'hidden'; });
+  const openHeight = openHeights(section.querySelector('.viz-header'));
 
   const grown = (q, k) =>
     1 - Math.pow(1 - clamp((q - (k - 1) * STAGE_SCREENS) / STAGE_SCREENS), 3);
@@ -1916,7 +1956,7 @@ function stageCards(section, stages) {
     blocks.forEach((el) => {
       const e = grown(q, Number(el.dataset.stage) || 1);
       el.style.opacity = e.toFixed(3);
-      el.style.height = e < 1 ? `${(el.scrollHeight * e).toFixed(1)}px` : '';
+      el.style.height = e < 1 ? `${(openHeight(el) * e).toFixed(1)}px` : '';
     });
   };
 }
@@ -2400,7 +2440,44 @@ function mountStepper(entries, { onProgress, finale } = {}) {
 
   const report = () => onProgress && onProgress((at + 1) / beats.length, place());
 
-  const done = () => { busy = false; };
+  // Putting a block together costs between eight and seventy milliseconds, and
+  // the beat that brings it on is the worst moment to spend them: the page is
+  // travelling and the reader is watching it move. So the next block is made
+  // ready while they are still reading this one — the page stands still then,
+  // waiting for a movement, and the work goes unnoticed.
+  //
+  // Everything the arrival would have done is done here: the block itself, the
+  // step it opens on, and the measuring of its card. What is left for the beat
+  // is putting the card in its first frame, which is free.
+  const idle = (fn) => (window.requestIdleCallback
+    ? requestIdleCallback(fn, { timeout: 1500 })
+    : setTimeout(fn, 300));
+
+  const prepare = (entry) => {
+    if (!entry || entry.ready) return;
+    entry.ready = true;
+    entry.build();
+    if (entry.opensOnStep && entry.steps) entry.setStep(0);
+    if (entry.opening) entry.opening.remeasure();
+  };
+
+  // The browser hands out idle time between frames too, and a block is a
+  // single lump of work that cannot be cut in half — let go mid-beat it eats
+  // seven frames of the animation. So it is put off again whenever a beat
+  // starts, and taken up when the page comes to rest.
+  let warming = 0;
+  const warm = () => {
+    const next = blockOf(at) + 1;
+    if (next >= entries.length || entries[next].ready) return;
+    warming = idle(() => { warming = 0; prepare(entries[next]); });
+  };
+
+  const chill = () => {
+    if (warming && window.cancelIdleCallback) cancelIdleCallback(warming);
+    warming = 0;
+  };
+
+  const done = () => { busy = false; warm(); };
 
   const forward = () => {
     if (at >= beats.length - 1) return;
@@ -2410,6 +2487,7 @@ function mountStepper(entries, { onProgress, finale } = {}) {
     // a beat the reader did not ask for twice is worse than one they have to
     // ask for again.
     if (busy) return;
+    chill();
     busy = true;
     at += 1;
     if (at > reached) reached = at;      // the story has never been further
@@ -2426,6 +2504,7 @@ function mountStepper(entries, { onProgress, finale } = {}) {
     if (busy || i < 0 || i >= starts.length) return;
     const target = starts[i];
     if (target < 0 || target > reached || target === at) return;
+    chill();
     busy = true;
     entries.forEach((e) => {
       if (e.opening) e.opening.run(0);
@@ -2461,6 +2540,7 @@ function mountStepper(entries, { onProgress, finale } = {}) {
   const back = () => {
     if (at < 0) return;
     if (busy) return;
+    chill();
     const undoing = beats[at];
     at -= 1;
     report();
@@ -2543,6 +2623,7 @@ function mountStepper(entries, { onProgress, finale } = {}) {
   // did the first time.
   const rewind = () => {
     if (at < 0 || busy) return;
+    chill();
     busy = true;
     entries.forEach((e) => {
       if (e.opening) e.opening.run(0);
@@ -2582,6 +2663,9 @@ function mountStepper(entries, { onProgress, finale } = {}) {
   window.addEventListener('touchmove', onTouchMove, { passive: false });
 
   report();
+  // The title screen is the longest pause the page ever gets — the reader is
+  // reading it. The first block is made ready in it.
+  warm();
   return { forward, back, toBlock };
 }
 
@@ -8076,6 +8160,21 @@ function init(root) {
         display: none;
       }
 
+      /* Where the card's two halves are measured: out of sight, out of the
+         flow, and every block in it at its own natural height. */
+      .prof-probe {
+        position: absolute;
+        left: -10000px;
+        top: 0;
+        visibility: hidden;
+        pointer-events: none;
+      }
+
+      .prof-probe .prof-kinds,
+      .prof-probe .prof-detail-head {
+        min-height: 0;
+      }
+
       /* Absolute, like the canvases in the other sections: the wall must never
          push the card taller than the section. All 44 fit in it at once — the
          columns are what makes them fit, so nothing here ever scrolls.
@@ -8397,21 +8496,37 @@ function init(root) {
     }
     measuredAt = width;
 
-    kindsEl.style.minHeight = '0px';
-    headEl.style.minHeight = '0px';
-    let list = 0;
-    let head = 0;
-    PROFESSIONS.forEach((p) => {
-      kindsEl.innerHTML = kindsOf(p).map((k) => `<li>${k}</li>`).join('');
-      nameEl.textContent = p.name;
-      areaEl.textContent = p.area;
-      list = Math.max(list, kindsEl.scrollHeight);
-      head = Math.max(head, headEl.scrollHeight);
-    });
+    // All 44 at once, not one after another: reading a height back straight
+    // after writing the text makes the browser lay the whole page out again,
+    // and 88 of those is most of what building this section used to cost. Here
+    // they are written into one hidden probe and read in a single pass.
+    const list = tallest(width, PROFESSIONS.map((p) =>
+      `<ul class="prof-kinds">${kindsOf(p).map((k) => `<li>${k}</li>`).join('')}</ul>`).join(''));
+    const head = tallest(headEl.clientWidth, PROFESSIONS.map((p) =>
+      '<div class="prof-detail-head">'
+      + '<span class="prof-detail-art"></span>'
+      + '<span class="prof-detail-text">'
+      +   `<span class="prof-detail-area">${p.area}</span>`
+      +   `<span class="prof-detail-name">${p.name}</span>`
+      + '</span></div>').join(''));
+
     kindsEl.style.minHeight = `${list}px`;
     noteEl.style.minHeight = `${list}px`;
     headEl.style.minHeight = `${head}px`;
     show(back);
+  }
+
+  // Lays the given blocks out side by side in a box of that width, out of
+  // sight, and gives back the tallest of them.
+  function tallest(width, html) {
+    const probe = document.createElement('div');
+    probe.className = 'prof-probe';
+    probe.style.width = `${width}px`;
+    probe.innerHTML = html;
+    root.appendChild(probe);
+    const height = Math.max(...[...probe.children].map((el) => el.offsetHeight));
+    probe.remove();
+    return height;
   }
 
   // All 44 have to stand in the box at once — the section is one screen tall
@@ -8426,11 +8541,34 @@ function init(root) {
   // enough.
   const MAX_COLUMNS = 8;
   const SHRINK = [1, 0.94, 0.88, 0.82];
+  const idle = window.requestIdleCallback
+    ? (fn, opts) => window.requestIdleCallback(fn, opts)
+    : (fn) => setTimeout(fn, 60);
   const wrap = grid.parentElement;
   const COLUMN = 250;                    // the width a column would like to be
   const stacked = window.matchMedia('(max-width: 860px)');
 
+  // What is over the edge is whole columns wide, so how many the wall would
+  // take can be read off instead of searched for: every trial costs a full
+  // layout of all 44, and there is no need to walk to the answer one column
+  // at a time.
+  const columnsNeeded = () => {
+    const gap = parseFloat(getComputedStyle(grid).columnGap) || 0;
+    const n = Number(grid.style.columnCount) || 1;
+    const column = (grid.clientWidth - gap * (n - 1)) / n;
+    return Math.round((grid.scrollWidth + gap) / (column + gap));
+  };
+
+  // A trial is a layout of all 44, and a run of them in one go is a stutter
+  // the reader can see. So the trials are taken one at a time, in the moments
+  // the page has nothing else to do: the first right away — on a wide screen
+  // it is usually the only one — and the rest as they come.
+  let walk = null;
+
   function fit() {
+    if (walk) walk.stopped = true;
+    walk = null;
+
     if (stacked.matches) {
       grid.style.columnCount = '';       // one long column, scrolling with the page
       grid.style.removeProperty('--prof-fit');
@@ -8439,24 +8577,40 @@ function init(root) {
     const from = Math.max(3, Math.floor(grid.clientWidth / COLUMN));
     grid.style.position = '';
     wrap.style.overflowY = '';
-    for (let n = from; n <= MAX_COLUMNS; n++) {
-      grid.style.columnCount = n;
-      for (const k of SHRINK) {
-        grid.style.setProperty('--prof-fit', k);
-        if (grid.scrollWidth <= grid.clientWidth + 1) return;
-      }
-    }
 
-    // A window too short for all of it even shrunk — a laptop turned sideways,
-    // a browser with three toolbars. Better a wall the reader can scroll than
-    // one that quietly keeps nine professions off the screen: the wall leaves
-    // its fixed box, becomes as tall as it needs and the box scrolls. One
-    // column more than the width would like, at full size: it is scrolled
-    // anyway, so the tiles may as well be readable and the scroll short.
-    grid.style.columnCount = Math.min(MAX_COLUMNS, from + 1);
-    grid.style.setProperty('--prof-fit', 1);
-    grid.style.position = 'static';
-    wrap.style.overflowY = 'auto';
+    const state = { n: from, left: [...SHRINK], stopped: false };
+    walk = state;
+
+    const trial = () => {
+      if (state.stopped) return;
+      grid.style.columnCount = state.n;
+      grid.style.setProperty('--prof-fit', state.left.shift());
+      if (grid.scrollWidth <= grid.clientWidth + 1) { walk = null; return; }
+
+      if (!state.left.length) {
+        state.n = Math.max(state.n + 1, columnsNeeded());
+        state.left = [...SHRINK];
+      }
+
+      if (state.n > MAX_COLUMNS) {
+        // A window too short for all of it even shrunk — a laptop turned
+        // sideways, a browser with three toolbars. Better a wall the reader
+        // can scroll than one that quietly keeps nine professions off the
+        // screen: the wall leaves its fixed box, becomes as tall as it needs
+        // and the box scrolls. One column more than the width would like, at
+        // full size: it is scrolled anyway, so the tiles may as well be
+        // readable and the scroll short.
+        grid.style.columnCount = Math.min(MAX_COLUMNS, from + 1);
+        grid.style.setProperty('--prof-fit', 1);
+        grid.style.position = 'static';
+        wrap.style.overflowY = 'auto';
+        walk = null;
+        return;
+      }
+      idle(trial, { timeout: 120 });
+    };
+
+    trial();
   }
 
   function measure() {
@@ -8531,7 +8685,11 @@ function init(root) {
   });
 
   show(null);
-  measure();
+  // Laying the wall out is the expensive part of this module, and nobody is
+  // looking at it yet: the card holds the screen for three beats first. So the
+  // section is built now and laid out when the page has a moment — the beat
+  // that brings it in, and the one that carries the page to it, stay smooth.
+  idle(measure, { timeout: 500 });
 }
 
 return { meta, init };
