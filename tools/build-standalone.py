@@ -1,6 +1,11 @@
 #!/usr/bin/env python3
 """Собирает автономную копию страницы — всё в одном файле.
 
+С ключом --mobile собирается вторая копия, которая всегда читается как на
+телефоне: прокруткой, в одну колонку, какой бы ширины ни было окно. На самом
+телефоне обычная копия ведёт себя точно так же — эта нужна, чтобы посмотреть
+телефонный вид на большом экране или на планшете.
+
 Состав разделов берётся из MODULES в index.html, так что выгрузка не отстаёт
 от страницы. ES-модули расплющиваются: библиотеки идут на верхнем уровне,
 каждая визуализация заворачивается в свою функцию, чтобы одинаковые имена
@@ -11,11 +16,13 @@
 import base64
 import os
 import re
+import sys
 import pathlib
 import urllib.parse
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-OUT = ROOT / "На сколько большая.html"
+PHONE = "--mobile" in sys.argv
+OUT = ROOT / ("На сколько большая — телефон.html" if PHONE else "На сколько большая.html")
 
 MIME = {
     ".svg": "image/svg+xml", ".png": "image/png", ".jpg": "image/jpeg",
@@ -118,11 +125,42 @@ keep = ("Regular", "SemiBold", "Bold")   # только используемые
 fonts = "\n".join(b for b in re.findall(r"@font-face\s*\{[^}]*\}", fonts)
                   if any(k in b for k in keep))
 
+def only_narrow(text: str) -> str:
+    """Оставляет от стилей телефонную ветку: то, что до 860px, — насовсем.
+
+    Медиазапрос по ширине на большом экране не сработает, а телефонная копия
+    должна выглядеть телефоном везде. Поэтому блок «до 860px» раскрывается —
+    его правила становятся обычными, — а блок «от 861px» выбрасывается целиком.
+    Скобки считаются вручную: внутри блока свои фигурные скобки.
+    """
+    for query, keep in [("@media (max-width: 860px)", True),
+                        ("@media (min-width: 861px)", False)]:
+        while True:
+            at = text.find(query)
+            if at < 0:
+                break
+            start = text.index("{", at)
+            depth, i = 0, start
+            while i < len(text):
+                if text[i] == "{":
+                    depth += 1
+                elif text[i] == "}":
+                    depth -= 1
+                    if depth == 0:
+                        break
+                i += 1
+            inner = text[start + 1:i] if keep else ""
+            text = text[:at] + inner + text[i + 1:]
+    return text
+
+
 css = "\n".join([
     inline_assets(fonts),
     (ROOT / "styles/tokens.css").read_text(encoding="utf-8"),
     inline_assets((ROOT / "styles/layout.css").read_text(encoding="utf-8")),
 ])
+if PHONE:
+    css = only_narrow(css)
 
 # ---------- состав страницы ----------
 index_src = (ROOT / "index.html").read_text(encoding="utf-8")
@@ -181,12 +219,27 @@ footer = re.search(r"<footer class=\"page-footer\">.*?</footer>", index_src, re.
 # mountStepper не терялись.
 shell = re.search(r"  const plan = MODULES\.map\(.*?(?=\n\s*</script>)", index_src, re.S).group(0)
 
+# Телефонная копия отвечает на вопросы о ширине так, как ответил бы телефон:
+# страница и модули спрашивают об этом через matchMedia, и подмена одна на всех.
+phone_shim = """
+  // Эта копия — телефонная: она читается прокруткой в одну колонку на любом
+  // экране. Вопросы о ширине отвечаются так, как ответил бы телефон.
+  const realMedia = window.matchMedia.bind(window);
+  window.matchMedia = (q) => {
+    if (q.includes('max-width: 860px')) return { matches: true, addEventListener() {}, removeEventListener() {}, addListener() {} };
+    if (q.includes('min-width: 861px')) return { matches: false, addEventListener() {}, removeEventListener() {}, addListener() {} };
+    return realMedia(q);
+  };
+""" if PHONE else ""
+
+title = "На сколько большая" + (" — телефон" if PHONE else "")
+
 html = f"""<!DOCTYPE html>
 <html lang="ru">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>На сколько большая</title>
+<title>{title}</title>
 <!-- Собранная копия страницы целиком: стили, скрипты, шрифты и картинки лежат
      внутри файла, ничего не подгружается. Исходники — в проекте «На сколько
      большая», это выгрузка из них. -->
@@ -196,6 +249,7 @@ html = f"""<!DOCTYPE html>
 </head>
 <body>
 <script>
+{phone_shim}
   // Same as in index.html: the page is read beat by beat, so a reload starts it
   // over rather than dropping the reader where they had scrolled to.
   if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
