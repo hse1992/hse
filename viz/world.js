@@ -186,6 +186,43 @@ export function init(root) {
         transform: scale(1.14);
       }
 
+      /* The name of the country under the cursor. The browser draws one of
+         these itself for a title, but it waits about a second before it does
+         and sets it in the type of the operating system — on a wall where the
+         answer to «what is this flag» is the whole point, it has to come at
+         once and be readable. One tip for the wall, moved to the flag under
+         the cursor. */
+      .world-tip {
+        position: absolute;
+        left: 0;
+        top: 0;
+        z-index: 3;
+        padding: 5px 11px;
+        border-radius: 999px;
+        background: var(--hint-veil);
+        -webkit-backdrop-filter: blur(8px);
+        backdrop-filter: blur(8px);
+        box-shadow: var(--card-shadow);
+        color: var(--text);
+        font-size: 1rem;
+        line-height: 1.2;
+        white-space: nowrap;
+        opacity: 0;
+        transform: translateY(3px);
+        /* The same 140ms the flag under it takes to grow. */
+        transition: opacity 140ms ease, transform 140ms ease;
+        pointer-events: none;
+      }
+
+      .world-tip.is-here {
+        opacity: 1;
+        transform: none;
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .world-tip { transition: none; }
+      }
+
       .world-score {
         display: flex;
         align-items: baseline;
@@ -271,6 +308,7 @@ export function init(root) {
       <div class="canvas-card world-flags-card">
         <div class="canvas-wrap world-wrap">
           <div class="world-grid" data-el="grid"></div>
+          <div class="world-tip" data-el="tip" aria-hidden="true"></div>
         </div>
       </div>
     </div>
@@ -313,7 +351,10 @@ export function init(root) {
       const name = NAME.get(code);
       const tile = document.createElement('div');
       tile.className = 'world-tile';
-      tile.title = name;
+      // The name the tip shows. Not a title: the browser would then draw its
+      // own tooltip over ours, a second late. It is still read aloud — it is
+      // the alt of the flag.
+      tile.dataset.name = name;
       // The wave crosses the whole wall in about the same time a repaint takes
       // elsewhere on the page.
       tile.style.setProperty('--d', `${Math.round(index * (340 / COUNTRIES.length))}ms`);
@@ -368,6 +409,58 @@ export function init(root) {
   });
 
   new ResizeObserver(layout).observe(grid);
+
+  // ---------- The name under the cursor ----------
+  // One tip for the whole wall, and one listener: 129 flags with a listener
+  // each would cost more to build than the wall itself. Only where there is a
+  // cursor to follow — a tap on a phone would leave the name standing there.
+  const tip = $('tip');
+  const wrap = tip.parentElement;
+
+  if (window.matchMedia('(hover: hover)').matches) {
+    let shown = null;
+
+    const place = (tile) => {
+      const box = tile.getBoundingClientRect();
+      const field = wrap.getBoundingClientRect();
+      // Above the flag and centred on it, but never over the edge of the card:
+      // the first and last flags of a row would hang outside it.
+      const half = tip.offsetWidth / 2;
+      const middle = box.left + box.width / 2 - field.left;
+      const x = Math.min(Math.max(middle, half), field.width - half);
+      const above = box.top - field.top - tip.offsetHeight - 8;
+      // No room above — the top row — so it stands under the flag instead.
+      const y = above < 0 ? box.bottom - field.top + 8 : above;
+      // Placed by its corner, not moved by a transform: the transform is what
+      // the tip arrives with, and the two would write over each other.
+      tip.style.left = `${Math.round(x - half)}px`;
+      tip.style.top = `${Math.round(y)}px`;
+    };
+
+    const show = (tile) => {
+      if (tile === shown) return;
+      shown = tile;
+      tip.textContent = tile.dataset.name;
+      // Placed before it is shown: the width is known only once the name is in.
+      place(tile);
+      tip.classList.add('is-here');
+    };
+
+    const hide = () => {
+      shown = null;
+      tip.classList.remove('is-here');
+    };
+
+    grid.addEventListener('pointerover', (e) => {
+      const tile = e.target.closest('.world-tile');
+      if (tile) show(tile);
+      else hide();
+    });
+    grid.addEventListener('pointerleave', hide);
+    // The wall scrolls only when it does not fit; the tip is placed against
+    // the card, so a scroll would leave it beside the wrong flag.
+    grid.addEventListener('scroll', hide, { passive: true });
+  }
   phone.addEventListener('change', layout);
   // The web font arrives after the first paint and moves the captions.
   if (document.fonts) document.fonts.ready.then(layout);
