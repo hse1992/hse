@@ -98,6 +98,18 @@ button { font-family: inherit; }
   pointer-events: none;
 }
 
+/* The picture a block hands over, on its way to the whole screen of the next
+   one — see carry() in lib/stepper.js. Placed and sized from JS and moved by
+   transform only; under the lead-in it is heading for and under the figure
+   flying with it, over everything else. */
+.page-carry {
+  position: fixed;
+  z-index: 38;
+  transform-origin: 0 0;
+  will-change: transform, opacity;
+  pointer-events: none;
+}
+
 /* The name of the block under the cursor, just below the bar. */
 .page-progress-tip {
   position: fixed;
@@ -464,6 +476,28 @@ button { font-family: inherit; }
   line-height: 1.4;
   color: var(--text-secondary);
   text-wrap: pretty;
+}
+
+/* A picture handed over by the block before — the stadium under the question
+   of the flags — takes the screen under the lead-in, which stands at the top
+   for it, and goes as the lead-in leaves. Its top and height are set from JS:
+   it starts under the last line of the lead-in. Only where the page is read
+   beat by beat — nowhere else is a picture laid. */
+.is-stepped .viz-section.has-backdrop {
+  position: relative;
+}
+
+.viz-backdrop {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  opacity: calc(1 - var(--lead-away, 0) * 1.4);
+  pointer-events: none;
+}
+
+/* Over the picture on its way in, too. */
+.is-stepped .has-backdrop .viz-lead {
+  z-index: 39;
 }
 
 /* A lead-in that stays: it goes up to the top and reads as the heading of the

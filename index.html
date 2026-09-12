@@ -68,7 +68,10 @@
   // the stepper what each of them can play — see lib/stepper.js.
   const plan = MODULES.map((mod, index) => {
     const section = document.createElement('section');
-    section.className = 'viz-section';
+    // A block that hands its picture over has it stand under this lead-in —
+    // known from the start, so the lead-in is placed for it from the first frame.
+    const given = index > 0 && MODULES[index - 1].meta.carry && mod.meta.lead;
+    section.className = given ? 'viz-section has-backdrop' : 'viz-section';
     section.id = mod.meta.id;
     section.innerHTML = `
       <div class="viz-container">
@@ -104,6 +107,8 @@
       opensOnStep: !!mod.meta.opensOnStep,
       // The figure this block ends on, handed over to the next — see lib/stepper.js.
       handoff: mod.meta.handoff || null,
+      // The picture it hands over as well, if any — see lib/stepper.js.
+      carry: () => (api && api.carry) || null,
       setStep: (i) => api && api.step && api.step(i),
       // Whether step i has to wait for the reader — see lib/stepper.js. With
       // { quiet: true } the block only answers and shows nothing.

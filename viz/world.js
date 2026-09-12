@@ -44,9 +44,12 @@ export const meta = {
     // The screen goes up and the scale comes up under it in the same beat:
     // there is nothing to wait for between a question and the place to answer.
     together: true,
-    value: `На стадионе было ${nf(STUDENTS_ROUND)}+ `
+    value: `На стадионе ${nf(STUDENTS_ROUND)}+ `
       + plural(STUDENTS_ROUND, 'студент', 'студента', 'студентов'),
-    text: `Из них ${nf(FOREIGN)}+ ${plural(FOREIGN, 'иностранец', 'иностранца', 'иностранцев')}. `
+    // The students from abroad in the colour they are picked out in on the
+    // stadium the lead-in stands on.
+    text: 'Из них <span class="world-ask" style="background: var(--foreign); color: var(--card)">'
+      + `${nf(FOREIGN)}+ ${plural(FOREIGN, 'иностранец', 'иностранца', 'иностранцев')}</span>. `
       + '<span class="world-ask" style="background: var(--hse-blue); color: var(--card)">'
       + 'Как думаешь, из скольких стран?</span>'
   },

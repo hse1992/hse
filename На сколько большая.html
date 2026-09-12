@@ -66,6 +66,12 @@
   --pitch: #8CC63F;
   --hse-blue: #102D69;      /* corporate blue of the university */
 
+  /* The students as a whole, and the students from abroad among them, wherever
+     the page picks them out in one go: the stadium under the question about
+     countries, and the words of that question. */
+  --students: var(--brand-blue);
+  --foreign: var(--brand-red);
+
   /* Corporate palette of the university, as in the brand book. The primary
      pair is the navy and the blue, backed by the three greys; the six bright
      ones are accents only — never more than a quarter of a drawing. Used by
@@ -237,6 +243,18 @@ button { font-family: inherit; }
   font-variant-numeric: tabular-nums;
   transform-origin: 0 0;
   will-change: transform;
+  pointer-events: none;
+}
+
+/* The picture a block hands over, on its way to the whole screen of the next
+   one — see carry() in lib/stepper.js. Placed and sized from JS and moved by
+   transform only; under the lead-in it is heading for and under the figure
+   flying with it, over everything else. */
+.page-carry {
+  position: fixed;
+  z-index: 38;
+  transform-origin: 0 0;
+  will-change: transform, opacity;
   pointer-events: none;
 }
 
@@ -606,6 +624,28 @@ button { font-family: inherit; }
   line-height: 1.4;
   color: var(--text-secondary);
   text-wrap: pretty;
+}
+
+/* A picture handed over by the block before — the stadium under the question
+   of the flags — takes the screen under the lead-in, which stands at the top
+   for it, and goes as the lead-in leaves. Its top and height are set from JS:
+   it starts under the last line of the lead-in. Only where the page is read
+   beat by beat — nowhere else is a picture laid. */
+.is-stepped .viz-section.has-backdrop {
+  position: relative;
+}
+
+.viz-backdrop {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  opacity: calc(1 - var(--lead-away, 0) * 1.4);
+  pointer-events: none;
+}
+
+/* Over the picture on its way in, too. */
+.is-stepped .has-backdrop .viz-lead {
+  z-index: 39;
 }
 
 /* A lead-in that stays: it goes up to the top and reads as the heading of the
@@ -1898,7 +1938,12 @@ function leadCard(section, K = () => CARD_K, cardHeight = null) {
     // is fixed to the middle of the window instead, so it needs no top — but it
     // has to keep out of sight until the section itself arrives.
     const cardTop = container.clientHeight / 2 - (tall(K()) * K()) / 2;
-    if (!narrow && !centres) lead.style.top = `${Math.round(cardTop)}px`;
+    // A lead-in that stands over a picture handed over by the block before
+    // starts where it would park, at the top: the picture takes the screen
+    // under it, and when its turn is over there is nowhere for it to go.
+    const lifted = parks && !narrow && section.classList.contains('has-backdrop');
+    const top = lifted ? padding() : cardTop;
+    if (!narrow && !centres) lead.style.top = `${Math.round(top)}px`;
     if (narrow) lead.style.top = '';
     lead.style.visibility = narrow && section.getBoundingClientRect().top > 1
       ? 'hidden'
@@ -1932,6 +1977,9 @@ function leadCard(section, K = () => CARD_K, cardHeight = null) {
 
     const t = clamp((q - hold) / (screens - hold));
     const e = 1 - Math.pow(1 - t, 3);
+    // How far the screen has gone. A picture the block before laid under it
+    // goes with it — see backdropOf in lib/stepper.js.
+    section.style.setProperty('--lead-away', e.toFixed(3));
 
     // Parking only works where the whole section is pinned: the screen goes up
     // to the top of the container and stays there, at its own size, while the
@@ -1940,7 +1988,7 @@ function leadCard(section, K = () => CARD_K, cardHeight = null) {
     // screen nothing is pinned as a whole, so the usual swap happens instead.
     if (parks && !narrow) {
       lead.style.setProperty('--lead-x', '0px');
-      lead.style.setProperty('--lead-y', `${(-e * (cardTop - padding())).toFixed(1)}px`);
+      lead.style.setProperty('--lead-y', `${(-e * (top - padding())).toFixed(1)}px`);
       lead.style.opacity = '';
       section.style.setProperty('--card-x', '108vw');
       section.style.setProperty('--lead-hold',
@@ -2412,6 +2460,104 @@ function handoff(from, to, travel) {
   });
 }
 
+// A block can hand over a picture as well as a figure, and the next lead-in is
+// then asked over it: the stadium the reader has just filled grows to the whole
+// screen, and the question about the students on it stands on top.
+//
+// The block before gives it from its api as `carry`: the canvas the picture is
+// in now (`from`), where in that canvas the picture sits (`box()`), and a way to
+// paint it the way it is handed over into any canvas (`paint(target)`, which
+// answers with the box it has drawn in). The picture is laid ahead of time
+// across the screen under the lead-in — which stands at the top for it, see
+// `lifted` in lib/page.js — and fades as the lead-in leaves, see --lead-away.
+const UNDER = 8;             // between the last line of the lead-in and the picture, px
+
+function backdropOf(section, picture) {
+  let canvas = section.querySelector(':scope > .viz-backdrop');
+  const lead = section.querySelector('.viz-lead');
+  const top = Math.round(lead.getBoundingClientRect().bottom
+    - section.getBoundingClientRect().top + UNDER);
+  const size = `${window.innerWidth}×${window.innerHeight}×${top}`;
+  if (canvas && canvas.dataset.size === size) return canvas;
+  if (!canvas) {
+    canvas = document.createElement('canvas');
+    canvas.className = 'viz-backdrop';
+    canvas.setAttribute('aria-hidden', 'true');
+    section.prepend(canvas);
+    window.addEventListener('resize', () => {
+      delete canvas.dataset.size;
+      backdropOf(section, picture);
+    });
+  }
+  canvas.dataset.size = size;
+  canvas.style.top = `${top}px`;
+  canvas.style.height = `calc(100% - ${top}px - ${getComputedStyle(section).paddingBottom})`;
+  canvas.box = picture.paint(canvas);
+  return canvas;
+}
+
+// Grows the picture from where it is to where the backdrop will be once the
+// page has travelled by `travel` pixels, over the same time and on the same
+// curve as the page. Two copies make the move — the picture as it stands and
+// the picture as it is handed over — and the second fades in over the first, so
+// whatever changes colour on the way does it in flight.
+function carry(picture, backdrop, travel) {
+  const src = picture.from.getBoundingClientRect();
+  const on = src.width > 0 && src.bottom > 0 && src.top < window.innerHeight;
+  if (!on || REDUCED.matches || !backdrop.box) return;
+
+  const home = backdrop.getBoundingClientRect();
+  const a = picture.box();
+  const b = backdrop.box;
+  // The picture on the screen: where it is now and where it lands.
+  const start = { x: src.left + a.x, y: src.top + a.y, w: a.w };
+  const end = { x: home.left + b.x, y: home.top - travel + b.y, w: b.w };
+
+  const layer = (image, left, top, width, height) => {
+    const copy = document.createElement('canvas');
+    copy.className = 'page-carry';
+    copy.width = image.width;
+    copy.height = image.height;
+    Object.assign(copy.style, {
+      left: `${left}px`, top: `${top}px`, width: `${width}px`, height: `${height}px`
+    });
+    copy.getContext('2d').drawImage(image, 0, 0);
+    document.body.appendChild(copy);
+    return copy;
+  };
+  const was = layer(picture.from, src.left, src.top, src.width, src.height);
+  const will = layer(backdrop, home.left, home.top - travel, home.width, home.height);
+  will.style.opacity = '0';
+
+  // Puts a layer so that the picture in it — at `inner` inside the layer —
+  // covers `box` on the screen.
+  const place = (el, left, top, inner, box) => {
+    const k = box.w / inner.w;
+    el.style.transform = `translate(${(box.x - left - k * inner.x).toFixed(1)}px, `
+      + `${(box.y - top - k * inner.y).toFixed(1)}px) scale(${k.toFixed(4)})`;
+  };
+
+  picture.from.style.visibility = 'hidden';
+  backdrop.style.visibility = 'hidden';
+
+  play(SETTLE_MS, (p) => {
+    const e = settle(p);
+    const box = {
+      x: start.x + (end.x - start.x) * e,
+      y: start.y + (end.y - start.y) * e,
+      w: start.w + (end.w - start.w) * e
+    };
+    place(was, src.left, src.top, a, box);
+    place(will, home.left, home.top - travel, b, box);
+    will.style.opacity = Math.min(1, e * 1.5).toFixed(3);
+  }, () => {
+    picture.from.style.visibility = '';
+    backdrop.style.visibility = '';
+    was.remove();
+    will.remove();
+  });
+}
+
 // Collects the beats of one section: settling it onto the screen, its title
 // card (which may arrive in parts), and the steps of its scene.
 //
@@ -2438,17 +2584,31 @@ function beatsOf(entry, before = null) {
   // 1. Bring the section onto the screen, and build it while it travels. The
   //    figure the block before ended on travels with it — forward only: going
   //    back, the reader is returning to a picture, not being told something.
+  //    A picture the block before hands over is laid under the lead-in — ahead
+  //    of time, when the block is made ready, so the beat only has to move it.
+  const picture = () => (before && before.carry && section.querySelector('.viz-lead')
+    ? before.carry()
+    : null);
+  entry.lay = () => {
+    const given = picture();
+    return given ? backdropOf(section, given) : null;
+  };
+
   list.push({
     section,
     run: (done) => {
       const from = before && before.handoff
         && before.section.querySelector(`.viz-body [data-el="${before.handoff}"]`);
       enter();
+      const travel = section.offsetTop - window.scrollY;
+      const backdrop = entry.lay();
+      // Laid first, so the figure flies over the picture rather than under it.
+      if (backdrop) carry(picture(), backdrop, travel);
       const to = section.querySelector('.viz-lead-value .viz-handoff');
-      if (from && to) handoff(from, to, section.offsetTop - window.scrollY);
+      if (from && to) handoff(from, to, travel);
       glide(section.offsetTop, done);
     },
-    settle: enter
+    settle: () => { enter(); entry.lay(); }
   });
 
   // 2. The opening, one beat per thing that happens in it: a part of the
@@ -2682,6 +2842,8 @@ function mountStepper(entries, { onProgress, finale } = {}) {
     entry.build();
     if (entry.opensOnStep && entry.steps) entry.setStep(0);
     if (entry.opening) entry.opening.remeasure();
+    // A full-screen picture is a lump of its own — see backdropOf.
+    if (entry.lay) entry.lay();
   };
 
   // The browser hands out idle time between frames too, and a block is a
@@ -2935,25 +3097,26 @@ const LIGHT = 0.52;
 // area — total floor area of the city's buildings, m².
 // areaStudy — the part of it used for teaching and labs.
 // admitted — students enrolled in the current admission campaign.
-const city = (key, name, color, students, staff, area, areaStudy, admitted) => ({
-  key, name, students, staff, area, areaStudy, admitted,
+// foreign — students from abroad, rounded down to tens.
+const city = (key, name, color, students, staff, area, areaStudy, admitted, foreign) => ({
+  key, name, students, staff, area, areaStudy, admitted, foreign,
   color,                    // main colour of the city
   colorLight: tint(color, LIGHT)
 });
 
 const CITIES = [
-  city('msk', 'Москва', '#11A0D7', 48139, 9612, 509397, 308789, 16803),
-  city('spb', 'Санкт-Петербург', '#EB681F', 7895, 1310, 111924, 60648, 2695),
-  city('nn', 'Нижний Новгород', '#029C63', 4366, 572, 32332, 20949, 1476),
-  city('perm', 'Пермь', '#7D4EBA', 2869, 324, 33679, 21227, 981)
+  city('msk', 'Москва', '#11A0D7', 48139, 9612, 509397, 308789, 16803, 4500),
+  city('spb', 'Санкт-Петербург', '#EB681F', 7895, 1310, 111924, 60648, 2695, 700),
+  city('nn', 'Нижний Новгород', '#029C63', 4366, 572, 32332, 20949, 1476, 270),
+  city('perm', 'Пермь', '#7D4EBA', 2869, 324, 33679, 21227, 981, 130)
 ];
 
 const LYCEUM = 2600;
 const LYCEUM_COLOR = '#FFD400';
 
-// Students from abroad, rounded down to a round hundred: the page quotes it as
-// «5 600+», as a scale rather than a figure to be checked.
-const FOREIGN = 5600;
+// Students from abroad on all campuses. The campus figures are rounded down, so
+// the page quotes the total as «5 600+», a scale rather than a figure to check.
+const FOREIGN = CITIES.reduce((n, c) => n + c.foreign, 0);
 
 const STUDENTS = CITIES.reduce((n, c) => n + c.students, 0);
 const STAFF = CITIES.reduce((n, c) => n + c.staff, 0);
@@ -5292,7 +5455,10 @@ const meta = {
   opensOnStep: true,
   // The seats taken carry over into the next block's lead-in: everyone on the
   // stadium narrows down to the students among them.
-  handoff: 'filled'
+  handoff: 'filled',
+  // And the arena itself goes over with them, to stand under that lead-in —
+  // see «Handing over» at the end of init.
+  carry: true
 };
 
 function init(root) {
@@ -5659,26 +5825,35 @@ function init(root) {
 
   // ---------- Canvas painting ----------
   const legendSwatch = $('legendSwatch');
-  const { canvas, ctx } = mountCanvas($('canvasWrap'), paint);
+  const { canvas } = mountCanvas($('canvasWrap'), paint);
   let currentColors = null;
   let animFrame = null;
 
   function paint() {
+    if (!currentColors) currentColors = colorsFor(state.active);
     const B = buildBowl();
-    const cssW = canvas.clientWidth || 900;
-    const cssH = canvas.clientHeight || 600;
-    const scale = Math.min(cssW / B.W, cssH / B.H);
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    canvas.width = Math.round(cssW * dpr);
-    canvas.height = Math.round(cssH * dpr);
-    ctx.setTransform(dpr * scale, 0, 0, dpr * scale, dpr * cssW / 2, dpr * cssH / 2);
-    ctx.clearRect(-cssW / (2 * scale), -cssH / (2 * scale), cssW / scale, cssH / scale);
+    const scale = drawStadium(canvas, currentColors);
 
     // Keep the legend sample the same size as a stripe on the schema.
     const legendW = B.legend.len * scale, legendH = B.legend.lw * scale;
     legendSwatch.style.width = `${legendW}px`;
     legendSwatch.style.height = `${legendH}px`;
     legendSwatch.style.borderRadius = `${legendH / 2}px`;
+  }
+
+  // Draws the arena into any canvas, fitted into its box and centred; `zoom`
+  // grows it past that. Answers how many CSS pixels a unit of the schema is.
+  function drawStadium(target, colors, zoom = 1) {
+    const ctx = target.getContext('2d');
+    const B = buildBowl();
+    const cssW = target.clientWidth || 900;
+    const cssH = target.clientHeight || 600;
+    const scale = Math.min(cssW / B.W, cssH / B.H) * zoom;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    target.width = Math.round(cssW * dpr);
+    target.height = Math.round(cssH * dpr);
+    ctx.setTransform(dpr * scale, 0, 0, dpr * scale, dpr * cssW / 2, dpr * cssH / 2);
+    ctx.clearRect(-cssW / (2 * scale), -cssH / (2 * scale), cssW / scale, cssH / scale);
 
     // outer shell
     ctx.beginPath();
@@ -5723,10 +5898,9 @@ function init(root) {
     ctx.strokeRect(fw * 0.84, -fh * 0.42, fw * 0.16, fh * 0.84);
 
     // stripes
-    if (!currentColors) currentColors = colorsFor(state.active);
     const buckets = new Map();
     B.stripes.forEach((s, i) => {
-      const c = currentColors[i] || EMPTY;
+      const c = colors[i] || EMPTY;
       if (!buckets.has(c)) buckets.set(c, []);
       buckets.get(c).push(s);
     });
@@ -5759,6 +5933,7 @@ function init(root) {
       ctx.lineTo(p2[0], p2[1]);
       ctx.stroke();
     });
+    return scale;
   }
 
   function animateStripesTo(target) {
@@ -6052,7 +6227,68 @@ function init(root) {
   step(0);
   paint();
 
-  return { step };
+  // ---------- Handing over ----------
+  // The page goes on to ask about the students from abroad, and it asks over
+  // this arena, grown to the screen under the question. Of everyone on it only
+  // the students keep their seats, all in one colour, and those from abroad
+  // are picked out among them. Nobody changes seats — they are the ones the
+  // reader has just watched fill up — the rest simply go out. The shell carries
+  // the picture over; see carry() in lib/stepper.js.
+  const token = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+
+  // Smaller than the room under the question: a picture to glance at while
+  // reading it, not one to fill the screen.
+  const SMALL = 0.72;
+
+  function studentsOnly() {
+    const arr = new Array(STRIPES).fill(EMPTY);
+    const student = token('--students');
+    const foreign = token('--foreign');
+    // The full arena, laid out the way colorsFor lays it: campus by campus,
+    // students first, the lyceum last.
+    let cum = 0, idx = 0;
+    let abroad = 0, picked = 0;
+    CITIES.forEach((c) => {
+      const seats = [];
+      [[c.students, true], [c.staff, false]].forEach(([n, studies]) => {
+        cum += n;
+        const end = Math.min(STRIPES, Math.round(cum / PER));
+        for (; idx < end; idx++) {
+          if (!studies) continue;
+          arr[idx] = student;
+          seats.push(idx);
+        }
+      });
+      // The students from abroad sit together within their own campus, in the
+      // middle of its stretch of the stands, so each campus shows its share as
+      // one patch. Counted up across the campuses, so the stripes add up to the
+      // total however each campus rounds.
+      abroad += c.foreign;
+      const n = Math.round(abroad / PER) - picked;
+      picked += n;
+      const from = Math.floor((seats.length - n) / 2);
+      seats.slice(from, from + n).forEach((i) => { arr[i] = foreign; });
+    });
+    return arr;
+  }
+
+  // Where the picture sits in a canvas it was drawn into at `scale`.
+  const boxIn = (target, scale) => {
+    const B = buildBowl();
+    const w = B.W * scale, h = B.H * scale;
+    return { x: (target.clientWidth - w) / 2, y: (target.clientHeight - h) / 2, w, h };
+  };
+
+  const carry = {
+    from: canvas,
+    box: () => {
+      const B = buildBowl();
+      return boxIn(canvas, Math.min(canvas.clientWidth / B.W, canvas.clientHeight / B.H));
+    },
+    paint: (target) => boxIn(target, drawStadium(target, studentsOnly(), SMALL))
+  };
+
+  return { step, carry };
 }
 
 return { meta, init };
@@ -6103,9 +6339,12 @@ const meta = {
     // The screen goes up and the scale comes up under it in the same beat:
     // there is nothing to wait for between a question and the place to answer.
     together: true,
-    value: `На стадионе было ${nf(STUDENTS_ROUND)}+ `
+    value: `На стадионе ${nf(STUDENTS_ROUND)}+ `
       + plural(STUDENTS_ROUND, 'студент', 'студента', 'студентов'),
-    text: `Из них ${nf(FOREIGN)}+ ${plural(FOREIGN, 'иностранец', 'иностранца', 'иностранцев')}. `
+    // The students from abroad in the colour they are picked out in on the
+    // stadium the lead-in stands on.
+    text: 'Из них <span class="world-ask" style="background: var(--foreign); color: var(--card)">'
+      + `${nf(FOREIGN)}+ ${plural(FOREIGN, 'иностранец', 'иностранца', 'иностранцев')}</span>. `
       + '<span class="world-ask" style="background: var(--hse-blue); color: var(--card)">'
       + 'Как думаешь, из скольких стран?</span>'
   },
@@ -10191,7 +10430,10 @@ const page = document.getElementById('page');
 
   const plan = MODULES.map((mod, index) => {
     const section = document.createElement('section');
-    section.className = 'viz-section';
+    // A block that hands its picture over has it stand under this lead-in —
+    // known from the start, so the lead-in is placed for it from the first frame.
+    const given = index > 0 && MODULES[index - 1].meta.carry && mod.meta.lead;
+    section.className = given ? 'viz-section has-backdrop' : 'viz-section';
     section.id = mod.meta.id;
     section.innerHTML = `
       <div class="viz-container">
@@ -10227,6 +10469,8 @@ const page = document.getElementById('page');
       opensOnStep: !!mod.meta.opensOnStep,
       // The figure this block ends on, handed over to the next — see lib/stepper.js.
       handoff: mod.meta.handoff || null,
+      // The picture it hands over as well, if any — see lib/stepper.js.
+      carry: () => (api && api.carry) || null,
       setStep: (i) => api && api.step && api.step(i),
       // Whether step i has to wait for the reader — see lib/stepper.js. With
       // { quiet: true } the block only answers and shows nothing.

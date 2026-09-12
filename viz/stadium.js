@@ -48,7 +48,10 @@ export const meta = {
   opensOnStep: true,
   // The seats taken carry over into the next block's lead-in: everyone on the
   // stadium narrows down to the students among them.
-  handoff: 'filled'
+  handoff: 'filled',
+  // And the arena itself goes over with them, to stand under that lead-in —
+  // see «Handing over» at the end of init.
+  carry: true
 };
 
 export function init(root) {
@@ -415,26 +418,35 @@ export function init(root) {
 
   // ---------- Canvas painting ----------
   const legendSwatch = $('legendSwatch');
-  const { canvas, ctx } = mountCanvas($('canvasWrap'), paint);
+  const { canvas } = mountCanvas($('canvasWrap'), paint);
   let currentColors = null;
   let animFrame = null;
 
   function paint() {
+    if (!currentColors) currentColors = colorsFor(state.active);
     const B = buildBowl();
-    const cssW = canvas.clientWidth || 900;
-    const cssH = canvas.clientHeight || 600;
-    const scale = Math.min(cssW / B.W, cssH / B.H);
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    canvas.width = Math.round(cssW * dpr);
-    canvas.height = Math.round(cssH * dpr);
-    ctx.setTransform(dpr * scale, 0, 0, dpr * scale, dpr * cssW / 2, dpr * cssH / 2);
-    ctx.clearRect(-cssW / (2 * scale), -cssH / (2 * scale), cssW / scale, cssH / scale);
+    const scale = drawStadium(canvas, currentColors);
 
     // Keep the legend sample the same size as a stripe on the schema.
     const legendW = B.legend.len * scale, legendH = B.legend.lw * scale;
     legendSwatch.style.width = `${legendW}px`;
     legendSwatch.style.height = `${legendH}px`;
     legendSwatch.style.borderRadius = `${legendH / 2}px`;
+  }
+
+  // Draws the arena into any canvas, fitted into its box and centred; `zoom`
+  // grows it past that. Answers how many CSS pixels a unit of the schema is.
+  function drawStadium(target, colors, zoom = 1) {
+    const ctx = target.getContext('2d');
+    const B = buildBowl();
+    const cssW = target.clientWidth || 900;
+    const cssH = target.clientHeight || 600;
+    const scale = Math.min(cssW / B.W, cssH / B.H) * zoom;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    target.width = Math.round(cssW * dpr);
+    target.height = Math.round(cssH * dpr);
+    ctx.setTransform(dpr * scale, 0, 0, dpr * scale, dpr * cssW / 2, dpr * cssH / 2);
+    ctx.clearRect(-cssW / (2 * scale), -cssH / (2 * scale), cssW / scale, cssH / scale);
 
     // outer shell
     ctx.beginPath();
@@ -479,10 +491,9 @@ export function init(root) {
     ctx.strokeRect(fw * 0.84, -fh * 0.42, fw * 0.16, fh * 0.84);
 
     // stripes
-    if (!currentColors) currentColors = colorsFor(state.active);
     const buckets = new Map();
     B.stripes.forEach((s, i) => {
-      const c = currentColors[i] || EMPTY;
+      const c = colors[i] || EMPTY;
       if (!buckets.has(c)) buckets.set(c, []);
       buckets.get(c).push(s);
     });
@@ -515,6 +526,7 @@ export function init(root) {
       ctx.lineTo(p2[0], p2[1]);
       ctx.stroke();
     });
+    return scale;
   }
 
   function animateStripesTo(target) {
@@ -808,5 +820,66 @@ export function init(root) {
   step(0);
   paint();
 
-  return { step };
+  // ---------- Handing over ----------
+  // The page goes on to ask about the students from abroad, and it asks over
+  // this arena, grown to the screen under the question. Of everyone on it only
+  // the students keep their seats, all in one colour, and those from abroad
+  // are picked out among them. Nobody changes seats — they are the ones the
+  // reader has just watched fill up — the rest simply go out. The shell carries
+  // the picture over; see carry() in lib/stepper.js.
+  const token = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+
+  // Smaller than the room under the question: a picture to glance at while
+  // reading it, not one to fill the screen.
+  const SMALL = 0.72;
+
+  function studentsOnly() {
+    const arr = new Array(STRIPES).fill(EMPTY);
+    const student = token('--students');
+    const foreign = token('--foreign');
+    // The full arena, laid out the way colorsFor lays it: campus by campus,
+    // students first, the lyceum last.
+    let cum = 0, idx = 0;
+    let abroad = 0, picked = 0;
+    CITIES.forEach((c) => {
+      const seats = [];
+      [[c.students, true], [c.staff, false]].forEach(([n, studies]) => {
+        cum += n;
+        const end = Math.min(STRIPES, Math.round(cum / PER));
+        for (; idx < end; idx++) {
+          if (!studies) continue;
+          arr[idx] = student;
+          seats.push(idx);
+        }
+      });
+      // The students from abroad sit together within their own campus, in the
+      // middle of its stretch of the stands, so each campus shows its share as
+      // one patch. Counted up across the campuses, so the stripes add up to the
+      // total however each campus rounds.
+      abroad += c.foreign;
+      const n = Math.round(abroad / PER) - picked;
+      picked += n;
+      const from = Math.floor((seats.length - n) / 2);
+      seats.slice(from, from + n).forEach((i) => { arr[i] = foreign; });
+    });
+    return arr;
+  }
+
+  // Where the picture sits in a canvas it was drawn into at `scale`.
+  const boxIn = (target, scale) => {
+    const B = buildBowl();
+    const w = B.W * scale, h = B.H * scale;
+    return { x: (target.clientWidth - w) / 2, y: (target.clientHeight - h) / 2, w, h };
+  };
+
+  const carry = {
+    from: canvas,
+    box: () => {
+      const B = buildBowl();
+      return boxIn(canvas, Math.min(canvas.clientWidth / B.W, canvas.clientHeight / B.H));
+    },
+    paint: (target) => boxIn(target, drawStadium(target, studentsOnly(), SMALL))
+  };
+
+  return { step, carry };
 }
