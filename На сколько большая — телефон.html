@@ -5930,7 +5930,11 @@ function init(root) {
 
   const GAP = 8;                  // gap between flags, px
   const HEAD = 21;                // a part-of-the-world caption with its gap, px
-  const GROUP_GAP = 12;           // gap between parts of the world, px
+  // Gap between parts of the world. Wider than the gap between flags, so the
+  // wall reads as five groups rather than one field — and as wide as it can be
+  // for nothing: the flags are sized to whatever room is left, and up to here
+  // there is enough of it for them to keep the size they would have had.
+  const GROUP_GAP = 20;
   const TILE_MAX = 68;            // a flag never grows past this
   const TILE_MIN = 20;            // ...and never shrinks below it: the wall scrolls instead
   const TILE_PHONE = 26;          // on a phone the wall is as tall as it needs to be
