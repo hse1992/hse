@@ -224,6 +224,22 @@ button { font-family: inherit; }
   background: var(--toggle-off);
 }
 
+/* The figure a block ends on, on its way into the next block's lead-in — see
+   handoff() in lib/stepper.js. Pinned to the corner and moved by transform
+   only, so it never takes part in the layout of the page it flies over. */
+.page-handoff {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 40;
+  line-height: normal;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  transform-origin: 0 0;
+  will-change: transform;
+  pointer-events: none;
+}
+
 /* The name of the block under the cursor, just below the bar. */
 .page-progress-tip {
   position: fixed;
@@ -1332,8 +1348,8 @@ button { font-family: inherit; }
     <div class="page-header-inner">
       <h1><span class="title-word">На</span> <span class="title-word">сколько</span> <span class="title-word">б<a class="hse-o-link" href="https://www.hse.ru/" target="_blank" rel="noopener" title="Сайт Вышки" aria-label="Сайт НИУ ВШЭ"><svg class="hse-o" viewBox="0 0 283.47 283.47" aria-hidden="true" focusable="false"><circle class="hse-o-disc" cx="141.73" cy="141.74" r="141.73"/><path class="hse-o-mark" d="M135.6,133.32c32.26,0,44.81,21.45,44.81,60.69v29.51h-20.69v-63.35h-23.9v63.42h-18.28V53.65h18.78c7.03,0,17.71,1.58,25.25,10.95c3.93,4.73,6.34,11.04,7.19,17.38h-32.94v9.35h33.23c-0.27,6.04-1.49,12.8-7.42,19.97c-5.2,6.51-13.76,12.56-25.83,12.56c-0.06,0-0.13,0-0.2,0V133.32 M206.41,197.55c0-34.86-11.26-58.29-40.45-68.6c9.21-3.77,14.82-9.58,18.49-13.99c7.01-8.06,9.88-17.96,9.88-27.31c0-7.56-2.08-22.65-15.35-33.04c-9.1-7.04-17.16-10.43-36.43-10.43h-9.75c-0.3-0.01-0.6-0.01-0.96-0.01H91.65v189.79h114.76V197.55z"/></svg></a><span class="sr-only">о</span>льш<span class="stressed">а<i></i></span>я</span></h1>
       <div class="page-header-text">
-        <p>Высшая школа экономики — один из самых крупных университетов России. Но даже зная основные показатели, непросто осознать реальный масштаб Вышки.</p>
-        <p>Этот проект поможет тебе прочувствовать, на сколько большой наш университет</p>
+        <p>Вышка настолько большая, что это уже практически целый город. Сейчас покажем.</p>
+        <p>Осторожно, двери закрываются!</p>
       </div>
     </div>
 
@@ -2220,6 +2236,33 @@ function introRunner(section, stages = 1, scale = CARD_K) {
 return { mountProgress, mountTitleMark, introRunner };
 })();
 
+const { nf, pct, dec, plural } = (() => {
+// Number and word formatting shared by every visualisation.
+
+// 48139 -> "48 139" (non-breaking thin space, so numbers never wrap).
+const nf = (n) => n.toLocaleString('ru-RU').replace(/ /g, ' ');
+
+// 12.5 -> "12,5"
+const pct = (part, whole, digits = 1) => {
+  const f = Math.pow(10, digits);
+  return `${(Math.round((part / whole) * 100 * f) / f).toString().replace('.', ',')}%`;
+};
+
+// 96.265 -> "96,3"
+const dec = (n, digits = 1) => (n.toFixed(digits)).replace('.', ',');
+
+// plural(2, 'студент', 'студента', 'студентов') -> 'студента'
+const plural = (n, one, few, many) => {
+  const m10 = n % 10, m100 = n % 100;
+  if (m100 >= 11 && m100 <= 14) return many;
+  if (m10 === 1) return one;
+  if (m10 >= 2 && m10 <= 4) return few;
+  return many;
+};
+
+return { nf, pct, dec, plural };
+})();
+
 const { mountStepper } = (() => {
 // The page as a sequence of beats.
 //
@@ -2278,6 +2321,97 @@ function glide(y, done) {
   play(SETTLE_MS, (p) => window.scrollTo(0, from + span * settle(p)), done);
 }
 
+// The figure a block ends on does not disappear with it: it lifts off, travels
+// with the page and lands in the lead-in of the next block, running from its
+// own value to the new one on the way — «21 955 принятых» becomes «~22 000
+// первокурсников», «77 687 мест» becomes «63 000+ студентов». Seven blocks read
+// as one thread instead of seven pages.
+//
+// A block says which of its elements holds that figure: `meta.handoff` names a
+// data-el. The landing place needs no marking — a lead-in is one figure and one
+// line by contract, so its first number is the figure.
+const FIGURE = /[~≈]?\d(?:[\d\s  ]*\d)?\+?/;
+
+// Wraps the first number of a lead-in in a span of its own, once, so that it
+// can be measured and hidden while its copy is on the way.
+function markFigure(section) {
+  const value = section.querySelector('.viz-lead-value');
+  if (!value || value.querySelector('.viz-handoff')) return;
+  const walk = document.createTreeWalker(value, NodeFilter.SHOW_TEXT);
+  for (let node = walk.nextNode(); node; node = walk.nextNode()) {
+    const hit = FIGURE.exec(node.textContent);
+    if (!hit) continue;
+    const rest = node.splitText(hit.index);
+    rest.splitText(hit[0].length);
+    const span = document.createElement('span');
+    span.className = 'viz-handoff';
+    rest.replaceWith(span);
+    span.appendChild(rest);
+    return;
+  }
+}
+
+const numberOf = (text) => parseInt(text.replace(/\D/g, ''), 10);
+
+const rgb = (css) => (css.match(/[\d.]+/g) || [0, 0, 0]).slice(0, 3).map(Number);
+const mix = (a, b, p) => `rgb(${a.map((v, i) => Math.round(v + (b[i] - v) * p)).join(',')})`;
+
+// Flies a copy of `from` to where `to` will be once the page has travelled by
+// `travel` pixels, over the same time and on the same curve as the page itself.
+function handoff(from, to, travel) {
+  const src = from.getBoundingClientRect();
+  const on = src.width > 0 && src.bottom > 0 && src.top < window.innerHeight;
+  if (!on || REDUCED.matches) return;
+
+  const a = getComputedStyle(from);
+  const b = getComputedStyle(to);
+  const fromValue = numberOf(from.textContent);
+  const toValue = numberOf(to.textContent);
+  if (!Number.isFinite(fromValue) || !Number.isFinite(toValue)) return;
+
+  const copy = document.createElement('div');
+  copy.className = 'page-handoff';
+  copy.textContent = from.textContent;
+  Object.assign(copy.style, {
+    fontFamily: a.fontFamily,
+    fontSize: a.fontSize,
+    fontWeight: a.fontWeight,
+    letterSpacing: a.letterSpacing,
+    color: a.color
+  });
+  document.body.appendChild(copy);
+
+  // Where the copy sits untouched, so the start and the end can be matched to
+  // the real figures exactly — centre to centre, left edge to left edge.
+  const home = copy.getBoundingClientRect();
+  const dst = to.getBoundingClientRect();
+  const scale = parseFloat(b.fontSize) / parseFloat(a.fontSize);
+  const x0 = src.left - home.left;
+  const y0 = src.top + src.height / 2 - (home.top + home.height / 2);
+  const x1 = dst.left - home.left;
+  const y1 = dst.top - travel + dst.height / 2 - (home.top + (home.height * scale) / 2);
+  const c0 = rgb(a.color);
+  const c1 = rgb(b.color);
+
+  from.style.visibility = 'hidden';
+  to.style.visibility = 'hidden';
+
+  play(SETTLE_MS, (p) => {
+    const e = settle(p);
+    const k = 1 + (scale - 1) * e;
+    copy.style.transform = `translate(${(x0 + (x1 - x0) * e).toFixed(1)}px, ${(y0 + (y1 - y0) * e).toFixed(1)}px) scale(${k.toFixed(4)})`;
+    copy.style.color = mix(c0, c1, e);
+    // The weight cannot be tweened — the family has no weights in between — so
+    // it changes over halfway, where the figure is moving fastest.
+    if (e > 0.5) copy.style.fontWeight = b.fontWeight;
+    copy.textContent = p < 1 ? nf(Math.round(fromValue + (toValue - fromValue) * e)) : to.textContent;
+  }, () => {
+    from.style.visibility = '';
+    to.style.visibility = '';
+    copy.remove();
+  });
+}
+
 // Collects the beats of one section: settling it onto the screen, its title
 // card (which may arrive in parts), and the steps of its scene.
 //
@@ -2286,7 +2420,7 @@ function glide(y, done) {
 // for when the reader arrives from another section and there is nothing to
 // animate). Both the card and a scene step are a function of one number, so
 // putting either of them back where it was is exact, not an approximation.
-function beatsOf(entry) {
+function beatsOf(entry, before = null) {
   const { section, opening, steps, setStep, build, opensOnStep, hold } = entry;
   const list = [];
 
@@ -2301,10 +2435,19 @@ function beatsOf(entry) {
     if (opening) { opening.remeasure(); opening.runBeat(0, 0); }
   };
 
-  // 1. Bring the section onto the screen, and build it while it travels.
+  // 1. Bring the section onto the screen, and build it while it travels. The
+  //    figure the block before ended on travels with it — forward only: going
+  //    back, the reader is returning to a picture, not being told something.
   list.push({
     section,
-    run: (done) => { enter(); glide(section.offsetTop, done); },
+    run: (done) => {
+      const from = before && before.handoff
+        && before.section.querySelector(`.viz-body [data-el="${before.handoff}"]`);
+      enter();
+      const to = section.querySelector('.viz-lead-value .viz-handoff');
+      if (from && to) handoff(from, to, section.offsetTop - window.scrollY);
+      glide(section.offsetTop, done);
+    },
     settle: enter
   });
 
@@ -2429,7 +2572,8 @@ function mountScrolled(entries, onProgress) {
 // `entries` describe the sections in order. Each is
 // { section, opening, steps, setStep, build } — see beatsOf.
 function mountStepper(entries, { onProgress, finale } = {}) {
-  const beats = entries.flatMap(beatsOf);
+  entries.forEach((e) => markFigure(e.section));
+  const beats = entries.flatMap((e, i) => beatsOf(e, entries[i - 1] || null));
 
   // The story ends with the credits. They are not a section and have no screen
   // of their own: the page lifts just far enough to bring them into view under
@@ -2818,33 +2962,6 @@ const AREA_TOTAL = CITIES.reduce((n, c) => n + c.area, 0);
 const ADMITTED = CITIES.reduce((n, c) => n + c.admitted, 0);
 
 return { CITIES, LYCEUM, LYCEUM_COLOR, FOREIGN, STUDENTS, STAFF, HSE_TOTAL, AREA_TOTAL, ADMITTED };
-})();
-
-const { nf, pct, dec, plural } = (() => {
-// Number and word formatting shared by every visualisation.
-
-// 48139 -> "48 139" (non-breaking thin space, so numbers never wrap).
-const nf = (n) => n.toLocaleString('ru-RU').replace(/ /g, ' ');
-
-// 12.5 -> "12,5"
-const pct = (part, whole, digits = 1) => {
-  const f = Math.pow(10, digits);
-  return `${(Math.round((part / whole) * 100 * f) / f).toString().replace('.', ',')}%`;
-};
-
-// 96.265 -> "96,3"
-const dec = (n, digits = 1) => (n.toFixed(digits)).replace('.', ',');
-
-// plural(2, 'студент', 'студента', 'студентов') -> 'студента'
-const plural = (n, one, few, many) => {
-  const m10 = n % 10, m100 = n % 100;
-  if (m100 >= 11 && m100 <= 14) return many;
-  if (m10 === 1) return one;
-  if (m10 >= 2 && m10 <= 4) return few;
-  return many;
-};
-
-return { nf, pct, dec, plural };
 })();
 
 const { mountCanvas } = (() => {
@@ -4044,6 +4161,9 @@ const meta = {
   // The title card of the section fills in as the reader scrolls: first the
   // heading with one sentence, then a sentence and a picture at a time.
   introStages: 3,
+  // The number of first-year students carries over into the next block's
+  // lead-in, «~22 000», rather than disappearing with this one.
+  handoff: 'people',
   // The word before the name depends on what the reader is riding, so the
   // module changes it when the mode is switched.
   // The name of the station is the station board itself — the same one in
@@ -5169,7 +5289,10 @@ const meta = {
   // that does nothing. The empty arena comes with the block itself, so the
   // beats start with the first arrival.
   steps: 7,
-  opensOnStep: true
+  opensOnStep: true,
+  // The seats taken carry over into the next block's lead-in: everyone on the
+  // stadium narrows down to the students among them.
+  handoff: 'filled'
 };
 
 function init(root) {
@@ -10102,6 +10225,8 @@ const page = document.getElementById('page');
       opening,
       steps: mod.meta.steps || 0,
       opensOnStep: !!mod.meta.opensOnStep,
+      // The figure this block ends on, handed over to the next — see lib/stepper.js.
+      handoff: mod.meta.handoff || null,
       setStep: (i) => api && api.step && api.step(i),
       // Whether step i has to wait for the reader — see lib/stepper.js. With
       // { quiet: true } the block only answers and shows nothing.
