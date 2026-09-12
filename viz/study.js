@@ -61,11 +61,13 @@ for (let y = Math.ceil(START / TICK) * TICK; y < NOW; y += TICK) {
 const mark = (text) =>
   `<span class="study-lead-mark" style="background: var(--hse-blue); color: var(--card)">${text}</span>`;
 
-// Two colours of the brand book, one to a level: the corporate blue and the
-// violet. They come inline with the markup — the shell draws the screen before
-// the styles of the module arrive — but the tokens themselves are in the head
-// from the first frame, so the names hold.
-const DOT = 'var(--hse-blue)';
+// Two colours of the brand book, one to a level: the cyan and the violet.
+// Neither is the corporate blue — that one is on the patch in the line above
+// the squares, and a field of it under the same line would read as one thing
+// with it. They come inline with the markup — the shell draws the screen
+// before the styles of the module arrive — but the tokens themselves are in
+// the head from the first frame, so the names hold.
+const DOT = 'var(--brand-cyan)';
 const DOT_LIGHT = 'var(--brand-violet)';
 
 // One square per programme, and they arrive a level at a time: first the
