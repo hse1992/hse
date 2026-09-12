@@ -73,7 +73,7 @@
     section.innerHTML = `
       <div class="viz-container">
         ${mod.meta.lead ? `
-          <div class="viz-lead" data-exit="${mod.meta.lead.exit || 'aside'}" data-fit="${mod.meta.lead.fit || 'top'}">
+          <div class="viz-lead" data-exit="${mod.meta.lead.exit || 'aside'}" data-fit="${mod.meta.lead.fit || 'top'}" data-together="${mod.meta.lead.together ? 'block' : ''}">
             <div class="viz-lead-value">${mod.meta.lead.value}</div>
             <p class="viz-lead-text">${mod.meta.lead.text}</p>
           </div>
@@ -103,6 +103,9 @@
       steps: mod.meta.steps || 0,
       opensOnStep: !!mod.meta.opensOnStep,
       setStep: (i) => api && api.step && api.step(i),
+      // Whether step i has to wait for the reader — see lib/stepper.js. With
+      // { quiet: true } the block only answers and shows nothing.
+      hold: (i, options) => !!(api && api.hold && api.hold(i, options)),
       // A section is built on its way onto the screen, not before: whatever it
       // animates on start then plays in front of the reader.
       build: () => { if (!api) api = mod.init(section.querySelector('.viz-body')) || {}; }
