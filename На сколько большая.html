@@ -1618,8 +1618,18 @@ function mountProgress(titles = []) {
   const FIRST_MS = 2200;
   let timer = 0;
   let ended = false;
+  let waiting = null;          // asks the stepper whether a step is holding
+
+  // A step that waits for the reader has already said what it wants, right
+  // where it wants it. «Scroll» on top of that would name the one thing that
+  // does nothing here — so the hint keeps quiet and asks again a while later.
+  const prompt = () => {
+    if (waiting && waiting()) { timer = setTimeout(prompt, IDLE_MS); return; }
+    hint.classList.add('is-here');
+  };
 
   const set = (p, place) => {
+    waiting = place && place.waiting ? place.waiting : null;
     if (place && place.count) {
       slotsFor(place.count);
       slots.forEach((slot, i) => {
@@ -1635,8 +1645,7 @@ function mountProgress(titles = []) {
     ended = p > 0.999;              // the story is over, there is nothing to prompt
     hint.classList.remove('is-here');
     clearTimeout(timer);
-    if (!ended) timer = setTimeout(() => hint.classList.add('is-here'),
-                                   p > 0.001 ? IDLE_MS : FIRST_MS);
+    if (!ended) timer = setTimeout(prompt, p > 0.001 ? IDLE_MS : FIRST_MS);
   };
 
   set(0);
@@ -2499,7 +2508,16 @@ function mountStepper(entries, { onProgress, finale } = {}) {
     };
   };
 
-  const report = () => onProgress && onProgress((at + 1) / beats.length, place());
+  // Whether the next step is waiting for the reader to do something first — a
+  // guess, say. Asked quietly: the block only answers and shows nothing, so it
+  // can be asked at any moment, not just when the reader tries to go on.
+  const waiting = () => {
+    const next = beats[at + 1];
+    return !!(next && next.hold && next.hold({ quiet: true }));
+  };
+
+  const report = () => onProgress
+    && onProgress((at + 1) / beats.length, { ...place(), waiting });
 
   // Putting a block together costs between eight and seventy milliseconds, and
   // the beat that brings it on is the worst moment to spend them: the page is
