@@ -45,7 +45,10 @@ export const meta = {
   // that does nothing. The empty arena comes with the block itself, so the
   // beats start with the first arrival.
   steps: 7,
-  opensOnStep: true
+  opensOnStep: true,
+  // The seats taken carry over into the next block's lead-in: everyone on the
+  // stadium narrows down to the students among them.
+  handoff: 'filled'
 };
 
 export function init(root) {

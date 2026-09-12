@@ -82,6 +82,22 @@ button { font-family: inherit; }
   background: var(--toggle-off);
 }
 
+/* The figure a block ends on, on its way into the next block's lead-in — see
+   handoff() in lib/stepper.js. Pinned to the corner and moved by transform
+   only, so it never takes part in the layout of the page it flies over. */
+.page-handoff {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 40;
+  line-height: normal;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  transform-origin: 0 0;
+  will-change: transform;
+  pointer-events: none;
+}
+
 /* The name of the block under the cursor, just below the bar. */
 .page-progress-tip {
   position: fixed;

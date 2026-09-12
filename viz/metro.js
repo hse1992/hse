@@ -108,6 +108,9 @@ export const meta = {
   // The title card of the section fills in as the reader scrolls: first the
   // heading with one sentence, then a sentence and a picture at a time.
   introStages: 3,
+  // The number of first-year students carries over into the next block's
+  // lead-in, «~22 000», rather than disappearing with this one.
+  handoff: 'people',
   // The word before the name depends on what the reader is riding, so the
   // module changes it when the mode is switched.
   // The name of the station is the station board itself — the same one in
