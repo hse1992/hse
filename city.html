@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Город Вышка — черновик</title>
+<link rel="stylesheet" href="styles/fonts.css" />
+<link rel="stylesheet" href="styles/tokens.css" />
+<link rel="stylesheet" href="styles/layout.css" />
+<style>
+  /* Local preview of one module: a single screen-tall section, no stepper. */
+  .viz-section { height: 100vh; }
+  @media (max-width: 860px) { .viz-section { height: auto; } }
+</style>
+</head>
+<body>
+<main>
+  <section class="viz-section">
+    <div class="viz-container">
+      <div class="viz-header">
+        <h2 data-el="title"></h2>
+        <p data-el="subtitle"></p>
+      </div>
+      <div class="viz-body"></div>
+    </div>
+  </section>
+</main>
+
+<script type="module">
+  import * as town from './viz/town.js';
+
+  const section = document.querySelector('.viz-section');
+  section.id = town.meta.id;
+  section.querySelector('[data-el="title"]').innerHTML = town.meta.title;
+  section.querySelector('[data-el="subtitle"]').innerHTML = town.meta.subtitle;
+  town.init(section.querySelector('.viz-body'));
+</script>
+</body>
+</html>

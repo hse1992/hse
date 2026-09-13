@@ -90,6 +90,34 @@
   --ill-warm: #D9BE92;
   --ill-green: #5C9E72;
 
+  /* City map (canvas, viz/town.js — a draft, not on the page yet) */
+  --city-land: #E6E9ED;
+  --city-block: #F1F3F5;
+  --city-park: #D4E8C6;
+  --city-tree: #A6D08C;
+  --city-tree-dark: #8BBF72;
+  --city-road: #FFFFFF;
+  --city-road-edge: #D3D8DF;
+  --city-bridge: #9FA8B5;
+  --city-water: #A9D5EF;
+  --city-water-edge: #8CC4E5;
+  --city-water-label: #2F79AE;
+  --city-plaza: #FAFAFB;
+  --city-metro-line: rgba(230, 30, 60, 0.3);
+  --city-roof-cool: #D8DDE5;
+  --city-wall-cool: #AAB3C0;
+  --city-roof-light: #E8EBF0;
+  --city-wall-light: #BAC1CC;
+  --city-roof-warm: #E6DDCE;
+  --city-wall-warm: #BDAF99;
+  --city-shadow: rgba(20, 23, 28, 0.12);
+  --city-halo: rgba(255, 255, 255, 0.94);
+  /* «Счастье не за горами» on the bank of the Kama, after assets/happiness.jpeg,
+     a step lighter and more burgundy than the photo: the face of the letters
+     and their dark edge. */
+  --city-slogan: #A3294F;
+  --city-slogan-side: #6C1632;
+
   /* Five-storey block icon (canvas) */
   --house-wall: #E0D2BA;
   --house-roof: #8B929C;
