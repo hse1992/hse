@@ -3,6 +3,7 @@
 import { CITIES, AREA_TOTAL, STUDENTS, STAFF } from '../data/hse.js';
 import { nf, plural } from '../lib/format.js';
 import { mountCanvas } from '../lib/ui.js';
+import { mountTownMap } from '../lib/town-map.js';
 
 // Facts about the buildings themselves — they live here, not in data/hse.js,
 // which only knows about the university.
@@ -42,24 +43,25 @@ export const meta = {
   id: 'area',
   // The reader arrives straight from the arena, so the section opens with a
   // screen of its own, told in two goes: the stadium the university has not
-  // got, and the figure it has instead. It does not leave — it goes up to the
-  // top of the section and stays there while the rest is told under it.
+  // got, and the town its buildings make instead. It does not leave — it goes
+  // up to the top of the section and stays there while the rest is told under it.
   lead: {
     exit: 'top',
-    // Goes up in the same beat as the pitches come up under it: parking alone
-    // would be a beat with nothing new on the screen.
+    // Goes up in the same beat as the map of the town comes up under it:
+    // parking alone would be a beat with nothing new on the screen.
     together: true,
     value: 'Для расположения всех студентов и сотрудников у Вышки нет своего стадиона <span class="area-soon">(пока)</span>',
-    text: `<span class="area-lead-line intro-stage" data-stage="1">Но есть ${nf(BUILDINGS)} ${plural(BUILDINGS, 'здание', 'здания', 'зданий')} <span class="area-mark">общей площадью ${nf(AREA_TOTAL)} м²</span></span>`
+    text: `<span class="area-lead-line intro-stage" data-stage="1">Но есть <span class="area-mark">${nf(BUILDINGS)} ${plural(BUILDINGS, 'здание', 'здания', 'зданий')}</span>. А это уже целый город</span>`
   },
   title: 'В тесноте да не в обиде',
   subtitle: 'На сколько это много?',
   intro: true,
-  // Steps: the area in pitches, the same area in blocks of flats beside it,
-  // the question both raise, the answer under each of them, and then the
-  // visualisation itself. The pitches are on the screen the moment the block
-  // fades in, so no beat is spent on showing what is already there.
-  steps: 6,
+  // Steps: the map of the town, the heading with the area of its buildings,
+  // that area in pitches, the same area in blocks of flats beside it, the
+  // question both raise, the answer under each of them, and then the
+  // visualisation itself. The map is on the screen the moment the block fades
+  // in, so no beat is spent on showing what is already there.
+  steps: 8,
   opensOnStep: true
 };
 
@@ -120,7 +122,7 @@ export function init(root) {
         inset: 0;
         display: grid;
         grid-template-columns: 1fr 1fr;
-        gap: 44px 64px;
+        gap: 24px 64px;
         align-content: center;
         align-items: start;
         pointer-events: none;
@@ -131,7 +133,7 @@ export function init(root) {
       .area-step {
         display: flex;
         flex-direction: column;
-        gap: 20px;
+        gap: 16px;
         opacity: 0;
         visibility: hidden;
         transform: translateY(18px);
@@ -168,6 +170,7 @@ export function init(root) {
         gap: 14px;
       }
 
+      /* On a short screen the icons give way — see fitFigures(). */
       .area-step-pitch,
       .area-step-house {
         width: 100%;
@@ -178,6 +181,36 @@ export function init(root) {
 
       .area-step-pitch { aspect-ratio: 105 / 68; }
       .area-step-house { aspect-ratio: 1.55; }
+
+      /* The town the buildings make, over the whole block — what comes up
+         under the lead-in as it goes to the top. It steps aside for the
+         figures the same way they come and go. */
+      .area-town {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        pointer-events: none;
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 300ms ease, visibility 300ms;
+      }
+
+      .area-town.on {
+        opacity: 1;
+        visibility: visible;
+        transition: opacity 620ms ease, visibility 0s;
+      }
+
+      /* The heading of the figures: the area itself, over both columns. */
+      .area-step-title {
+        grid-column: 1 / -1;
+        margin: 0;
+        font-size: 2rem;
+        font-weight: 600;
+        line-height: 1.2;
+        letter-spacing: -0.02em;
+        text-wrap: pretty;
+      }
 
       /* The question both figures raise, under the two of them. */
       .area-step-question {
@@ -202,6 +235,7 @@ export function init(root) {
 
       /* Everything of a step keeps its place in the layout from the start and
          only fades in when its turn comes, so nothing below it ever jumps. */
+      .area-step-title,
       .area-step-question,
       .area-step-note {
         opacity: 0;
@@ -209,6 +243,7 @@ export function init(root) {
         transition: opacity 300ms ease, transform 300ms ease, color 620ms ease;
       }
 
+      .area-step-title.on,
       .area-step-question.on,
       .area-step-note.on {
         opacity: 1;
@@ -343,7 +378,11 @@ export function init(root) {
       }
     </style>
 
+    <div class="area-town" data-el="town"></div>
+
     <div class="area-steps">
+      <p class="area-step-title" data-el="areaTitle">Общая площадь этих зданий <span class="area-mark">${nf(AREA_TOTAL)} м²</span></p>
+
       <div class="area-step area-step-fields" data-el="stepFields">
         <p class="area-step-line">Это площадь ${nf(FIELDS_TOTAL)} футбольных полей</p>
         <div class="area-step-fig">
@@ -757,30 +796,64 @@ export function init(root) {
   }
 
   // ---------- Scene ----------
-  // One pitch and how many of them fit; the same area in blocks of flats
-  // beside it; the question the two raise; the answer under each of them —
-  // the crowd on the pitch and the light in the windows; and then the
-  // visualisation itself.
+  // The town the buildings make; the heading with their area; one pitch and
+  // how many of them fit; the same area in blocks of flats beside it; the
+  // question the two raise; the answer under each of them — the crowd on the
+  // pitch and the light in the windows; and then the visualisation itself.
+  const townEl = $('town');
+  const titleEl = $('areaTitle');
   const fieldsStepEl = $('stepFields');
   const housesStepEl = $('stepHouses');
   const questionEl = $('question');
   const pitchNoteEl = $('pitchNote');
   const houseNoteEl = $('houseNote');
   const innerEl = root.querySelector('.area-inner');
-  const LAST = 5;
+  const LAST = 7;
+
+  // The same town as the town section draws — see lib/town-map.js.
+  mountTownMap(townEl);
 
   function step(i) {
     const told = i < LAST;
-    fieldsStepEl.classList.toggle('on', told);
-    housesStepEl.classList.toggle('on', told && i >= 1);
-    questionEl.classList.toggle('on', told && i >= 2);
-    questionEl.classList.toggle('is-answered', told && i >= 3);
-    pitchNoteEl.classList.toggle('on', told && i >= 3);
-    houseNoteEl.classList.toggle('on', told && i >= 4);
-    showCrowd(told && i >= 3);
-    lightUp(told && i >= 4);
+    townEl.classList.toggle('on', told && i === 0);
+    titleEl.classList.toggle('on', told && i >= 1);
+    fieldsStepEl.classList.toggle('on', told && i >= 2);
+    housesStepEl.classList.toggle('on', told && i >= 3);
+    questionEl.classList.toggle('on', told && i >= 4);
+    questionEl.classList.toggle('is-answered', told && i >= 5);
+    pitchNoteEl.classList.toggle('on', told && i >= 5);
+    houseNoteEl.classList.toggle('on', told && i >= 6);
+    showCrowd(told && i >= 5);
+    lightUp(told && i >= 6);
     innerEl.classList.toggle('off', told);
   }
+
+  // The heading, both figures with their notes and the question under them
+  // all have to fit under the lead-in that has gone up, however short the
+  // screen. The text around the icons cannot give way, so the icons do: they
+  // shrink by exactly what does not fit. Measured rather than worked out in
+  // CSS, so a line that wraps on a narrower screen is taken into account too.
+  const stepsEl = root.querySelector('.area-steps');
+  const iconEls = [$('stepPitch'), $('stepHouse')];
+  const BREATHE = 24;                 // left free above the heading and below the question
+  const LEAST = 160;                  // an icon smaller than this stops reading as a picture
+  function fitFigures() {
+    const room = stepsEl.clientHeight - BREATHE * 2;
+    if (room <= 0) return;
+    iconEls.forEach((el) => { el.style.maxWidth = ''; });
+    // Layout positions, not screen ones: the parts still waiting for their
+    // step are shifted down by a transform, and that must not count.
+    for (let pass = 0; pass < 2; pass++) {
+      const used = questionEl.offsetTop + questionEl.offsetHeight - titleEl.offsetTop;
+      const over = used - room;
+      if (over <= 0) return;
+      const icon = iconEls[0];
+      const width = Math.max(LEAST, (icon.offsetHeight - over) * (icon.offsetWidth / icon.offsetHeight));
+      iconEls.forEach((el) => { el.style.maxWidth = `${Math.floor(width)}px`; });
+    }
+  }
+  new ResizeObserver(fitFigures).observe(stepsEl);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitFigures);
 
   render('instant');
   paint();
