@@ -110,13 +110,18 @@
   --city-wall-light: #BAC1CC;
   --city-roof-warm: #E6DDCE;
   --city-wall-warm: #BDAF99;
+  /* «Канатный цех» by the Neva, the one building in light yellow. */
+  --city-roof-rope: #FFF0A6;
+  --city-wall-rope: #DCC66E;
+  /* Building 11с1 of Покровский бульвар, 11, by the Moskva, in yellow. */
+  --city-roof-yellow: #FFD60A;
+  --city-wall-yellow: #C9A200;
   --city-shadow: rgba(20, 23, 28, 0.12);
   --city-halo: rgba(255, 255, 255, 0.94);
   /* «Счастье не за горами» on the bank of the Kama, after assets/happiness.jpeg,
-     a step lighter and more burgundy than the photo: the face of the letters
-     and their dark edge. */
-  --city-slogan: #A3294F;
-  --city-slogan-side: #6C1632;
+     in the red of the brand book: the face of the letters and their dark edge. */
+  --city-slogan: var(--brand-red);
+  --city-slogan-side: #A3122B;
 
   /* Five-storey block icon (canvas) */
   --house-wall: #E0D2BA;
