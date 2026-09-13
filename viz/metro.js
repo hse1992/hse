@@ -48,6 +48,9 @@ const MODES = [
 // up at the rear: Moscow brings up the rear and Perm leads.
 const TAIL_FIRST = CITIES.slice();
 
+// Whose colour every electric bus wears.
+const MOSCOW = CITIES.find((c) => c.key === 'msk');
+
 const HOLDS = `Он вмещает ${PER_BUS} ${plural(PER_BUS, 'вышкинца', 'вышкинца', 'вышкинцев')}`;
 
 // The electric bus drawn after assets/electrobus.jpeg, with the caption painted
@@ -356,6 +359,7 @@ export function init(root) {
         position: absolute;
         left: 0;
         top: 4px;
+        overflow: visible;             /* the shadow falls outside the body */
       }
 
       .metro-legend-arrow {
@@ -461,14 +465,20 @@ export function init(root) {
               <div class="metro-bus-legend" data-el="busLegend">
                 <!-- the same bus as the ones driving on the roads below, seen
                      from above: the module sizes it to what they measure there -->
-                <svg class="metro-legend-sample" data-el="legendSample" viewBox="0 0 56 26.8" aria-hidden="true">
-                  <g fill="var(--bus-wheel)">
-                    <rect x="7.6" y="0" width="9.5" height="6.8" rx="2"></rect>
-                    <rect x="39" y="0" width="9.5" height="6.8" rx="2"></rect>
-                    <rect x="7.6" y="20" width="9.5" height="6.8" rx="2"></rect>
-                    <rect x="39" y="20" width="9.5" height="6.8" rx="2"></rect>
+                <!-- drawn in the units of drawBus(): the body is 23,8 by 8,5,
+                     and the shadow hangs past it, as it does on the road -->
+                <svg class="metro-legend-sample" data-el="legendSample" viewBox="0 0 23.8 8.5" aria-hidden="true">
+                  <rect x="1.2" y="1.4" width="23.8" height="8.5" rx="2.4" fill="var(--city-shadow)"></rect>
+                  <rect x="0" y="0" width="23.8" height="8.5" rx="2.4" fill="var(--bus-body)"></rect>
+                  <rect x="4" y="1.8" width="14.3" height="4.9" rx="1" fill="var(--bus-roof)"></rect>
+                  <g fill="var(--ebus-glass)">
+                    <rect x="20.4" y="0.9" width="2.4" height="6.7" rx="0.8"></rect>
+                    <rect x="0.8" y="1.5" width="1.2" height="5.5"></rect>
                   </g>
-                  <rect x="0" y="3.4" width="56" height="20" rx="6" fill="currentColor"></rect>
+                  <g fill="var(--ebus-light)">
+                    <rect x="23" y="0.5" width="0.8" height="1.4"></rect>
+                    <rect x="23" y="6.6" width="0.8" height="1.4"></rect>
+                  </g>
                 </svg>
                 <!-- the arrow from one to the other, drawn by the module: how
                      far they stand apart depends on the width of the screen -->
@@ -889,11 +899,14 @@ export function init(root) {
   }
 
   // A bus from above, the same electric bus as on the town map (viz/town.js):
-  // a shadow on the road, the body in the colour of the city, a lighter roof
+  // a shadow on the road, the body in the colour of Moscow, a lighter roof
   // panel, the windscreen and headlights at the front, a rear window. It drives
   // left to right, so the front is on the right. `part` grows the last one
   // into place.
-  function drawBus(x, y, city, part) {
+  // Every city rides the same Moscow bus: the road and its sign already say
+  // whose buses they are, and one colour reads as one fleet.
+  function drawBus(x, y, part) {
+    const city = MOSCOW;
     const L = flock.busL * part, W = flock.busW * part;
     if (L < 0.5) return;
     // The map bus is 24 × 8.5; every detail keeps its share of that.
@@ -938,7 +951,7 @@ export function init(root) {
         const phase = (lane % 2) * slot * 0.5;
         const back = (((i % perRow) * slot + phase + start - drift) % loop + loop) % loop;
         const y = road.top + (lane + 0.5) * rowH;
-        drawBus(roadW + busL / 2 - back, y, road.city, Math.min(1, left));
+        drawBus(roadW + busL / 2 - back, y, Math.min(1, left));
       }
     });
 
@@ -1051,9 +1064,11 @@ export function init(root) {
   const arrowLineEl = $('arrowLine');
   const arrowHeadEl = $('arrowHead');
 
-  // The samples in the legend are painted in the colour of the first city.
-  legendTrainEl.style.color = CITIES[0].color;
-  legendSampleEl.style.color = CITIES[0].color;
+  // The samples in the legend are painted in the colour of Moscow, like the
+  // buses on the roads.
+  legendTrainEl.style.color = MOSCOW.color;
+  legendSampleEl.style.setProperty('--bus-body', MOSCOW.color);
+  legendSampleEl.style.setProperty('--bus-roof', MOSCOW.colorLight);
 
   function syncLegendSample() {
     if (!flock) return;
