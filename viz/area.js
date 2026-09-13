@@ -46,6 +46,9 @@ export const meta = {
   // top of the section and stays there while the rest is told under it.
   lead: {
     exit: 'top',
+    // Goes up in the same beat as the pitches come up under it: parking alone
+    // would be a beat with nothing new on the screen.
+    together: true,
     value: 'Для расположения всех студентов и сотрудников у Вышки нет своего стадиона <span class="area-soon">(пока)</span>',
     text: `<span class="area-lead-line intro-stage" data-stage="1">Но есть ${nf(BUILDINGS)} ${plural(BUILDINGS, 'здание', 'здания', 'зданий')} <span class="area-mark">общей площадью ${nf(AREA_TOTAL)} м²</span></span>`
   },
@@ -187,12 +190,13 @@ export function init(root) {
         text-wrap: pretty;
       }
 
-      /* What each figure comes to once the people are in it. */
+      /* What each figure comes to once the people are in it — the answer the
+         whole scene leads to, so it is set in full ink, not as a caption. */
       .area-step-note {
         margin: 0;
         font-size: 1.25rem;
         line-height: 1.35;
-        color: var(--text-secondary);
+        color: var(--text);
         text-wrap: pretty;
       }
 
@@ -202,14 +206,20 @@ export function init(root) {
       .area-step-note {
         opacity: 0;
         transform: translateY(12px);
-        transition: opacity 300ms ease, transform 300ms ease;
+        transition: opacity 300ms ease, transform 300ms ease, color 620ms ease;
       }
 
       .area-step-question.on,
       .area-step-note.on {
         opacity: 1;
         transform: none;
-        transition: opacity 620ms ease 180ms, transform 620ms ease 180ms;
+        transition: opacity 620ms ease 180ms, transform 620ms ease 180ms, color 620ms ease;
+      }
+
+      /* Once the answers are on the screen the question stays with them, but
+         steps back: they are what is read now. */
+      .area-step-question.is-answered {
+        color: var(--text-caption);
       }
 
       .area-step-times {
@@ -763,7 +773,8 @@ export function init(root) {
     const told = i < LAST;
     fieldsStepEl.classList.toggle('on', told);
     housesStepEl.classList.toggle('on', told && i >= 1);
-    questionEl.classList.toggle('on', told && i === 2);
+    questionEl.classList.toggle('on', told && i >= 2);
+    questionEl.classList.toggle('is-answered', told && i >= 3);
     pitchNoteEl.classList.toggle('on', told && i >= 3);
     houseNoteEl.classList.toggle('on', told && i >= 4);
     showCrowd(told && i >= 3);
