@@ -2402,9 +2402,15 @@ function handoff(from, to, travel) {
   const toValue = numberOf(to.textContent);
   if (!Number.isFinite(fromValue) || !Number.isFinite(toValue)) return;
 
+  // The signs around the new figure — «~», «+» — fly with it from the start:
+  // turning up only once it has landed, they would read as a jolt.
+  const [, before = '', after = ''] = to.textContent.match(/^(\D*)[\d\s  ]*?\d(\D*)$/) || [];
   const copy = document.createElement('div');
   copy.className = 'page-handoff';
-  copy.textContent = from.textContent;
+  const lead = document.createElement('span');
+  const digits = document.createTextNode(nf(fromValue));
+  lead.textContent = before;
+  copy.append(lead, digits, after);
   Object.assign(copy.style, {
     fontFamily: a.fontFamily,
     fontSize: a.fontSize,
@@ -2415,11 +2421,13 @@ function handoff(from, to, travel) {
   document.body.appendChild(copy);
 
   // Where the copy sits untouched, so the start and the end can be matched to
-  // the real figures exactly — centre to centre, left edge to left edge.
+  // the real figures exactly — centre to centre, left edge to left edge. At the
+  // start it is the digits that sit on the old figure: a sign in front of them
+  // hangs out to the left.
   const home = copy.getBoundingClientRect();
   const dst = to.getBoundingClientRect();
   const scale = parseFloat(b.fontSize) / parseFloat(a.fontSize);
-  const x0 = src.left - home.left;
+  const x0 = src.left - home.left - lead.getBoundingClientRect().width;
   const y0 = src.top + src.height / 2 - (home.top + home.height / 2);
   const x1 = dst.left - home.left;
   const y1 = dst.top - travel + dst.height / 2 - (home.top + (home.height * scale) / 2);
@@ -2437,7 +2445,7 @@ function handoff(from, to, travel) {
     // The weight cannot be tweened — the family has no weights in between — so
     // it changes over halfway, where the figure is moving fastest.
     if (e > 0.5) copy.style.fontWeight = b.fontWeight;
-    copy.textContent = p < 1 ? nf(Math.round(fromValue + (toValue - fromValue) * e)) : to.textContent;
+    digits.textContent = nf(p < 1 ? Math.round(fromValue + (toValue - fromValue) * e) : toValue);
   }, () => {
     from.style.visibility = '';
     to.style.visibility = '';
@@ -7368,6 +7376,9 @@ const meta = {
   // top of the section and stays there while the rest is told under it.
   lead: {
     exit: 'top',
+    // Goes up in the same beat as the pitches come up under it: parking alone
+    // would be a beat with nothing new on the screen.
+    together: true,
     value: 'Для расположения всех студентов и сотрудников у Вышки нет своего стадиона <span class="area-soon">(пока)</span>',
     text: `<span class="area-lead-line intro-stage" data-stage="1">Но есть ${nf(BUILDINGS)} ${plural(BUILDINGS, 'здание', 'здания', 'зданий')} <span class="area-mark">общей площадью ${nf(AREA_TOTAL)} м²</span></span>`
   },
@@ -7509,12 +7520,13 @@ function init(root) {
         text-wrap: pretty;
       }
 
-      /* What each figure comes to once the people are in it. */
+      /* What each figure comes to once the people are in it — the answer the
+         whole scene leads to, so it is set in full ink, not as a caption. */
       .area-step-note {
         margin: 0;
         font-size: 1.25rem;
         line-height: 1.35;
-        color: var(--text-secondary);
+        color: var(--text);
         text-wrap: pretty;
       }
 
@@ -7524,14 +7536,20 @@ function init(root) {
       .area-step-note {
         opacity: 0;
         transform: translateY(12px);
-        transition: opacity 300ms ease, transform 300ms ease;
+        transition: opacity 300ms ease, transform 300ms ease, color 620ms ease;
       }
 
       .area-step-question.on,
       .area-step-note.on {
         opacity: 1;
         transform: none;
-        transition: opacity 620ms ease 180ms, transform 620ms ease 180ms;
+        transition: opacity 620ms ease 180ms, transform 620ms ease 180ms, color 620ms ease;
+      }
+
+      /* Once the answers are on the screen the question stays with them, but
+         steps back: they are what is read now. */
+      .area-step-question.is-answered {
+        color: var(--text-caption);
       }
 
       .area-step-times {
@@ -8085,7 +8103,8 @@ function init(root) {
     const told = i < LAST;
     fieldsStepEl.classList.toggle('on', told);
     housesStepEl.classList.toggle('on', told && i >= 1);
-    questionEl.classList.toggle('on', told && i === 2);
+    questionEl.classList.toggle('on', told && i >= 2);
+    questionEl.classList.toggle('is-answered', told && i >= 3);
     pitchNoteEl.classList.toggle('on', told && i >= 3);
     houseNoteEl.classList.toggle('on', told && i >= 4);
     showCrowd(told && i >= 3);
