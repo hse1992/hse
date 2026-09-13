@@ -152,7 +152,9 @@ export function init(root) {
   const RAIL = '#C9CFD8';
   const SLEEPER = '#DCE0E6';
   const CAR_STRIPE = 'rgba(255, 255, 255, 0.5)';
-  const WHEEL = '#2A2E35';
+  const BUS_GLASS = '#143B54';
+  const BUS_LIGHT = '#FFE08A';
+  const BUS_SHADOW = 'rgba(20, 23, 28, 0.12)';   // --city-shadow
   const ROAD_FILL = '#F1F3F6';
   const ROAD_EDGE = '#AEB6C2';
   const ROAD_LINE = '#C2C9D3';
@@ -886,31 +888,35 @@ export function init(root) {
     ctx.textBaseline = 'alphabetic';
   }
 
-  // A bus from above: a rounded body in the colour of the city with four black
-  // wheels peeking out from under it. `part` grows the last one into place.
-  function drawBus(x, y, color, part) {
+  // A bus from above, the same electric bus as on the town map (viz/town.js):
+  // a shadow on the road, the body in the colour of the city, a lighter roof
+  // panel, the windscreen and headlights at the front, a rear window. It drives
+  // left to right, so the front is on the right. `part` grows the last one
+  // into place.
+  function drawBus(x, y, city, part) {
     const L = flock.busL * part, W = flock.busW * part;
     if (L < 0.5) return;
+    // The map bus is 24 × 8.5; every detail keeps its share of that.
+    const u = W / 8.5;
+    const box = (bx, by, bw, bh, r) => {
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(bx, by, bw, bh, r); else ctx.rect(bx, by, bw, bh);
+      ctx.fill();
+    };
+    const left = x - L / 2, top = y - W / 2;
 
-    ctx.fillStyle = WHEEL;
-    const ww = L * 0.17, wh = Math.max(1, W * 0.34);
-    [-1, 1].forEach((sx) => {
-      [-1, 1].forEach((sy) => {
-        ctx.beginPath();
-        const rx = x + sx * L * 0.28 - ww / 2;
-        const ry = y + sy * (W / 2) - wh / 2;
-        if (ctx.roundRect) ctx.roundRect(rx, ry, ww, wh, Math.min(1.5, wh / 2));
-        else ctx.rect(rx, ry, ww, wh);
-        ctx.fill();
-      });
-    });
-
-    ctx.fillStyle = color;
-    ctx.beginPath();
-    const r = Math.min(W * 0.3, L / 2);
-    if (ctx.roundRect) ctx.roundRect(x - L / 2, y - W / 2, L, W, r);
-    else ctx.rect(x - L / 2, y - W / 2, L, W);
-    ctx.fill();
+    ctx.fillStyle = BUS_SHADOW;
+    box(left + 1.2 * u, top + 1.4 * u, L, W, 2.4 * u);
+    ctx.fillStyle = city.color;
+    box(left, top, L, W, 2.4 * u);
+    ctx.fillStyle = city.colorLight;
+    box(left + 4 * u, top + 1.8 * u, L - 9.5 * u, W - 3.6 * u, u);
+    ctx.fillStyle = BUS_GLASS;
+    box(left + L - 3.4 * u, top + 0.9 * u, 2.4 * u, W - 1.8 * u, 0.8 * u);
+    ctx.fillRect(left + 0.8 * u, top + 1.5 * u, 1.2 * u, W - 3 * u);
+    ctx.fillStyle = BUS_LIGHT;
+    ctx.fillRect(left + L - 0.8 * u, top + 0.5 * u, 0.8 * u, 1.4 * u);
+    ctx.fillRect(left + L - 0.8 * u, top + W - 1.9 * u, 0.8 * u, 1.4 * u);
   }
 
   function paintBuses(t, w) {
@@ -924,7 +930,6 @@ export function init(root) {
     roads.forEach((road) => paintRoad(road));
 
     roads.forEach((road) => {
-      const color = road.city.color;
       let i = 0;
       for (let left = shown[road.city.key] || 0; left > 0.02; left -= 1, i += 1) {
         const lane = Math.min(road.lanes - 1, Math.floor(i / perRow));
@@ -933,7 +938,7 @@ export function init(root) {
         const phase = (lane % 2) * slot * 0.5;
         const back = (((i % perRow) * slot + phase + start - drift) % loop + loop) % loop;
         const y = road.top + (lane + 0.5) * rowH;
-        drawBus(roadW + busL / 2 - back, y, color, Math.min(1, left));
+        drawBus(roadW + busL / 2 - back, y, road.city, Math.min(1, left));
       }
     });
 
