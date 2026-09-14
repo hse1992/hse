@@ -121,6 +121,9 @@
      brand book, with walls a shade darker. */
   --city-roof-nn: var(--brand-blue);
   --city-wall-nn: #17346F;
+  /* The red porch of the campus building in Perm by the Kama. */
+  --city-roof-porch: var(--brand-red);
+  --city-wall-porch: #A3122B;
   --city-shadow: rgba(20, 23, 28, 0.12);
   --city-halo: rgba(255, 255, 255, 0.94);
   /* «Счастье не за горами» on the bank of the Kama, after assets/happiness.jpeg,
