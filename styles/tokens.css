@@ -61,6 +61,8 @@
   --metro-rail: #C9CFD8;
   --metro-sleeper: #DCE0E6;
   --metro-car-stripe: rgba(255, 255, 255, 0.5);
+  --metro-gangway: #8B929C;   /* the bellows between two cars of one train */
+  --metro-beam: rgba(255, 214, 102, 0.85);   /* headlights on the bed, fading out */
 
   /* Electric buses and the road they drive on (canvas) */
   --bus-wheel: #2A2E35;
