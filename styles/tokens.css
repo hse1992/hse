@@ -98,6 +98,7 @@
   --city-tree-dark: #8BBF72;
   --city-road: #FFFFFF;
   --city-road-edge: #D3D8DF;
+  --city-road-dash: #C3CAD4;  /* the dashed line down the middle of a street */
   --city-bridge: #9FA8B5;
   --city-water: #A9D5EF;
   --city-water-edge: #8CC4E5;
@@ -116,6 +117,10 @@
   /* Building 11с1 of Покровский бульвар, 11, by the Moskva, in yellow. */
   --city-roof-yellow: #FFD60A;
   --city-wall-yellow: #C9A200;
+  /* The campus in Nizhny Novgorod by the Volga, in the middle blue of the
+     brand book, with walls a shade darker. */
+  --city-roof-nn: var(--brand-blue);
+  --city-wall-nn: #17346F;
   --city-shadow: rgba(20, 23, 28, 0.12);
   --city-halo: rgba(255, 255, 255, 0.94);
   /* «Счастье не за горами» on the bank of the Kama, after assets/happiness.jpeg,
