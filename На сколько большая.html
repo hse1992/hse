@@ -92,6 +92,8 @@
   --metro-rail: #C9CFD8;
   --metro-sleeper: #DCE0E6;
   --metro-car-stripe: rgba(255, 255, 255, 0.5);
+  --metro-gangway: #8B929C;   /* the bellows between two cars of one train */
+  --metro-beam: rgba(255, 214, 102, 0.85);   /* headlights on the bed, fading out */
 
   /* Electric buses and the road they drive on (canvas) */
   --bus-wheel: #2A2E35;
@@ -6110,11 +6112,9 @@ function init(root) {
   'use strict';
 
   // Canvas has no CSS variables — same values as the tokens of the same name.
-  const RAIL = '#C9CFD8';
-  const SLEEPER = '#DCE0E6';
-  const CAR_STRIPE = 'rgba(255, 255, 255, 0.5)';
   const BUS_GLASS = '#143B54';
   const BUS_LIGHT = '#FFE08A';
+  const TAIL_LIGHT = '#E4573D';                  // --ebus-stop
   const BUS_SHADOW = 'rgba(20, 23, 28, 0.12)';   // --city-shadow
   const ROAD_FILL = '#F1F3F6';
   const ROAD_EDGE = '#AEB6C2';
@@ -6122,14 +6122,21 @@ function init(root) {
   const SIGN_BLUE = '#1668E0';
   const SIGN_EDGE = '#1A1D22';
   const TUNNEL = '#464C56';
-  const COUPLING = '#8B929C';
+  const GANGWAY = '#8B929C';                     // --metro-gangway
+  const BEAM_NEAR = 'rgba(255, 214, 102, 0.85)'; // --metro-beam
+  const BEAM_FAR = 'rgba(255, 214, 102, 0)';
   const HSE_BLUE = '#102D69';
 
   const M = 22;                 // margin around the track
   const GAP = 0.26;             // coupling between cars, in car lengths
   const TRAIN_GAP = 4;          // gap between trains, same units
-  const SHARE = 0.51;           // how much of the track all the trains take
-  const MIN_CAR = 11;           // below this the stripes stop reading, px
+  // The track has as few turns as it can: a short snake is calmer to watch.
+  // A shorter track means smaller cars, so the trains take most of it — there
+  // is still a stretch of empty rails to show them coming out of the tunnel.
+  const SHARE = 0.78;           // how much of the track all the trains take
+  const MIN_CAR = 15;           // below this the nose and the roof stop reading, px
+  const BEAM = 4.5;             // how far the headlights reach, in car widths
+  const SPREAD = 0.45;          // half the angle of the light, radians
   const SEC_PER_ROW = 16;       // how long a train takes to cross one row
 
   // Length of the whole chain, in car lengths.
@@ -6266,28 +6273,11 @@ function init(root) {
       }
 
       /* The legend sample is a whole train, so it replaces the single bar of
-         .canvas-legend-swatch with eight little cars. */
+         .canvas-legend-swatch with eight cars. It is painted by the same code
+         as the trains on the track and at their size, lights and all. */
       .metro-legend-train {
-        display: inline-flex;
-        align-items: center;
-        gap: 2px;
+        display: block;
         flex: none;
-      }
-
-      /* Same car as on the track: a body in the colour of the row with a
-         lighter stripe down the middle of the roof. */
-      .metro-legend-train i {
-        width: 11px;                 /* same 2,4 : 1 as a car on the track */
-        height: 5px;
-        border-radius: 1px;
-        background:
-          linear-gradient(
-            to bottom,
-            transparent 0 34%,
-            var(--metro-car-stripe) 34% 66%,
-            transparent 66% 100%
-          ),
-          currentColor;
       }
 
       /* A whole train across the picture, under the legend of the metro mode. */
@@ -6419,7 +6409,7 @@ function init(root) {
 
           <div class="canvas-card">
             <div class="canvas-legend">
-              <span class="metro-legend-train" data-el="legendTrain" aria-hidden="true">${'<i></i>'.repeat(TRAIN)}</span>
+              <canvas class="metro-legend-train" data-el="legendTrain" aria-hidden="true"></canvas>
               <div class="metro-bus-legend" data-el="busLegend">
                 <!-- the same bus as the ones driving on the roads below, seen
                      from above: the module sizes it to what they measure there -->
@@ -6509,22 +6499,31 @@ function init(root) {
   // Rows of straight track joined by half-circle turns. The track is always
   // laid out for the whole university, so a car keeps the same size whatever
   // is selected — only the length of the train on it changes.
-  // An odd number of rows, so the last one ends in the bottom right corner;
-  // as few of them as possible, as long as a car stays big enough to see.
+  // The fewest rows that keep a car big enough to see, counted in odd numbers,
+  // plus one more turn on top: the snake reads better with a little more
+  // winding. With that extra row the track ends in the bottom left corner,
+  // and the mark of the university stands there instead. Where even the
+  // tightest snake leaves the cars small (a phone), no row is added.
   function layout(w, h) {
-    let last = null;
-    for (let rows = 5; rows <= 13; rows += 2) {
+    const fit = (rows) => {
       const dy = (h - 2 * M) / (rows - 1);
       const r = dy / 2;
       const straight = w - 2 * M - 2 * r;      // middle rows are the shortest
-      if (straight < r * 2) continue;
+      if (straight < r * 2) return null;
       // The first and the last row are longer by r: they reach into the corner
       // instead of making a turn there.
       const len = rows * (w - 2 * M) + (rows - 1) * r * (Math.PI - 2);
       const car = (len * SHARE) / UNITS;
       const carW = Math.min(car * 0.42, dy * 0.4);
-      last = { rows, dy, r, straight, car, carW };
-      if (car >= MIN_CAR) break;
+      return { rows, dy, r, straight, car, carW };
+    };
+
+    let last = null;
+    for (let rows = 5; rows <= 13; rows += 2) {
+      const L = fit(rows);
+      if (!L) continue;
+      last = L;
+      if (L.car >= MIN_CAR) return fit(rows + 1) || L;
     }
     return last;
   }
@@ -6579,16 +6578,21 @@ function init(root) {
       return path;
     };
 
-    // Two rails. They stick out a little from under the cars, which are narrow
-    // at this scale.
-    const gauge = Math.max(1.1, L.carW * 0.55);
+    // The bed the track lies on: the same pale strip with darker edges as the
+    // roads of the buses, with the cars riding down the middle of it. It is
+    // never wider than 0,76 of a row, so the inner edge still fits a turn.
+    const bedW = L.carW * 1.9;
+    const bed = offset(0);
+    const edges = [bedW / 2, -bedW / 2].map(offset);
+
+    // Two rails, close enough to hide under a car and show between trains.
+    const gauge = L.carW * 0.28;
     const rails = [gauge, -gauge].map(offset);
 
-    // Sleepers under the rails: short ticks across the track, evenly spaced
-    // along the whole snake.
+    // Sleepers across the bed, evenly spaced along the whole snake.
     const sleepers = new Path2D();
-    const step = Math.max(5, L.car * 0.55);
-    const half = gauge + Math.max(1, L.carW * 0.3);
+    const step = Math.max(5, L.car * 0.5);
+    const half = bedW * 0.36;
     let next = step / 2;
     for (let i = 1; i < pts.length && next < len; i++) {
       while (cum[i] >= next && next < len) {
@@ -6605,7 +6609,7 @@ function init(root) {
     }
 
     return {
-      pts, cum, len, rails, sleepers,
+      pts, cum, len, bed, bedW, edges, rails, sleepers,
       car: L.car, carW: L.carW, straight: L.straight, dy: L.dy
     };
   }
@@ -6653,11 +6657,83 @@ function init(root) {
     return [[a, track.len], [0, b - track.len]];
   }
 
-  // A car seen from above, drawn after data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2248%22%20height%3D%2248%22%20viewBox%3D%220%200%2048%2048%22%3E%20%3Cpath%20d%3D%22M17.5%203.5h13a2%202%200%200%201%202%202v37a2%202%200%200%201-2%202h-13a2%202%200%200%201-2-2v-37a2%202%200%200%201%202-2z%22%20fill%3D%22%238b98a8%22%3E%3C%2Fpath%3E%20%3Crect%20x%3D%2219.4%22%20y%3D%226%22%20width%3D%221.8%22%20height%3D%2236%22%20rx%3D%220.5%22%20fill%3D%22%23fff%22%20opacity%3D%220.5%22%3E%3C%2Frect%3E%20%3Crect%20x%3D%2226.8%22%20y%3D%226%22%20width%3D%221.8%22%20height%3D%2236%22%20rx%3D%220.5%22%20fill%3D%22%23fff%22%20opacity%3D%220.5%22%3E%3C%2Frect%3E%20%3C%2Fsvg%3E: a rounded
-  // body in the colour of the city, with a lighter stripe along the roof.
-  // A car is rigid, so on a turn it sits on the chord between its ends instead
-  // of bending with the rails.
-  function drawCar(s0, s1, color) {
+  // A rounded box filled on a context; `r` is one radius or four.
+  function fillBox(c, x, y, bw, bh, r) {
+    c.beginPath();
+    if (c.roundRect) c.roundRect(x, y, bw, bh, r); else c.rect(x, y, bw, bh);
+    c.fill();
+  }
+
+  // Corners of a car: top-left, top-right, bottom-right, bottom-left. The
+  // front is on the right. A metro train is the same at both ends, so the head
+  // and the tail car both have a rounded nose on their outer end.
+  function carRadii(len, w, car) {
+    const round = Math.min(w * 0.2, len / 2);
+    const nose = Math.min(w * 0.5, len / 2);
+    return [
+      car.tail ? nose : round, car.head ? nose : round,
+      car.head ? nose : round, car.tail ? nose : round
+    ];
+  }
+
+  // A car seen from above, in the same manner as the electric buses: the body
+  // in the colour of the city, two roof units in its lighter shade. Both end
+  // cars of a train have a cab: the windscreen and a pair of lamps, white at
+  // the head and red at the tail — the same cab, turned the other way. Drawn
+  // around the origin of `c`, x running forward; the shadow and the light of
+  // the headlights are left to the caller.
+  function drawCarBody(c, len, w, car) {
+    const x0 = -len / 2, x1 = len / 2;
+    c.fillStyle = car.city.color;
+    fillBox(c, x0, -w / 2, len, w, carRadii(len, w, car));
+
+    // Roof units, with a gap between them where the car is long enough.
+    const r0 = x0 + (car.tail ? w * 0.72 : w * 0.22);
+    const r1 = x1 - (car.head ? w * 0.72 : w * 0.22);
+    const gapR = w * 0.22, rh = w * 0.48;
+    c.fillStyle = car.city.colorLight;
+    if (r1 - r0 > gapR * 3) {
+      const mid = (r0 + r1) / 2;
+      fillBox(c, r0, -rh / 2, mid - gapR / 2 - r0, rh, w * 0.08);
+      fillBox(c, mid + gapR / 2, -rh / 2, r1 - mid - gapR / 2, rh, w * 0.08);
+    } else if (r1 > r0) {
+      fillBox(c, r0, -rh / 2, r1 - r0, rh, w * 0.08);
+    }
+
+    // A cab at one end: `front` for the head, otherwise the mirror image of it
+    // at the tail.
+    const cab = (front) => {
+      c.fillStyle = BUS_GLASS;
+      fillBox(c, front ? x1 - w * 0.6 : x0 + w * 0.34, -w * 0.36, w * 0.26, w * 0.72, w * 0.1);
+      c.fillStyle = front ? BUS_LIGHT : TAIL_LIGHT;
+      const lamp = front ? x1 - w * 0.22 : x0 + w * 0.1;
+      fillBox(c, lamp, -w * 0.3, w * 0.12, w * 0.18, 0);
+      fillBox(c, lamp, w * 0.12, w * 0.12, w * 0.18, 0);
+    };
+    if (car.head) cab(true);
+    if (car.tail) cab(false);
+  }
+
+  // The light of the headlights on the bed ahead of a head car: a sector of a
+  // circle with its point under the nose, fading out towards its arc. Around
+  // the same origin as drawCarBody, and drawn before it, so the nose covers the
+  // point. `reach` is the radius of the sector.
+  function drawBeam(c, len, w, reach) {
+    const ax = len / 2 - w * 0.15;
+    const glow = c.createRadialGradient(ax, 0, 0, ax, 0, reach);
+    glow.addColorStop(0, BEAM_NEAR);
+    glow.addColorStop(1, BEAM_FAR);
+    c.fillStyle = glow;
+    c.beginPath();
+    c.moveTo(ax, 0);
+    c.arc(ax, 0, reach, -SPREAD, SPREAD);
+    c.closePath();
+    c.fill();
+  }
+
+  // A car on the track. A car is rigid, so on a turn it sits on the chord
+  // between its ends instead of bending with the rails.
+  function drawCar(s0, s1, car) {
     const w = track.carW;
     pieces(s0, s1).forEach(([s, e]) => {
       const a = at(s), b = at(e);
@@ -6665,29 +6741,35 @@ function init(root) {
       const len = Math.hypot(dx, dy);
       if (len < 0.2) return;
 
+      const place = (ox, oy) => {
+        ctx.translate((a.x + b.x) / 2 + ox, (a.y + b.y) / 2 + oy);
+        ctx.rotate(Math.atan2(dy, dx));
+      };
+
+      // The shadow falls the same way on every row, so it is shifted before
+      // the car is turned along the track.
       ctx.save();
-      ctx.translate((a.x + b.x) / 2, (a.y + b.y) / 2);
-      ctx.rotate(Math.atan2(dy, dx));
+      place(w * 0.14, w * 0.18);
+      ctx.fillStyle = BUS_SHADOW;
+      fillBox(ctx, -len / 2, -w / 2, len, w, carRadii(len, w, car));
+      ctx.restore();
 
-      ctx.fillStyle = color;
-      ctx.beginPath();
-      const r = Math.min(w * 0.16, len / 2);
-      if (ctx.roundRect) ctx.roundRect(-len / 2, -w / 2, len, w, r);
-      else ctx.rect(-len / 2, -w / 2, len, w);
-      ctx.fill();
-
-      // One stripe down the middle of the roof, from end to end.
-      const stripeW = Math.max(1, w * 0.32);
-      ctx.fillStyle = CAR_STRIPE;
-      ctx.fillRect(-len / 2, -stripeW / 2, len, stripeW);
+      ctx.save();
+      place(0, 0);
+      // The light stops short of the next row: its edges must not reach the
+      // bed of the neighbouring track.
+      if (car.head) drawBeam(ctx, len, w, Math.min(w * BEAM, track.dy * 0.9));
+      drawCarBody(ctx, len, w, car);
       ctx.restore();
     });
   }
 
-  // The coupling between two cars — a thin bar following the rails.
+  // The gangway between two cars of one train — a grey bellows, much narrower
+  // than the cars, following the rails. Any darker and the couplings run
+  // together into a dotted line under the whole train.
   function drawCoupling(s0, s1) {
-    ctx.strokeStyle = COUPLING;
-    ctx.lineWidth = Math.max(1, track.carW * 0.4);
+    ctx.strokeStyle = GANGWAY;
+    ctx.lineWidth = Math.max(1, track.carW * 0.36);
     ctx.lineCap = 'butt';
     pieces(s0, s1).forEach(([s, e]) => { if (e - s > 0.2) strokeAlong(s, e); });
   }
@@ -6696,7 +6778,8 @@ function init(root) {
   // under them: the tunnel it comes out of, and the mark of the university it
   // drives into. Until the mark is loaded the far end is a tunnel too.
   function drawEnds() {
-    const h = Math.min(track.dy * 0.5, 26), w = h * 0.55, r = h / 2;
+    // The portal is always a little wider than the bed it swallows.
+    const h = Math.max(track.bedW + 4, Math.min(track.dy * 0.5, 26)), w = h * 0.55, r = h / 2;
     const first = track.pts[0], last = track.pts[track.pts.length - 1];
 
     ctx.fillStyle = TUNNEL;
@@ -6935,18 +7018,25 @@ function init(root) {
       flock = buildFlock(cssW, cssH);
       trackKey = key;
       syncLegendSample();
+      paintLegendTrain();
     }
 
     if (state.mode === 'bus') { paintBuses(t, cssW); return; }
 
-    // track: sleepers first, rails over them
+    // track: the bed and its edges, sleepers across it, rails on top
     ctx.lineCap = 'butt';
     ctx.lineJoin = 'round';
-    ctx.strokeStyle = SLEEPER;
-    ctx.lineWidth = Math.max(0.75, track.carW * 0.13);
+    ctx.strokeStyle = ROAD_FILL;
+    ctx.lineWidth = track.bedW;
+    ctx.stroke(track.bed);
+    ctx.strokeStyle = ROAD_EDGE;
+    ctx.lineWidth = 1;
+    track.edges.forEach((edge) => ctx.stroke(edge));
+    ctx.strokeStyle = ROAD_LINE;
+    ctx.lineWidth = Math.max(0.6, track.carW * 0.12);
     ctx.stroke(track.sleepers);
-    ctx.strokeStyle = RAIL;
-    ctx.lineWidth = Math.max(0.9, track.carW * 0.16);
+    ctx.strokeStyle = ROAD_EDGE;
+    ctx.lineWidth = Math.max(0.7, track.carW * 0.1);
     track.rails.forEach((rail) => ctx.stroke(rail));
 
     // trains: the whole chain of cars, city after city, cut into eights.
@@ -6957,8 +7047,15 @@ function init(root) {
     const chain = [];
     TAIL_FIRST.forEach((c) => {
       for (let left = shown[c.key] || 0; left > 0.02; left -= 1) {
-        chain.push({ color: c.color, part: Math.min(1, left) });
+        chain.push({ city: c, part: Math.min(1, left) });
       }
+    });
+    // Trains are counted from the head: the car with a multiple of eight cars
+    // ahead of it leads its train, and the one right behind it ends the next.
+    chain.forEach((car, i) => {
+      const ahead = chain.length - 1 - i;
+      car.head = ahead % TRAIN === 0;
+      car.tail = i === 0 || (ahead + 1) % TRAIN === 0;
     });
 
     const gap = track.car * GAP, trainGap = track.car * TRAIN_GAP;
@@ -6967,7 +7064,7 @@ function init(root) {
     chain.forEach((car, i) => {
       const end = s + track.car * car.part;
       if (prev !== null) drawCoupling(prev, s);
-      drawCar(s, end, car.color);
+      drawCar(s, end, car);
       s = end + gap;
       prev = end;
       // Trains are counted from the head, so a train short of eight cars
@@ -7024,7 +7121,46 @@ function init(root) {
 
   // The samples in the legend are painted in the colour of Moscow, like the
   // buses on the roads.
-  legendTrainEl.style.color = MOSCOW.color;
+
+  // The train of the legend: eight Moscow cars at the size of the ones on the
+  // track, coupled, lit up at the head, on a straight piece of nothing.
+  function paintLegendTrain() {
+    if (!track) return;
+    const len = track.car, w = track.carW, gap = len * GAP;
+    // A shorter light than on the track, or the legend would grow as tall as
+    // the fan is wide.
+    const reach = w * 2.6;
+    const cssW = TRAIN * len + (TRAIN - 1) * gap + reach;
+    const cssH = Math.max(w * 1.4, 2 * reach * Math.sin(SPREAD) + 2);
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    legendTrainEl.width = Math.round(cssW * dpr);
+    legendTrainEl.height = Math.round(cssH * dpr);
+    legendTrainEl.style.width = `${cssW}px`;
+    legendTrainEl.style.height = `${cssH}px`;
+
+    const c = legendTrainEl.getContext('2d');
+    c.setTransform(dpr, 0, 0, dpr, 0, 0);
+    c.clearRect(0, 0, cssW, cssH);
+    const y = cssH / 2;
+    for (let k = 0; k < TRAIN; k++) {
+      const x = k * (len + gap) + len / 2;
+      const car = { city: MOSCOW, head: k === TRAIN - 1, tail: k === 0 };
+      if (k > 0) {
+        c.fillStyle = GANGWAY;
+        c.fillRect(x - len / 2 - gap, y - w * 0.18, gap, w * 0.36);
+      }
+      c.save();
+      c.translate(x + w * 0.14, y + w * 0.18);
+      c.fillStyle = BUS_SHADOW;
+      fillBox(c, -len / 2, -w / 2, len, w, carRadii(len, w, car));
+      c.restore();
+      c.save();
+      c.translate(x, y);
+      if (car.head) drawBeam(c, len, w, reach);
+      drawCarBody(c, len, w, car);
+      c.restore();
+    }
+  }
   legendSampleEl.style.setProperty('--bus-body', MOSCOW.color);
   legendSampleEl.style.setProperty('--bus-roof', MOSCOW.colorLight);
 
