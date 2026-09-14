@@ -660,9 +660,12 @@ export function init(root) {
     probe.style.width = `${width}px`;
     probe.innerHTML = html;
     root.appendChild(probe);
-    const height = Math.max(...[...probe.children].map((el) => el.offsetHeight));
+    // Rounded up, not to the nearest pixel: lines come out a fraction of a
+    // pixel tall, and a reserve that is a fraction short lets the card grow by
+    // that much for the tallest of them — enough to set the wall re-fitting.
+    const height = Math.max(...[...probe.children].map((el) => el.getBoundingClientRect().height));
     probe.remove();
-    return height;
+    return Math.ceil(height);
   }
 
   // All 44 have to stand in the box at once — the section is one screen tall
@@ -768,11 +771,22 @@ export function init(root) {
   //
   // The box is watched, not the wall itself: laying the wall out changes its
   // size, and watching it would have it lay itself out for ever.
+  //
+  // Only a change of whole pixels counts. A re-fit starts over from the
+  // biggest tiles and shrinks them back trial by trial — a fraction of a pixel
+  // of the card is not worth the wall visibly jumping under the pointer.
   let pending = false;
+  let box = '';
   new ResizeObserver(() => {
     if (pending) return;
     pending = true;
-    requestAnimationFrame(() => { pending = false; fit(); });
+    requestAnimationFrame(() => {
+      pending = false;
+      const size = `${Math.round(wrap.clientWidth)}x${Math.round(wrap.clientHeight)}`;
+      if (size === box) return;
+      box = size;
+      fit();
+    });
   }).observe(wrap);
 
   // ---------- The wall ----------
