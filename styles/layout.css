@@ -487,12 +487,29 @@ button { font-family: inherit; }
   position: relative;
 }
 
+/* It stands on the same white card as in the block it came from. */
 .viz-backdrop {
   position: absolute;
-  left: 0;
-  width: 100%;
+  box-sizing: border-box;
+  padding: 12px;
+  background: var(--card);
+  border-radius: var(--r-canvas-card);
+  box-shadow: var(--card-shadow);
   opacity: calc(1 - var(--lead-away, 0) * 1.4);
   pointer-events: none;
+}
+
+.viz-backdrop canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* The card on its way, under the picture flying with it. */
+.page-carry-card {
+  background: var(--card);
+  border-radius: var(--r-canvas-card);
+  box-shadow: var(--card-shadow);
 }
 
 /* Over the picture on its way in, too. */

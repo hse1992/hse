@@ -829,10 +829,6 @@ export function init(root) {
   // the picture over; see carry() in lib/stepper.js.
   const token = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 
-  // Smaller than the room under the question: a picture to glance at while
-  // reading it, not one to fill the screen.
-  const SMALL = 0.72;
-
   function studentsOnly() {
     const arr = new Array(STRIPES).fill(EMPTY);
     const student = token('--students');
@@ -878,7 +874,9 @@ export function init(root) {
       const B = buildBowl();
       return boxIn(canvas, Math.min(canvas.clientWidth / B.W, canvas.clientHeight / B.H));
     },
-    paint: (target) => boxIn(target, drawStadium(target, studentsOnly(), SMALL))
+    // Fitted to the canvas, the way the arena sits in its own card: the shell
+    // sizes the card to the picture.
+    paint: (target) => boxIn(target, drawStadium(target, studentsOnly()))
   };
 
   return { step, carry };

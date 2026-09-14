@@ -676,12 +676,29 @@ button { font-family: inherit; }
   position: relative;
 }
 
+/* It stands on the same white card as in the block it came from. */
 .viz-backdrop {
   position: absolute;
-  left: 0;
-  width: 100%;
+  box-sizing: border-box;
+  padding: 12px;
+  background: var(--card);
+  border-radius: var(--r-canvas-card);
+  box-shadow: var(--card-shadow);
   opacity: calc(1 - var(--lead-away, 0) * 1.4);
   pointer-events: none;
+}
+
+.viz-backdrop canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* The card on its way, under the picture flying with it. */
+.page-carry-card {
+  background: var(--card);
+  border-radius: var(--r-canvas-card);
+  box-shadow: var(--card-shadow);
 }
 
 /* Over the picture on its way in, too. */
@@ -2506,26 +2523,57 @@ function handoff(from, to, travel) {
 // `lifted` in lib/page.js — and fades as the lead-in leaves, see --lead-away.
 const UNDER = 8;             // between the last line of the lead-in and the picture, px
 
+//
+// The picture stands on a card, the same white card it sat on in its own
+// block: sized to the picture rather than to the screen, with a wide margin of
+// white round it, and in the middle of the screen.
+const BACKDROP_SHARE = 0.72;   // the picture, of the height under the lead-in
+const CARD_PAD = 44;           // white round the picture, px
+
 function backdropOf(section, picture) {
-  let canvas = section.querySelector(':scope > .viz-backdrop');
+  let frame = section.querySelector(':scope > .viz-backdrop');
   const lead = section.querySelector('.viz-lead');
-  const top = Math.round(lead.getBoundingClientRect().bottom
-    - section.getBoundingClientRect().top + UNDER);
-  const size = `${window.innerWidth}×${window.innerHeight}×${top}`;
-  if (canvas && canvas.dataset.size === size) return canvas;
-  if (!canvas) {
-    canvas = document.createElement('canvas');
-    canvas.className = 'viz-backdrop';
-    canvas.setAttribute('aria-hidden', 'true');
-    section.prepend(canvas);
+  const room = section.getBoundingClientRect();
+  const column = section.querySelector('.viz-container').getBoundingClientRect();
+  const top = Math.round(lead.getBoundingClientRect().bottom - room.top + UNDER);
+  const free = room.height - top - parseFloat(getComputedStyle(section).paddingBottom);
+  const shape = picture.box();
+  const ratio = shape.w > 0 && shape.h > 0 ? shape.w / shape.h : 1.2;
+  // The picture keeps its size; the white grows round it, as far as there is
+  // room for it under the lead-in and across the column.
+  const inner = Math.round(free * BACKDROP_SHARE);
+  let height = Math.min(Math.round(free), inner + 2 * CARD_PAD);
+  let width = Math.round(inner * ratio + 2 * CARD_PAD);
+  if (width > column.width) {
+    width = Math.round(column.width);
+    height = Math.round((width - 2 * CARD_PAD) / ratio + 2 * CARD_PAD);
+  }
+  const left = Math.round((room.width - width) / 2);
+  const size = `${window.innerWidth}×${window.innerHeight}×${top}×${left}×${width}×${height}`;
+  if (frame && frame.dataset.size === size) return frame.picture;
+  if (!frame) {
+    frame = document.createElement('div');
+    frame.className = 'viz-backdrop';
+    frame.setAttribute('aria-hidden', 'true');
+    const canvas = document.createElement('canvas');
+    frame.appendChild(canvas);
+    frame.picture = canvas;
+    canvas.frame = frame;
+    section.prepend(frame);
     window.addEventListener('resize', () => {
-      delete canvas.dataset.size;
+      delete frame.dataset.size;
       backdropOf(section, picture);
     });
   }
-  canvas.dataset.size = size;
-  canvas.style.top = `${top}px`;
-  canvas.style.height = `calc(100% - ${top}px - ${getComputedStyle(section).paddingBottom})`;
+  frame.dataset.size = size;
+  Object.assign(frame.style, {
+    top: `${top}px`,
+    left: `${left}px`,
+    width: `${width}px`,
+    height: `${height}px`,
+    padding: `${CARD_PAD}px`
+  });
+  const canvas = frame.picture;
   canvas.box = picture.paint(canvas);
   return canvas;
 }
@@ -2559,6 +2607,25 @@ function carry(picture, backdrop, travel) {
     document.body.appendChild(copy);
     return copy;
   };
+  // The card goes with the picture: from the card it sat on in its own block
+  // to the one it stands on under the lead-in. Laid first, so it stays under.
+  const cardFrom = picture.from.closest('.canvas-card') || picture.from;
+  const c0 = cardFrom.getBoundingClientRect();
+  const c1 = backdrop.frame.getBoundingClientRect();
+  const card = document.createElement('div');
+  card.className = 'page-carry page-carry-card';
+  document.body.appendChild(card);
+  const placeCard = (e) => {
+    const lerp = (a, b) => (a + (b - a) * e).toFixed(1);
+    Object.assign(card.style, {
+      left: `${lerp(c0.left, c1.left)}px`,
+      top: `${lerp(c0.top, c1.top - travel)}px`,
+      width: `${lerp(c0.width, c1.width)}px`,
+      height: `${lerp(c0.height, c1.height)}px`
+    });
+  };
+  placeCard(0);
+
   const was = layer(picture.from, src.left, src.top, src.width, src.height);
   const will = layer(backdrop, home.left, home.top - travel, home.width, home.height);
   will.style.opacity = '0';
@@ -2571,8 +2638,8 @@ function carry(picture, backdrop, travel) {
       + `${(box.y - top - k * inner.y).toFixed(1)}px) scale(${k.toFixed(4)})`;
   };
 
-  picture.from.style.visibility = 'hidden';
-  backdrop.style.visibility = 'hidden';
+  cardFrom.style.visibility = 'hidden';
+  backdrop.frame.style.visibility = 'hidden';
 
   play(SETTLE_MS, (p) => {
     const e = settle(p);
@@ -2581,12 +2648,14 @@ function carry(picture, backdrop, travel) {
       y: start.y + (end.y - start.y) * e,
       w: start.w + (end.w - start.w) * e
     };
+    placeCard(e);
     place(was, src.left, src.top, a, box);
     place(will, home.left, home.top - travel, b, box);
     will.style.opacity = Math.min(1, e * 1.5).toFixed(3);
   }, () => {
-    picture.from.style.visibility = '';
-    backdrop.style.visibility = '';
+    cardFrom.style.visibility = '';
+    backdrop.frame.style.visibility = '';
+    card.remove();
     was.remove();
     will.remove();
   });
@@ -7914,10 +7983,6 @@ function init(root) {
   // the picture over; see carry() in lib/stepper.js.
   const token = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 
-  // Smaller than the room under the question: a picture to glance at while
-  // reading it, not one to fill the screen.
-  const SMALL = 0.72;
-
   function studentsOnly() {
     const arr = new Array(STRIPES).fill(EMPTY);
     const student = token('--students');
@@ -7963,7 +8028,9 @@ function init(root) {
       const B = buildBowl();
       return boxIn(canvas, Math.min(canvas.clientWidth / B.W, canvas.clientHeight / B.H));
     },
-    paint: (target) => boxIn(target, drawStadium(target, studentsOnly(), SMALL))
+    // Fitted to the canvas, the way the arena sits in its own card: the shell
+    // sizes the card to the picture.
+    paint: (target) => boxIn(target, drawStadium(target, studentsOnly()))
   };
 
   return { step, carry };
