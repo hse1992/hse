@@ -7,6 +7,13 @@
       "runtimeArgs": ["-c", "python3 -m http.server \"$PORT\""],
       "port": 8000,
       "autoPort": true
+    },
+    {
+      "name": "teaser",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["tools/teaser-server.py"],
+      "port": 8001,
+      "autoPort": true
     }
   ]
 }
