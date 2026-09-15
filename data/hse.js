@@ -24,7 +24,7 @@ export const CITIES = [
   city('perm', 'Пермь', '#7D4EBA', 2869, 324, 33679, 21227, 981, 130)
 ];
 
-export const LYCEUM = 2600;
+export const LYCEUM = 2562;         // students of the lyceum, the exact count
 export const LYCEUM_COLOR = '#FFD400';
 
 // Students from abroad on all campuses. The campus figures are rounded down, so
