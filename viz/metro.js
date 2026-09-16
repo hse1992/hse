@@ -22,17 +22,10 @@ const BUSES_TOTAL = CITIES.reduce((n, c) => n + busesOf(c), 0);
 const TRAINS = Math.floor(CARS_TOTAL / TRAIN);
 
 // The two ways to carry the same people. `of` is how many vehicles a city
-// needs, the rest is what the cards and the legend say about them.
+// needs, the rest is what the cards and the legend say about them. The first
+// one is where the block opens: the metro, the same one the reader has just
+// ridden in through the doors.
 const MODES = [
-  {
-    key: 'bus',
-    label: 'На электробусе',
-    of: busesOf,
-    stop: 'остановка',
-    title: 'Электробусов',
-    noun: ['электробус', 'электробуса', 'электробусов'],
-    legend: `Это электробус. Он вмещает ${PER_BUS} ${plural(PER_BUS, 'вышкинца', 'вышкинца', 'вышкинцев')}`
-  },
   {
     key: 'metro',
     label: 'На метро',
@@ -41,6 +34,15 @@ const MODES = [
     title: 'Вагонов метро',
     noun: ['вагон', 'вагона', 'вагонов'],
     legend: `1 поезд — ${TRAIN} вагонов, в каждом вагоне ${PER_CAR} человек`
+  },
+  {
+    key: 'bus',
+    label: 'На электробусе',
+    of: busesOf,
+    stop: 'остановка',
+    title: 'Электробусов',
+    noun: ['электробус', 'электробуса', 'электробусов'],
+    legend: `Это электробус. Он вмещает ${PER_BUS} ${plural(PER_BUS, 'вышкинца', 'вышкинца', 'вышкинцев')}`
   }
 ];
 
@@ -115,10 +117,12 @@ export const meta = {
   // lead-in, «~22 000», rather than disappearing with this one.
   handoff: 'people',
   // The word before the name depends on what the reader is riding, so the
-  // module changes it when the mode is switched.
+  // module changes it when the mode is switched. It starts as the station of
+  // the metro, the mode the block opens in — the title card is up before the
+  // module has said a word.
   // The name of the station is the station board itself — the same one in
   // both modes.
-  title: 'Следующая <span data-el="stop">остановка</span> '
+  title: 'Следующая <span data-el="stop">станция</span> '
     + '<img class="metro-tablo" src="assets/tablo-vyshkinskaya.svg" alt="Вышкинская">',
   // Everything below the first line belongs to the title card: the pictures
   // and the multipliers fold away as the card settles, and what is left reads
