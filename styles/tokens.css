@@ -57,6 +57,17 @@
   --brand-red: #E61E3C;
   --brand-yellow: #FAB900;
 
+  /* Doors of a metro car, after assets/doors.jpg — the curtain between the
+     title screen and the first block. The body of the car, the rubber down the
+     middle and along the threshold, the window and the white chevron. */
+  --door-body: #2E6B79;
+  --door-body-dark: #21525E;
+  --door-edge: #16292F;
+  --door-frame: #12313A;
+  --door-glass: #8A7430;
+  --door-glass-light: #B9BEC4;
+  --door-stripe: #E9E7E0;
+
   /* Metro track (canvas) */
   --metro-rail: #C9CFD8;
   --metro-sleeper: #DCE0E6;
