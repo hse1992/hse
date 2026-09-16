@@ -2367,6 +2367,10 @@ const { mountStepper } = (() => {
 // own carries the page from one to the next.
 
 const BEAT_MS = 700;         // how long one beat plays
+// A step can ask for longer than that — a turn in the story worth dwelling on,
+// where the picture has further to travel than usual. Only as far as this: past
+// it the reader is waiting for the page rather than watching it.
+const LONGEST_MS = 2500;
 const SETTLE_MS = 520;       // moving the page from one section to the next
 
 // A trackpad keeps sending events for a second or so after the fingers have
@@ -2672,7 +2676,7 @@ function carry(picture, backdrop, travel) {
 // animate). Both the card and a scene step are a function of one number, so
 // putting either of them back where it was is exact, not an approximation.
 function beatsOf(entry, before = null) {
-  const { section, opening, steps, setStep, build, opensOnStep, hold } = entry;
+  const { section, opening, steps, setStep, build, opensOnStep, hold, span } = entry;
   const list = [];
 
   // The block has just been put together and the section is on its way in:
@@ -2743,12 +2747,20 @@ function beatsOf(entry, before = null) {
   //    A step can also ask the reader for something before it will start — a
   //    guess, say — through `hold`: asked when the reader wants to go on, it
   //    answers whether the page has to wait, and shows them why if so.
+  //    A step that plays something longer than a beat says so itself, through
+  //    `span`: the page then waits for it instead of taking the next movement
+  //    of the wheel over the top of it.
+  const spanOf = (i) => {
+    const asked = span ? span(i) : 0;
+    return Math.min(Math.max(asked || BEAT_MS, BEAT_MS), LONGEST_MS);
+  };
+
   for (let i = opensOnStep ? 1 : 0; i < steps; i++) {
     list.push({
       section,
       hold: hold ? (options) => hold(i, options) : null,
-      run: (done) => { setStep(i); play(BEAT_MS, () => {}, done); },
-      back: (done) => { setStep(Math.max(0, i - 1)); play(BEAT_MS, () => {}, done); },
+      run: (done) => { setStep(i); play(spanOf(i), () => {}, done); },
+      back: (done) => { setStep(Math.max(0, i - 1)); play(spanOf(i - 1), () => {}, done); },
       settle: () => setStep(i)
     });
   }
@@ -10183,7 +10195,8 @@ const FIRST = HISTORY[START];
 const LEAD_CARD = `
   <span class="study-art"><svg viewBox="0 0 64 64" aria-hidden="true" focusable="false">${FIRST.art}</svg></span>
   <span class="study-lead-col">
-    <span class="study-since">Начинать пришлось бы в <b>${START}</b> году</span>
+    <span class="study-since">Начинать пришлось бы</span>
+    <span class="study-lead-year"><span class="study-lead-year-unit">в</span><b>${START}</b><span class="study-lead-year-unit">году</span></span>
     <span class="study-event">Тогда ${FIRST.text}</span>
   </span>
 `;
@@ -10191,10 +10204,10 @@ const LEAD_CARD = `
 const meta = {
   id: 'study',
   // Hands the reader over from the buildings: what they are all for, said at
-  // once and shown at once — a square for every programme. That gives way to
-  // how long it would take to sit through them one after another, and to the
-  // year such a student would have had to start in. The last line runs into
-  // the heading.
+  // once and shown at once — a square for every programme. The squares give
+  // way to how long it would take to sit through them one after another, and
+  // that to the year such a student would have had to start in. The last line
+  // runs into the heading.
   lead: {
     // The screen grows by a whole block at a time, so it holds the middle of
     // the screen rather than the top edge of the title card to come.
@@ -10204,11 +10217,21 @@ const meta = {
       + '<span class="study-lead-beat"><span class="study-lead-gone">'
       +   `${dotsOf(LEVELS[0], 1, true)}${dotsOf(LEVELS[1], 2, false)}`
       + '</span></span>'
-      + '<span class="study-lead-beat intro-stage" data-stage="3"><span class="study-lead-come">'
-      +   `Чтобы обучиться на каждой из них, потребуется ${mark(`${nf(YEARS_TOTAL)} ${plural(YEARS_TOTAL, 'год', 'года', 'лет')}`)}`
+      // The answer, and then what it means, each on a beat of its own: first
+      // the figure alone, with the sentence it answers under it — the number
+      // is what the screen turns on, so it is read before the words.
+      + '<span class="study-lead-beat intro-stage" data-stage="3"><span class="study-lead-answer">'
+      +   `<span class="study-lead-years">${nf(YEARS_TOTAL)}`
+      +     `<span class="study-lead-years-unit">${plural(YEARS_TOTAL, 'год', 'года', 'лет')}</span>`
+      +   '</span>'
+      +   '<span class="study-lead-say">потребуется, чтобы последовательно обучиться на каждой из них</span>'
+      + '</span></span>'
+      // The figure gives way to the year it lands on, in the same place: one
+      // thought turning into the next, not two standing side by side.
+      + '<span class="study-lead-beat intro-stage" data-stage="4"><span class="study-lead-then">'
       +   `<span class="study-lead-card">${LEAD_CARD}</span>`
       + '</span></span></span>'
-      + '<span class="study-lead-outro intro-stage" data-stage="4">В общем нужно…</span>'
+      + '<span class="study-lead-outro intro-stage" data-stage="5">В общем нужно…</span>'
   },
   title: 'Учиться, учиться и еще раз учиться',
   // The heading arrives on its own — the reader has just been told all this on
@@ -10428,19 +10451,104 @@ function init(root) {
         align-self: start;
       }
 
-      /* The two share the box, so they must not be seen through each other:
-         the squares are gone by the time the beat after them has come two
-         fifths of the way, and it only starts showing at half. The page shell
-         owns the opacity of a part while it grows — hence both from the
-         inside, by how far that beat has come. */
+      /* The three share the box, so they must not be seen through each other:
+         one is gone by the time the beat after it has come two fifths of the
+         way, and that one only starts showing at half. The page shell owns the
+         opacity of a part while it grows — hence all of them from the inside,
+         by how far their beat has come. */
       .study-lead-gone {
         display: block;
         opacity: calc(1 - var(--lead-stage-3, 0) * 2.5);
       }
 
-      .study-lead-come {
+      /* The turn of the screen, and it is given room: the answer should not
+         read as the next line of the heading. Like the squares before it, the
+         figure both comes and goes — the year takes its place. */
+      .study-lead-answer {
         display: block;
-        opacity: calc(var(--lead-stage-3, 1) * 2 - 1);
+        margin-top: 1.8em;
+        opacity: min(calc(var(--lead-stage-3, 1) * 2 - 1),
+                     calc(1 - var(--lead-stage-4, 0) * 2.5));
+      }
+
+      /* What the figure answers, set small under it — the number is the thing
+         to be read here, the sentence only says what it counts. */
+      .study-lead-say {
+        display: block;
+        margin-top: 0.4em;
+        text-align: center;
+        font-size: calc(1rem * var(--intro-k, 1.55));
+        color: var(--text-secondary);
+      }
+
+      /* The year the figure lands on, in the place the figure has just left. */
+      .study-lead-then {
+        display: block;
+        margin-top: 1.8em;
+        opacity: calc(var(--lead-stage-4, 1) * 2 - 1);
+      }
+
+      /* The same figure the block itself opens with, so the screen and the
+         block read as one thought. Its unit stands beside it, smaller and
+         quieter, exactly as it does there. */
+      .study-lead-years {
+        display: flex;
+        align-items: baseline;
+        justify-content: center;
+        gap: 0.18em;
+        line-height: 1;
+        letter-spacing: -0.04em;
+        font-weight: 700;
+        font-size: min(calc(3.25rem * var(--intro-k, 1.55)), 9vh);
+        font-variant-numeric: tabular-nums;
+        color: var(--hse-blue);
+      }
+
+      .study-lead-years-unit {
+        font-size: 0.36em;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+        color: var(--text-secondary);
+      }
+
+      /* The year is the second figure of the screen, so it is set as a figure
+         and not as a word in the middle of a sentence — the line that leads to
+         it stands over it, and «году» beside it, the way the unit of the big
+         number does. */
+      .study-lead-year {
+        display: flex;
+        align-items: baseline;
+        gap: 0.2em;
+        line-height: 1.05;
+        font-size: min(calc(3.25rem * var(--intro-k, 1.55)), 9vh);
+        font-weight: 700;
+        letter-spacing: -0.03em;
+        font-variant-numeric: tabular-nums;
+        color: var(--hse-blue);
+      }
+
+      /* The card is the whole of its beat, so it needs no room of its own on
+         top of the room the beat already has. */
+      .study-lead-then .study-lead-card {
+        margin-top: 0;
+      }
+
+      .study-lead-year-unit {
+        font-size: 0.44em;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+        color: var(--text-secondary);
+      }
+
+      /* The line that runs into the heading itself, so it is set larger than
+         the screen around it — and scaled with it, like everything else here.
+         It stands under the swap box, not in it: by then the number and the
+         year are what it is said about, and they stay. */
+      .study-lead-outro {
+        display: block;
+        margin-top: 0.7em;
+        font-size: calc(1.25rem * var(--intro-k, 1.55));
+        color: var(--text);
       }
 
       /* Every programme as a square, a level to a wave. The waves meet with
@@ -10481,16 +10589,17 @@ function init(root) {
         border-radius: 3px;
       }
 
-      /* The year the second beat stands on, in the middle of the screen. Set
-         at its own size: the screen around it is scaled up, a card in it is
-         not. */
+      /* The year the beat before last stands on, in the middle of the screen.
+         Set at the size of the screen around it, and its figure as big as the
+         one it follows: the two beats are one thought, and a card set at its
+         own size read as an afterthought next to the number. */
       .study-lead-card {
         display: flex;
         align-items: center;
-        gap: 26px;
-        max-width: 640px;
+        gap: clamp(20px, 4vh, 40px);
+        max-width: 900px;
         margin: 0.7em auto 0;
-        padding: 26px 32px;
+        padding: clamp(26px, 5.6vh, 56px);
         border-radius: var(--r-canvas-card);
         background: var(--card);
         box-shadow: var(--card-shadow);
@@ -10499,22 +10608,16 @@ function init(root) {
       .study-lead-col {
         display: flex;
         flex-direction: column;
-        gap: 4px;
+        gap: 12px;
         min-width: 0;
       }
 
-      .study-lead-card .study-art { width: 128px; height: 128px; }
-      .study-lead-card .study-since { font-size: 1.5rem; }
-      .study-lead-card .study-event { font-size: 1.125rem; }
-
-      /* The line that runs into the heading itself, so it is set larger than
-         the screen around it — and scaled with it, like everything else here. */
-      .study-lead-outro {
-        display: block;
-        margin-top: 0.7em;
-        font-size: calc(1.25rem * var(--intro-k, 1.55));
-        color: var(--text);
+      .study-lead-card .study-art {
+        width: min(190px, 21vh);
+        height: min(190px, 21vh);
       }
+      .study-lead-card .study-since { font-size: min(calc(1rem * var(--intro-k, 1.55)), 2.8vh); color: var(--text-secondary); }
+      .study-lead-card .study-event { font-size: min(calc(1rem * var(--intro-k, 1.55)), 2.8vh); }
 
       /* The line of the screen carries a patch that runs over more than one
          line, and the headline leading of the shell would have the patches
@@ -10549,9 +10652,16 @@ function init(root) {
            only one screen: the squares keep the size they can. */
         .study-lead-dots { grid-template-columns: repeat(23, 1fr); gap: 3px; }
         .study-lead-dot { border-radius: 2px; }
-        .study-lead-card { gap: 14px; margin-top: 0.6em; padding: 16px 18px; }
+        /* On a phone the screen has one column and no room to spare: the
+           figure still leads, but by less. */
+        .study-lead-answer,
+        .study-lead-then { margin-top: 0.7em; }
+        .study-lead-say { font-size: 0.9375rem; }
+        .study-lead-years { font-size: 3rem; }
+        .study-lead-year { font-size: 1.875rem; }
+        .study-lead-card { gap: 14px; margin-top: 0.6em; padding: 22px 18px; }
         .study-lead-card .study-art { width: 80px; height: 80px; }
-        .study-lead-card .study-since { font-size: 1.125rem; }
+        .study-lead-card .study-since { font-size: 0.9375rem; }
         .study-lead-card .study-event { font-size: 0.9375rem; }
         .study-lead-outro { font-size: 1.375rem; }
 
@@ -12454,6 +12564,8 @@ const page = document.getElementById('page');
       // Whether step i has to wait for the reader — see lib/stepper.js. With
       // { quiet: true } the block only answers and shows nothing.
       hold: (i, options) => !!(api && api.hold && api.hold(i, options)),
+      // How long step i plays, in ms, if it needs more than a beat.
+      span: (i) => (api && api.span ? api.span(i) : 0),
       // A section is built on its way onto the screen, not before: whatever it
       // animates on start then plays in front of the reader.
       build: () => { if (!api) api = mod.init(section.querySelector('.viz-body')) || {}; }
