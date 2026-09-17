@@ -6530,16 +6530,27 @@ function init(root) {
          what happens afterwards, when the card settles into a plain subtitle.
 
          --intro-body is how far it has settled, 0 on the card and 1 in place.
-         The pictures fold away over that stretch and the blank lines between
-         the sentences close up, so what is left is an ordinary paragraph. The
-         fold runs three times as fast as the card: the heading is still on its
-         way down when the card is already a paragraph, and the two do not have
-         to cross each other on the screen. */
+         The pictures leave over that stretch and the blank lines between the
+         sentences close up, so what is left is an ordinary paragraph.
+
+         It happens in two goes, and never both at once. First --go: the
+         vehicles drive off the way they are facing and fade as they go, the
+         multiplier with them. Only once they are gone does --shut close the
+         line they stood on and bring the sentences together. Doing both at
+         once is what looked cheap: a row closing over a picture that is still
+         there slices it, and the multiplier — plain text over the fold — came
+         out sawn in half.
+
+         Both windows are late in --intro-body on purpose. The card settles on
+         an eased curve that covers most of its way in the first fifth of the
+         beat, so an early window would flash by in under a tenth of a second;
+         these take about two tenths and a half of a second of real time. */
       .metro-brief {
-        --fold: clamp(0, 1 - var(--intro-body, 1) * 3, 1);
+        --go: clamp(0, (0.75 - var(--intro-body, 1)) / 0.6, 1);
+        --shut: clamp(0, (1 - var(--intro-body, 1)) / 0.35, 1);
         display: flex;
         flex-direction: column;
-        gap: calc(var(--fold) * 1.8em);       /* two blank lines between them */
+        gap: calc(var(--shut) * 1.8em);       /* two blank lines between them */
       }
 
       /* A plain block, not a column: the shell squeezes a stage shut by its
@@ -6551,18 +6562,25 @@ function init(root) {
       }
 
       /* The picture of a stage, with its multiplier beside it. Its height is
-         written down rather than measured, so that folding it away is a matter
-         of one number going to zero; the picture inside keeps to that height
-         and shrinks with it instead of being cut off. */
+         written down rather than measured, so that closing the line is a
+         matter of one number going to zero. */
       .metro-brief-fig {
         display: flex;
         align-items: center;
         gap: 16px;
-        margin-top: calc(var(--fold) * 0.5em);
-        height: calc(var(--fold) * var(--fig-h));
-        opacity: var(--fold);
+        margin-top: calc(var(--shut) * 0.5em);
+        height: calc(var(--shut) * var(--fig-h));
+        opacity: var(--go);
+        transform: translateX(calc((1 - var(--go)) * var(--away, 0em)));
         overflow: hidden;
       }
+
+      /* Leaving, each the way it is drawn to face: the bus has its windscreen
+         on the right, the train its cab on the left. The multiplier goes with
+         its vehicle, or the bus would drive into its own «× 260». They do not
+         go far — enough to read as driving off rather than blinking out. */
+      .metro-brief-fig-bus { --away: 2.4em; }
+      .metro-brief-fig-train { --away: -2.4em; }
 
       .metro-brief-fig-bus { --fig-h: 48px; }
       .metro-brief-fig-train { --fig-h: 40px; }
@@ -9757,6 +9775,7 @@ function init(root) {
         position: absolute;
         inset: 0;
         display: flex;
+        flex-direction: column;
         pointer-events: none;
         opacity: 0;
         visibility: hidden;
@@ -9767,6 +9786,20 @@ function init(root) {
         opacity: 1;
         visibility: visible;
         transition: opacity 620ms ease, visibility 0s;
+      }
+
+      /* The line over the map: what the map is there to show. */
+      .area-town-note {
+        margin: 0 0 14px;
+        text-align: center;
+        color: var(--text-caption);
+        font-size: 1rem;
+      }
+
+      .area-town-map {
+        flex: 1;
+        min-height: 0;
+        display: flex;
       }
 
       /* The heading of the figures: the area itself, over both columns. */
@@ -9946,7 +9979,10 @@ function init(root) {
       }
     </style>
 
-    <div class="area-town" data-el="town"></div>
+    <div class="area-town" data-el="town">
+      <p class="area-town-note">Тут правда ${nf(BUILDINGS)} ${plural(BUILDINGS, 'здание', 'здания', 'зданий')}</p>
+      <div class="area-town-map" data-el="townMap"></div>
+    </div>
 
     <div class="area-steps">
       <p class="area-step-title" data-el="areaTitle">Общая площадь этих зданий <span class="area-mark">${nf(AREA_TOTAL)} м²</span></p>
@@ -10379,7 +10415,7 @@ function init(root) {
   const LAST = 7;
 
   // The same town as the town section draws — see lib/town-map.js.
-  mountTownMap(townEl);
+  mountTownMap($('townMap'));
 
   function step(i) {
     const told = i < LAST;

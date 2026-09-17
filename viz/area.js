@@ -189,6 +189,7 @@ export function init(root) {
         position: absolute;
         inset: 0;
         display: flex;
+        flex-direction: column;
         pointer-events: none;
         opacity: 0;
         visibility: hidden;
@@ -199,6 +200,20 @@ export function init(root) {
         opacity: 1;
         visibility: visible;
         transition: opacity 620ms ease, visibility 0s;
+      }
+
+      /* The line over the map: what the map is there to show. */
+      .area-town-note {
+        margin: 0 0 14px;
+        text-align: center;
+        color: var(--text-caption);
+        font-size: 1rem;
+      }
+
+      .area-town-map {
+        flex: 1;
+        min-height: 0;
+        display: flex;
       }
 
       /* The heading of the figures: the area itself, over both columns. */
@@ -378,7 +393,10 @@ export function init(root) {
       }
     </style>
 
-    <div class="area-town" data-el="town"></div>
+    <div class="area-town" data-el="town">
+      <p class="area-town-note">Тут правда ${nf(BUILDINGS)} ${plural(BUILDINGS, 'здание', 'здания', 'зданий')}</p>
+      <div class="area-town-map" data-el="townMap"></div>
+    </div>
 
     <div class="area-steps">
       <p class="area-step-title" data-el="areaTitle">Общая площадь этих зданий <span class="area-mark">${nf(AREA_TOTAL)} м²</span></p>
@@ -811,7 +829,7 @@ export function init(root) {
   const LAST = 7;
 
   // The same town as the town section draws — see lib/town-map.js.
-  mountTownMap(townEl);
+  mountTownMap($('townMap'));
 
   function step(i) {
     const told = i < LAST;
