@@ -98,6 +98,9 @@
   --door-glass: #8A7430;
   --door-glass-light: #B9BEC4;
   --door-stripe: #E9E7E0;
+  --door-signal: var(--brand-red);   /* the lens that blinks before they shut */
+  --door-lamp: #232A31;              /* and the housing it is set into */
+  --door-lamp-light: #3C464F;
 
   /* Metro track (canvas) */
   --metro-rail: #C9CFD8;
@@ -339,6 +342,101 @@ button { font-family: inherit; }
   transform-origin: 0 0;
   will-change: transform, opacity;
   pointer-events: none;
+}
+
+/* The signal of a closing door, at the foot of the title screen: the first
+   beat of the page lights it up and says what is about to happen, and the
+   doors shut on the beat after. Above the reading hint, which sits at 44px. */
+.page-signal {
+  position: fixed;
+  left: 50%;
+  bottom: 124px;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  opacity: 0;
+  transform: translate(-50%, 10px);
+  transition: opacity 320ms ease, transform 320ms ease;
+  pointer-events: none;
+}
+
+.page-signal.is-here {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+/* The lamp over the doors of every car of this kind: a housing of dark metal
+   with a screw at each end, and a red lens set into it. The housing stays put
+   and only the lens blinks — a whole lamp flashing would read as a banner. */
+.page-signal-lamp {
+  position: relative;
+  width: 148px;
+  height: 40px;
+  border-radius: 8px;
+  background: linear-gradient(180deg, var(--door-lamp-light), var(--door-lamp));
+  box-shadow: 0 3px 10px rgba(16, 24, 40, 0.28),
+              inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+
+/* The lens: red glass lit from behind, sunk into the housing. */
+.page-signal-lamp::before {
+  content: "";
+  position: absolute;
+  top: 7px;
+  right: 19px;
+  bottom: 7px;
+  left: 19px;
+  border-radius: 3px;
+  background: var(--door-signal);
+  box-shadow: 0 0 20px var(--door-signal),
+              inset 0 2px 5px rgba(255, 255, 255, 0.4),
+              inset 0 -3px 6px rgba(0, 0, 0, 0.3);
+}
+
+/* The two screws that hold it. */
+.page-signal-lamp::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  border-radius: 8px;
+  /* Two seven-pixel spots and nothing else: a gradient given the whole box
+     would lie over the lens and put it out. */
+  background-repeat: no-repeat;
+  background-size: 7px 7px, 7px 7px;
+  background-position: 6px 50%, calc(100% - 6px) 50%;
+  background-image:
+    radial-gradient(circle,
+      rgba(255, 255, 255, 0.55) 0 45%, rgba(0, 0, 0, 0.45) 55% 100%),
+    radial-gradient(circle,
+      rgba(255, 255, 255, 0.55) 0 45%, rgba(0, 0, 0, 0.45) 55% 100%);
+}
+
+.page-signal.is-here .page-signal-lamp::before {
+  animation: signal-blink 900ms steps(1, end) infinite;
+}
+
+@keyframes signal-blink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0.18; }
+}
+
+.page-signal-text {
+  color: var(--text-lead);
+  font-size: 1.0625rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+/* A light that flashes is the one thing a reader who asked for less movement
+   should not get: it stays lit instead. */
+@media (prefers-reduced-motion: reduce) {
+  .page-signal.is-here .page-signal-lamp::before { animation: none; }
+  .page-signal { transition: none; }
 }
 
 /* The doors of a metro car, closing over the title screen and opening on the
@@ -1665,8 +1763,15 @@ button { font-family: inherit; }
       <h1><span class="title-word">На</span> <span class="title-word">сколько</span> <span class="title-word">б<a class="hse-o-link" href="https://www.hse.ru/" target="_blank" rel="noopener" title="Сайт Вышки" aria-label="Сайт НИУ ВШЭ"><svg class="hse-o" viewBox="0 0 283.47 283.47" aria-hidden="true" focusable="false"><circle class="hse-o-disc" cx="141.73" cy="141.74" r="141.73"/><path class="hse-o-mark" d="M135.6,133.32c32.26,0,44.81,21.45,44.81,60.69v29.51h-20.69v-63.35h-23.9v63.42h-18.28V53.65h18.78c7.03,0,17.71,1.58,25.25,10.95c3.93,4.73,6.34,11.04,7.19,17.38h-32.94v9.35h33.23c-0.27,6.04-1.49,12.8-7.42,19.97c-5.2,6.51-13.76,12.56-25.83,12.56c-0.06,0-0.13,0-0.2,0V133.32 M206.41,197.55c0-34.86-11.26-58.29-40.45-68.6c9.21-3.77,14.82-9.58,18.49-13.99c7.01-8.06,9.88-17.96,9.88-27.31c0-7.56-2.08-22.65-15.35-33.04c-9.1-7.04-17.16-10.43-36.43-10.43h-9.75c-0.3-0.01-0.6-0.01-0.96-0.01H91.65v189.79h114.76V197.55z"/></svg></a><span class="sr-only">о</span>льш<span class="stressed">а<i></i></span>я</span></h1>
       <div class="page-header-text">
         <p>Вышка настолько большая, что это уже практически целый город. Не верится? Сейчас покажем.</p>
-        <p>Осторожно, двери закрываются!</p>
       </div>
+    </div>
+
+    <!-- The first beat happens here: the red light of a closing door comes up
+         at the foot of the title screen and says what is about to happen. The
+         doors themselves shut on the beat after it — see lib/stepper.js. -->
+    <div class="page-signal" data-el="signal" aria-hidden="true">
+      <span class="page-signal-lamp"></span>
+      <span class="page-signal-text">Осторожно, двери закрываются!</span>
     </div>
 
     <!-- Nudge to scroll: fades out as soon as the reader does. -->
@@ -3194,9 +3299,28 @@ function mountScrolled(entries, onProgress) {
 
 // `entries` describe the sections in order. Each is
 // { section, opening, steps, setStep, build } — see beatsOf.
-function mountStepper(entries, { onProgress, finale } = {}) {
+function mountStepper(entries, { onProgress, finale, signal } = {}) {
   entries.forEach((e) => markFigure(e.section));
   const beats = entries.flatMap((e, i) => beatsOf(e, entries[i - 1] || null));
+
+  // The title screen keeps the first beat for itself: the red light of a
+  // closing door comes up at the foot of it, with the warning under it, and
+  // only the beat after that shuts the doors. One movement of the wheel, one
+  // thing happening — and the page says out loud what it is about to do.
+  // The light belongs to that one beat and to no other: it is on while the
+  // reader stands on it and goes out the moment the doors take over. Which
+  // beat that is is known in one place — see report() — so the light cannot be
+  // left burning over a block by a jump or a rewind.
+  const lit = (on) => signal && signal.classList.toggle('is-here', on);
+  if (signal) {
+    beats.unshift({
+      title: true,
+      top: () => 0,
+      run: (done) => play(BEAT_MS, () => {}, done),
+      back: (done) => play(BEAT_MS, () => {}, done),
+      settle: () => {}
+    });
+  }
 
   // The story ends with the credits. They are not a section and have no screen
   // of their own: the page lifts just far enough to bring them into view under
@@ -3219,6 +3343,7 @@ function mountStepper(entries, { onProgress, finale } = {}) {
       if (e.opening) e.opening.run(1);
       if (e.steps) e.setStep(e.steps - 1);
     });
+    lit(true);
     if (onProgress) onProgress(1);
     return { free: true };
   }
@@ -3228,7 +3353,9 @@ function mountStepper(entries, { onProgress, finale } = {}) {
   // would have to hide half of what they show, so here the page is a page —
   // it scrolls, and the story is told by that scrolling instead. The title
   // cards still play: each follows its own place on the screen.
-  if (NARROW.matches) return mountScrolled(entries, onProgress);
+  // Nothing is played beat by beat here, so the signal is simply part of the
+  // title screen: the page scrolls past it into the story.
+  if (NARROW.matches) { lit(true); return mountScrolled(entries, onProgress); }
 
   // A tablet turned on its side crosses that width, and the two ways of reading
   // cannot be swapped under the reader's feet: the page starts over in the
@@ -3256,7 +3383,9 @@ function mountStepper(entries, { onProgress, finale } = {}) {
   const blockOf = (i) => {
     if (i < 0) return -1;
     const beat = beats[i];
-    // The credits at the end belong to no block: the story is simply over.
+    // The beat of the title screen is before the story starts...
+    if (beat.title) return -1;
+    // ...and the credits at the end belong to no block: it is simply over.
     return beat.section ? order.indexOf(beat.section) : order.length - 1;
   };
 
@@ -3265,6 +3394,8 @@ function mountStepper(entries, { onProgress, finale } = {}) {
     const seen = blockOf(reached);          // the furthest block ever opened
     if (at < 0) return { index: -1, part: 0, count, seen };
     const beat = beats[at];
+    // Still on the title screen: the story has not started.
+    if (beat.title) return { index: -1, part: 0, count, seen };
     if (!beat.section) return { index: count - 1, part: 1, count, seen };
     const mine = beats.filter((b) => b.section === beat.section);
     return {
@@ -3286,8 +3417,11 @@ function mountStepper(entries, { onProgress, finale } = {}) {
     return !!(next && next.hold && next.hold({ quiet: true }));
   };
 
-  const report = () => onProgress
-    && onProgress((at + 1) / beats.length, { ...place(), waiting });
+  const report = () => {
+    // The door light burns on its own beat and nowhere else.
+    lit(at === 0 && !!signal);
+    if (onProgress) onProgress((at + 1) / beats.length, { ...place(), waiting });
+  };
 
   // Putting a block together costs between eight and seventy milliseconds, and
   // the beat that brings it on is the worst moment to spend them: the page is
@@ -3401,8 +3535,14 @@ function mountStepper(entries, { onProgress, finale } = {}) {
     report();
     busy = true;
     // Before the first beat there is the title screen the page opened on, and
-    // the reader is allowed all the way back to it.
-    if (at < 0) { glide(0, done); return; }
+    // the reader is allowed all the way back to it. The first beat is the
+    // title screen's own: taking it back is the light going out rather than
+    // the page moving anywhere.
+    if (at < 0) {
+      if (undoing.back) { undoing.back(done); return; }
+      glide(0, done);
+      return;
+    }
     const target = beats[at];
     if (undoing.back && undoing.section === target.section) {
       undoing.back(done);
@@ -9663,7 +9803,10 @@ const meta = {
   // visualisation itself. The map is on the screen the moment the block fades
   // in, so no beat is spent on showing what is already there.
   steps: 8,
-  opensOnStep: true
+  opensOnStep: true,
+  // The area the block ends on flies into the lead-in of the studies, where it
+  // turns into the number of programmes those buildings are there for.
+  handoff: 'area'
 };
 
 // How many whole pitches the whole university comes to — the figure the first
@@ -9791,6 +9934,9 @@ function init(root) {
         inset: 0;
         display: flex;
         flex-direction: column;
+        justify-content: center;
+        container-type: size;
+        --town-note: 36px;      /* the line over the map: 24 of type, 12 of air */
         pointer-events: none;
         opacity: 0;
         visibility: hidden;
@@ -9803,17 +9949,23 @@ function init(root) {
         transition: opacity 620ms ease, visibility 0s;
       }
 
-      /* The line over the map: what the map is there to show. */
+      /* The line over the map: what the map is there to show. It stands right
+         on the map, so the two are laid out as one: the line takes --town-note
+         of the block, the map keeps its proportions in the rest of it, and
+         together they stand in the middle. */
       .area-town-note {
-        margin: 0 0 14px;
+        margin: 0 0 12px;
         text-align: center;
         color: var(--text-caption);
         font-size: 1rem;
+        line-height: 24px;
       }
 
       .area-town-map {
-        flex: 1;
-        min-height: 0;
+        flex: none;
+        width: min(100cqw, calc((100cqh - var(--town-note)) * 1.6));
+        height: min(calc(100cqh - var(--town-note)), calc(100cqw / 1.6));
+        margin: 0 auto;
         display: flex;
       }
 
@@ -12972,6 +13124,9 @@ const page = document.getElementById('page');
   mountTitleMark();
   const story = mountStepper(plan, {
     onProgress: progress.set,
+    // The first beat belongs to the title screen: the door signal lights up
+    // there before the doors close on the beat after it.
+    signal: document.querySelector('.page-signal'),
     // One last beat after the story: the page lifts to show the credits.
     finale: document.querySelector('.page-footer')
   });

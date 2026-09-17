@@ -139,6 +139,101 @@ button { font-family: inherit; }
   pointer-events: none;
 }
 
+/* The signal of a closing door, at the foot of the title screen: the first
+   beat of the page lights it up and says what is about to happen, and the
+   doors shut on the beat after. Above the reading hint, which sits at 44px. */
+.page-signal {
+  position: fixed;
+  left: 50%;
+  bottom: 124px;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  opacity: 0;
+  transform: translate(-50%, 10px);
+  transition: opacity 320ms ease, transform 320ms ease;
+  pointer-events: none;
+}
+
+.page-signal.is-here {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+/* The lamp over the doors of every car of this kind: a housing of dark metal
+   with a screw at each end, and a red lens set into it. The housing stays put
+   and only the lens blinks — a whole lamp flashing would read as a banner. */
+.page-signal-lamp {
+  position: relative;
+  width: 148px;
+  height: 40px;
+  border-radius: 8px;
+  background: linear-gradient(180deg, var(--door-lamp-light), var(--door-lamp));
+  box-shadow: 0 3px 10px rgba(16, 24, 40, 0.28),
+              inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+
+/* The lens: red glass lit from behind, sunk into the housing. */
+.page-signal-lamp::before {
+  content: "";
+  position: absolute;
+  top: 7px;
+  right: 19px;
+  bottom: 7px;
+  left: 19px;
+  border-radius: 3px;
+  background: var(--door-signal);
+  box-shadow: 0 0 20px var(--door-signal),
+              inset 0 2px 5px rgba(255, 255, 255, 0.4),
+              inset 0 -3px 6px rgba(0, 0, 0, 0.3);
+}
+
+/* The two screws that hold it. */
+.page-signal-lamp::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  border-radius: 8px;
+  /* Two seven-pixel spots and nothing else: a gradient given the whole box
+     would lie over the lens and put it out. */
+  background-repeat: no-repeat;
+  background-size: 7px 7px, 7px 7px;
+  background-position: 6px 50%, calc(100% - 6px) 50%;
+  background-image:
+    radial-gradient(circle,
+      rgba(255, 255, 255, 0.55) 0 45%, rgba(0, 0, 0, 0.45) 55% 100%),
+    radial-gradient(circle,
+      rgba(255, 255, 255, 0.55) 0 45%, rgba(0, 0, 0, 0.45) 55% 100%);
+}
+
+.page-signal.is-here .page-signal-lamp::before {
+  animation: signal-blink 900ms steps(1, end) infinite;
+}
+
+@keyframes signal-blink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0.18; }
+}
+
+.page-signal-text {
+  color: var(--text-lead);
+  font-size: 1.0625rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+/* A light that flashes is the one thing a reader who asked for less movement
+   should not get: it stays lit instead. */
+@media (prefers-reduced-motion: reduce) {
+  .page-signal.is-here .page-signal-lamp::before { animation: none; }
+  .page-signal { transition: none; }
+}
+
 /* The doors of a metro car, closing over the title screen and opening on the
    first block — see doorsCurtain() in lib/stepper.js. Two leaves that cover
    everything, the bar included: for a moment the page is not a page but a

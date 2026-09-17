@@ -67,6 +67,9 @@
   --door-glass: #8A7430;
   --door-glass-light: #B9BEC4;
   --door-stripe: #E9E7E0;
+  --door-signal: var(--brand-red);   /* the lens that blinks before they shut */
+  --door-lamp: #232A31;              /* and the housing it is set into */
+  --door-lamp-light: #3C464F;
 
   /* Metro track (canvas) */
   --metro-rail: #C9CFD8;
