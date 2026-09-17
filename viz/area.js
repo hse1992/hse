@@ -62,7 +62,10 @@ export const meta = {
   // visualisation itself. The map is on the screen the moment the block fades
   // in, so no beat is spent on showing what is already there.
   steps: 8,
-  opensOnStep: true
+  opensOnStep: true,
+  // The area the block ends on flies into the lead-in of the studies, where it
+  // turns into the number of programmes those buildings are there for.
+  handoff: 'area'
 };
 
 // How many whole pitches the whole university comes to — the figure the first
@@ -190,6 +193,9 @@ export function init(root) {
         inset: 0;
         display: flex;
         flex-direction: column;
+        justify-content: center;
+        container-type: size;
+        --town-note: 36px;      /* the line over the map: 24 of type, 12 of air */
         pointer-events: none;
         opacity: 0;
         visibility: hidden;
@@ -202,17 +208,23 @@ export function init(root) {
         transition: opacity 620ms ease, visibility 0s;
       }
 
-      /* The line over the map: what the map is there to show. */
+      /* The line over the map: what the map is there to show. It stands right
+         on the map, so the two are laid out as one: the line takes --town-note
+         of the block, the map keeps its proportions in the rest of it, and
+         together they stand in the middle. */
       .area-town-note {
-        margin: 0 0 14px;
+        margin: 0 0 12px;
         text-align: center;
         color: var(--text-caption);
         font-size: 1rem;
+        line-height: 24px;
       }
 
       .area-town-map {
-        flex: 1;
-        min-height: 0;
+        flex: none;
+        width: min(100cqw, calc((100cqh - var(--town-note)) * 1.6));
+        height: min(calc(100cqh - var(--town-note)), calc(100cqw / 1.6));
+        margin: 0 auto;
         display: flex;
       }
 
