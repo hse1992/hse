@@ -460,10 +460,61 @@ button { font-family: inherit; }
   transform: scaleX(-1);
 }
 
-/* The name of the block under the cursor, just below the bar. */
-.page-progress-tip {
+/* What each block is called, written under its own slot. They come up together
+   while the pointer is anywhere over the bar — one look instead of seven — and
+   the one under the cursor darkens and shows its whole name over its
+   neighbours. Blocks nobody has opened keep quiet: the page does not say what
+   is coming. */
+.page-progress-name {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  max-width: 94%;
+  padding: 4px 9px;
+  border-radius: 999px;
+  transform: translateX(-50%);
+  color: var(--text-caption);
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0;
+  transition: opacity 160ms ease, color 160ms ease;
+  pointer-events: none;
+}
+
+.page-progress:hover .page-progress-slot:enabled .page-progress-name {
+  opacity: 1;
+}
+
+.page-progress-slot:enabled:hover .page-progress-name {
+  z-index: 2;
+  max-width: none;
+  overflow: visible;
+  background: var(--hint-veil);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  color: var(--text);
+}
+
+/* The title screen speaks only when pointed at: its name is wider than the
+   slot it belongs to, and would show as a stray letter otherwise. */
+.page-progress:hover .page-progress-home:enabled .page-progress-name {
+  opacity: 0;
+}
+
+.page-progress .page-progress-home:enabled:hover .page-progress-name {
+  opacity: 1;
+}
+
+/* Where the reader is, in words. Comes up as a block starts, goes once they
+   are into it, and comes back whenever the bar is pointed at. */
+.page-progress-count {
   position: fixed;
   top: 16px;
+  right: 16px;
   z-index: 50;
   padding: 5px 11px;
   border-radius: 999px;
@@ -475,14 +526,20 @@ button { font-family: inherit; }
   line-height: 1;
   white-space: nowrap;
   opacity: 0;
-  transform: translate(-50%, -4px);
-  transition: opacity 160ms ease, transform 160ms ease;
+  transform: translateY(-4px);
+  transition: opacity 260ms ease, transform 260ms ease;
   pointer-events: none;
 }
 
-.page-progress-tip.is-here {
+.page-progress-count.is-here,
+.page-progress:hover ~ .page-progress-count {
   opacity: 1;
-  transform: translate(-50%, 0);
+  transform: none;
+}
+
+/* Nothing to point at on a touch screen. */
+@media (hover: none) {
+  .page-progress-name { display: none; }
 }
 
 /* Pinned to the slot rather than given height: 100% — inside a stretched flex
@@ -1832,12 +1889,19 @@ function mountProgress(titles = []) {
   bar.setAttribute('aria-label', 'Разделы');
   document.body.appendChild(bar);
 
-  // The name of the block under the cursor, since the bar itself is four
-  // pixels of colour and says nothing about what is in them.
-  const tip = document.createElement('div');
-  tip.className = 'page-progress-tip';
-  tip.setAttribute('aria-hidden', 'true');
-  document.body.appendChild(tip);
+  // Which block of how many, in words: the bar shows the place but cannot say
+  // it. Comes up as a block starts and goes once the reader is into it.
+  const counter = document.createElement('div');
+  counter.className = 'page-progress-count';
+  counter.setAttribute('aria-hidden', 'true');
+  document.body.appendChild(counter);
+
+  // The same thing said out loud for a screen reader, which otherwise hears
+  // seven buttons and no idea which of them is being read.
+  const said = document.createElement('div');
+  said.className = 'sr-only';
+  said.setAttribute('aria-live', 'polite');
+  document.body.appendChild(said);
 
   let jump = null;
   let goHome = null;
@@ -1853,23 +1917,16 @@ function mountProgress(titles = []) {
     return box.textContent.replace(/\s+/g, ' ').trim();
   };
 
-  // Hovering a slot shows what it leads to; the bar itself is four pixels of
-  // colour and says nothing about what is in them.
-  const names = (slot, name) => {
+  // What a slot leads to, written under it. Pointing anywhere at the bar brings
+  // all the names up at once — one look instead of seven — and the one under
+  // the cursor shows itself whole; see the styles.
+  const names = [];
+  const label = (slot, name) => {
     slot.setAttribute('aria-label', name);
-    slot.addEventListener('pointerenter', () => {
-      if (slot.disabled) return;
-      tip.textContent = name;
-      // Over the middle of the slot, but kept inside the window: the first
-      // and last names are wider than half a slot and would be cut off.
-      const half = tip.offsetWidth / 2;
-      const middle = slot.getBoundingClientRect().left + slot.offsetWidth / 2;
-      const edge = 10;
-      tip.style.left = `${Math.round(Math.min(Math.max(middle, half + edge),
-                                              window.innerWidth - half - edge))}px`;
-      tip.classList.add('is-here');
-    });
-    slot.addEventListener('pointerleave', () => tip.classList.remove('is-here'));
+    const tag = document.createElement('b');
+    tag.className = 'page-progress-name';
+    tag.textContent = name;
+    slot.appendChild(tag);
   };
 
   // The title screen, at the head of the bar: the story opens there and can
@@ -1882,7 +1939,7 @@ function mountProgress(titles = []) {
     home.className = 'page-progress-slot page-progress-home';
     home.appendChild(document.createElement('i'));
     home.addEventListener('click', () => goHome && goHome());
-    names(home, 'В начало');
+    label(home, 'В начало');
     bar.appendChild(home);
   };
 
@@ -1894,12 +1951,13 @@ function mountProgress(titles = []) {
     homeSlot();
     slots = Array.from({ length: count }, (_, i) => {
       const name = plain(titles[i]) || `Раздел ${i + 1}`;
+      names[i] = name;
       const slot = document.createElement('button');
       slot.type = 'button';
       slot.className = 'page-progress-slot';
       slot.appendChild(document.createElement('i'));
       slot.addEventListener('click', () => jump && jump(i));
-      names(slot, name);
+      label(slot, name);
       bar.appendChild(slot);
       return slot;
     });
@@ -1925,6 +1983,11 @@ function mountProgress(titles = []) {
     hint.classList.add('is-here');
   };
 
+  // The count is shown while a block is new and then left alone.
+  const COUNT_MS = 1900;
+  let told = -2;               // the block the count last named
+  let counting = 0;
+
   const set = (p, place) => {
     waiting = place && place.waiting ? place.waiting : null;
     if (place && place.count) {
@@ -1942,7 +2005,24 @@ function mountProgress(titles = []) {
         // A block nobody has opened yet is not a place to go to: the page does
         // not hand the reader a picture it has not shown them.
         slot.disabled = i > place.seen;
+        if (i === place.index) slot.setAttribute('aria-current', 'step');
+        else slot.removeAttribute('aria-current');
       });
+
+      // «Третий из семи» — the one thing the bar cannot say by itself.
+      if (place.index !== told) {
+        told = place.index;
+        clearTimeout(counting);
+        if (place.index >= 0) {
+          counter.textContent = `${place.index + 1} из ${place.count}`;
+          counter.classList.add('is-here');
+          counting = setTimeout(() => counter.classList.remove('is-here'), COUNT_MS);
+          said.textContent = `Раздел ${place.index + 1} из ${place.count}. ${names[place.index] || ''}`;
+        } else {
+          counter.classList.remove('is-here');
+          said.textContent = 'Титульный экран';
+        }
+      }
       // The title screen is behind the reader as soon as the story starts, and
       // there is nowhere to go from it while they are still on it.
       if (home) {

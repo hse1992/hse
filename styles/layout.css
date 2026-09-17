@@ -258,10 +258,61 @@ button { font-family: inherit; }
   transform: scaleX(-1);
 }
 
-/* The name of the block under the cursor, just below the bar. */
-.page-progress-tip {
+/* What each block is called, written under its own slot. They come up together
+   while the pointer is anywhere over the bar — one look instead of seven — and
+   the one under the cursor darkens and shows its whole name over its
+   neighbours. Blocks nobody has opened keep quiet: the page does not say what
+   is coming. */
+.page-progress-name {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  max-width: 94%;
+  padding: 4px 9px;
+  border-radius: 999px;
+  transform: translateX(-50%);
+  color: var(--text-caption);
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0;
+  transition: opacity 160ms ease, color 160ms ease;
+  pointer-events: none;
+}
+
+.page-progress:hover .page-progress-slot:enabled .page-progress-name {
+  opacity: 1;
+}
+
+.page-progress-slot:enabled:hover .page-progress-name {
+  z-index: 2;
+  max-width: none;
+  overflow: visible;
+  background: var(--hint-veil);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  color: var(--text);
+}
+
+/* The title screen speaks only when pointed at: its name is wider than the
+   slot it belongs to, and would show as a stray letter otherwise. */
+.page-progress:hover .page-progress-home:enabled .page-progress-name {
+  opacity: 0;
+}
+
+.page-progress .page-progress-home:enabled:hover .page-progress-name {
+  opacity: 1;
+}
+
+/* Where the reader is, in words. Comes up as a block starts, goes once they
+   are into it, and comes back whenever the bar is pointed at. */
+.page-progress-count {
   position: fixed;
   top: 16px;
+  right: 16px;
   z-index: 50;
   padding: 5px 11px;
   border-radius: 999px;
@@ -273,14 +324,20 @@ button { font-family: inherit; }
   line-height: 1;
   white-space: nowrap;
   opacity: 0;
-  transform: translate(-50%, -4px);
-  transition: opacity 160ms ease, transform 160ms ease;
+  transform: translateY(-4px);
+  transition: opacity 260ms ease, transform 260ms ease;
   pointer-events: none;
 }
 
-.page-progress-tip.is-here {
+.page-progress-count.is-here,
+.page-progress:hover ~ .page-progress-count {
   opacity: 1;
-  transform: translate(-50%, 0);
+  transform: none;
+}
+
+/* Nothing to point at on a touch screen. */
+@media (hover: none) {
+  .page-progress-name { display: none; }
 }
 
 /* Pinned to the slot rather than given height: 100% — inside a stretched flex
