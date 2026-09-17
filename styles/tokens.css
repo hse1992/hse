@@ -68,6 +68,7 @@
   --door-glass-light: #B9BEC4;
   --door-stripe: #E9E7E0;
   --door-signal: var(--brand-red);   /* the lens that blinks before they shut */
+  --door-signal-off: #7F8792;        /* and the same glass while it is dark */
   --door-lamp: #232A31;              /* and the housing it is set into */
   --door-lamp-light: #3C464F;
 

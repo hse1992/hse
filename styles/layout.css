@@ -139,11 +139,13 @@ button { font-family: inherit; }
   pointer-events: none;
 }
 
-/* The signal of a closing door, at the foot of the title screen: the first
-   beat of the page lights it up and says what is about to happen, and the
-   doors shut on the beat after. Above the reading hint, which sits at 44px. */
+/* The signal of a closing door, at the foot of the title screen. The lamp
+   hangs there from the first moment, dark and silent — part of the car the
+   reader is standing in. The first beat of the page lights it and puts the
+   warning under it, and the doors shut on the beat after. It belongs to the
+   title screen and scrolls away with it. Above the reading hint, at 44px. */
 .page-signal {
-  position: fixed;
+  position: absolute;
   left: 50%;
   bottom: 124px;
   z-index: 6;
@@ -151,15 +153,8 @@ button { font-family: inherit; }
   flex-direction: column;
   align-items: center;
   gap: 12px;
-  opacity: 0;
-  transform: translate(-50%, 10px);
-  transition: opacity 320ms ease, transform 320ms ease;
+  transform: translateX(-50%);
   pointer-events: none;
-}
-
-.page-signal.is-here {
-  opacity: 1;
-  transform: translate(-50%, 0);
 }
 
 /* The lamp over the doors of every car of this kind: a housing of dark metal
@@ -175,7 +170,8 @@ button { font-family: inherit; }
               inset 0 1px 0 rgba(255, 255, 255, 0.22);
 }
 
-/* The lens: red glass lit from behind, sunk into the housing. */
+/* The lens, sunk into the housing. Unlit it is grey glass with nothing behind
+   it; on the first beat the red comes on and the glow with it. */
 .page-signal-lamp::before {
   content: "";
   position: absolute;
@@ -184,10 +180,10 @@ button { font-family: inherit; }
   bottom: 7px;
   left: 19px;
   border-radius: 3px;
-  background: var(--door-signal);
-  box-shadow: 0 0 20px var(--door-signal),
-              inset 0 2px 5px rgba(255, 255, 255, 0.4),
-              inset 0 -3px 6px rgba(0, 0, 0, 0.3);
+  background: var(--door-signal-off);
+  box-shadow: inset 0 2px 5px rgba(255, 255, 255, 0.22),
+              inset 0 -3px 6px rgba(0, 0, 0, 0.35);
+  transition: background 320ms ease, box-shadow 320ms ease;
 }
 
 /* The two screws that hold it. */
@@ -212,6 +208,10 @@ button { font-family: inherit; }
 }
 
 .page-signal.is-here .page-signal-lamp::before {
+  background: var(--door-signal);
+  box-shadow: 0 0 20px var(--door-signal),
+              inset 0 2px 5px rgba(255, 255, 255, 0.4),
+              inset 0 -3px 6px rgba(0, 0, 0, 0.3);
   animation: signal-blink 900ms steps(1, end) infinite;
 }
 
@@ -220,18 +220,30 @@ button { font-family: inherit; }
   50%, 100% { opacity: 0.18; }
 }
 
+/* The warning arrives with the light and not before: a dark lamp says nothing.
+   It keeps its place in the layout all the same, so the lamp does not jump
+   when the words appear under it. */
 .page-signal-text {
   color: var(--text-lead);
   font-size: 1.0625rem;
   font-weight: 600;
   letter-spacing: -0.01em;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 320ms ease, transform 320ms ease;
+}
+
+.page-signal.is-here .page-signal-text {
+  opacity: 1;
+  transform: none;
 }
 
 /* A light that flashes is the one thing a reader who asked for less movement
    should not get: it stays lit instead. */
 @media (prefers-reduced-motion: reduce) {
   .page-signal.is-here .page-signal-lamp::before { animation: none; }
-  .page-signal { transition: none; }
+  .page-signal-lamp::before,
+  .page-signal-text { transition: none; }
 }
 
 /* The doors of a metro car, closing over the title screen and opening on the
