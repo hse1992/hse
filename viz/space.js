@@ -65,6 +65,10 @@ export const meta = {
   // The block opens on one sentence alone, and the card of the section comes
   // in over it a beat later — see the lead-in screen in lib/page.js.
   lead: {
+    // The phrase goes and the card comes in its place in the one movement:
+    // a beat with the card standing alone in the middle would show nothing
+    // the beat before and the beat after do not.
+    together: true,
     value: '<span class="space-lead">Вышка настолько большая,'
       + '<span class="space-lead-next">что мы присутствуем даже в сотнях километров от Земли</span>'
       + '</span>',

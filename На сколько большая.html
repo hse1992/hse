@@ -326,7 +326,8 @@ button { font-family: inherit; }
   width: 22px;
 }
 
-/* Never opened: there is nowhere to go yet. */
+/* Only the slot of the title screen is ever switched off, and only while the
+   reader is standing on it: every block can be gone to from the start. */
 .page-progress-slot:disabled {
   cursor: default;
 }
@@ -1819,8 +1820,8 @@ button { font-family: inherit; }
     <!-- Nudge to scroll: fades out as soon as the reader does. -->
     <div class="scroll-hint" data-el="scrollHint" aria-hidden="true">
       <span class="scroll-hint-text">Листай<span class="on-keys"> или жми пробел</span></span>
-      <!-- Appears once there is something to go back to. -->
-      <span class="scroll-hint-back">Назад — клик по полоске сверху</span>
+      <!-- Appears once the reader has a block behind them. -->
+      <span class="scroll-hint-back">Полоска сверху — к любому разделу</span>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"
            stroke-linecap="round" stroke-linejoin="round">
         <path d="M12 3 L12 17" />
@@ -2149,9 +2150,11 @@ function mountProgress(titles = []) {
         const steps = i === place.index ? place.beats || 0 : 0;
         if (steps > 1) slot.style.setProperty('--steps', String(steps));
         slot.style.setProperty('--steps-on', steps > 1 ? '1' : '0');
-        // A block nobody has opened yet is not a place to go to: the page does
-        // not hand the reader a picture it has not shown them.
-        slot.disabled = i > place.seen;
+        // Every block is a place to go to, read or not: the bar is a way
+        // around the page, and a reader who came for one of them should be
+        // able to go straight there. What they skip is played into the state
+        // it ends in on the way — see toBlock in lib/stepper.js.
+        slot.disabled = false;
         if (i === place.index) slot.setAttribute('aria-current', 'step');
         else slot.removeAttribute('aria-current');
       });
@@ -2488,10 +2491,13 @@ function leadCard(section, K = () => CARD_K, cardHeight = null) {
     section.style.setProperty('--card-x', `${((1 - e) * 108).toFixed(2)}vw`);
   };
 
-  // A lead-in that stays can also ask to take its block up with it — see the
-  // beats of introRunner. Only where it parks at all: on a wide screen.
-  const together = parks && lead.dataset.together === 'block';
-  return { screens, hold, parts: parts.length, paint, fit, together };
+  // A lead-in can ask to leave and let the card settle in the one movement,
+  // instead of a beat each with the card standing in the middle of the screen
+  // in between — see the beats of introRunner. It works either way it leaves:
+  // one that parks takes the block up with it, one that slides aside brings
+  // the card in from the right as it goes.
+  const together = lead.dataset.together === 'block';
+  return { screens, hold, parts: parts.length, paint, fit, together, parks };
 }
 
 // The title card: a beat to read it where it stands, then it settles into
@@ -2733,8 +2739,17 @@ function introRunner(section, stages = 1, scale = CARD_K) {
   }
   const settling = [zone - INTRO_SCREENS * (1 - HOLD), zone];     // the card settling
   // A joined beat keeps each part on its own stretch and walks both at once:
-  // [lead-in from, lead-in to, card from, card to].
-  beats.push(lead && lead.together ? [lead.hold, leadScreens, ...settling] : settling);
+  // [lead-in from, lead-in to, card from, card to]. Where the lead-in parks,
+  // the card is already standing where it belongs and only has to settle. Where
+  // it slides aside, the card is still off to the right and has the whole of
+  // its own stretch to cross: it comes in as the lead-in leaves and sits down
+  // without stopping in the middle — the stretch the card would have stood
+  // still on is what the joined beat spends on the journey.
+  if (lead && lead.together) {
+    beats.push([lead.hold, leadScreens, lead.parks ? settling[0] : zone - INTRO_SCREENS, zone]);
+  } else {
+    beats.push(settling);
+  }
 
 
 
@@ -3528,13 +3543,16 @@ function mountStepper(entries, { onProgress, finale, signal } = {}) {
 
   // Going to a block, rather than to the next picture: everything before it is
   // put into the state it was left in, everything after it back to the way it
-  // opens, and the page travels there in one movement. The reader is not
-  // carried past what they have not seen — a block they have never opened
-  // cannot be jumped to, only read up to.
+  // opens, and the page travels there in one movement. Any block can be gone
+  // to, read or not: a reader who knows they want the one about the buildings
+  // should not have to sit through five blocks to reach it. Everything on the
+  // way is put into the state it ends in — blocks are built here if they have
+  // never been opened — so arriving at a block from the front and from the
+  // middle of the story look the same.
   const toBlock = (i) => {
     if (busy || i < 0 || i >= starts.length) return;
     const target = starts[i];
-    if (target < 0 || target > reached || target === at) return;
+    if (target < 0 || target === at) return;
     chill();
     busy = true;
     entries.forEach((e) => {
@@ -3543,16 +3561,19 @@ function mountStepper(entries, { onProgress, finale, signal } = {}) {
     });
     for (let k = 0; k <= target; k++) if (beats[k].settle) beats[k].settle();
     at = target;
+    // Jumping ahead counts as having been there: what the reader skipped is
+    // behind them now, and going back a beat at a time has to work from here.
+    if (at > reached) reached = at;
     report();
     glide(beats[target].section.offsetTop, done);
   };
 
-  // A block at a time in either direction — but forward only into what has
-  // already been read. Where there is nothing to jump to, the page simply
-  // takes the next beat, so the key never does nothing.
+  // A block at a time in either direction. Past the last block there is
+  // nothing to jump to, so the page simply takes the next beat and the key
+  // never does nothing.
   const nextBlock = () => {
     const i = blockOf(at) + 1;
-    if (i < starts.length && starts[i] <= reached) toBlock(i);
+    if (i < starts.length) toBlock(i);
     else forward();
   };
 
@@ -12525,8 +12546,9 @@ const SATS = [
 // One line per beat, and a quieter one under it.
 const STORY = [
   {
-    line: 'Низкая орбита начинается в нескольких сотнях километров над Землей',
-    sub: 'По сравнению с самой планетой это вплотную к поверхности'
+    // The card above has just said it all — the Earth arrives without a word.
+    line: '',
+    sub: ''
   },
   {
     line: 'CubeSX-HSE — запуск 22 марта 2021, Байконур',
@@ -12554,8 +12576,16 @@ const POSTER = {
 
 const meta = {
   id: 'space',
-  title: 'А еще Вышка — просто космос!',
-  // The subtitle is phrasing content — the shell puts it inside a <p>.
+  // The block opens on one sentence alone, and the card of the section comes
+  // in over it a beat later — see the lead-in screen in lib/page.js.
+  lead: {
+    value: '<span class="space-lead">Вышка настолько большая,'
+      + '<span class="space-lead-next">что мы присутствуем даже в сотнях километров от Земли</span>'
+      + '</span>',
+    text: ''
+  },
+  title: 'Вышка — просто космос!',
+  // Phrasing content: the shell puts it inside a <p>.
   subtitle: 'Вышка запустила уже <span class="space-mark">три своих спутника</span>. '
     + 'Миссии первых двух завершены, а третий до сих пор находится на низкой орбите',
   intro: true,
@@ -12586,6 +12616,21 @@ function init(root) {
       .space-card {
         background: radial-gradient(120% 130% at 50% 34%,
                     var(--space-sky) 0%, var(--space-sky-edge) 100%);
+      }
+
+      /* The lead-in screen breaks where the sentence turns: the claim on one
+         line, what it comes to on the next, a step smaller. Two lines by
+         design, so the one-line squeeze the shell keeps for short headlines
+         is switched off here. */
+      .space-lead {
+        display: block;
+        white-space: normal;
+      }
+
+      .space-lead-next {
+        display: block;
+        margin-top: 0.1em;
+        font-size: 0.76em;
       }
 
       /* What the block is about, picked out in the heading the way the page
@@ -13131,11 +13176,11 @@ function init(root) {
   function say(i) {
     counting = 0;
     if (narrow.matches) {
-      noteEl.textContent = POSTER.line;
+      noteEl.innerHTML = POSTER.line;
       subEl.textContent = POSTER.sub;
       return;
     }
-    noteEl.textContent = STORY[i].line;
+    noteEl.innerHTML = STORY[i].line;
     if (i < STORY.length - 1) { subEl.textContent = STORY[i].sub; return; }
     counting = still ? 0 : clock;
     tell();

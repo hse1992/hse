@@ -102,7 +102,8 @@ button { font-family: inherit; }
   width: 22px;
 }
 
-/* Never opened: there is nowhere to go yet. */
+/* Only the slot of the title screen is ever switched off, and only while the
+   reader is standing on it: every block can be gone to from the start. */
 .page-progress-slot:disabled {
   cursor: default;
 }
