@@ -88,7 +88,7 @@ export const meta = {
     // the beat before and the beat after do not.
     together: true,
     value: '<span class="space-lead">Вышка настолько большая,'
-      + '<span class="space-lead-next">что мы присутствуем даже в сотнях километров от Земли</span>'
+      + '<span class="space-lead-next">что достает даже до орбиты</span>'
       + '</span>',
     text: ''
   },
@@ -124,6 +124,21 @@ export function init(root) {
       .space-card {
         background: radial-gradient(120% 130% at 50% 34%,
                     var(--space-sky) 0%, var(--space-sky-edge) 100%);
+      }
+
+      /* The heading does not fly in from the side. The shell walks a title
+         card in from the right while the lead-in leaves, but here the two
+         belong together: the heading comes up from below in the same movement
+         as the planet under it, and arrives at its own size, in its own place.
+         Hence the transform is taken over whole — the card's sideways travel
+         and its scaling are both left out, so the width it is laid out at
+         goes back to plain 100%. */
+      @media (min-width: 861px) {
+        .viz-intro.space-section .viz-header {
+          width: 100%;
+          transform: translateY(calc((1 - var(--intro-body, 1)) * 100vh));
+          opacity: var(--intro-body, 1);
+        }
       }
 
       /* The lead-in screen breaks where the sentence turns: the claim on one
@@ -192,6 +207,10 @@ export function init(root) {
       </div>
     </div>
   `;
+
+  // The section itself, so the block can say how its own heading arrives.
+  const host = root.closest('.viz-section');
+  if (host) host.classList.add('space-section');
 
   const $ = (name) => root.querySelector(`[data-el="${name}"]`);
   const noteEl = $('note');

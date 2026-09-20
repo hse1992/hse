@@ -266,8 +266,13 @@ export function init(root) {
     kinds: { students: true, staff: true, lyceum: true }
   };
 
+  // Everyone the arena can hold, in the order they are seated — the whole of
+  // it, whatever the controls say. A group that has been switched off keeps
+  // its seats and leaves them empty rather than dropping out of the list:
+  // turning the students off would otherwise pull every group after them
+  // forward, and the staff of one campus would land on the opposite stand.
+  // Who is shown is asked separately, through `shown`.
   function segments() {
-    const { kinds } = state;
     // While the story runs a campus is one colour: it arrives as a whole, and
     // there is nothing on screen yet to say what the second shade would mean.
     // The split into students and staff appears with the controls, next to the
@@ -275,12 +280,17 @@ export function init(root) {
     const split = !root.classList.contains('is-telling');
     const out = [];
     CITIES.forEach((c) => {
-      if (kinds.students) out.push({ key: c.key, n: c.students, color: c.color });
-      if (kinds.staff) out.push({ key: c.key, n: c.staff, color: split ? c.colorLight : c.color });
+      out.push({ key: c.key, kind: 'students', n: c.students, color: c.color });
+      out.push({ key: c.key, kind: 'staff', n: c.staff, color: split ? c.colorLight : c.color });
     });
-    if (kinds.lyceum) out.push({ key: 'lyceum', n: LYCEUM, color: LYCEUM_COLOR, always: true });
+    out.push({ key: 'lyceum', kind: 'lyceum', n: LYCEUM, color: LYCEUM_COLOR, always: true });
     return out;
   }
+
+  // Whether a group is in the arena at all: its kind has to be on, and — the
+  // lyceum aside, which belongs to no campus — so does its campus.
+  const shown = (seg, active) => !!state.kinds[seg.kind]
+    && (seg.always || !!active[seg.key]);
 
   function filledCount() {
     const { active, kinds } = state;
@@ -410,7 +420,7 @@ export function init(root) {
     segments().forEach((seg) => {
       cum += seg.n;
       const end = Math.min(STRIPES, Math.round(cum / PER));
-      const col = (seg.always || active[seg.key]) ? seg.color : EMPTY;
+      const col = shown(seg, active) ? seg.color : EMPTY;
       for (; idx < end; idx++) arr[idx] = col;
     });
     return arr;
@@ -661,7 +671,7 @@ export function init(root) {
     const segs = segments();
     ensureBarSegs(segs.length);
     segs.forEach((seg, i) => {
-      const on = seg.always || state.active[seg.key];
+      const on = shown(seg, state.active);
       const el = barSegEls[i];
       el.style.background = on ? seg.color : 'transparent';
       el.style.width = `${on ? (seg.n / TOTAL) * 100 : 0}%`;
