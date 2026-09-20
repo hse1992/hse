@@ -8,6 +8,8 @@
 
 import { nf } from '../lib/format.js';
 import { mountCanvas } from '../lib/ui.js';
+import { loadMark } from '../lib/hse-mark.js';
+import { CITIES } from '../data/hse.js';
 import { LAND } from '../data/earth.js';
 
 // ---------- The objects ----------
@@ -20,6 +22,22 @@ const INCLINE = 97.5;    // sun-synchronous, so the orbit passes over the poles
 const LAPS = 16500;      // laps CubeSX-HSE-3 had flown by its third year
 const FLOWN_MLN = 720;   // and million kilometres with them — nearly five
                          // times the 149,6 million from here to the Sun
+
+// Where the four campuses stand on the globe, degrees north and east. On a
+// planet this size they come out a finger apart — which is the point: the
+// whole university fits into one corner of one continent, and its satellites
+// go round all of it.
+const CITY_AT = {
+  msk: [55.75, 37.62],
+  spb: [59.94, 30.31],
+  nn: [56.33, 44.00],
+  perm: [58.01, 56.25]
+};
+
+// The middle of the four: the marks all stand the way the ground lies there,
+// so that they stay parallel to one another.
+const MIDDLE = Object.values(CITY_AT).reduce(
+  (m, at, i, all) => [m[0] + at[0] / all.length, m[1] + at[1] / all.length], [0, 0]);
 
 // In the order they went up. `node` is where the orbit crosses the equator,
 // far enough apart that the three rings can be told from one another.
@@ -193,8 +211,15 @@ export function init(root) {
     sat: token('--space-sat'),
     panel: token('--space-sat-panel'),
     label: token('--space-label'),
+    hse: token('--hse-blue'),
     burn: token('--space-burn')
   };
+
+  // The mark of the university, for the four places it stands in. It is read
+  // from the file, so it arrives a moment after everything else — until then
+  // the globe simply goes without it.
+  let mark = null;
+  loadMark().then((got) => { mark = got; paint(); });
 
   // ---------- The land ----------
   // Antarctica and Greenland go on as ice: at this size white caps read as
@@ -450,6 +475,47 @@ export function init(root) {
       ctx.fill();
     });
 
+    // And the four campuses on it, stuck to the surface like transfers: each
+    // one is drawn in the frame of the ground it lies on, so it turns with
+    // the globe, flattens towards the edge and goes round with everything
+    // else. The mark keeps the colours it wears everywhere on the page.
+    if (mark) {
+      const arc = Math.max(8, R * 0.06) / 2 / R;   // its radius, in surface radians
+      const D = 0.4;                               // degrees, to read the lie of the ground
+      // Which way east and north run on the screen — read once, in the middle
+      // of the four, and used for all of them. The lie of the ground is a
+      // little different in every place, and marks that each stood by their
+      // own would read as a scatter; sharing it keeps their left edges
+      // parallel, and they still lean and flatten together as the globe turns.
+      const psi0 = MIDDLE[1] - spin;
+      const p0 = put(MIDDLE[0], psi0, R);
+      const e0 = put(MIDDLE[0], psi0 + D, R);
+      const n0 = put(MIDDLE[0] + D, psi0, R);
+      const kx = arc / (Math.cos(MIDDLE[0] * RAD) * D * RAD) / mark.r;
+      const ky = arc / (D * RAD) / mark.r;
+      // North is up on the ground and down in the file, hence the minus.
+      const lie = [(e0.x - p0.x) * kx, (e0.y - p0.y) * kx,
+                   -(n0.x - p0.x) * ky, -(n0.y - p0.y) * ky];
+
+      CITIES.forEach((city) => {
+        const at = CITY_AT[city.key];
+        if (!at) return;
+        const p = put(at[0], at[1] - spin, R);
+        if (p.z <= 0) return;
+        ctx.save();
+        // Nothing pops in at the edge: a mark coming round fades in over the
+        // last of its way.
+        ctx.globalAlpha = Math.min(1, p.z / 0.14);
+        ctx.transform(lie[0], lie[1], lie[2], lie[3], p.x, p.y);
+        ctx.translate(-mark.cx, -mark.cy);
+        ctx.fillStyle = C.hse;
+        ctx.fill(mark.disc);
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fill(mark.mark);
+        ctx.restore();
+      });
+    }
+
     // A ball, not a disc: the light comes from up and to the left and the
     // edge falls away from it.
     const shade = ctx.createRadialGradient(CX - R * 0.3, CY - R * 0.32, R * 0.1,
@@ -582,7 +648,7 @@ export function init(root) {
 
   // ---------- Time ----------
   let clock = 0;
-  let spin = 20;              // the Atlantic to start with, so both coasts show
+  let spin = 45;              // European Russia faces us to start with
   let raf = null;
   let last = 0;
 
@@ -650,6 +716,7 @@ export function init(root) {
   });
 
   let started = false;
+  let opened = false;
   let shown = -1;
   let counting = 0;
 
@@ -677,6 +744,10 @@ export function init(root) {
   }
 
   function step(i) {
+    // The block is put together long before the reader gets to it, and the
+    // Earth has been turning all that while. The first beat sets it back, so
+    // that whoever arrives is met by the side of it the university is on.
+    if (!opened) { opened = true; spin = 45; }
     const jumped = i !== shown + 1 && shown !== -1;
     const instant = still || shown === -1 || jumped;
     // On a narrow screen the whole story is one picture, so all three stay.
