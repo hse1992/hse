@@ -35,17 +35,17 @@ const YEARS_TOTAL = CITIES.reduce(
   (n, c) => n + LEVELS.reduce((m, l) => m + countOf(c, l) * l.years, 0), 0
 );
 
-// The year the answer is counted back from. Pinned rather than taken from the
-// clock: every year the reader can land on has a historical event attached to
-// it in data/history.js, and a moving "now" would shift them all.
-const NOW = 2026;
+// The year the answer is counted back from — today's, off the clock. The
+// whole section is «so many years back from now», so it moves with the
+// calendar: on the first of January the scale ends with the new year and
+// every year it names moves with it.
+const NOW = new Date().getFullYear();
 
 // The scale under the picture: from the earliest year the section can reach
 // (all the programmes at once) to today, with a tick every half century.
 const START = NOW - YEARS_TOTAL;
 const FOUNDED = 1992;              // the year the university itself started
 const TICK = 50;
-const TODAY_YEAR = new Date().getFullYear();
 
 // Half-century ticks on round years, every second one taller. The lead-in
 // screen shows the same scale, so they are laid out once and drawn twice —
@@ -87,9 +87,37 @@ const dotsOf = (level, stage, above) => {
     + '</span>';
 };
 
-// What was happening in the world when a student taking every programme one
-// after another would have had to start — the far end of the scale.
-const FIRST = HISTORY[START];
+// What was happening in the world in the year the studies would have to start
+// in. The events are pinned to their own years, and the year asked about moves
+// with the calendar, so an exact answer is only there while the two agree —
+// otherwise the closest event stands in, and the line says which year it comes
+// from instead of «тогда». The gap is a year for every year since the events
+// were written down, so what the card shows stays true to the day.
+const YEARS_KNOWN = Object.keys(HISTORY).map(Number).sort((a, b) => a - b);
+
+const eventOf = (year) => {
+  const at = YEARS_KNOWN.reduce(
+    (best, y) => (best === null || Math.abs(y - year) < Math.abs(best - year) ? y : best),
+    null
+  );
+  return at === null ? null : { year: at, ...HISTORY[at] };
+};
+
+// How the card tells the event: «Тогда …» only when the event really is from
+// that year, and how far off it is otherwise. A second date next to the big
+// one would read as a contradiction — the distance between them does not.
+const toldAs = (event, year) => {
+  const gap = Math.abs(event.year - year);
+  if (!gap) return `Тогда ${event.text}`;
+  // «За 1 год» nobody says — a single year goes without the figure.
+  const span = gap === 1 ? 'год' : `${nf(gap)} ${plural(gap, 'год', 'года', 'лет')}`;
+  return event.year < year
+    ? `За ${span} до этого ${event.text}`
+    : `Через ${span} после этого ${event.text}`;
+};
+
+// The far end of the scale — all the programmes at once.
+const FIRST = eventOf(START);
 
 // The picture the second beat stands on: the year the studies would have to
 // start in, and what was happening in the world then. The scale under it is
@@ -99,7 +127,7 @@ const LEAD_CARD = `
   <span class="study-lead-col">
     <span class="study-since">Начинать пришлось бы</span>
     <span class="study-lead-year"><span class="study-lead-year-unit">в</span><b>${START}</b><span class="study-lead-year-unit">году</span></span>
-    <span class="study-event">Тогда ${FIRST.text}</span>
+    <span class="study-event">${toldAs(FIRST, START)}</span>
   </span>
 `;
 
@@ -620,7 +648,7 @@ export function init(root) {
             </div>
             <div class="study-ends">
               <span>${START}</span>
-              <span>${TODAY_YEAR}</span>
+              <span>${NOW}</span>
             </div>
           </div>
         </div>
@@ -732,7 +760,7 @@ export function init(root) {
   function paintHistory() {
     const years = Math.round(shown.years);
     const from = NOW - years;
-    const event = HISTORY[from];
+    const event = eventOf(from);
     // With nothing selected there is no year to show, but the block keeps its
     // place: otherwise the scale under it would jump up.
     if (years < 5 || !event) {
@@ -743,7 +771,7 @@ export function init(root) {
     historyEl.setAttribute('aria-hidden', 'false');
     artEl.innerHTML = `<svg viewBox="0 0 64 64" focusable="false">${event.art}</svg>`;
     sinceEl.innerHTML = `Начинать пришлось бы в <b>${from}</b> году`;
-    eventEl.textContent = `Тогда ${event.text}`;
+    eventEl.textContent = toldAs(event, from);
     historyEl.classList.add('in');
   }
 

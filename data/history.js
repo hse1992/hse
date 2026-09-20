@@ -1,6 +1,12 @@
 // What was happening in the year a run through the programmes would have to
-// start. The sums of programmes are fixed, so the set of years the studies
-// section can land on is fixed too — one entry here for each of them.
+// start. The years were written down for the reporting year: one entry for
+// every year the studies section could land on then.
+//
+// The section counts back from today, so those years move by one with every
+// new year, and an exact entry is only there while the calendar agrees. When
+// it does not, the section takes the closest event and names the year it
+// happened in instead of saying «тогда» — see eventOf() in viz/study.js. New
+// entries are worth adding whenever the programme counts are updated.
 //
 // `art` is the inside of a 64 × 64 SVG. Colours come from the --ill-* tokens,
 // so the drawings stay part of the page palette.
