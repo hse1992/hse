@@ -155,6 +155,24 @@
   --house-door: #6B5B48;
   --house-window-lit: #FFC85C;
 
+  /* The satellites (canvas), and the one dark card on the page. The night
+     sky the globe hangs in, the stars in it, the globe itself — ocean, land,
+     ice and the rim of air around it — the orbits, the cubesats on them and
+     the flash of one burning up in the atmosphere. */
+  --space-sky: #0C1B33;
+  --space-sky-edge: #060E1E;
+  --space-star: #DCE6F7;
+  --space-ocean: #1E4D94;
+  --space-land: #2E8A63;
+  --space-ice: #E3ECF7;
+  --space-air: rgba(96, 170, 255, 0.5);
+  --space-orbit: rgba(226, 236, 250, 0.6);
+  --space-orbit-back: rgba(226, 236, 250, 0.16);
+  --space-sat: #EEF3FB;
+  --space-sat-panel: #2F7BD8;
+  --space-label: rgba(226, 235, 248, 0.78);
+  --space-burn: #FF8A3D;
+
   /* Opening screen: two soft blooms of the corporate blue over the page
      background, so the first screen has depth instead of a flat fill. */
   --header-glow: rgba(35, 75, 155, 0.5);

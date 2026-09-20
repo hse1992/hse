@@ -4,7 +4,7 @@
     {
       "name": "site",
       "runtimeExecutable": "sh",
-      "runtimeArgs": ["-c", "python3 -m http.server \"$PORT\""],
+      "runtimeArgs": ["-c", "python3 tools/serve.py \"$PORT\""],
       "port": 8000,
       "autoPort": true
     },
