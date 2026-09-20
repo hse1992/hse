@@ -93,8 +93,13 @@ export const meta = {
     // that before the block is built. Left to the stylesheet, the two lines
     // are measured as one long one, judged not to fit, and the whole screen
     // is set a quarter smaller than every other lead-in on the page.
+    // The second line is picked out the way the page picks out what a screen
+    // turns on: corporate blue behind it, the card colour on top. It hugs its
+    // own words rather than running the width of the screen, hence fit-content.
     value: '<span style="display: block; white-space: normal">Вышка настолько большая,'
-      + '<span style="display: block">что достает даже до орбиты</span>'
+      + '<span style="display: block; width: fit-content; margin-top: 0.12em;'
+      + ' padding: 0.06em 0.26em; border-radius: 0.22em;'
+      + ' background: var(--hse-blue); color: var(--card)">что достает даже до орбиты</span>'
       + '</span>',
     text: ''
   },
