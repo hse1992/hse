@@ -87,8 +87,14 @@ export const meta = {
     // a beat with the card standing alone in the middle would show nothing
     // the beat before and the beat after do not.
     together: true,
-    value: '<span class="space-lead">Вышка настолько большая,'
-      + '<span class="space-lead-next">что достает даже до орбиты</span>'
+    // Two lines by design, and the break is chosen rather than left to the
+    // width of the window. Set inline, not from the stylesheet of the module:
+    // the shell measures the lead-in to decide whether it fits, and it does
+    // that before the block is built. Left to the stylesheet, the two lines
+    // are measured as one long one, judged not to fit, and the whole screen
+    // is set a quarter smaller than every other lead-in on the page.
+    value: '<span style="display: block; white-space: normal">Вышка настолько большая,'
+      + '<span style="display: block">что достает даже до орбиты</span>'
       + '</span>',
     text: ''
   },
@@ -139,21 +145,6 @@ export function init(root) {
           transform: translateY(calc((1 - var(--intro-body, 1)) * 100vh));
           opacity: var(--intro-body, 1);
         }
-      }
-
-      /* The lead-in screen breaks where the sentence turns: the claim on one
-         line, what it comes to on the next, a step smaller. Two lines by
-         design, so the one-line squeeze the shell keeps for short headlines
-         is switched off here. */
-      .space-lead {
-        display: block;
-        white-space: normal;
-      }
-
-      .space-lead-next {
-        display: block;
-        margin-top: 0.1em;
-        font-size: 0.76em;
       }
 
       /* What the block is about, picked out in the heading the way the page

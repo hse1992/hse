@@ -364,15 +364,17 @@ button { font-family: inherit; }
   pointer-events: none;
 }
 
-/* The signal of a closing door, at the foot of the title screen. The lamp
-   hangs there from the first moment, dark and silent — part of the car the
-   reader is standing in. The first beat of the page lights it and puts the
-   warning under it, and the doors shut on the beat after. It belongs to the
-   title screen and scrolls away with it. Above the reading hint, at 44px. */
+/* The signal of a closing door, over the title screen — where such a lamp
+   hangs in a carriage, above the doors rather than by the floor. It is there
+   from the first moment, dark and silent: part of the car the reader is
+   standing in. The first beat of the page lights it and puts the warning
+   under it, and the doors shut on the beat after. It belongs to the title
+   screen and scrolls away with it. Clear of the bar of blocks at the very
+   top, which is 4px and grows to 9px under the cursor. */
 .page-signal {
   position: absolute;
   left: 50%;
-  bottom: 124px;
+  top: 52px;
   z-index: 6;
   display: flex;
   flex-direction: column;
@@ -12612,7 +12614,7 @@ const meta = {
     // the beat before and the beat after do not.
     together: true,
     value: '<span class="space-lead">Вышка настолько большая,'
-      + '<span class="space-lead-next">что мы есть даже в сотнях километров над Землей</span>'
+      + '<span class="space-lead-next">что достает даже до орбиты</span>'
       + '</span>',
     text: ''
   },
@@ -12666,9 +12668,9 @@ function init(root) {
       }
 
       /* The lead-in screen breaks where the sentence turns: the claim on one
-         line, what it comes to on the next, a step smaller. Two lines by
-         design, so the one-line squeeze the shell keeps for short headlines
-         is switched off here. */
+         line, what it comes to on the next, in the same type. Two lines by
+         design — the break is chosen, not left to the width — so the one-line
+         squeeze the shell keeps for short headlines is switched off here. */
       .space-lead {
         display: block;
         white-space: normal;
@@ -12676,8 +12678,6 @@ function init(root) {
 
       .space-lead-next {
         display: block;
-        margin-top: 0.1em;
-        font-size: 0.76em;
       }
 
       /* What the block is about, picked out in the heading the way the page
