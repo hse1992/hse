@@ -32,8 +32,9 @@ const SATS = [
 // One line per beat, and a quieter one under it.
 const STORY = [
   {
-    line: 'Низкая орбита начинается в нескольких сотнях километров над Землей',
-    sub: 'По сравнению с самой планетой это вплотную к поверхности'
+    // The card above has just said it all — the Earth arrives without a word.
+    line: '',
+    sub: ''
   },
   {
     line: 'CubeSX-HSE — запуск 22 марта 2021, Байконур',
@@ -61,8 +62,16 @@ const POSTER = {
 
 export const meta = {
   id: 'space',
-  title: 'А еще Вышка — просто космос!',
-  // The subtitle is phrasing content — the shell puts it inside a <p>.
+  // The block opens on one sentence alone, and the card of the section comes
+  // in over it a beat later — see the lead-in screen in lib/page.js.
+  lead: {
+    value: '<span class="space-lead">Вышка настолько большая,'
+      + '<span class="space-lead-next">что мы присутствуем даже в сотнях километров от Земли</span>'
+      + '</span>',
+    text: ''
+  },
+  title: 'Вышка — просто космос!',
+  // Phrasing content: the shell puts it inside a <p>.
   subtitle: 'Вышка запустила уже <span class="space-mark">три своих спутника</span>. '
     + 'Миссии первых двух завершены, а третий до сих пор находится на низкой орбите',
   intro: true,
@@ -93,6 +102,21 @@ export function init(root) {
       .space-card {
         background: radial-gradient(120% 130% at 50% 34%,
                     var(--space-sky) 0%, var(--space-sky-edge) 100%);
+      }
+
+      /* The lead-in screen breaks where the sentence turns: the claim on one
+         line, what it comes to on the next, a step smaller. Two lines by
+         design, so the one-line squeeze the shell keeps for short headlines
+         is switched off here. */
+      .space-lead {
+        display: block;
+        white-space: normal;
+      }
+
+      .space-lead-next {
+        display: block;
+        margin-top: 0.1em;
+        font-size: 0.76em;
       }
 
       /* What the block is about, picked out in the heading the way the page
@@ -638,11 +662,11 @@ export function init(root) {
   function say(i) {
     counting = 0;
     if (narrow.matches) {
-      noteEl.textContent = POSTER.line;
+      noteEl.innerHTML = POSTER.line;
       subEl.textContent = POSTER.sub;
       return;
     }
-    noteEl.textContent = STORY[i].line;
+    noteEl.innerHTML = STORY[i].line;
     if (i < STORY.length - 1) { subEl.textContent = STORY[i].sub; return; }
     counting = still ? 0 : clock;
     tell();
