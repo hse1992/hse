@@ -165,6 +165,15 @@ export function init(root) {
         -webkit-box-decoration-break: clone;
       }
 
+      /* The globe can be held and turned with the mouse. */
+      .space-card canvas {
+        cursor: grab;
+      }
+
+      .space-card canvas.is-dragging {
+        cursor: grabbing;
+      }
+
       /* Room for two lines is held from the start: the card underneath keeps
          its height, and the globe in it never has to be refitted mid-story. */
       .space-note {
@@ -284,6 +293,10 @@ export function init(root) {
   // The globe leans towards us, so the Arctic the satellites watch is in
   // sight rather than edge on at the top; and its axis leans in the picture
   // as well, the way it does in every drawing of the Earth.
+  //
+  // The lean stays above 18 degrees: below that the edge of the northern ice
+  // cap slips behind the limb, and a ring round the pole is the one shape
+  // the clipping below cannot close — it floods the top of the globe white.
   const LAT0 = 22;
   const cosL = Math.cos(LAT0 * RAD), sinL = Math.sin(LAT0 * RAD);
   const TILT = -0.2;
@@ -677,7 +690,15 @@ export function init(root) {
     const dt = Math.min(64, now - last);
     last = now;
     clock += dt;
-    spin -= (dt / (LAP_MS * DAY_LAPS)) * 360;
+    // While the reader holds the globe it stays where the hand puts it; let
+    // go with a flick and it carries on that way, slowing into its own turn.
+    if (!drag) {
+      // `fling` is how fast the hand was changing the turn, sign and all, so
+      // it carries on the same way: added, not taken away like the day's turn.
+      spin += fling * dt - (dt / (LAP_MS * DAY_LAPS)) * 360;
+      fling *= Math.exp(-dt / 450);
+      if (Math.abs(fling) < 1e-4) fling = 0;
+    }
     SATS.forEach((sat) => {
       if (sat.born === null) return;
       const p = (clock - sat.born) / ARRIVE_MS;
@@ -699,6 +720,54 @@ export function init(root) {
       raf = null;
     }
   }
+
+  // ---------- Turning it by hand ----------
+  // Held with the left button, the globe turns about its own axis with the
+  // mouse, and about nothing else: it is the Earth, not a ball, and it keeps
+  // the lean it has in every picture of it. The orbits are not part of the
+  // planet and stay where they are. The mouse only: on a touch screen the
+  // same gesture scrolls the page, and taking it away would strand the
+  // reader on this block.
+  let drag = null;
+  let fling = 0;                // change of the turn per ms a flick leaves behind
+
+  canvas.addEventListener('pointerdown', (e) => {
+    if (e.pointerType !== 'mouse' || e.button !== 0) return;
+    e.preventDefault();
+    drag = { x: e.clientX, t: performance.now(), v: 0 };
+    fling = 0;
+    canvas.setPointerCapture(e.pointerId);
+    canvas.classList.add('is-dragging');
+  });
+
+  canvas.addEventListener('pointermove', (e) => {
+    if (!drag) return;
+    // A point under the cursor moves with it: one radius of the globe
+    // dragged is one radian of turn.
+    const perPx = 180 / Math.PI / Math.max(1, R);
+    const dx = e.clientX - drag.x;
+    const now = performance.now();
+    spin -= dx * perPx;
+    const v = (-dx * perPx) / Math.max(1, now - drag.t);
+    drag.v = drag.v * 0.6 + v * 0.4;
+    drag.x = e.clientX;
+    drag.t = now;
+    if (raf === null) paint();
+  });
+
+  const letGo = (e) => {
+    if (!drag) return;
+    // A hand held still before letting go leaves nothing behind.
+    const idle = performance.now() - drag.t;
+    // Capped, so that even a hard flick carries the globe on by a sixth of a
+    // turn or so rather than spinning the campuses out of sight.
+    fling = still || idle > 80 ? 0 : Math.max(-0.15, Math.min(0.15, drag.v));
+    drag = null;
+    canvas.classList.remove('is-dragging');
+    if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
+  };
+  canvas.addEventListener('pointerup', letGo);
+  canvas.addEventListener('pointercancel', letGo);
 
   // Nothing turns while the block is off the screen.
   let near = false;
