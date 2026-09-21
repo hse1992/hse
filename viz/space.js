@@ -68,9 +68,13 @@ const STORY = [
   },
   {
     line: 'Первые два завершили свои миссии и сошли с орбиты',
-    sub: ''   // the last line counts itself up — see tell()
+    sub: ''   // this line counts itself up — see tell()
   }
 ];
+
+// The beat the first two come down on: after the empty Earth and one beat
+// for each satellite.
+const BURN = SATS.length + 1;
 
 // What the reader gets on a narrow screen, where the story is one picture.
 const POSTER = {
@@ -822,7 +826,7 @@ export function init(root) {
       return;
     }
     noteEl.innerHTML = STORY[i].line;
-    if (i < STORY.length - 1) { subEl.textContent = STORY[i].sub; return; }
+    if (i !== BURN) { subEl.textContent = STORY[i].sub; return; }
     counting = still ? 0 : clock;
     tell();
   }
@@ -835,7 +839,7 @@ export function init(root) {
     const jumped = i !== shown + 1 && shown !== -1;
     const instant = still || shown === -1 || jumped;
     // On a narrow screen the whole story is one picture, so all three stay.
-    const last = i >= STORY.length - 1;
+    const last = i >= BURN;
     const alive = narrow.matches && last;
     const count = narrow.matches ? SATS.length : Math.min(i, SATS.length);
 
@@ -867,7 +871,10 @@ export function init(root) {
   return {
     step,
     // A satellite drawing its own orbit takes longer than a beat, and the
-    // closing figures count themselves up after that.
-    span: (i) => (still || narrow.matches ? 0 : (i === STORY.length - 1 ? 2200 : ARRIVE_MS))
+    // figures of the last one count themselves up.
+    span: (i) => {
+      if (still || narrow.matches) return 0;
+      return i === BURN ? 2200 : ARRIVE_MS;
+    }
   };
 }
