@@ -35,10 +35,11 @@ export const meta = {
   // university in one frame.
   title: 'Вышка такая большая, что весь масштаб можно увидеть только со спутника',
   subtitle: '',
-  intro: true,
-  // The board is what the section arrives with — the card settling into place
-  // brings the figures with it, instead of fading in an empty field and
-  // spending a beat of the reader's on filling it.
+  // No title card: the flash opens straight onto the photograph, figures and
+  // all. A heading waiting alone in the middle of the screen would be one more
+  // beat between the camera going off and the picture it took.
+  // The board is what the section arrives with, rather than an empty field
+  // that spends a beat of the reader's on filling it.
   opensOnStep: true,
   // The board is there, the question comes up over it, the figures are added
   // up into one — and the last screen counts that one down and answers itself.
