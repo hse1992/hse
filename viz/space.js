@@ -69,17 +69,24 @@ const STORY = [
   {
     line: 'Первые два завершили свои миссии и сошли с орбиты',
     sub: ''   // this line counts itself up — see tell()
+  },
+  {
+    line: 'Третий снимает Землю до сих пор',
+    sub: ''
   }
 ];
 
 // The beat the first two come down on: after the empty Earth and one beat
-// for each satellite.
+// for each satellite. And the one after it, where the third turns its camera
+// down to the Earth — the picture it takes is the flash the next block
+// arrives in (meta.flash).
 const BURN = SATS.length + 1;
+const SHOOT = BURN + 1;
 
 // What the reader gets on a narrow screen, where the story is one picture.
 const POSTER = {
   line: 'Три спутника Вышки — с 2021 по 2023 год',
-  sub: 'Миссии первых двух завершены, третий до сих пор на орбите'
+  sub: 'Миссии первых двух завершены, а третий до сих пор снимает Землю'
 };
 
 export const meta = {
@@ -112,10 +119,13 @@ export const meta = {
   subtitle: 'Вышка запустила уже <span class="space-mark">три своих спутника</span>. '
     + 'Миссии первых двух завершены, а третий до сих пор находится на низкой орбите',
   intro: true,
-  // The empty Earth arrives with the block, then one satellite a beat, and
-  // the last beat is left to the one still flying.
-  steps: 5,
-  opensOnStep: true
+  // The empty Earth arrives with the block, then one satellite a beat, a
+  // beat for the one still flying, and the last one for the picture it takes.
+  steps: 6,
+  opensOnStep: true,
+  // The block ends on a photograph about to be taken, and the next one comes
+  // in the flash of it — the shell draws the flash, see «Вспышка на стыке».
+  flash: true
 };
 
 export function init(root) {
@@ -129,6 +139,7 @@ export function init(root) {
   const DAY_LAPS = 15;          // ... and this many of them to one turn of the Earth
   const ARRIVE_MS = 1700;       // a satellite drawing its own orbit on the way in
   const BURN_MS = 900;          // and the flash it goes out with
+  const AIM_MS = 1500;          // the third one coming round and turning its camera down
 
   // ---------- Markup ----------
   root.innerHTML = `
@@ -572,10 +583,10 @@ export function init(root) {
   }
 
   // Where a satellite is along its orbit, u counted from the equator.
-  function onOrbit(sat, u) {
+  function onOrbit(sat, u, r = RO) {
     const phi = Math.asin(sinI * Math.sin(u)) / RAD;
     const psi = sat.node + Math.atan2(cosI * Math.sin(u), Math.cos(u)) / RAD;
-    return put(phi, psi, RO);
+    return put(phi, psi, r);
   }
 
   function drawOrbit(sat, alpha) {
@@ -601,7 +612,7 @@ export function init(root) {
   }
 
   // A cubesat of three blocks with its panels out, turned the way it flies.
-  function drawBody(x, y, angle, alpha) {
+  function drawBody(x, y, angle, alpha, lens = 0) {
     ctx.save();
     ctx.translate(x, y);
     ctx.rotate(angle);
@@ -617,9 +628,71 @@ export function init(root) {
     ctx.stroke();
     ctx.fillStyle = C.sat;
     ctx.fillRect(-5.4 * S, -3.1 * S, 10.8 * S, 6.2 * S);
+    // The camera, in the end of the body that turns to the ground.
+    if (lens > 0) {
+      ctx.globalAlpha = alpha * lens;
+      ctx.fillStyle = C.hse;
+      ctx.beginPath();
+      ctx.arc(5.4 * S, 0, 1.9 * S, 0, Math.PI * 2);
+      ctx.fill();
+    }
     ctx.restore();
     ctx.globalAlpha = 1;
-    ctx.globalAlpha = 1;
+  }
+
+  // What the camera takes in: a narrow wedge from the lens down to the ground
+  // right under it, and the patch of ground it falls on. Pale and low — a line
+  // of sight, not a beam; the white of the picture itself belongs to the
+  // flash. The patch lies flat on the planet, so it is squashed the way the
+  // ground there is turned from us.
+  function drawView(p, g, angle, a) {
+    const lx = p.x + Math.cos(angle) * 5.4 * S, ly = p.y + Math.sin(angle) * 5.4 * S;
+    const half = 7 * S;
+    const dx = g.x - CX, dy = g.y - CY;
+    const out = Math.hypot(dx, dy) || 1;
+    const ux = dx / out, uy = dy / out;                  // away from the middle of the disc
+    ctx.save();
+    ctx.fillStyle = C.sat;
+    const along = Math.hypot(g.x - lx, g.y - ly);
+    if (along > 2) {
+      const vx = (g.x - lx) / along, vy = (g.y - ly) / along;
+      ctx.globalAlpha = 0.3 * a;
+      ctx.beginPath();
+      ctx.moveTo(lx, ly);
+      ctx.lineTo(g.x - vy * half, g.y + vx * half);
+      ctx.lineTo(g.x + vy * half, g.y - vx * half);
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.globalAlpha = 0.5 * a;
+    ctx.translate(g.x, g.y);
+    ctx.rotate(Math.atan2(uy, ux));
+    ctx.beginPath();
+    ctx.ellipse(0, 0, half * Math.max(0.2, g.z), half, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // A glint on the lens once it has settled: one small spark that comes up
+  // and eases down to a steady point, the camera ready — the only light the
+  // block itself makes.
+  function drawGlint(p, angle, t) {
+    const lx = p.x + Math.cos(angle) * 5.4 * S, ly = p.y + Math.sin(angle) * 5.4 * S;
+    const k = Math.max(0, t) / 600;
+    const size = (k < 1 ? 2 + 6 * Math.sin(Math.PI * k) : 2) * S;
+    ctx.save();
+    ctx.globalAlpha = k < 1 ? 0.6 + 0.4 * Math.sin(Math.PI * k) : 0.7;
+    ctx.strokeStyle = C.sat;
+    ctx.fillStyle = C.sat;
+    ctx.lineWidth = Math.max(0.7, 0.8 * S);
+    ctx.beginPath();
+    ctx.moveTo(lx - size, ly); ctx.lineTo(lx + size, ly);
+    ctx.moveTo(lx, ly - size); ctx.lineTo(lx, ly + size);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(lx, ly, 1.1 * S, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
   }
 
   function drawLabel(sat, x, y, alpha) {
@@ -671,9 +744,29 @@ export function init(root) {
       // lap is spent back there, and a satellite that vanished for four
       // seconds at a time would look like a fault.
       const away = hidden(p) ? 0.38 : 1;
+      // Flying, a cubesat points the way it goes. Taking a picture, it turns
+      // the end with the camera in it down, to the middle of the planet.
+      let angle = Math.atan2(next.y - p.y, next.x - p.x);
+      let aimed = 0;
+      // The ground right under it: the same place on the orbit, brought down
+      // to the surface. Seen from the front it can sit almost behind the
+      // satellite; then the camera simply faces into the picture, the way the
+      // middle of the planet lies.
+      const under = onOrbit(sat, sat.u, R);
+      if (sat.aim) {
+        const q = (clock - sat.aim.t0 - AIM_MS * 0.3) / (AIM_MS * 0.7);
+        aimed = q <= 0 ? 0 : q >= 1 ? 1 : 1 - Math.pow(1 - q, 3);
+        const far = Math.hypot(under.x - p.x, under.y - p.y) > 3;
+        let turn = (far ? Math.atan2(under.y - p.y, under.x - p.x)
+          : Math.atan2(CY - p.y, CX - p.x)) - angle;
+        turn -= Math.round(turn / (Math.PI * 2)) * Math.PI * 2;
+        angle += turn * aimed;
+      }
       drawOrbit(sat, (1 - dying) * (sat.died === null ? 1 : 0.5));
       if (dying > 0) drawFlare(p.x, p.y, dying);
-      drawBody(p.x, p.y, Math.atan2(next.y - p.y, next.x - p.x), away * (1 - dying));
+      if (aimed > 0 && !hidden(p)) drawView(p, under, angle, aimed);
+      drawBody(p.x, p.y, angle, away * (1 - dying), aimed);
+      if (aimed >= 1 && !hidden(p)) drawGlint(p, angle, clock - sat.aim.t0 - AIM_MS);
       if (!dying) drawLabel(sat, p.x, p.y, hidden(p) ? 0.45 : 1);
     });
   }
@@ -705,6 +798,16 @@ export function init(root) {
     }
     SATS.forEach((sat) => {
       if (sat.born === null) return;
+      if (sat.aim) {
+        // Round to the side of its orbit that faces us, and then all but
+        // still while it takes the picture — a twentieth of its pace, so the
+        // frame is held without the orbit stopping dead.
+        const a = sat.aim;
+        const p = Math.min(1, (clock - a.t0) / AIM_MS);
+        if (p >= 1) a.extra += (dt / LAP_MS) * Math.PI * 2 * 0.05;
+        sat.u = a.from + (a.to - a.from) * (1 - Math.pow(1 - p, 3)) + a.extra;
+        return;
+      }
       const p = (clock - sat.born) / ARRIVE_MS;
       sat.u += (dt / LAP_MS) * Math.PI * 2 * rush(p);
     });
@@ -798,6 +901,7 @@ export function init(root) {
   SATS.forEach((sat) => {
     sat.born = null;
     sat.died = null;
+    sat.aim = null;
     sat.start = nearestU(sat);
     sat.u = sat.start;
     sat.uIn = sat.start;
@@ -858,6 +962,18 @@ export function init(root) {
       const dies = last && !alive && k < 2;
       if (dies && sat.died === null) sat.died = instant ? clock - BURN_MS : clock;
       if (!dies) sat.died = null;
+      // The one still flying comes round to face us and takes its picture.
+      // On a narrow screen the story is one picture of all three, so none of
+      // them stops for it.
+      const aims = on && i >= SHOOT && !narrow.matches && k === SATS.length - 1;
+      if (aims && !sat.aim) {
+        const best = nearestU(sat) + 0.9;             // the point of the orbit nearest us
+        const to = best + Math.PI * 2 * Math.ceil((sat.u - best) / (Math.PI * 2));
+        sat.aim = instant
+          ? { from: to, to, t0: clock - AIM_MS - 700, extra: 0 }
+          : { from: sat.u, to, t0: clock, extra: 0 };
+      }
+      if (!aims) sat.aim = null;
     });
 
     shown = i;
@@ -870,11 +986,14 @@ export function init(root) {
 
   return {
     step,
-    // A satellite drawing its own orbit takes longer than a beat, and the
-    // figures of the last one count themselves up.
+    // A satellite drawing its own orbit takes longer than a beat, the figures
+    // of the last one count themselves up, and it takes its time to turn to
+    // the ground.
     span: (i) => {
       if (still || narrow.matches) return 0;
-      return i === BURN ? 2200 : ARRIVE_MS;
+      if (i === BURN) return 2200;
+      if (i === SHOOT) return AIM_MS + 100;
+      return ARRIVE_MS;
     }
   };
 }

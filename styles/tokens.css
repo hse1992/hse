@@ -72,6 +72,10 @@
   --door-lamp: #232A31;              /* and the housing it is set into */
   --door-lamp-light: #3C464F;
 
+  /* The flash of the satellite's camera — the curtain at the other end of the
+     story, from the last picture from orbit into the finale. */
+  --flash: #FFFFFF;
+
   /* Metro track (canvas) */
   --metro-rail: #C9CFD8;
   --metro-sleeper: #DCE0E6;

@@ -116,9 +116,14 @@
       opensOnStep: !!mod.meta.opensOnStep,
       // The figure this block ends on, handed over to the next — see lib/stepper.js.
       handoff: mod.meta.handoff || null,
-      // The title screen ends with «Осторожно, двери закрываются!», so the
-      // first block arrives behind the doors of a metro car — see lib/stepper.js.
-      doors: index === 0,
+      // How the block arrives, if not by the page travelling to it — see
+      // CURTAINS in lib/stepper.js. The title screen ends with «Осторожно, двери
+      // закрываются!», so the first block arrives behind the doors of a metro
+      // car. A block that ends on a photograph being taken (`meta.flash`) hands
+      // the next one over in the flash of the camera.
+      curtain: index === 0 ? 'doors'
+        : index > 0 && MODULES[index - 1].meta.flash ? 'flash'
+        : null,
       // The picture it hands over as well, if any — see lib/stepper.js.
       carry: () => (api && api.carry) || null,
       setStep: (i) => api && api.step && api.step(i),

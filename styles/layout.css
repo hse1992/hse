@@ -258,6 +258,21 @@ button { font-family: inherit; }
   .page-signal-text { transition: none; }
 }
 
+/* The flash of the camera on the satellite, between the last picture from orbit
+   and the block after it — see flashCurtain() in lib/stepper.js. Plain light
+   over everything, the bar included; its strength is set from JS. */
+.page-flash {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 60;
+  background: var(--flash);
+  opacity: 0;
+  pointer-events: none;
+}
+
 /* The doors of a metro car, closing over the title screen and opening on the
    first block — see doorsCurtain() in lib/stepper.js. Two leaves that cover
    everything, the bar included: for a moment the page is not a page but a
@@ -389,7 +404,9 @@ button { font-family: inherit; }
   max-width: 94%;
   padding: 4px 9px;
   border-radius: 999px;
-  transform: translateX(-50%);
+  /* Centred under the slot; the one pointed at is moved along to stay on the
+     screen — see fit() in mountProgress. */
+  transform: translateX(calc(-50% + var(--name-shift, 0px)));
   color: var(--text-caption);
   font-size: 0.75rem;
   font-weight: 500;

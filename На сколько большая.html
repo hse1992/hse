@@ -103,6 +103,10 @@
   --door-lamp: #232A31;              /* and the housing it is set into */
   --door-lamp-light: #3C464F;
 
+  /* The flash of the satellite's camera — the curtain at the other end of the
+     story, from the last picture from orbit into the finale. */
+  --flash: #FFFFFF;
+
   /* Metro track (canvas) */
   --metro-rail: #C9CFD8;
   --metro-sleeper: #DCE0E6;
@@ -482,6 +486,21 @@ button { font-family: inherit; }
   .page-signal-text { transition: none; }
 }
 
+/* The flash of the camera on the satellite, between the last picture from orbit
+   and the block after it — see flashCurtain() in lib/stepper.js. Plain light
+   over everything, the bar included; its strength is set from JS. */
+.page-flash {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 60;
+  background: var(--flash);
+  opacity: 0;
+  pointer-events: none;
+}
+
 /* The doors of a metro car, closing over the title screen and opening on the
    first block — see doorsCurtain() in lib/stepper.js. Two leaves that cover
    everything, the bar included: for a moment the page is not a page but a
@@ -613,7 +632,9 @@ button { font-family: inherit; }
   max-width: 94%;
   padding: 4px 9px;
   border-radius: 999px;
-  transform: translateX(-50%);
+  /* Centred under the slot; the one pointed at is moved along to stay on the
+     screen — see fit() in mountProgress. */
+  transform: translateX(calc(-50% + var(--name-shift, 0px)));
   color: var(--text-caption);
   font-size: 0.75rem;
   font-weight: 500;
@@ -2071,12 +2092,31 @@ function mountProgress(titles = []) {
   // all the names up at once — one look instead of seven — and the one under
   // the cursor shows itself whole; see the styles.
   const names = [];
+  // A name is centred under its slot, and pointed at it opens out to its full
+  // length — which, for a slot at either end of the bar, can run off the
+  // screen, and at the right end under the count in the corner. So the name
+  // under the cursor is moved along just enough to stay in view and clear of
+  // the count; everywhere else it stays centred.
+  const EDGE = 8;
+  const fit = (slot, tag) => {
+    const full = tag.scrollWidth;
+    const box = slot.getBoundingClientRect();
+    const middle = box.left + box.width / 2;
+    const count = counter.getBoundingClientRect();
+    const right = Math.min(window.innerWidth, count.width ? count.left - EDGE : window.innerWidth) - EDGE;
+    let shift = 0;
+    if (middle + full / 2 > right) shift = right - (middle + full / 2);
+    if (middle - full / 2 + shift < EDGE) shift = EDGE - (middle - full / 2);
+    tag.style.setProperty('--name-shift', `${Math.round(shift)}px`);
+  };
   const label = (slot, name) => {
     slot.setAttribute('aria-label', name);
     const tag = document.createElement('b');
     tag.className = 'page-progress-name';
     tag.textContent = name;
     slot.appendChild(tag);
+    slot.addEventListener('pointerenter', () => fit(slot, tag));
+    slot.addEventListener('pointerleave', () => tag.style.removeProperty('--name-shift'));
   };
 
   // The title screen, at the head of the bar: the story opens there and can
@@ -3158,6 +3198,41 @@ function doorsCurtain() {
   return { put, remove: () => wrap.remove() };
 }
 
+// The other end of the story has a curtain too. The satellite still in orbit
+// photographs the Earth, and the block it closes can end on that picture being
+// taken: the screen goes white in the flash, the page steps on behind it, and
+// what comes out of the white is the next block — the way a photograph comes
+// up. One flash and no more: a light that blinks is not a camera. It comes up
+// fast and goes down slowly, the way the eye takes a flash in.
+const FLASH_UP = 180;        // the light coming up
+const FLASH_HOLD = 160;      // all white, with the page moving behind it
+const FLASH_DOWN = 1100;     // and the next block coming up out of it
+
+function flashCurtain() {
+  const veil = document.createElement('div');
+  veil.className = 'page-flash';
+  veil.setAttribute('aria-hidden', 'true');
+  document.body.appendChild(veil);
+  // 0 — nothing, 1 — all white.
+  const put = (p) => { veil.style.opacity = p.toFixed(3); };
+  put(0);
+  return { put, remove: () => veil.remove() };
+}
+
+// A photograph does not come up the way a door opens. Easing out, the white
+// would drop away at once and leave only a faint haze to clear; the picture
+// has to take its time at first and come through as it goes — slow, then
+// quicker, then settling.
+const develop = (p) => p * p * (3 - 2 * p);
+
+// A block can arrive through a curtain rather than by the page travelling to
+// it: the curtain closes over the screen, the page steps to the block behind
+// it, and it opens on the block. Which one is set per block in index.html.
+const CURTAINS = {
+  doors: { make: doorsCurtain, close: DOORS_SHUT, hold: DOORS_HOLD, open: DOORS_OPEN, opening: settle },
+  flash: { make: flashCurtain, close: FLASH_UP, hold: FLASH_HOLD, open: FLASH_DOWN, opening: develop }
+};
+
 // Collects the beats of one section: settling it onto the screen, its title
 // card (which may arrive in parts), and the steps of its scene.
 //
@@ -3167,7 +3242,7 @@ function doorsCurtain() {
 // animate). Both the card and a scene step are a function of one number, so
 // putting either of them back where it was is exact, not an approximation.
 function beatsOf(entry, before = null) {
-  const { section, opening, steps, setStep, build, opensOnStep, hold, span, doors } = entry;
+  const { section, opening, steps, setStep, build, opensOnStep, hold, span, curtain } = entry;
   const list = [];
 
   // The block has just been put together and the section is on its way in:
@@ -3197,19 +3272,20 @@ function beatsOf(entry, before = null) {
   list.push({
     section,
     run: (done) => {
-      // Behind the doors the page does not travel, it steps: there is nothing
-      // to see between the two screens while they are shut.
-      if (doors && !REDUCED.matches) {
-        const curtain = doorsCurtain();
-        play(DOORS_SHUT, (p) => curtain.put(settle(p)), () => {
+      // Behind a curtain the page does not travel, it steps: there is nothing
+      // to see between the two screens while it is closed.
+      const drawn = CURTAINS[curtain];
+      if (drawn && !REDUCED.matches) {
+        const cover = drawn.make();
+        play(drawn.close, (p) => cover.put(settle(p)), () => {
           enter();
           window.scrollTo(0, section.offsetTop);
           setTimeout(() => {
-            play(DOORS_OPEN, (p) => curtain.put(1 - settle(p)), () => {
-              curtain.remove();
+            play(drawn.open, (p) => cover.put(1 - drawn.opening(p)), () => {
+              cover.remove();
               done();
             });
-          }, DOORS_HOLD);
+          }, drawn.hold);
         });
         return;
       }
@@ -12628,14 +12704,25 @@ const STORY = [
   },
   {
     line: 'Первые два завершили свои миссии и сошли с орбиты',
-    sub: ''   // the last line counts itself up — see tell()
+    sub: ''   // this line counts itself up — see tell()
+  },
+  {
+    line: 'Третий снимает Землю до сих пор',
+    sub: ''
   }
 ];
+
+// The beat the first two come down on: after the empty Earth and one beat
+// for each satellite. And the one after it, where the third turns its camera
+// down to the Earth — the picture it takes is the flash the next block
+// arrives in (meta.flash).
+const BURN = SATS.length + 1;
+const SHOOT = BURN + 1;
 
 // What the reader gets on a narrow screen, where the story is one picture.
 const POSTER = {
   line: 'Три спутника Вышки — с 2021 по 2023 год',
-  sub: 'Миссии первых двух завершены, третий до сих пор на орбите'
+  sub: 'Миссии первых двух завершены, а третий до сих пор снимает Землю'
 };
 
 const meta = {
@@ -12668,10 +12755,13 @@ const meta = {
   subtitle: 'Вышка запустила уже <span class="space-mark">три своих спутника</span>. '
     + 'Миссии первых двух завершены, а третий до сих пор находится на низкой орбите',
   intro: true,
-  // The empty Earth arrives with the block, then one satellite a beat, and
-  // the last beat is left to the one still flying.
-  steps: 5,
-  opensOnStep: true
+  // The empty Earth arrives with the block, then one satellite a beat, a
+  // beat for the one still flying, and the last one for the picture it takes.
+  steps: 6,
+  opensOnStep: true,
+  // The block ends on a photograph about to be taken, and the next one comes
+  // in the flash of it — the shell draws the flash, see «Вспышка на стыке».
+  flash: true
 };
 
 function init(root) {
@@ -12685,6 +12775,7 @@ function init(root) {
   const DAY_LAPS = 15;          // ... and this many of them to one turn of the Earth
   const ARRIVE_MS = 1700;       // a satellite drawing its own orbit on the way in
   const BURN_MS = 900;          // and the flash it goes out with
+  const AIM_MS = 1500;          // the third one coming round and turning its camera down
 
   // ---------- Markup ----------
   root.innerHTML = `
@@ -12723,6 +12814,15 @@ function init(root) {
         color: var(--card);
         box-decoration-break: clone;
         -webkit-box-decoration-break: clone;
+      }
+
+      /* The globe can be held and turned with the mouse. */
+      .space-card canvas {
+        cursor: grab;
+      }
+
+      .space-card canvas.is-dragging {
+        cursor: grabbing;
       }
 
       /* Room for two lines is held from the start: the card underneath keeps
@@ -12844,6 +12944,10 @@ function init(root) {
   // The globe leans towards us, so the Arctic the satellites watch is in
   // sight rather than edge on at the top; and its axis leans in the picture
   // as well, the way it does in every drawing of the Earth.
+  //
+  // The lean stays above 18 degrees: below that the edge of the northern ice
+  // cap slips behind the limb, and a ring round the pole is the one shape
+  // the clipping below cannot close — it floods the top of the globe white.
   const LAT0 = 22;
   const cosL = Math.cos(LAT0 * RAD), sinL = Math.sin(LAT0 * RAD);
   const TILT = -0.2;
@@ -13115,10 +13219,10 @@ function init(root) {
   }
 
   // Where a satellite is along its orbit, u counted from the equator.
-  function onOrbit(sat, u) {
+  function onOrbit(sat, u, r = RO) {
     const phi = Math.asin(sinI * Math.sin(u)) / RAD;
     const psi = sat.node + Math.atan2(cosI * Math.sin(u), Math.cos(u)) / RAD;
-    return put(phi, psi, RO);
+    return put(phi, psi, r);
   }
 
   function drawOrbit(sat, alpha) {
@@ -13144,7 +13248,7 @@ function init(root) {
   }
 
   // A cubesat of three blocks with its panels out, turned the way it flies.
-  function drawBody(x, y, angle, alpha) {
+  function drawBody(x, y, angle, alpha, lens = 0) {
     ctx.save();
     ctx.translate(x, y);
     ctx.rotate(angle);
@@ -13160,9 +13264,71 @@ function init(root) {
     ctx.stroke();
     ctx.fillStyle = C.sat;
     ctx.fillRect(-5.4 * S, -3.1 * S, 10.8 * S, 6.2 * S);
+    // The camera, in the end of the body that turns to the ground.
+    if (lens > 0) {
+      ctx.globalAlpha = alpha * lens;
+      ctx.fillStyle = C.hse;
+      ctx.beginPath();
+      ctx.arc(5.4 * S, 0, 1.9 * S, 0, Math.PI * 2);
+      ctx.fill();
+    }
     ctx.restore();
     ctx.globalAlpha = 1;
-    ctx.globalAlpha = 1;
+  }
+
+  // What the camera takes in: a narrow wedge from the lens down to the ground
+  // right under it, and the patch of ground it falls on. Pale and low — a line
+  // of sight, not a beam; the white of the picture itself belongs to the
+  // flash. The patch lies flat on the planet, so it is squashed the way the
+  // ground there is turned from us.
+  function drawView(p, g, angle, a) {
+    const lx = p.x + Math.cos(angle) * 5.4 * S, ly = p.y + Math.sin(angle) * 5.4 * S;
+    const half = 7 * S;
+    const dx = g.x - CX, dy = g.y - CY;
+    const out = Math.hypot(dx, dy) || 1;
+    const ux = dx / out, uy = dy / out;                  // away from the middle of the disc
+    ctx.save();
+    ctx.fillStyle = C.sat;
+    const along = Math.hypot(g.x - lx, g.y - ly);
+    if (along > 2) {
+      const vx = (g.x - lx) / along, vy = (g.y - ly) / along;
+      ctx.globalAlpha = 0.3 * a;
+      ctx.beginPath();
+      ctx.moveTo(lx, ly);
+      ctx.lineTo(g.x - vy * half, g.y + vx * half);
+      ctx.lineTo(g.x + vy * half, g.y - vx * half);
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.globalAlpha = 0.5 * a;
+    ctx.translate(g.x, g.y);
+    ctx.rotate(Math.atan2(uy, ux));
+    ctx.beginPath();
+    ctx.ellipse(0, 0, half * Math.max(0.2, g.z), half, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // A glint on the lens once it has settled: one small spark that comes up
+  // and eases down to a steady point, the camera ready — the only light the
+  // block itself makes.
+  function drawGlint(p, angle, t) {
+    const lx = p.x + Math.cos(angle) * 5.4 * S, ly = p.y + Math.sin(angle) * 5.4 * S;
+    const k = Math.max(0, t) / 600;
+    const size = (k < 1 ? 2 + 6 * Math.sin(Math.PI * k) : 2) * S;
+    ctx.save();
+    ctx.globalAlpha = k < 1 ? 0.6 + 0.4 * Math.sin(Math.PI * k) : 0.7;
+    ctx.strokeStyle = C.sat;
+    ctx.fillStyle = C.sat;
+    ctx.lineWidth = Math.max(0.7, 0.8 * S);
+    ctx.beginPath();
+    ctx.moveTo(lx - size, ly); ctx.lineTo(lx + size, ly);
+    ctx.moveTo(lx, ly - size); ctx.lineTo(lx, ly + size);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(lx, ly, 1.1 * S, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
   }
 
   function drawLabel(sat, x, y, alpha) {
@@ -13214,9 +13380,29 @@ function init(root) {
       // lap is spent back there, and a satellite that vanished for four
       // seconds at a time would look like a fault.
       const away = hidden(p) ? 0.38 : 1;
+      // Flying, a cubesat points the way it goes. Taking a picture, it turns
+      // the end with the camera in it down, to the middle of the planet.
+      let angle = Math.atan2(next.y - p.y, next.x - p.x);
+      let aimed = 0;
+      // The ground right under it: the same place on the orbit, brought down
+      // to the surface. Seen from the front it can sit almost behind the
+      // satellite; then the camera simply faces into the picture, the way the
+      // middle of the planet lies.
+      const under = onOrbit(sat, sat.u, R);
+      if (sat.aim) {
+        const q = (clock - sat.aim.t0 - AIM_MS * 0.3) / (AIM_MS * 0.7);
+        aimed = q <= 0 ? 0 : q >= 1 ? 1 : 1 - Math.pow(1 - q, 3);
+        const far = Math.hypot(under.x - p.x, under.y - p.y) > 3;
+        let turn = (far ? Math.atan2(under.y - p.y, under.x - p.x)
+          : Math.atan2(CY - p.y, CX - p.x)) - angle;
+        turn -= Math.round(turn / (Math.PI * 2)) * Math.PI * 2;
+        angle += turn * aimed;
+      }
       drawOrbit(sat, (1 - dying) * (sat.died === null ? 1 : 0.5));
       if (dying > 0) drawFlare(p.x, p.y, dying);
-      drawBody(p.x, p.y, Math.atan2(next.y - p.y, next.x - p.x), away * (1 - dying));
+      if (aimed > 0 && !hidden(p)) drawView(p, under, angle, aimed);
+      drawBody(p.x, p.y, angle, away * (1 - dying), aimed);
+      if (aimed >= 1 && !hidden(p)) drawGlint(p, angle, clock - sat.aim.t0 - AIM_MS);
       if (!dying) drawLabel(sat, p.x, p.y, hidden(p) ? 0.45 : 1);
     });
   }
@@ -13237,9 +13423,27 @@ function init(root) {
     const dt = Math.min(64, now - last);
     last = now;
     clock += dt;
-    spin -= (dt / (LAP_MS * DAY_LAPS)) * 360;
+    // While the reader holds the globe it stays where the hand puts it; let
+    // go with a flick and it carries on that way, slowing into its own turn.
+    if (!drag) {
+      // `fling` is how fast the hand was changing the turn, sign and all, so
+      // it carries on the same way: added, not taken away like the day's turn.
+      spin += fling * dt - (dt / (LAP_MS * DAY_LAPS)) * 360;
+      fling *= Math.exp(-dt / 450);
+      if (Math.abs(fling) < 1e-4) fling = 0;
+    }
     SATS.forEach((sat) => {
       if (sat.born === null) return;
+      if (sat.aim) {
+        // Round to the side of its orbit that faces us, and then all but
+        // still while it takes the picture — a twentieth of its pace, so the
+        // frame is held without the orbit stopping dead.
+        const a = sat.aim;
+        const p = Math.min(1, (clock - a.t0) / AIM_MS);
+        if (p >= 1) a.extra += (dt / LAP_MS) * Math.PI * 2 * 0.05;
+        sat.u = a.from + (a.to - a.from) * (1 - Math.pow(1 - p, 3)) + a.extra;
+        return;
+      }
       const p = (clock - sat.born) / ARRIVE_MS;
       sat.u += (dt / LAP_MS) * Math.PI * 2 * rush(p);
     });
@@ -13259,6 +13463,54 @@ function init(root) {
       raf = null;
     }
   }
+
+  // ---------- Turning it by hand ----------
+  // Held with the left button, the globe turns about its own axis with the
+  // mouse, and about nothing else: it is the Earth, not a ball, and it keeps
+  // the lean it has in every picture of it. The orbits are not part of the
+  // planet and stay where they are. The mouse only: on a touch screen the
+  // same gesture scrolls the page, and taking it away would strand the
+  // reader on this block.
+  let drag = null;
+  let fling = 0;                // change of the turn per ms a flick leaves behind
+
+  canvas.addEventListener('pointerdown', (e) => {
+    if (e.pointerType !== 'mouse' || e.button !== 0) return;
+    e.preventDefault();
+    drag = { x: e.clientX, t: performance.now(), v: 0 };
+    fling = 0;
+    canvas.setPointerCapture(e.pointerId);
+    canvas.classList.add('is-dragging');
+  });
+
+  canvas.addEventListener('pointermove', (e) => {
+    if (!drag) return;
+    // A point under the cursor moves with it: one radius of the globe
+    // dragged is one radian of turn.
+    const perPx = 180 / Math.PI / Math.max(1, R);
+    const dx = e.clientX - drag.x;
+    const now = performance.now();
+    spin -= dx * perPx;
+    const v = (-dx * perPx) / Math.max(1, now - drag.t);
+    drag.v = drag.v * 0.6 + v * 0.4;
+    drag.x = e.clientX;
+    drag.t = now;
+    if (raf === null) paint();
+  });
+
+  const letGo = (e) => {
+    if (!drag) return;
+    // A hand held still before letting go leaves nothing behind.
+    const idle = performance.now() - drag.t;
+    // Capped, so that even a hard flick carries the globe on by a sixth of a
+    // turn or so rather than spinning the campuses out of sight.
+    fling = still || idle > 80 ? 0 : Math.max(-0.15, Math.min(0.15, drag.v));
+    drag = null;
+    canvas.classList.remove('is-dragging');
+    if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
+  };
+  canvas.addEventListener('pointerup', letGo);
+  canvas.addEventListener('pointercancel', letGo);
 
   // Nothing turns while the block is off the screen.
   let near = false;
@@ -13285,6 +13537,7 @@ function init(root) {
   SATS.forEach((sat) => {
     sat.born = null;
     sat.died = null;
+    sat.aim = null;
     sat.start = nearestU(sat);
     sat.u = sat.start;
     sat.uIn = sat.start;
@@ -13313,7 +13566,7 @@ function init(root) {
       return;
     }
     noteEl.innerHTML = STORY[i].line;
-    if (i < STORY.length - 1) { subEl.textContent = STORY[i].sub; return; }
+    if (i !== BURN) { subEl.textContent = STORY[i].sub; return; }
     counting = still ? 0 : clock;
     tell();
   }
@@ -13326,7 +13579,7 @@ function init(root) {
     const jumped = i !== shown + 1 && shown !== -1;
     const instant = still || shown === -1 || jumped;
     // On a narrow screen the whole story is one picture, so all three stay.
-    const last = i >= STORY.length - 1;
+    const last = i >= BURN;
     const alive = narrow.matches && last;
     const count = narrow.matches ? SATS.length : Math.min(i, SATS.length);
 
@@ -13345,6 +13598,18 @@ function init(root) {
       const dies = last && !alive && k < 2;
       if (dies && sat.died === null) sat.died = instant ? clock - BURN_MS : clock;
       if (!dies) sat.died = null;
+      // The one still flying comes round to face us and takes its picture.
+      // On a narrow screen the story is one picture of all three, so none of
+      // them stops for it.
+      const aims = on && i >= SHOOT && !narrow.matches && k === SATS.length - 1;
+      if (aims && !sat.aim) {
+        const best = nearestU(sat) + 0.9;             // the point of the orbit nearest us
+        const to = best + Math.PI * 2 * Math.ceil((sat.u - best) / (Math.PI * 2));
+        sat.aim = instant
+          ? { from: to, to, t0: clock - AIM_MS - 700, extra: 0 }
+          : { from: sat.u, to, t0: clock, extra: 0 };
+      }
+      if (!aims) sat.aim = null;
     });
 
     shown = i;
@@ -13357,9 +13622,15 @@ function init(root) {
 
   return {
     step,
-    // A satellite drawing its own orbit takes longer than a beat, and the
-    // closing figures count themselves up after that.
-    span: (i) => (still || narrow.matches ? 0 : (i === STORY.length - 1 ? 2200 : ARRIVE_MS))
+    // A satellite drawing its own orbit takes longer than a beat, the figures
+    // of the last one count themselves up, and it takes its time to turn to
+    // the ground.
+    span: (i) => {
+      if (still || narrow.matches) return 0;
+      if (i === BURN) return 2200;
+      if (i === SHOOT) return AIM_MS + 100;
+      return ARRIVE_MS;
+    }
   };
 }
 
@@ -13386,11 +13657,22 @@ const BUILDINGS = 196;      // buildings — the floor area section
 const PROGRAMS = 329;       // programmes — the studies section
 const YEARS = 912;          // years of study one after another — the same
 const CARS = 134;           // metro cars for this year's intake — the opening
+const SATELLITES = 3;       // satellites the university has put in orbit — space
+const LAPS = 16500;         // laps the third of them has flown — the same
+
+// The shot the board is: the one satellite still up there, and its orbit, as
+// the space section gives them. Only the caption along the edge of the frame
+// uses them.
+const CAMERA = 'CubeSX-HSE-3';
+const ORBIT_KM = 500;
+const INCLINE = 97.5;
 
 const meta = {
   id: 'each',
-  title: 'На странице было много разных цифр',
-  // The heading says all of it; the numbers come with nothing under them.
+  // The section arrives out of the white of a satellite's flash, like a photo
+  // developing — and the heading is the caption to that shot: the whole
+  // university in one frame.
+  title: 'Вышка такая большая, что весь масштаб можно увидеть только со спутника',
   subtitle: '',
   intro: true,
   // The board is what the section arrives with — the card settling into place
@@ -13428,30 +13710,42 @@ function init(root) {
   // that the only dark thing left on the screen is the question itself.
   const GREY = 'var(--text-faded)';
 
-  // Every figure of the page, in the order it turns up here. `w` is how much
-  // larger than the others it is set, `c` is which of the five colours it
-  // takes — laid out by hand so that no two neighbours share one.
-  const fig = (n, w, c, text) => ({ n, w, c, value: text || nf(n) });
+  // Every figure of the page, in the order it turns up here, each with what it
+  // counts: the number is read first, the word after it says of what. `w` is
+  // how much larger than the others it is set, `c` is which of the five
+  // colours it takes — laid out by hand so that no two neighbours share one.
+  const fig = (n, w, c, noun, text) => ({ n, w, c, noun, value: text || nf(n) });
+  const of = (n, one, few, many) => plural(n, one, few, many);
+  const students = (key, where) =>
+    `${of(cityOf(key).students, 'студент', 'студента', 'студентов')} ${where}`;
+
   const FIGURES = [
-    fig(STUDENTS, 1.5, 'ink'),
-    fig(STAFF, 1.05, 'msk'),
-    fig(LYCEUM, 0.75, 'spb'),
-    fig(ADMITTED, 1.2, 'nn'),
-    fig(CARS, 0.8, 'perm'),
-    fig(SEATS, 1.3, 'ink'),
-    fig(COUNTRIES.length, 0.9, 'spb'),
-    fig(FOREIGN, 0.85, 'msk', `${nf(FOREIGN)}+`),
-    fig(BUILDINGS, 1.05, 'nn'),
-    fig(AREA_TOTAL, 1.35, 'ink'),
-    fig(AREA_STUDY, 0.85, 'perm'),
-    fig(PROGRAMS, 1.1, 'msk'),
-    fig(YEARS, 1.2, 'spb'),
-    fig(cityOf('msk').students, 1.1, 'msk'),
-    fig(cityOf('spb').students, 0.75, 'spb'),
-    fig(cityOf('nn').students, 0.7, 'nn'),
-    fig(cityOf('perm').students, 0.7, 'perm'),
-    fig(HSE_TOTAL, 1.9, 'ink')
+    fig(STUDENTS, 1.5, 'ink', of(STUDENTS, 'студент', 'студента', 'студентов')),
+    fig(STAFF, 1.05, 'msk', of(STAFF, 'сотрудник', 'сотрудника', 'сотрудников')),
+    fig(LYCEUM, 0.75, 'spb', of(LYCEUM, 'лицеист', 'лицеиста', 'лицеистов')),
+    fig(ADMITTED, 1.2, 'nn', of(ADMITTED, 'первокурсник', 'первокурсника', 'первокурсников')),
+    fig(CARS, 0.8, 'perm', `${of(CARS, 'вагон', 'вагона', 'вагонов')} метро`),
+    fig(SEATS, 1.3, 'ink', `${of(SEATS, 'место', 'места', 'мест')} на стадионе`),
+    fig(COUNTRIES.length, 0.9, 'spb', of(COUNTRIES.length, 'страна', 'страны', 'стран')),
+    fig(FOREIGN, 0.85, 'msk', of(FOREIGN, 'иностранец', 'иностранца', 'иностранцев'), `${nf(FOREIGN)}+`),
+    fig(BUILDINGS, 1.05, 'nn', of(BUILDINGS, 'здание', 'здания', 'зданий')),
+    fig(AREA_TOTAL, 1.35, 'ink', 'м² площади'),
+    fig(AREA_STUDY, 0.85, 'perm', 'м² для учебы'),
+    fig(PROGRAMS, 1.1, 'msk', of(PROGRAMS, 'программа', 'программы', 'программ')),
+    fig(YEARS, 1.2, 'spb', `${of(YEARS, 'год', 'года', 'лет')} учебы`),
+    fig(SATELLITES, 1.0, 'perm', of(SATELLITES, 'спутник', 'спутника', 'спутников')),
+    fig(LAPS, 1.0, 'ink', of(LAPS, 'виток', 'витка', 'витков')),
+    fig(cityOf('msk').students, 1.1, 'msk', students('msk', 'в Москве')),
+    fig(cityOf('spb').students, 0.75, 'spb', students('spb', 'в Санкт-Петербурге')),
+    fig(cityOf('nn').students, 0.7, 'nn', students('nn', 'в Нижнем Новгороде')),
+    fig(cityOf('perm').students, 0.7, 'perm', students('perm', 'в Перми')),
+    fig(HSE_TOTAL, 1.9, 'ink', of(HSE_TOTAL, 'человек', 'человека', 'человек'))
   ];
+
+  // A figure as it is set: the number, and the word after it smaller, on the
+  // same line — one phrase, but the number is what the eye lands on.
+  const markup = (f) => `<span class="each-n">${f.value}</span>`
+    + `<span class="each-w">\u00a0${f.noun}</span>`;
 
   // What the board comes to when it is added up. It is not a quantity of
   // anything — square metres, years and people all go into it — and nothing on
@@ -13492,6 +13786,64 @@ function init(root) {
       .each-sum.is-clearing {
         box-shadow: 0 0 130px 42px var(--card);
       }
+
+      /* What the figure counts: after the number, in the same colour, much
+         smaller and without the tight tracking of the figures. */
+      .each-w {
+        font-size: 0.34em;
+        font-weight: 600;
+        letter-spacing: 0;
+      }
+
+      /* The board is a shot from orbit: the corners of a viewfinder, and the
+         satellite's own caption along the edges of the frame. It belongs to
+         the photograph only — once the figures start adding up, the frame is
+         no longer a picture of anything and goes. */
+      .each-hud {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        transition: opacity 620ms ease;
+      }
+
+      .each-hud.is-gone {
+        opacity: 0;
+      }
+
+      .each-corner {
+        position: absolute;
+        width: 30px;
+        height: 30px;
+        border: 0 solid var(--text);
+      }
+
+      .each-corner.tl { left: 0; top: 0; border-left-width: 3px; border-top-width: 3px; }
+      .each-corner.tr { right: 0; top: 0; border-right-width: 3px; border-top-width: 3px; }
+      .each-corner.bl { left: 0; bottom: 0; border-left-width: 3px; border-bottom-width: 3px; }
+      .each-corner.br { right: 0; bottom: 0; border-right-width: 3px; border-bottom-width: 3px; }
+
+      .each-meta {
+        position: absolute;
+        display: flex;
+        flex-direction: column;
+        gap: 1px;
+        font-size: 0.8125rem;
+        line-height: 1.3;
+        letter-spacing: 0.02em;
+        font-variant-numeric: tabular-nums;
+        color: var(--text-secondary);
+        white-space: nowrap;
+      }
+
+      .each-meta b {
+        font-weight: 700;
+        color: var(--text);
+      }
+
+      .each-meta.tl { left: 42px; top: 0; }
+      .each-meta.tr { right: 42px; top: 0; text-align: right; }
+      .each-meta.bl { left: 42px; bottom: 0; }
+      .each-meta.br { right: 42px; bottom: 0; text-align: right; }
 
       /* The stand-in the figures are measured on: parked out of sight, never
          moved, never scaled. */
@@ -13616,11 +13968,28 @@ function init(root) {
 
         .each-you { font-size: 1.375rem; }
         .each-why { font-size: 0.9375rem; }
+
+        /* A phone gets the board and its answer as one still picture; a frame
+           and a caption in each corner of a card this small would only crowd
+           it. */
+        .each-hud { display: none; }
+
+        /* The figures on a phone come out small, and a word at a third of a
+           small number cannot be read — here it is set relatively larger. */
+        .each-w { font-size: 0.5em; }
       }
     </style>
 
     <div class="canvas-card each-card">
       <div class="each-stage" data-el="stage">
+        <div class="each-hud" data-el="hud" aria-hidden="true">
+          <i class="each-corner tl"></i><i class="each-corner tr"></i>
+          <i class="each-corner bl"></i><i class="each-corner br"></i>
+          <div class="each-meta tl" data-el="metaTop"><b>${CAMERA}</b><span>виток ${nf(LAPS)}</span></div>
+          <div class="each-meta tr"><span>высота ${nf(ORBIT_KM)} км</span><span>наклонение ${dec(INCLINE)}°</span></div>
+          <div class="each-meta bl" data-el="metaBottom"><span>Земля, видимый диапазон</span></div>
+          <div class="each-meta br"><span>кадр 1</span></div>
+        </div>
         <div class="each-line each-end" data-el="end">
           <div class="each-you">Это ты</div>
           <div class="each-why">Потому что для Вышки важен каждый</div>
@@ -13648,7 +14017,7 @@ function init(root) {
   const tiles = FIGURES.map((f) => {
     const el = document.createElement('div');
     el.className = 'each-tile';
-    el.textContent = f.value;
+    el.innerHTML = markup(f);
     el.style.color = INK[f.c];
     stage.appendChild(el);
     return { ...f, el, at: null };
@@ -13689,12 +14058,12 @@ function init(root) {
 
   function measure() {
     probe.style.fontSize = `${REF}px`;
-    const read = (text) => {
-      probe.textContent = text;
+    const read = (text, html) => {
+      if (html) probe.innerHTML = html; else probe.textContent = text;
       const r = probe.getBoundingClientRect();
       return { w: r.width, h: r.height };
     };
-    tiles.forEach((t) => { t.m = read(t.value); });
+    tiles.forEach((t) => { t.m = read(null, markup(t)); });
     sumM = read(nf(TOTAL));
     oneM = read('1');
   }
@@ -13780,14 +14149,22 @@ function init(root) {
     const gap = Math.round(Math.min(40, h * 0.06));
     const top = (h - (numH + gap + endH)) / 2;
 
+    // The board is laid out inside the frame of the shot, clear of the
+    // caption strips along its top and bottom edges.
+    const capTop = $('metaTop').offsetHeight + 14;
+    const capBottom = $('metaBottom').offsetHeight + 12;
+    const shot = { x: 0, y: capTop, w, h: Math.max(80, h - capTop - capBottom) };
+
     L = {
-      board: pack(tiles.map((t) => ({ m: t.m, w: t.w })), area, 150),
+      board: pack(tiles.map((t) => ({ m: t.m, w: t.w })), shot, 150),
       big,
       end: [{ ...big[0], cy: top + numH / 2 }],
       endTop: Math.round(top + numH + gap),
       // No scene on a narrow screen: the board and the answer under it are one
       // still picture, so the reader gets the whole thought at once.
-      poster: pack(tiles.map((t) => ({ m: t.m, w: t.w })),
+      // The sizes are drawn closer together than on the wide board: at a
+      // phone's width the smallest of them would otherwise be unreadable.
+      poster: pack(tiles.map((t) => ({ m: t.m, w: 0.6 + 0.4 * t.w })),
         { x: 0, y: 0, w, h: Math.max(60, (h - endH - 16) * 0.66) }, 90),
       posterOne: rows([{ m: oneM, w: 1 }],
         Math.min(72, Math.max(34, h * 0.12)),
@@ -13984,6 +14361,10 @@ function init(root) {
     if (!L) relayout();
     if (narrow.matches) { poster(); return; }
 
+    // The shot stays a shot while the board is up; once it starts adding up,
+    // the frame around it goes.
+    $('hud').classList.toggle('is-gone', i >= 2);
+
     // The whole board at once. It is put up without an arrival of its own: the
     // section is still coming in when this is called, so anything played here
     // would be played to nobody — and a reader quick on the wheel would catch
@@ -14049,7 +14430,13 @@ function init(root) {
     step(i) {
       shown = i;
       play(i);
-    }
+    },
+    // The two steps that play longer than a beat hold the wheel until they are
+    // done: the board adding up takes 2.3 s in all, and a quick reader would
+    // otherwise set the count going over a sum still being made. The count
+    // with its answer runs longer than the shell allows — it is given the
+    // most there is, and plays the rest out on a screen that stays put.
+    span: (i) => (still || narrow.matches ? 0 : i === 2 ? 2300 : i === 3 ? 2500 : 0)
   };
 }
 
@@ -14100,9 +14487,14 @@ const page = document.getElementById('page');
       opensOnStep: !!mod.meta.opensOnStep,
       // The figure this block ends on, handed over to the next — see lib/stepper.js.
       handoff: mod.meta.handoff || null,
-      // The title screen ends with «Осторожно, двери закрываются!», so the
-      // first block arrives behind the doors of a metro car — see lib/stepper.js.
-      doors: index === 0,
+      // How the block arrives, if not by the page travelling to it — see
+      // CURTAINS in lib/stepper.js. The title screen ends with «Осторожно, двери
+      // закрываются!», so the first block arrives behind the doors of a metro
+      // car. A block that ends on a photograph being taken (`meta.flash`) hands
+      // the next one over in the flash of the camera.
+      curtain: index === 0 ? 'doors'
+        : index > 0 && MODULES[index - 1].meta.flash ? 'flash'
+        : null,
       // The picture it hands over as well, if any — see lib/stepper.js.
       carry: () => (api && api.carry) || null,
       setStep: (i) => api && api.step && api.step(i),
