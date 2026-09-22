@@ -14,7 +14,6 @@ const AREA_STUDY = CITIES.reduce((n, c) => n + c.areaStudy, 0);
 // that earned it, and a module knows nothing about its neighbours — so they
 // are quoted here by hand rather than imported. If a section ever changes its
 // answer, its line below has to change with it.
-const SEATS = 81000;        // seats in «Лужники» — the stadium
 const BUILDINGS = 196;      // buildings — the floor area section
 const PROGRAMS = 329;       // programmes — the studies section
 const YEARS = 912;          // years of study one after another — the same
@@ -91,7 +90,6 @@ export function init(root) {
     fig(STAFF, 1.05, of(STAFF, 'сотрудник', 'сотрудника', 'сотрудников')),
     fig(LYCEUM, 0.75, of(LYCEUM, 'лицеист', 'лицеиста', 'лицеистов')),
     fig(ADMITTED, 1.2, of(ADMITTED, 'первокурсник', 'первокурсника', 'первокурсников')),
-    fig(SEATS, 1.3, `${of(SEATS, 'место', 'места', 'мест')} на стадионе`),
     fig(COUNTRIES.length, 0.9, of(COUNTRIES.length, 'страна', 'страны', 'стран')),
     fig(FOREIGN, 0.85, of(FOREIGN, 'иностранец', 'иностранца', 'иностранцев'), `${nf(FOREIGN)}+`),
     fig(BUILDINGS, 1.05, of(BUILDINGS, 'здание', 'здания', 'зданий')),
