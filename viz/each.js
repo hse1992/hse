@@ -18,7 +18,6 @@ const SEATS = 81000;        // seats in «Лужники» — the stadium
 const BUILDINGS = 196;      // buildings — the floor area section
 const PROGRAMS = 329;       // programmes — the studies section
 const YEARS = 912;          // years of study one after another — the same
-const CARS = 134;           // metro cars for this year's intake — the opening
 const SATELLITES = 3;       // satellites the university has put in orbit — space
 const LAPS = 16500;         // laps the third of them has flown — the same
 
@@ -91,7 +90,6 @@ export function init(root) {
     fig(STAFF, 1.05, of(STAFF, 'сотрудник', 'сотрудника', 'сотрудников')),
     fig(LYCEUM, 0.75, of(LYCEUM, 'лицеист', 'лицеиста', 'лицеистов')),
     fig(ADMITTED, 1.2, of(ADMITTED, 'первокурсник', 'первокурсника', 'первокурсников')),
-    fig(CARS, 0.8, `${of(CARS, 'вагон', 'вагона', 'вагонов')} метро`),
     fig(SEATS, 1.3, `${of(SEATS, 'место', 'места', 'мест')} на стадионе`),
     fig(COUNTRIES.length, 0.9, of(COUNTRIES.length, 'страна', 'страны', 'стран')),
     fig(FOREIGN, 0.85, of(FOREIGN, 'иностранец', 'иностранца', 'иностранцев'), `${nf(FOREIGN)}+`),
