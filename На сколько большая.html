@@ -12707,7 +12707,7 @@ const STORY = [
     sub: ''   // this line counts itself up — see tell()
   },
   {
-    line: 'Третий снимает Землю до сих пор',
+    line: 'Вышка такая большая, что весь масштаб можно увидеть только со спутника',
     sub: ''
   }
 ];
@@ -13656,7 +13656,6 @@ const SEATS = 81000;        // seats in «Лужники» — the stadium
 const BUILDINGS = 196;      // buildings — the floor area section
 const PROGRAMS = 329;       // programmes — the studies section
 const YEARS = 912;          // years of study one after another — the same
-const CARS = 134;           // metro cars for this year's intake — the opening
 const SATELLITES = 3;       // satellites the university has put in orbit — space
 const LAPS = 16500;         // laps the third of them has flown — the same
 
@@ -13674,10 +13673,11 @@ const meta = {
   // university in one frame.
   title: 'Вышка такая большая, что весь масштаб можно увидеть только со спутника',
   subtitle: '',
-  intro: true,
-  // The board is what the section arrives with — the card settling into place
-  // brings the figures with it, instead of fading in an empty field and
-  // spending a beat of the reader's on filling it.
+  // No title card: the flash opens straight onto the photograph, figures and
+  // all. A heading waiting alone in the middle of the screen would be one more
+  // beat between the camera going off and the picture it took.
+  // The board is what the section arrives with, rather than an empty field
+  // that spends a beat of the reader's on filling it.
   opensOnStep: true,
   // The board is there, the question comes up over it, the figures are added
   // up into one — and the last screen counts that one down and answers itself.
@@ -13694,17 +13694,19 @@ function init(root) {
 
   const cityOf = (key) => CITIES.find((c) => c.key === key);
 
-  // Five colours for the board: the four campuses of the page and its plain
-  // text. The university's own blue is kept out of it — it belongs to the one
-  // figure at the end and to nothing else.
+  // The board is a photograph, so it is printed in one ink: the university's
+  // blue at three depths, like a cyanotype. The larger a figure, the deeper its
+  // tone — the eye goes from the heaviest figures to the lighter ones, instead
+  // of hopping between five unrelated colours. The words after the numbers
+  // stay a quiet grey, so the colour belongs to the figures alone.
+  const HSE = 'var(--hse-blue)';
   const INK = {
     ink: 'var(--text)',
-    msk: cityOf('msk').color,
-    spb: cityOf('spb').color,
-    nn: cityOf('nn').color,
-    perm: cityOf('perm').color
+    deep: HSE,
+    mid: 'color-mix(in srgb, var(--hse-blue) 70%, var(--card))',
+    light: 'color-mix(in srgb, var(--hse-blue) 46%, var(--card))'
   };
-  const HSE = 'var(--hse-blue)';
+  const toneOf = (w) => (w >= 1.3 ? 'deep' : w >= 1.0 ? 'mid' : 'light');
   // What the board fades to once the question has been asked: the figures are
   // all still there, they have simply stopped being the point — so far back
   // that the only dark thing left on the screen is the question itself.
@@ -13712,34 +13714,38 @@ function init(root) {
 
   // Every figure of the page, in the order it turns up here, each with what it
   // counts: the number is read first, the word after it says of what. `w` is
-  // how much larger than the others it is set, `c` is which of the five
-  // colours it takes — laid out by hand so that no two neighbours share one.
-  const fig = (n, w, c, noun, text) => ({ n, w, c, noun, value: text || nf(n) });
+  // how much it weighs against the others, and its tone of blue follows from
+  // that. `size` is what the layout uses: the same order of sizes as `w`,
+  // drawn much closer together — a board where one figure is three times
+  // another reads as a mess, not as a hierarchy.
+  const fig = (n, w, noun, text) =>
+    ({ n, w, c: toneOf(w), size: 0.55 + 0.5 * w, noun, value: text || nf(n) });
   const of = (n, one, few, many) => plural(n, one, few, many);
   const students = (key, where) =>
     `${of(cityOf(key).students, 'студент', 'студента', 'студентов')} ${where}`;
 
   const FIGURES = [
-    fig(STUDENTS, 1.5, 'ink', of(STUDENTS, 'студент', 'студента', 'студентов')),
-    fig(STAFF, 1.05, 'msk', of(STAFF, 'сотрудник', 'сотрудника', 'сотрудников')),
-    fig(LYCEUM, 0.75, 'spb', of(LYCEUM, 'лицеист', 'лицеиста', 'лицеистов')),
-    fig(ADMITTED, 1.2, 'nn', of(ADMITTED, 'первокурсник', 'первокурсника', 'первокурсников')),
-    fig(CARS, 0.8, 'perm', `${of(CARS, 'вагон', 'вагона', 'вагонов')} метро`),
-    fig(SEATS, 1.3, 'ink', `${of(SEATS, 'место', 'места', 'мест')} на стадионе`),
-    fig(COUNTRIES.length, 0.9, 'spb', of(COUNTRIES.length, 'страна', 'страны', 'стран')),
-    fig(FOREIGN, 0.85, 'msk', of(FOREIGN, 'иностранец', 'иностранца', 'иностранцев'), `${nf(FOREIGN)}+`),
-    fig(BUILDINGS, 1.05, 'nn', of(BUILDINGS, 'здание', 'здания', 'зданий')),
-    fig(AREA_TOTAL, 1.35, 'ink', 'м² площади'),
-    fig(AREA_STUDY, 0.85, 'perm', 'м² для учебы'),
-    fig(PROGRAMS, 1.1, 'msk', of(PROGRAMS, 'программа', 'программы', 'программ')),
-    fig(YEARS, 1.2, 'spb', `${of(YEARS, 'год', 'года', 'лет')} учебы`),
-    fig(SATELLITES, 1.0, 'perm', of(SATELLITES, 'спутник', 'спутника', 'спутников')),
-    fig(LAPS, 1.0, 'ink', of(LAPS, 'виток', 'витка', 'витков')),
-    fig(cityOf('msk').students, 1.1, 'msk', students('msk', 'в Москве')),
-    fig(cityOf('spb').students, 0.75, 'spb', students('spb', 'в Санкт-Петербурге')),
-    fig(cityOf('nn').students, 0.7, 'nn', students('nn', 'в Нижнем Новгороде')),
-    fig(cityOf('perm').students, 0.7, 'perm', students('perm', 'в Перми')),
-    fig(HSE_TOTAL, 1.9, 'ink', of(HSE_TOTAL, 'человек', 'человека', 'человек'))
+    fig(STUDENTS, 1.5, of(STUDENTS, 'студент', 'студента', 'студентов')),
+    fig(STAFF, 1.05, of(STAFF, 'сотрудник', 'сотрудника', 'сотрудников')),
+    fig(LYCEUM, 0.75, of(LYCEUM, 'лицеист', 'лицеиста', 'лицеистов')),
+    fig(ADMITTED, 1.2, of(ADMITTED, 'первокурсник', 'первокурсника', 'первокурсников')),
+    fig(SEATS, 1.3, `${of(SEATS, 'место', 'места', 'мест')} на стадионе`),
+    fig(COUNTRIES.length, 0.9, of(COUNTRIES.length, 'страна', 'страны', 'стран')),
+    fig(FOREIGN, 0.85, of(FOREIGN, 'иностранец', 'иностранца', 'иностранцев'), `${nf(FOREIGN)}+`),
+    fig(BUILDINGS, 1.05, of(BUILDINGS, 'здание', 'здания', 'зданий')),
+    fig(AREA_TOTAL, 1.35, 'м² площади'),
+    fig(AREA_STUDY, 0.85, 'м² для учебы'),
+    fig(PROGRAMS, 1.1, of(PROGRAMS, 'программа', 'программы', 'программ')),
+    fig(YEARS, 1.2, `${of(YEARS, 'год', 'года', 'лет')} учебы`),
+    fig(SATELLITES, 1.0, of(SATELLITES, 'спутник', 'спутника', 'спутников')),
+    fig(LAPS, 1.0, of(LAPS, 'виток', 'витка', 'витков')),
+    // The campuses themselves, just before what each of them holds.
+    fig(CITIES.length, 1.0, of(CITIES.length, 'кампус', 'кампуса', 'кампусов')),
+    fig(cityOf('msk').students, 1.1, students('msk', 'в Москве')),
+    fig(cityOf('spb').students, 0.75, students('spb', 'в Санкт-Петербурге')),
+    fig(cityOf('nn').students, 0.7, students('nn', 'в Нижнем Новгороде')),
+    fig(cityOf('perm').students, 0.7, students('perm', 'в Перми')),
+    fig(HSE_TOTAL, 1.9, of(HSE_TOTAL, 'человек', 'человека', 'человек'))
   ];
 
   // A figure as it is set: the number, and the word after it smaller, on the
@@ -13787,12 +13793,20 @@ function init(root) {
         box-shadow: 0 0 130px 42px var(--card);
       }
 
-      /* What the figure counts: after the number, in the same colour, much
-         smaller and without the tight tracking of the figures. */
+      /* What the figure counts: after the number, in grey, smaller and without
+         the tight tracking of the figures. Large enough to be read as part of
+         the phrase, not as a footnote to it. */
       .each-w {
-        font-size: 0.34em;
-        font-weight: 600;
+        font-size: 0.42em;
+        font-weight: 500;
         letter-spacing: 0;
+        color: var(--text-secondary);
+        transition: color 620ms ease;
+      }
+
+      /* Once the board steps back, the words go with their figures. */
+      .each-stage.is-faded .each-w {
+        color: inherit;
       }
 
       /* The board is a shot from orbit: the corners of a viewfinder, and the
@@ -13985,7 +13999,7 @@ function init(root) {
         <div class="each-hud" data-el="hud" aria-hidden="true">
           <i class="each-corner tl"></i><i class="each-corner tr"></i>
           <i class="each-corner bl"></i><i class="each-corner br"></i>
-          <div class="each-meta tl" data-el="metaTop"><b>${CAMERA}</b><span>виток ${nf(LAPS)}</span></div>
+          <div class="each-meta tl" data-el="metaTop"><b>${CAMERA}</b></div>
           <div class="each-meta tr"><span>высота ${nf(ORBIT_KM)} км</span><span>наклонение ${dec(INCLINE)}°</span></div>
           <div class="each-meta bl" data-el="metaBottom"><span>Земля, видимый диапазон</span></div>
           <div class="each-meta br"><span>кадр 1</span></div>
@@ -14033,7 +14047,10 @@ function init(root) {
 
   // The board is in colour while it is the point of the screen, and grey from
   // the moment the question is asked over it.
-  const paint = (grey) => tiles.forEach((t) => { t.el.style.color = grey ? GREY : INK[t.c]; });
+  const paint = (grey) => {
+    stage.classList.toggle('is-faded', grey);
+    tiles.forEach((t) => { t.el.style.color = grey ? GREY : INK[t.c]; });
+  };
 
   // ---------- The lines ----------
   const lines = { turn, end: $('end') };
@@ -14156,7 +14173,7 @@ function init(root) {
     const shot = { x: 0, y: capTop, w, h: Math.max(80, h - capTop - capBottom) };
 
     L = {
-      board: pack(tiles.map((t) => ({ m: t.m, w: t.w })), shot, 150),
+      board: pack(tiles.map((t) => ({ m: t.m, w: t.size })), shot, 150),
       big,
       end: [{ ...big[0], cy: top + numH / 2 }],
       endTop: Math.round(top + numH + gap),
