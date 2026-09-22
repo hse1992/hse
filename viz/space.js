@@ -11,17 +11,18 @@ import { mountCanvas } from '../lib/ui.js';
 import { loadMark } from '../lib/hse-mark.js';
 import { CITIES } from '../data/hse.js';
 import { LAND } from '../data/earth.js';
+import { ORBIT_KM, INCLINE, LAPS, FLOWN_MLN, SATELLITES } from '../data/satellites.js';
 
 // ---------- The objects ----------
-// Figures about the satellites live here, the way the arena keeps its 81 000
-// seats. Dates, launch sites and missions come from the laboratory that built
-// them — miem.hse.ru/uvpmiem/lab/ka.
-const EARTH_KM = 6371;
-const ORBIT_KM = 500;    // the usual height for cubesats of this family
-const INCLINE = 97.5;    // sun-synchronous, so the orbit passes over the poles
-const LAPS = 16500;      // laps CubeSX-HSE-3 had flown by its third year
-const FLOWN_MLN = 720;   // and million kilometres with them — nearly five
-                         // times the 149,6 million from here to the Sun
+// What the satellites are — names, dates, the height and the lie of the orbit
+// — comes from data/satellites.js, which the finale reads as well: it prints
+// those figures along the edge of the picture taken here, and a figure kept in
+// two places comes apart sooner or later. What belongs to the drawing rather
+// than to the satellites stays here.
+//
+// FLOWN_MLN is nearly five times the 149,6 million kilometres from here to
+// the Sun — which is what the closing line says.
+const EARTH_KM = 6371;   // the planet they go round
 
 // Where the four campuses stand on the globe, degrees north and east. On a
 // planet this size they come out a finger apart — which is the point: the
@@ -39,13 +40,15 @@ const CITY_AT = {
 const MIDDLE = Object.values(CITY_AT).reduce(
   (m, at, i, all) => [m[0] + at[0] / all.length, m[1] + at[1] / all.length], [0, 0]);
 
-// In the order they went up. `node` is where the orbit crosses the equator,
-// far enough apart that the three rings can be told from one another.
-const SATS = [
-  { name: 'CubeSX-HSE', node: -64 },
-  { name: 'CubeSX-HSE-2', node: 2 },
-  { name: 'CubeSX-HSE-3', node: 66 }
-];
+// Where each orbit crosses the equator — a matter of the drawing, not of the
+// satellites: far enough apart that the three rings can be told from one
+// another. In the order they went up.
+const NODES = [-64, 2, 66];
+const SATS = SATELLITES.map((sat, i) => ({ name: sat.name, node: NODES[i] }));
+
+// What the last two beats say — the satellite hangs over the campuses under
+// this line, and takes its picture under the same one.
+const SEEN_FROM_ORBIT = 'Вышка такая большая, что ее можно увидеть только со спутника';
 
 // One line per beat, and a quieter one under it.
 const STORY = [
@@ -55,15 +58,17 @@ const STORY = [
     sub: ''
   },
   {
-    line: 'CubeSX-HSE — запуск 22 марта 2021, Байконур',
+    // The name and the date are the data's; how the launch site is said —
+    // «снова», «уже с» — belongs to the sentence and stays here.
+    line: `${SATELLITES[0].name} — запуск ${SATELLITES[0].launched}, ${SATELLITES[0].from}`,
     sub: 'Вес 3,5 кг, камера с линзами Френеля'
   },
   {
-    line: 'CubeSX-HSE-2 — запуск 9 августа 2022, снова Байконур',
+    line: `${SATELLITES[1].name} — запуск ${SATELLITES[1].launched}, снова ${SATELLITES[1].from}`,
     sub: 'Следил за Арктикой и слушал суда на Северном морском пути'
   },
   {
-    line: 'CubeSX-HSE-3 — запуск 27 июня 2023, уже с Восточного',
+    line: `${SATELLITES[2].name} — запуск ${SATELLITES[2].launched}, уже с Восточного`,
     sub: 'Снимает Землю и ловит сигналы судов. Расчетный срок работы — год'
   },
   {
@@ -71,7 +76,13 @@ const STORY = [
     sub: ''   // this line counts itself up — see tell()
   },
   {
-    line: 'Вышка такая большая, что весь масштаб можно увидеть только со спутника',
+    line: SEEN_FROM_ORBIT,
+    sub: ''
+  },
+  {
+    // The line stays put while the picture is taken: there is nothing to read
+    // in the time that takes, and a line that changed would only flicker.
+    line: SEEN_FROM_ORBIT,
     sub: ''
   }
 ];
@@ -81,7 +92,8 @@ const STORY = [
 // down to the Earth — the picture it takes is the flash the next block
 // arrives in (meta.flash).
 const BURN = SATS.length + 1;
-const SHOOT = BURN + 1;
+const HOLD = BURN + 1;
+const SHOT = HOLD + 1;
 
 // What the reader gets on a narrow screen, where the story is one picture.
 const POSTER = {
@@ -116,12 +128,11 @@ export const meta = {
   },
   title: 'Вышка — просто космос!',
   // Phrasing content: the shell puts it inside a <p>.
-  subtitle: 'Вышка запустила уже <span class="space-mark">три своих спутника</span>. '
-    + 'Миссии первых двух завершены, а третий до сих пор находится на низкой орбите',
+  subtitle: 'Вышка запустила уже <span class="space-mark">три своих спутника</span>',
   intro: true,
   // The empty Earth arrives with the block, then one satellite a beat, a
   // beat for the one still flying, and the last one for the picture it takes.
-  steps: 6,
+  steps: 7,
   opensOnStep: true,
   // The block ends on a photograph about to be taken, and the next one comes
   // in the flash of it — the shell draws the flash, see «Вспышка на стыке».
@@ -139,7 +150,22 @@ export function init(root) {
   const DAY_LAPS = 15;          // ... and this many of them to one turn of the Earth
   const ARRIVE_MS = 1700;       // a satellite drawing its own orbit on the way in
   const BURN_MS = 900;          // and the flash it goes out with
-  const AIM_MS = 1500;          // the third one coming round and turning its camera down
+  // The last beat, all of it: the globe turns the campuses towards us while
+  // the satellite comes round to the point of its orbit right over them, then
+  // it turns its camera down, and then it takes the picture. One movement of
+  // the wheel, one thing happening — and the flash of that picture is the
+  // next beat, drawn by the shell (meta.flash).
+  // Kept short: the flash of the picture follows in the same beat, so this
+  // and the curtain after it are one stretch of time for the reader.
+  const AIM_MS = 1800;
+  const AIM_COME = 0.55;        // coming round is over by here
+  const AIM_TURN = 0.85;        // and the camera is down by here
+  // The point of the orbit right over the campuses lies well to the east of
+  // the middle of the disc, and four marks standing there are seen almost
+  // edge on. So the globe is turned a little past it: the campuses come round
+  // towards the reader and can be made out, while the satellite still looks
+  // down on them from inside the width of its own frame.
+  const FACE = 18;              // degrees of that extra turn
 
   // ---------- Markup ----------
   root.innerHTML = `
@@ -647,7 +673,9 @@ export function init(root) {
   // ground there is turned from us.
   function drawView(p, g, angle, a) {
     const lx = p.x + Math.cos(angle) * 5.4 * S, ly = p.y + Math.sin(angle) * 5.4 * S;
-    const half = 7 * S;
+    // Wide enough to take in all four campuses at once — that is the picture
+    // the whole block has been going towards.
+    const half = Math.max(7 * S, R * 0.17);
     const dx = g.x - CX, dy = g.y - CY;
     const out = Math.hypot(dx, dy) || 1;
     const ux = dx / out, uy = dy / out;                  // away from the middle of the disc
@@ -748,13 +776,20 @@ export function init(root) {
       // the end with the camera in it down, to the middle of the planet.
       let angle = Math.atan2(next.y - p.y, next.x - p.x);
       let aimed = 0;
-      // The ground right under it: the same place on the orbit, brought down
-      // to the surface. Seen from the front it can sit almost behind the
-      // satellite; then the camera simply faces into the picture, the way the
-      // middle of the planet lies.
-      const under = onOrbit(sat, sat.u, R);
+      // What the camera looks at. Flying, that is the ground right under it:
+      // the same place on the orbit, brought down to the surface. Seen from
+      // the front it can sit almost behind the satellite; then the camera
+      // simply faces into the picture, the way the middle of the planet lies.
+      // Taking its picture, it looks at the campuses instead — the globe is
+      // turned a little past the point right over them so that the four marks
+      // face the reader, and a camera that went on staring straight down would
+      // leave them outside its own frame. A satellite that can be pointed is
+      // how this is done for real, and the lean of the frame shows it.
+      const under = sat.aim ? put(MIDDLE[0], MIDDLE[1] - spin, R)
+        : onOrbit(sat, sat.u, R);
       if (sat.aim) {
-        const q = (clock - sat.aim.t0 - AIM_MS * 0.3) / (AIM_MS * 0.7);
+        const q = (clock - sat.aim.t0 - AIM_MS * (AIM_COME - 0.05))
+          / (AIM_MS * (AIM_TURN - AIM_COME + 0.05));
         aimed = q <= 0 ? 0 : q >= 1 ? 1 : 1 - Math.pow(1 - q, 3);
         const far = Math.hypot(under.x - p.x, under.y - p.y) > 3;
         let turn = (far ? Math.atan2(under.y - p.y, under.x - p.x)
@@ -764,9 +799,11 @@ export function init(root) {
       }
       drawOrbit(sat, (1 - dying) * (sat.died === null ? 1 : 0.5));
       if (dying > 0) drawFlare(p.x, p.y, dying);
-      if (aimed > 0 && !hidden(p)) drawView(p, under, angle, aimed);
+      // The frame brightens as the picture is taken.
+      const taking = sat.shot === null ? 0 : Math.max(0, 1 - (clock - sat.shot) / 500);
+      if (aimed > 0 && !hidden(p)) drawView(p, under, angle, aimed * (1 + taking));
       drawBody(p.x, p.y, angle, away * (1 - dying), aimed);
-      if (aimed >= 1 && !hidden(p)) drawGlint(p, angle, clock - sat.aim.t0 - AIM_MS);
+      if (sat.shot !== null && !hidden(p)) drawGlint(p, angle, clock - sat.shot);
       if (!dying) drawLabel(sat, p.x, p.y, hidden(p) ? 0.45 : 1);
     });
   }
@@ -789,7 +826,19 @@ export function init(root) {
     clock += dt;
     // While the reader holds the globe it stays where the hand puts it; let
     // go with a flick and it carries on that way, slowing into its own turn.
-    if (!drag) {
+    if (frozen && !steer && !drag) {
+      // Held over the campuses: no turn of its own. A flick of the hand still
+      // carries and dies out, and then it stands still again.
+      spin += fling * dt;
+      fling *= Math.exp(-dt / 450);
+      if (Math.abs(fling) < 1e-4) fling = 0;
+    } else if (steer && !drag) {
+      // Turned round to bring the campuses under the satellite, then left to
+      // its own turn again.
+      const p = Math.min(1, (clock - steer.t0) / (AIM_MS * AIM_COME));
+      spin = steer.from + (steer.to - steer.from) * (1 - Math.pow(1 - p, 3));
+      if (p >= 1) steer = null;
+    } else if (!drag) {
       // `fling` is how fast the hand was changing the turn, sign and all, so
       // it carries on the same way: added, not taken away like the day's turn.
       spin += fling * dt - (dt / (LAP_MS * DAY_LAPS)) * 360;
@@ -799,13 +848,12 @@ export function init(root) {
     SATS.forEach((sat) => {
       if (sat.born === null) return;
       if (sat.aim) {
-        // Round to the side of its orbit that faces us, and then all but
-        // still while it takes the picture — a twentieth of its pace, so the
-        // frame is held without the orbit stopping dead.
+        // Round to the point over the campuses, and there it stops dead: the
+        // globe stops with it, and the reader is left a still picture to read
+        // the line over for as long as they like.
         const a = sat.aim;
-        const p = Math.min(1, (clock - a.t0) / AIM_MS);
-        if (p >= 1) a.extra += (dt / LAP_MS) * Math.PI * 2 * 0.05;
-        sat.u = a.from + (a.to - a.from) * (1 - Math.pow(1 - p, 3)) + a.extra;
+        const p = Math.min(1, (clock - a.t0) / (AIM_MS * AIM_COME));
+        sat.u = a.from + (a.to - a.from) * (1 - Math.pow(1 - p, 3));
         return;
       }
       const p = (clock - sat.born) / ARRIVE_MS;
@@ -836,6 +884,8 @@ export function init(root) {
   // same gesture scrolls the page, and taking it away would strand the
   // reader on this block.
   let drag = null;
+  let steer = null;             // a turn the story asks for, see step()
+  let frozen = false;           // ... and the stop it asks for after that
   let fling = 0;                // change of the turn per ms a flick leaves behind
 
   canvas.addEventListener('pointerdown', (e) => {
@@ -843,6 +893,7 @@ export function init(root) {
     e.preventDefault();
     drag = { x: e.clientX, t: performance.now(), v: 0 };
     fling = 0;
+    steer = null;               // the hand wins over the story
     canvas.setPointerCapture(e.pointerId);
     canvas.classList.add('is-dragging');
   });
@@ -885,6 +936,15 @@ export function init(root) {
   watch.observe(root.closest('.viz-section') || root);
   document.addEventListener('visibilitychange', () => run(near && started && !document.hidden));
 
+  // Where a satellite stands when it is right over the campuses: the point of
+  // its orbit at their latitude, on the half of the pass that goes north, and
+  // the turn of the globe that brings them under it.
+  const overhead = (sat) => {
+    const u = Math.asin(Math.max(-1, Math.min(1, Math.sin(MIDDLE[0] * RAD) / sinI)));
+    const psi = sat.node + Math.atan2(cosI * Math.sin(u), Math.cos(u)) / RAD;
+    return { u, spin: MIDDLE[1] - psi + FACE };
+  };
+
   // ---------- The story ----------
   // Each of them sets off a little before the point of its own orbit that is
   // nearest to us, so the lap it draws on the way in starts in plain sight
@@ -902,6 +962,7 @@ export function init(root) {
     sat.born = null;
     sat.died = null;
     sat.aim = null;
+    sat.shot = null;
     sat.start = nearestU(sat);
     sat.u = sat.start;
     sat.uIn = sat.start;
@@ -965,16 +1026,34 @@ export function init(root) {
       // The one still flying comes round to face us and takes its picture.
       // On a narrow screen the story is one picture of all three, so none of
       // them stops for it.
-      const aims = on && i >= SHOOT && !narrow.matches && k === SATS.length - 1;
+      const aims = on && i >= HOLD && !narrow.matches && k === SATS.length - 1;
       if (aims && !sat.aim) {
-        const best = nearestU(sat) + 0.9;             // the point of the orbit nearest us
-        const to = best + Math.PI * 2 * Math.ceil((sat.u - best) / (Math.PI * 2));
-        sat.aim = instant
-          ? { from: to, to, t0: clock - AIM_MS - 700, extra: 0 }
-          : { from: sat.u, to, t0: clock, extra: 0 };
+        // Wherever the globe and the satellite happen to be, both are brought
+        // round: the campuses to face us, the satellite to the point of its
+        // orbit right over them.
+        const over = overhead(sat);
+        const to = over.u + Math.PI * 2 * Math.ceil((sat.u - over.u) / (Math.PI * 2));
+        const turn = over.spin + 360 * Math.round((spin - over.spin) / 360);
+        if (instant) {
+          sat.aim = { from: to, to, t0: clock - AIM_MS, extra: 0 };
+          spin = turn;
+          steer = null;
+        } else {
+          sat.aim = { from: sat.u, to, t0: clock, extra: 0 };
+          steer = { from: spin, to: turn, t0: clock };
+        }
       }
-      if (!aims) sat.aim = null;
+      if (!aims) { sat.aim = null; if (i < HOLD) steer = null; }
+      // The picture is taken on the beat after that, and the flash it goes off
+      // in belongs to the same beat — the shell draws that part.
+      const shoots = aims && i >= SHOT;
+      if (shoots && sat.shot === null) sat.shot = instant ? clock - 600 : clock;
+      if (!shoots) sat.shot = null;
     });
+
+    // From the beat it comes round over the campuses, the globe stops turning
+    // on its own: the reader needs the picture still to read the line over it.
+    frozen = i >= HOLD && !narrow.matches;
 
     shown = i;
     say(i);
@@ -992,7 +1071,8 @@ export function init(root) {
     span: (i) => {
       if (still || narrow.matches) return 0;
       if (i === BURN) return 2200;
-      if (i === SHOOT) return AIM_MS + 100;
+      if (i === HOLD) return AIM_MS;
+      if (i === SHOT) return 600;
       return ARRIVE_MS;
     }
   };

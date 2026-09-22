@@ -5,6 +5,7 @@
 
 import { CITIES, LYCEUM, STAFF, STUDENTS, FOREIGN, HSE_TOTAL, ADMITTED, AREA_TOTAL } from '../data/hse.js';
 import { COUNTRIES } from '../data/countries.js';
+import { ORBIT_KM, INCLINE, LAPS, SATELLITES } from '../data/satellites.js';
 import { nf, dec, plural } from '../lib/format.js';
 
 // The teaching part of the floor area — data/hse.js keeps it campus by campus.
@@ -17,22 +18,19 @@ const AREA_STUDY = CITIES.reduce((n, c) => n + c.areaStudy, 0);
 const BUILDINGS = 196;      // buildings — the floor area section
 const PROGRAMS = 329;       // programmes — the studies section
 const YEARS = 912;          // years of study one after another — the same
-const SATELLITES = 3;       // satellites the university has put in orbit — space
-const LAPS = 16500;         // laps the third of them has flown — the same
 
-// The shot the board is: the one satellite still up there, and its orbit, as
-// the space section gives them. Only the caption along the edge of the frame
-// uses them.
-const CAMERA = 'CubeSX-HSE-3';
-const ORBIT_KM = 500;
-const INCLINE = 97.5;
+// The satellites are not quoted like the rest: «Космос» draws them and this
+// block captions the picture they took, so both read the same data file and
+// a corrected orbit cannot leave the caption behind. The one that took the
+// shot is the last to go up — the one still flying, whose laps are counted.
+const CAMERA = SATELLITES[SATELLITES.length - 1].name;
 
 export const meta = {
   id: 'each',
   // The section arrives out of the white of a satellite's flash, like a photo
   // developing — and the heading is the caption to that shot: the whole
   // university in one frame.
-  title: 'Вышка такая большая, что весь масштаб можно увидеть только со спутника',
+  title: 'Вышка такая большая, что ее можно увидеть только со спутника',
   subtitle: '',
   // No title card: the flash opens straight onto the photograph, figures and
   // all. A heading waiting alone in the middle of the screen would be one more
@@ -97,7 +95,7 @@ export function init(root) {
     fig(AREA_STUDY, 0.85, 'м² для учебы'),
     fig(PROGRAMS, 1.1, of(PROGRAMS, 'программа', 'программы', 'программ')),
     fig(YEARS, 1.2, `${of(YEARS, 'год', 'года', 'лет')} учебы`),
-    fig(SATELLITES, 1.0, of(SATELLITES, 'спутник', 'спутника', 'спутников')),
+    fig(SATELLITES.length, 1.0, of(SATELLITES.length, 'спутник', 'спутника', 'спутников')),
     fig(LAPS, 1.0, of(LAPS, 'виток', 'витка', 'витков')),
     // The campuses themselves, just before what each of them holds.
     fig(CITIES.length, 1.0, of(CITIES.length, 'кампус', 'кампуса', 'кампусов')),
