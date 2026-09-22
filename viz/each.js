@@ -100,6 +100,8 @@ export function init(root) {
     fig(YEARS, 1.2, `${of(YEARS, 'год', 'года', 'лет')} учебы`),
     fig(SATELLITES, 1.0, of(SATELLITES, 'спутник', 'спутника', 'спутников')),
     fig(LAPS, 1.0, of(LAPS, 'виток', 'витка', 'витков')),
+    // The campuses themselves, just before what each of them holds.
+    fig(CITIES.length, 1.0, of(CITIES.length, 'кампус', 'кампуса', 'кампусов')),
     fig(cityOf('msk').students, 1.1, students('msk', 'в Москве')),
     fig(cityOf('spb').students, 0.75, students('spb', 'в Санкт-Петербурге')),
     fig(cityOf('nn').students, 0.7, students('nn', 'в Нижнем Новгороде')),
