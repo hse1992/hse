@@ -5,7 +5,7 @@
 
 import { CITIES, LYCEUM, STAFF, STUDENTS, FOREIGN, HSE_TOTAL, ADMITTED, AREA_TOTAL } from '../data/hse.js';
 import { COUNTRIES } from '../data/countries.js';
-import { nf } from '../lib/format.js';
+import { nf, dec, plural } from '../lib/format.js';
 
 // The teaching part of the floor area — data/hse.js keeps it campus by campus.
 const AREA_STUDY = CITIES.reduce((n, c) => n + c.areaStudy, 0);
@@ -19,11 +19,22 @@ const BUILDINGS = 196;      // buildings — the floor area section
 const PROGRAMS = 329;       // programmes — the studies section
 const YEARS = 912;          // years of study one after another — the same
 const CARS = 134;           // metro cars for this year's intake — the opening
+const SATELLITES = 3;       // satellites the university has put in orbit — space
+const LAPS = 16500;         // laps the third of them has flown — the same
+
+// The shot the board is: the one satellite still up there, and its orbit, as
+// the space section gives them. Only the caption along the edge of the frame
+// uses them.
+const CAMERA = 'CubeSX-HSE-3';
+const ORBIT_KM = 500;
+const INCLINE = 97.5;
 
 export const meta = {
   id: 'each',
-  title: 'На странице было много разных цифр',
-  // The heading says all of it; the numbers come with nothing under them.
+  // The section arrives out of the white of a satellite's flash, like a photo
+  // developing — and the heading is the caption to that shot: the whole
+  // university in one frame.
+  title: 'Вышка такая большая, что весь масштаб можно увидеть только со спутника',
   subtitle: '',
   intro: true,
   // The board is what the section arrives with — the card settling into place
@@ -45,46 +56,63 @@ export function init(root) {
 
   const cityOf = (key) => CITIES.find((c) => c.key === key);
 
-  // Five colours for the board: the four campuses of the page and its plain
-  // text. The university's own blue is kept out of it — it belongs to the one
-  // figure at the end and to nothing else.
+  // The board is a photograph, so it is printed in one ink: the university's
+  // blue at three depths, like a cyanotype. The larger a figure, the deeper its
+  // tone — the eye goes from the heaviest figures to the lighter ones, instead
+  // of hopping between five unrelated colours. The words after the numbers
+  // stay a quiet grey, so the colour belongs to the figures alone.
+  const HSE = 'var(--hse-blue)';
   const INK = {
     ink: 'var(--text)',
-    msk: cityOf('msk').color,
-    spb: cityOf('spb').color,
-    nn: cityOf('nn').color,
-    perm: cityOf('perm').color
+    deep: HSE,
+    mid: 'color-mix(in srgb, var(--hse-blue) 70%, var(--card))',
+    light: 'color-mix(in srgb, var(--hse-blue) 46%, var(--card))'
   };
-  const HSE = 'var(--hse-blue)';
+  const toneOf = (w) => (w >= 1.3 ? 'deep' : w >= 1.0 ? 'mid' : 'light');
   // What the board fades to once the question has been asked: the figures are
   // all still there, they have simply stopped being the point — so far back
   // that the only dark thing left on the screen is the question itself.
   const GREY = 'var(--text-faded)';
 
-  // Every figure of the page, in the order it turns up here. `w` is how much
-  // larger than the others it is set, `c` is which of the five colours it
-  // takes — laid out by hand so that no two neighbours share one.
-  const fig = (n, w, c, text) => ({ n, w, c, value: text || nf(n) });
+  // Every figure of the page, in the order it turns up here, each with what it
+  // counts: the number is read first, the word after it says of what. `w` is
+  // how much it weighs against the others, and its tone of blue follows from
+  // that. `size` is what the layout uses: the same order of sizes as `w`,
+  // drawn much closer together — a board where one figure is three times
+  // another reads as a mess, not as a hierarchy.
+  const fig = (n, w, noun, text) =>
+    ({ n, w, c: toneOf(w), size: 0.55 + 0.5 * w, noun, value: text || nf(n) });
+  const of = (n, one, few, many) => plural(n, one, few, many);
+  const students = (key, where) =>
+    `${of(cityOf(key).students, 'студент', 'студента', 'студентов')} ${where}`;
+
   const FIGURES = [
-    fig(STUDENTS, 1.5, 'ink'),
-    fig(STAFF, 1.05, 'msk'),
-    fig(LYCEUM, 0.75, 'spb'),
-    fig(ADMITTED, 1.2, 'nn'),
-    fig(CARS, 0.8, 'perm'),
-    fig(SEATS, 1.3, 'ink'),
-    fig(COUNTRIES.length, 0.9, 'spb'),
-    fig(FOREIGN, 0.85, 'msk', `${nf(FOREIGN)}+`),
-    fig(BUILDINGS, 1.05, 'nn'),
-    fig(AREA_TOTAL, 1.35, 'ink'),
-    fig(AREA_STUDY, 0.85, 'perm'),
-    fig(PROGRAMS, 1.1, 'msk'),
-    fig(YEARS, 1.2, 'spb'),
-    fig(cityOf('msk').students, 1.1, 'msk'),
-    fig(cityOf('spb').students, 0.75, 'spb'),
-    fig(cityOf('nn').students, 0.7, 'nn'),
-    fig(cityOf('perm').students, 0.7, 'perm'),
-    fig(HSE_TOTAL, 1.9, 'ink')
+    fig(STUDENTS, 1.5, of(STUDENTS, 'студент', 'студента', 'студентов')),
+    fig(STAFF, 1.05, of(STAFF, 'сотрудник', 'сотрудника', 'сотрудников')),
+    fig(LYCEUM, 0.75, of(LYCEUM, 'лицеист', 'лицеиста', 'лицеистов')),
+    fig(ADMITTED, 1.2, of(ADMITTED, 'первокурсник', 'первокурсника', 'первокурсников')),
+    fig(CARS, 0.8, `${of(CARS, 'вагон', 'вагона', 'вагонов')} метро`),
+    fig(SEATS, 1.3, `${of(SEATS, 'место', 'места', 'мест')} на стадионе`),
+    fig(COUNTRIES.length, 0.9, of(COUNTRIES.length, 'страна', 'страны', 'стран')),
+    fig(FOREIGN, 0.85, of(FOREIGN, 'иностранец', 'иностранца', 'иностранцев'), `${nf(FOREIGN)}+`),
+    fig(BUILDINGS, 1.05, of(BUILDINGS, 'здание', 'здания', 'зданий')),
+    fig(AREA_TOTAL, 1.35, 'м² площади'),
+    fig(AREA_STUDY, 0.85, 'м² для учебы'),
+    fig(PROGRAMS, 1.1, of(PROGRAMS, 'программа', 'программы', 'программ')),
+    fig(YEARS, 1.2, `${of(YEARS, 'год', 'года', 'лет')} учебы`),
+    fig(SATELLITES, 1.0, of(SATELLITES, 'спутник', 'спутника', 'спутников')),
+    fig(LAPS, 1.0, of(LAPS, 'виток', 'витка', 'витков')),
+    fig(cityOf('msk').students, 1.1, students('msk', 'в Москве')),
+    fig(cityOf('spb').students, 0.75, students('spb', 'в Санкт-Петербурге')),
+    fig(cityOf('nn').students, 0.7, students('nn', 'в Нижнем Новгороде')),
+    fig(cityOf('perm').students, 0.7, students('perm', 'в Перми')),
+    fig(HSE_TOTAL, 1.9, of(HSE_TOTAL, 'человек', 'человека', 'человек'))
   ];
+
+  // A figure as it is set: the number, and the word after it smaller, on the
+  // same line — one phrase, but the number is what the eye lands on.
+  const markup = (f) => `<span class="each-n">${f.value}</span>`
+    + `<span class="each-w">\u00a0${f.noun}</span>`;
 
   // What the board comes to when it is added up. It is not a quantity of
   // anything — square metres, years and people all go into it — and nothing on
@@ -125,6 +153,72 @@ export function init(root) {
       .each-sum.is-clearing {
         box-shadow: 0 0 130px 42px var(--card);
       }
+
+      /* What the figure counts: after the number, in grey, smaller and without
+         the tight tracking of the figures. Large enough to be read as part of
+         the phrase, not as a footnote to it. */
+      .each-w {
+        font-size: 0.42em;
+        font-weight: 500;
+        letter-spacing: 0;
+        color: var(--text-secondary);
+        transition: color 620ms ease;
+      }
+
+      /* Once the board steps back, the words go with their figures. */
+      .each-stage.is-faded .each-w {
+        color: inherit;
+      }
+
+      /* The board is a shot from orbit: the corners of a viewfinder, and the
+         satellite's own caption along the edges of the frame. It belongs to
+         the photograph only — once the figures start adding up, the frame is
+         no longer a picture of anything and goes. */
+      .each-hud {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        transition: opacity 620ms ease;
+      }
+
+      .each-hud.is-gone {
+        opacity: 0;
+      }
+
+      .each-corner {
+        position: absolute;
+        width: 30px;
+        height: 30px;
+        border: 0 solid var(--text);
+      }
+
+      .each-corner.tl { left: 0; top: 0; border-left-width: 3px; border-top-width: 3px; }
+      .each-corner.tr { right: 0; top: 0; border-right-width: 3px; border-top-width: 3px; }
+      .each-corner.bl { left: 0; bottom: 0; border-left-width: 3px; border-bottom-width: 3px; }
+      .each-corner.br { right: 0; bottom: 0; border-right-width: 3px; border-bottom-width: 3px; }
+
+      .each-meta {
+        position: absolute;
+        display: flex;
+        flex-direction: column;
+        gap: 1px;
+        font-size: 0.8125rem;
+        line-height: 1.3;
+        letter-spacing: 0.02em;
+        font-variant-numeric: tabular-nums;
+        color: var(--text-secondary);
+        white-space: nowrap;
+      }
+
+      .each-meta b {
+        font-weight: 700;
+        color: var(--text);
+      }
+
+      .each-meta.tl { left: 42px; top: 0; }
+      .each-meta.tr { right: 42px; top: 0; text-align: right; }
+      .each-meta.bl { left: 42px; bottom: 0; }
+      .each-meta.br { right: 42px; bottom: 0; text-align: right; }
 
       /* The stand-in the figures are measured on: parked out of sight, never
          moved, never scaled. */
@@ -249,11 +343,28 @@ export function init(root) {
 
         .each-you { font-size: 1.375rem; }
         .each-why { font-size: 0.9375rem; }
+
+        /* A phone gets the board and its answer as one still picture; a frame
+           and a caption in each corner of a card this small would only crowd
+           it. */
+        .each-hud { display: none; }
+
+        /* The figures on a phone come out small, and a word at a third of a
+           small number cannot be read — here it is set relatively larger. */
+        .each-w { font-size: 0.5em; }
       }
     </style>
 
     <div class="canvas-card each-card">
       <div class="each-stage" data-el="stage">
+        <div class="each-hud" data-el="hud" aria-hidden="true">
+          <i class="each-corner tl"></i><i class="each-corner tr"></i>
+          <i class="each-corner bl"></i><i class="each-corner br"></i>
+          <div class="each-meta tl" data-el="metaTop"><b>${CAMERA}</b></div>
+          <div class="each-meta tr"><span>высота ${nf(ORBIT_KM)} км</span><span>наклонение ${dec(INCLINE)}°</span></div>
+          <div class="each-meta bl" data-el="metaBottom"><span>Земля, видимый диапазон</span></div>
+          <div class="each-meta br"><span>кадр 1</span></div>
+        </div>
         <div class="each-line each-end" data-el="end">
           <div class="each-you">Это ты</div>
           <div class="each-why">Потому что для Вышки важен каждый</div>
@@ -281,7 +392,7 @@ export function init(root) {
   const tiles = FIGURES.map((f) => {
     const el = document.createElement('div');
     el.className = 'each-tile';
-    el.textContent = f.value;
+    el.innerHTML = markup(f);
     el.style.color = INK[f.c];
     stage.appendChild(el);
     return { ...f, el, at: null };
@@ -297,7 +408,10 @@ export function init(root) {
 
   // The board is in colour while it is the point of the screen, and grey from
   // the moment the question is asked over it.
-  const paint = (grey) => tiles.forEach((t) => { t.el.style.color = grey ? GREY : INK[t.c]; });
+  const paint = (grey) => {
+    stage.classList.toggle('is-faded', grey);
+    tiles.forEach((t) => { t.el.style.color = grey ? GREY : INK[t.c]; });
+  };
 
   // ---------- The lines ----------
   const lines = { turn, end: $('end') };
@@ -322,12 +436,12 @@ export function init(root) {
 
   function measure() {
     probe.style.fontSize = `${REF}px`;
-    const read = (text) => {
-      probe.textContent = text;
+    const read = (text, html) => {
+      if (html) probe.innerHTML = html; else probe.textContent = text;
       const r = probe.getBoundingClientRect();
       return { w: r.width, h: r.height };
     };
-    tiles.forEach((t) => { t.m = read(t.value); });
+    tiles.forEach((t) => { t.m = read(null, markup(t)); });
     sumM = read(nf(TOTAL));
     oneM = read('1');
   }
@@ -413,14 +527,22 @@ export function init(root) {
     const gap = Math.round(Math.min(40, h * 0.06));
     const top = (h - (numH + gap + endH)) / 2;
 
+    // The board is laid out inside the frame of the shot, clear of the
+    // caption strips along its top and bottom edges.
+    const capTop = $('metaTop').offsetHeight + 14;
+    const capBottom = $('metaBottom').offsetHeight + 12;
+    const shot = { x: 0, y: capTop, w, h: Math.max(80, h - capTop - capBottom) };
+
     L = {
-      board: pack(tiles.map((t) => ({ m: t.m, w: t.w })), area, 150),
+      board: pack(tiles.map((t) => ({ m: t.m, w: t.size })), shot, 150),
       big,
       end: [{ ...big[0], cy: top + numH / 2 }],
       endTop: Math.round(top + numH + gap),
       // No scene on a narrow screen: the board and the answer under it are one
       // still picture, so the reader gets the whole thought at once.
-      poster: pack(tiles.map((t) => ({ m: t.m, w: t.w })),
+      // The sizes are drawn closer together than on the wide board: at a
+      // phone's width the smallest of them would otherwise be unreadable.
+      poster: pack(tiles.map((t) => ({ m: t.m, w: 0.6 + 0.4 * t.w })),
         { x: 0, y: 0, w, h: Math.max(60, (h - endH - 16) * 0.66) }, 90),
       posterOne: rows([{ m: oneM, w: 1 }],
         Math.min(72, Math.max(34, h * 0.12)),
@@ -617,6 +739,10 @@ export function init(root) {
     if (!L) relayout();
     if (narrow.matches) { poster(); return; }
 
+    // The shot stays a shot while the board is up; once it starts adding up,
+    // the frame around it goes.
+    $('hud').classList.toggle('is-gone', i >= 2);
+
     // The whole board at once. It is put up without an arrival of its own: the
     // section is still coming in when this is called, so anything played here
     // would be played to nobody — and a reader quick on the wheel would catch
@@ -682,6 +808,12 @@ export function init(root) {
     step(i) {
       shown = i;
       play(i);
-    }
+    },
+    // The two steps that play longer than a beat hold the wheel until they are
+    // done: the board adding up takes 2.3 s in all, and a quick reader would
+    // otherwise set the count going over a sum still being made. The count
+    // with its answer runs longer than the shell allows — it is given the
+    // most there is, and plays the rest out on a screen that stays put.
+    span: (i) => (still || narrow.matches ? 0 : i === 2 ? 2300 : i === 3 ? 2500 : 0)
   };
 }
