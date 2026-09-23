@@ -132,7 +132,7 @@ export const meta = {
   },
   title: 'Вышка — просто космос!',
   // Phrasing content: the shell puts it inside a <p>.
-  subtitle: 'Вышка запустила уже <span class="space-mark">три своих спутника</span>',
+  subtitle: 'Запустили уже <span class="space-mark">три своих спутника</span>',
   intro: true,
   // The empty Earth arrives with the block, then one satellite a beat, a
   // beat for the one still flying, and the last one for the picture it takes.
