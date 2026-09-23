@@ -110,6 +110,10 @@ export const meta = {
     // a beat with the card standing alone in the middle would show nothing
     // the beat before and the beat after do not.
     together: true,
+    // Up rather than aside: the phrase is about reaching the orbit, so it
+    // leaves the way the block goes — and the card rises from below with the
+    // planet instead of sliding in from the side.
+    exit: 'up',
     // Two lines by design, and the break is chosen rather than left to the
     // width of the window. Set inline, not from the stylesheet of the module:
     // the shell measures the lead-in to decide whether it fits, and it does
@@ -448,17 +452,17 @@ export function init(root) {
     }
     const home = -Math.round((lo + hi) / 2 / 360) * 360;
 
-    const out = [];
-    // A ring can reach round the world — Antarctica does — so the turn before
-    // and the turn after are tried as well.
-    [-360, 0, 360].forEach((off) => {
-      const shift = home + off;
-      if (lo + shift > 180 || hi + shift < -180) return;
-      const moved = shift ? pts.map((p) => [p[0] + shift, p[1]]) : pts;
-      const cut = clipToFace(moved);
-      if (cut.length > 2) out.push(cut);
-    });
-    return out;
+    // One copy, and only one. A ring that reaches round the world — Eurasia
+    // does, from the date line to the date line — used to be tried a turn
+    // earlier and a turn later as well, in case part of it showed from the
+    // other side. But a turn of longitude is the same place on the globe, and
+    // everything below reads longitude through a sine or a cosine, so those
+    // copies came out exactly on top of this one. Drawn twice, they told the
+    // fill that a lake inside the ring was land after all — and the Caspian
+    // filled in with the rest of Eurasia while the Earth turned.
+    const moved = home ? pts.map((p) => [p[0] + home, p[1]]) : pts;
+    const cut = clipToFace(moved);
+    return cut.length > 2 ? [cut] : [];
   }
 
   // Traces a ring of the sphere, cutting every long edge into shorter ones so
@@ -679,16 +683,27 @@ export function init(root) {
     const dx = g.x - CX, dy = g.y - CY;
     const out = Math.hypot(dx, dy) || 1;
     const ux = dx / out, uy = dy / out;                  // away from the middle of the disc
+    const tx = -uy, ty = ux;                             // along the limb
+    const ra = half * Math.max(0.2, g.z), rb = half;     // the patch, squashed
     ctx.save();
     ctx.fillStyle = C.sat;
-    const along = Math.hypot(g.x - lx, g.y - ly);
-    if (along > 2) {
-      const vx = (g.x - lx) / along, vy = (g.y - ly) / along;
+    // The wedge stands on that patch: its sides are the tangents from the lens
+    // to the ellipse, so the light never reaches past the ground it lights.
+    // Tangents are found in the space where the ellipse is a unit circle —
+    // scaling is affine, so a tangent there is a tangent here.
+    const ex = (lx - g.x), ey = (ly - g.y);
+    const px = (ex * ux + ey * uy) / ra, py = (ex * tx + ey * ty) / rb;
+    const far = Math.hypot(px, py);
+    if (far > 1.02) {
+      const mid = Math.atan2(py, px), open = Math.acos(1 / far);
       ctx.globalAlpha = 0.3 * a;
       ctx.beginPath();
       ctx.moveTo(lx, ly);
-      ctx.lineTo(g.x - vy * half, g.y + vx * half);
-      ctx.lineTo(g.x + vy * half, g.y - vx * half);
+      for (const side of [-1, 1]) {
+        const w = mid + side * open;
+        const along = Math.cos(w) * ra, across = Math.sin(w) * rb;
+        ctx.lineTo(g.x + ux * along + tx * across, g.y + uy * along + ty * across);
+      }
       ctx.closePath();
       ctx.fill();
     }
@@ -696,7 +711,7 @@ export function init(root) {
     ctx.translate(g.x, g.y);
     ctx.rotate(Math.atan2(uy, ux));
     ctx.beginPath();
-    ctx.ellipse(0, 0, half * Math.max(0.2, g.z), half, 0, 0, Math.PI * 2);
+    ctx.ellipse(0, 0, ra, rb, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
   }

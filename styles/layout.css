@@ -978,8 +978,9 @@ button { font-family: inherit; }
 .viz-intro .viz-header {
   width: calc(100% / var(--intro-k, 1));
   /* --card-x waits the card off to the right while the lead-in screen has the
-     stage; the rest is the card settling into place. */
-  transform: translateX(var(--card-x, 0))
+     stage, or --card-y waits it below when that screen leaves upwards; the
+     rest is the card settling into place. */
+  transform: translate(var(--card-x, 0), var(--card-y, 0))
              translateY(var(--intro-dy, 0px))
              scale(var(--intro-k, 1));
   transform-origin: left top;

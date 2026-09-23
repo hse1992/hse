@@ -5,7 +5,7 @@
 
 import { CITIES, LYCEUM, STAFF, STUDENTS, FOREIGN, HSE_TOTAL, ADMITTED, AREA_TOTAL } from '../data/hse.js';
 import { COUNTRIES } from '../data/countries.js';
-import { ORBIT_KM, INCLINE, LAPS, SATELLITES } from '../data/satellites.js';
+import { ORBIT_KM, INCLINE, SATELLITES } from '../data/satellites.js';
 import { nf, dec, plural } from '../lib/format.js';
 
 // The teaching part of the floor area — data/hse.js keeps it campus by campus.
@@ -18,6 +18,15 @@ const AREA_STUDY = CITIES.reduce((n, c) => n + c.areaStudy, 0);
 const BUILDINGS = 196;      // buildings — the floor area section
 const PROGRAMS = 329;       // programmes — the studies section
 const YEARS = 912;          // years of study one after another — the same
+
+// The day the shot was taken is the day it is looked at: the frame along the
+// edge says «now», whenever the reader's now happens to be. Written out here
+// rather than through toLocaleDateString, which the page keeps out of modules.
+const today = () => {
+  const d = new Date();
+  const pad = (n) => (n < 10 ? `0${n}` : `${n}`);
+  return `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()}`;
+};
 
 // The satellites are not quoted like the rest: «Космос» draws them and this
 // block captions the picture they took, so both read the same data file and
@@ -96,7 +105,6 @@ export function init(root) {
     fig(PROGRAMS, 1.1, of(PROGRAMS, 'программа', 'программы', 'программ')),
     fig(YEARS, 1.2, `${of(YEARS, 'год', 'года', 'лет')} учебы`),
     fig(SATELLITES.length, 1.0, of(SATELLITES.length, 'спутник', 'спутника', 'спутников')),
-    fig(LAPS, 1.0, of(LAPS, 'виток', 'витка', 'витков')),
     // The campuses themselves, just before what each of them holds.
     fig(CITIES.length, 1.0, of(CITIES.length, 'кампус', 'кампуса', 'кампусов')),
     fig(cityOf('msk').students, 1.1, students('msk', 'в Москве')),
@@ -359,7 +367,7 @@ export function init(root) {
           <i class="each-corner bl"></i><i class="each-corner br"></i>
           <div class="each-meta tl" data-el="metaTop"><b>${CAMERA}</b></div>
           <div class="each-meta tr"><span>высота ${nf(ORBIT_KM)} км</span><span>наклонение ${dec(INCLINE)}°</span></div>
-          <div class="each-meta bl" data-el="metaBottom"><span>Земля, видимый диапазон</span></div>
+          <div class="each-meta bl" data-el="metaBottom"><span>Дата снимка: ${today()}</span></div>
           <div class="each-meta br"><span>кадр 1</span></div>
         </div>
         <div class="each-line each-end" data-el="end">
@@ -510,13 +518,23 @@ export function init(root) {
     const h = stage.clientHeight || 500;
     const area = { x: 0, y: 0, w, h };
 
+    // How much room is left clear along the edges. The figures are packed as
+    // large as they will go inside whatever area they are given, so the air
+    // has to be taken out of the area — trimming the type size instead would
+    // be undone by the next reflow.
+    const airX = Math.round(Math.min(104, w * 0.095));
+    const airY = Math.round(Math.min(44, h * 0.07));
+
     // How much room the answer takes along the bottom edge. Measured, not
     // guessed: on a narrow screen it runs to two rows.
     const endH = lines.end.offsetHeight;
 
     // The middle is sized for the longest thing it ever says — the whole sum —
     // and keeps that size all the way down to the one.
-    const big = pack([{ m: sumM, w: 1 }], area, Math.min(area.h * 0.62, 300));
+    // Half the board's margin: this one figure is meant to fill the screen,
+    // and only needs to stop short of the edge of the card.
+    const wide = { x: airX / 2, y: 0, w: Math.max(200, w - airX), h };
+    const big = pack([{ m: sumM, w: 1 }], wide, Math.min(area.h * 0.62, 300));
 
     // Once the answer is there, the figure and the two lines under it stand as
     // one block in the middle of the screen.
@@ -524,11 +542,17 @@ export function init(root) {
     const gap = Math.round(Math.min(40, h * 0.06));
     const top = (h - (numH + gap + endH)) / 2;
 
-    // The board is laid out inside the frame of the shot, clear of the
-    // caption strips along its top and bottom edges.
+    // The board is laid out inside the frame of the shot, clear of the caption
+    // strips along its top and bottom edges — and clear of the frame itself,
+    // the way a photograph is given a margin.
     const capTop = $('metaTop').offsetHeight + 14;
     const capBottom = $('metaBottom').offsetHeight + 12;
-    const shot = { x: 0, y: capTop, w, h: Math.max(80, h - capTop - capBottom) };
+    const shot = {
+      x: airX,
+      y: capTop + airY,
+      w: Math.max(120, w - airX * 2),
+      h: Math.max(80, h - capTop - capBottom - airY * 2)
+    };
 
     L = {
       board: pack(tiles.map((t) => ({ m: t.m, w: t.size })), shot, 150),
