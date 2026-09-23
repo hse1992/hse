@@ -2481,8 +2481,10 @@ function leadCard(section, K = () => CARD_K, cardHeight = null) {
       const from = (k - 1) * LEAD_STAGE_SCREENS + LEAD_STAGE_AT;
       const v = clamp((q - from) / LEAD_STAGE_SPAN);
       const grown = 1 - Math.pow(1 - v, 3);
+      const tall = openHeight(el);
       el.style.opacity = grown.toFixed(3);
-      el.style.height = grown < 1 ? `${(openHeight(el) * grown).toFixed(1)}px` : '';
+      // Nothing to grow if it has no height of its own yet — see stageCards.
+      el.style.height = grown < 1 && tall > 0 ? `${(tall * grown).toFixed(1)}px` : '';
       // How far each part has come, for anyone who cares: a screen where one
       // part replaces another has the earlier one leave by the same number.
       section.style.setProperty(`--lead-stage-${k}`, grown.toFixed(3));
@@ -2603,8 +2605,16 @@ function stageCards(section, stages) {
 
     blocks.forEach((el) => {
       const e = grown(q, Number(el.dataset.stage) || 1);
+      const tall = openHeight(el);
       el.style.opacity = e.toFixed(3);
-      el.style.height = e < 1 ? `${(openHeight(el) * e).toFixed(1)}px` : '';
+      // A part that measures nothing is not a box yet. The card plays before
+      // the block is built, and a module that gives its parts `display: block`
+      // from its own stylesheet — which lives inside the block — still has
+      // them as inline text at this point: no height, nothing to grow. Giving
+      // that a height of zero hides it and then lets the whole of it appear at
+      // once when the beat ends; letting it come up by opacity alone is the
+      // lesser fault, and it fixes itself the moment the block is there.
+      el.style.height = e < 1 && tall > 0 ? `${(tall * e).toFixed(1)}px` : '';
     });
   };
 }
@@ -11094,6 +11104,268 @@ const LEAD_CARD = `
   </span>
 `;
 
+// The screen is drawn by the shell several beats before the block is built,
+// and a module's stylesheet arrives with the block — so the styles of the
+// screen travel with the screen itself. Left in the block, the squares would
+// be a run of inline spans, the beats could not take the place of one another
+// and the parts of the screen would have no height for the shell to open them
+// by. The card of the block is built out of the same parts, so their rules
+// are here too — one copy, and it stands for both.
+const LEAD_STYLE = `<style>
+  .study-art {
+    flex: none;
+    width: 88px;
+    height: 88px;
+  }
+  .study-art svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+  .study-since {
+    font-size: 1.125rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--text);
+  }
+  .study-since b {
+    font-weight: 700;
+    color: var(--hse-blue);
+  }
+  .study-event {
+    font-size: 0.9375rem;
+    color: var(--text-secondary);
+  }
+
+  /* ---------- The lead-in screen ---------- */
+
+  /* The squares and the beat that follows them stand in one box, one over
+     the other: the squares leave as the next arrives, so it takes their
+     place instead of being pushed down by them. The one that grows into
+     place needs a box of its own. */
+  .study-lead-swap {
+    display: grid;
+    margin-top: 0.45em;
+  }
+
+  .study-lead-beat {
+    grid-area: 1 / 1;
+    align-self: start;
+  }
+
+  /* The three share the box, so they must not be seen through each other:
+     one is gone by the time the beat after it has come two fifths of the
+     way, and that one only starts showing at half. The page shell owns the
+     opacity of a part while it grows — hence all of them from the inside,
+     by how far their beat has come. */
+  .study-lead-gone {
+    display: block;
+    opacity: calc(1 - var(--lead-stage-3, 0) * 2.5);
+  }
+
+  /* The turn of the screen, and it is given room: the answer should not
+     read as the next line of the heading. Like the squares before it, the
+     figure both comes and goes — the year takes its place. */
+  .study-lead-answer {
+    display: block;
+    margin-top: 1.8em;
+    opacity: min(calc(var(--lead-stage-3, 1) * 2 - 1),
+                 calc(1 - var(--lead-stage-4, 0) * 2.5));
+  }
+
+  /* What the figure answers, set small under it — the number is the thing
+     to be read here, the sentence only says what it counts. */
+  .study-lead-say {
+    display: block;
+    margin-top: 0.4em;
+    text-align: center;
+    font-size: calc(1rem * var(--intro-k, 1.55));
+    color: var(--text-secondary);
+  }
+
+  /* The year the figure lands on, in the place the figure has just left. */
+  .study-lead-then {
+    display: block;
+    margin-top: 1.8em;
+    opacity: calc(var(--lead-stage-4, 1) * 2 - 1);
+  }
+
+  /* The same figure the block itself opens with, so the screen and the
+     block read as one thought. Its unit stands beside it, smaller and
+     quieter, exactly as it does there. */
+  .study-lead-years {
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 0.18em;
+    line-height: 1;
+    letter-spacing: -0.04em;
+    font-weight: 700;
+    font-size: min(calc(3.25rem * var(--intro-k, 1.55)), 9vh);
+    font-variant-numeric: tabular-nums;
+    color: var(--hse-blue);
+  }
+
+  .study-lead-years-unit {
+    font-size: 0.36em;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--text-secondary);
+  }
+
+  /* The year is the second figure of the screen, so it is set as a figure
+     and not as a word in the middle of a sentence — the line that leads to
+     it stands over it, and «году» beside it, the way the unit of the big
+     number does. */
+  .study-lead-year {
+    display: flex;
+    align-items: baseline;
+    gap: 0.2em;
+    line-height: 1.05;
+    font-size: min(calc(3.25rem * var(--intro-k, 1.55)), 9vh);
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    font-variant-numeric: tabular-nums;
+    color: var(--hse-blue);
+  }
+
+  /* The card is the whole of its beat, so it needs no room of its own on
+     top of the room the beat already has. */
+  .study-lead-then .study-lead-card {
+    margin-top: 0;
+  }
+
+  .study-lead-year-unit {
+    font-size: 0.44em;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--text-secondary);
+  }
+
+  /* The line that runs into the heading itself, so it is set larger than
+     the screen around it — and scaled with it, like everything else here.
+     It stands under the swap box, not in it: by then the number and the
+     year are what it is said about, and they stay. */
+  .study-lead-outro {
+    display: block;
+    margin-top: 0.7em;
+    /* Under the middle of what it is said about: the figure, the line
+       beneath it and the card all stand centred, and the heading is the
+       only thing on this screen set from the left edge. */
+    text-align: center;
+    font-size: calc(1.25rem * var(--intro-k, 1.55));
+    color: var(--text);
+  }
+
+  /* Every programme as a square, a level to a wave. The waves meet with
+     exactly the gap the squares have between them, so the two of them read
+     as one field with a lighter half. Spans, not divs — the shell puts the
+     screen inside a <p>. */
+  .study-lead-wave {
+    display: block;
+  }
+
+  .study-lead-wave:first-child {
+    margin-top: 0.6em;
+  }
+
+  .study-lead-wave + .study-lead-wave {
+    margin-top: 5px;
+  }
+
+  .study-lead-legend {
+    display: block;
+    font-size: calc(0.8125rem * var(--intro-k, 1.55));
+    line-height: 1.3;
+    color: var(--text-secondary);
+  }
+
+  .study-lead-legend:first-child { margin-bottom: 0.5em; }
+  .study-lead-legend:last-child { margin-top: 0.6em; }
+
+  .study-lead-dots {
+    display: grid;
+    grid-template-columns: repeat(32, 1fr);
+    gap: 5px;
+    max-width: 880px;
+  }
+
+  .study-lead-dot {
+    aspect-ratio: 1;
+    border-radius: 3px;
+  }
+
+  /* The year the beat before last stands on, in the middle of the screen.
+     Set at the size of the screen around it, and its figure as big as the
+     one it follows: the two beats are one thought, and a card set at its
+     own size read as an afterthought next to the number. */
+  .study-lead-card {
+    display: flex;
+    align-items: center;
+    gap: clamp(20px, 4vh, 40px);
+    max-width: 900px;
+    margin: 0.7em auto 0;
+    padding: clamp(26px, 5.6vh, 56px);
+    border-radius: var(--r-canvas-card);
+    background: var(--card);
+    box-shadow: var(--card-shadow);
+  }
+
+  .study-lead-col {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-width: 0;
+  }
+
+  .study-lead-card .study-art {
+    width: min(190px, 21vh);
+    height: min(190px, 21vh);
+  }
+  .study-lead-card .study-since { font-size: min(calc(1rem * var(--intro-k, 1.55)), 2.8vh); color: var(--text-secondary); }
+  .study-lead-card .study-event { font-size: min(calc(1rem * var(--intro-k, 1.55)), 2.8vh); }
+
+  /* The line of the screen carries a patch that runs over more than one
+     line, and the headline leading of the shell would have the patches
+     overlap. Scoped to this section — it is this screen that needs the
+     air, not every lead-in on the page. */
+  #study .viz-lead-value {
+    line-height: 1.28;
+  }
+
+  /* The patch on a figure of the screen. Colour comes inline with the
+     markup; what is left here is the shape of it. */
+  .study-lead-mark {
+    padding: 0.06em 0.3em;
+    border-radius: 0.2em;
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+  }
+
+  @media (max-width: 860px) {
+    .study-art { width: 64px; height: 64px; }
+    .study-since { font-size: 1rem; }
+    .study-event { font-size: 0.875rem; }
+    /* Fewer squares to a row: at this width 28 of them would be specks. */
+    /* The line above them is long, and on a phone the two together have
+       only one screen: the squares keep the size they can. */
+    .study-lead-dots { grid-template-columns: repeat(23, 1fr); gap: 3px; }
+    .study-lead-dot { border-radius: 2px; }
+    /* On a phone the screen has one column and no room to spare: the
+       figure still leads, but by less. */
+    .study-lead-answer,
+    .study-lead-then { margin-top: 0.7em; }
+    .study-lead-say { font-size: 0.9375rem; }
+    .study-lead-years { font-size: 3rem; }
+    .study-lead-year { font-size: 1.875rem; }
+    .study-lead-card { gap: 14px; margin-top: 0.6em; padding: 22px 18px; }
+    .study-lead-card .study-art { width: 80px; height: 80px; }
+    .study-lead-card .study-since { font-size: 0.9375rem; }
+    .study-lead-card .study-event { font-size: 0.9375rem; }
+    .study-lead-outro { font-size: 1.375rem; }
+  }
+</style>`;
+
 const meta = {
   id: 'study',
   // Hands the reader over from the buildings: what they are all for, said at
@@ -11106,7 +11378,8 @@ const meta = {
     // the screen rather than the top edge of the title card to come.
     fit: 'center',
     value: `Все эти здания нужны для того, чтобы студенты могли обучаться ${mark(`по ${nf(PROGRAMS_TOTAL)} образовательным программам`)}`,
-    text: '<span class="study-lead-swap">'
+    text: LEAD_STYLE
+      + '<span class="study-lead-swap">'
       + '<span class="study-lead-beat"><span class="study-lead-gone">'
       +   `${dotsOf(LEVELS[0], 1, true)}${dotsOf(LEVELS[1], 2, false)}`
       + '</span></span>'
@@ -11205,40 +11478,11 @@ function init(root) {
 
       .study-history.in { opacity: 1; }
 
-      .study-art {
-        flex: none;
-        width: 88px;
-        height: 88px;
-      }
-
-      .study-art svg {
-        display: block;
-        width: 100%;
-        height: 100%;
-      }
-
       .study-history-text {
         display: flex;
         flex-direction: column;
         gap: 2px;
         min-width: 0;
-      }
-
-      .study-since {
-        font-size: 1.125rem;
-        font-weight: 600;
-        letter-spacing: -0.01em;
-        color: var(--text);
-      }
-
-      .study-since b {
-        font-weight: 700;
-        color: var(--hse-blue);
-      }
-
-      .study-event {
-        font-size: 0.9375rem;
-        color: var(--text-secondary);
       }
 
       /* The same span of time as a line: 1114 on the left, today on the
@@ -11328,239 +11572,13 @@ function init(root) {
         font-variant-numeric: tabular-nums;
       }
 
-      /* ---------- The lead-in screen ---------- */
-
-      /* The squares and the beat that follows them stand in one box, one over
-         the other: the squares leave as the next arrives, so it takes their
-         place instead of being pushed down by them. The one that grows into
-         place needs a box of its own. */
-      .study-lead-swap {
-        display: grid;
-        margin-top: 0.45em;
-      }
-
-      .study-lead-beat {
-        grid-area: 1 / 1;
-        align-self: start;
-      }
-
-      /* The three share the box, so they must not be seen through each other:
-         one is gone by the time the beat after it has come two fifths of the
-         way, and that one only starts showing at half. The page shell owns the
-         opacity of a part while it grows — hence all of them from the inside,
-         by how far their beat has come. */
-      .study-lead-gone {
-        display: block;
-        opacity: calc(1 - var(--lead-stage-3, 0) * 2.5);
-      }
-
-      /* The turn of the screen, and it is given room: the answer should not
-         read as the next line of the heading. Like the squares before it, the
-         figure both comes and goes — the year takes its place. */
-      .study-lead-answer {
-        display: block;
-        margin-top: 1.8em;
-        opacity: min(calc(var(--lead-stage-3, 1) * 2 - 1),
-                     calc(1 - var(--lead-stage-4, 0) * 2.5));
-      }
-
-      /* What the figure answers, set small under it — the number is the thing
-         to be read here, the sentence only says what it counts. */
-      .study-lead-say {
-        display: block;
-        margin-top: 0.4em;
-        text-align: center;
-        font-size: calc(1rem * var(--intro-k, 1.55));
-        color: var(--text-secondary);
-      }
-
-      /* The year the figure lands on, in the place the figure has just left. */
-      .study-lead-then {
-        display: block;
-        margin-top: 1.8em;
-        opacity: calc(var(--lead-stage-4, 1) * 2 - 1);
-      }
-
-      /* The same figure the block itself opens with, so the screen and the
-         block read as one thought. Its unit stands beside it, smaller and
-         quieter, exactly as it does there. */
-      .study-lead-years {
-        display: flex;
-        align-items: baseline;
-        justify-content: center;
-        gap: 0.18em;
-        line-height: 1;
-        letter-spacing: -0.04em;
-        font-weight: 700;
-        font-size: min(calc(3.25rem * var(--intro-k, 1.55)), 9vh);
-        font-variant-numeric: tabular-nums;
-        color: var(--hse-blue);
-      }
-
-      .study-lead-years-unit {
-        font-size: 0.36em;
-        font-weight: 600;
-        letter-spacing: -0.01em;
-        color: var(--text-secondary);
-      }
-
-      /* The year is the second figure of the screen, so it is set as a figure
-         and not as a word in the middle of a sentence — the line that leads to
-         it stands over it, and «году» beside it, the way the unit of the big
-         number does. */
-      .study-lead-year {
-        display: flex;
-        align-items: baseline;
-        gap: 0.2em;
-        line-height: 1.05;
-        font-size: min(calc(3.25rem * var(--intro-k, 1.55)), 9vh);
-        font-weight: 700;
-        letter-spacing: -0.03em;
-        font-variant-numeric: tabular-nums;
-        color: var(--hse-blue);
-      }
-
-      /* The card is the whole of its beat, so it needs no room of its own on
-         top of the room the beat already has. */
-      .study-lead-then .study-lead-card {
-        margin-top: 0;
-      }
-
-      .study-lead-year-unit {
-        font-size: 0.44em;
-        font-weight: 600;
-        letter-spacing: -0.01em;
-        color: var(--text-secondary);
-      }
-
-      /* The line that runs into the heading itself, so it is set larger than
-         the screen around it — and scaled with it, like everything else here.
-         It stands under the swap box, not in it: by then the number and the
-         year are what it is said about, and they stay. */
-      .study-lead-outro {
-        display: block;
-        margin-top: 0.7em;
-        /* Under the middle of what it is said about: the figure, the line
-           beneath it and the card all stand centred, and the heading is the
-           only thing on this screen set from the left edge. */
-        text-align: center;
-        font-size: calc(1.25rem * var(--intro-k, 1.55));
-        color: var(--text);
-      }
-
-      /* Every programme as a square, a level to a wave. The waves meet with
-         exactly the gap the squares have between them, so the two of them read
-         as one field with a lighter half. Spans, not divs — the shell puts the
-         screen inside a <p>. */
-      .study-lead-wave {
-        display: block;
-      }
-
-      .study-lead-wave:first-child {
-        margin-top: 0.6em;
-      }
-
-      .study-lead-wave + .study-lead-wave {
-        margin-top: 5px;
-      }
-
-      .study-lead-legend {
-        display: block;
-        font-size: calc(0.8125rem * var(--intro-k, 1.55));
-        line-height: 1.3;
-        color: var(--text-secondary);
-      }
-
-      .study-lead-legend:first-child { margin-bottom: 0.5em; }
-      .study-lead-legend:last-child { margin-top: 0.6em; }
-
-      .study-lead-dots {
-        display: grid;
-        grid-template-columns: repeat(32, 1fr);
-        gap: 5px;
-        max-width: 880px;
-      }
-
-      .study-lead-dot {
-        aspect-ratio: 1;
-        border-radius: 3px;
-      }
-
-      /* The year the beat before last stands on, in the middle of the screen.
-         Set at the size of the screen around it, and its figure as big as the
-         one it follows: the two beats are one thought, and a card set at its
-         own size read as an afterthought next to the number. */
-      .study-lead-card {
-        display: flex;
-        align-items: center;
-        gap: clamp(20px, 4vh, 40px);
-        max-width: 900px;
-        margin: 0.7em auto 0;
-        padding: clamp(26px, 5.6vh, 56px);
-        border-radius: var(--r-canvas-card);
-        background: var(--card);
-        box-shadow: var(--card-shadow);
-      }
-
-      .study-lead-col {
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-        min-width: 0;
-      }
-
-      .study-lead-card .study-art {
-        width: min(190px, 21vh);
-        height: min(190px, 21vh);
-      }
-      .study-lead-card .study-since { font-size: min(calc(1rem * var(--intro-k, 1.55)), 2.8vh); color: var(--text-secondary); }
-      .study-lead-card .study-event { font-size: min(calc(1rem * var(--intro-k, 1.55)), 2.8vh); }
-
-      /* The line of the screen carries a patch that runs over more than one
-         line, and the headline leading of the shell would have the patches
-         overlap. Scoped to this section — it is this screen that needs the
-         air, not every lead-in on the page. */
-      #study .viz-lead-value {
-        line-height: 1.28;
-      }
-
-      /* The patch on a figure of the screen. Colour comes inline with the
-         markup; what is left here is the shape of it. */
-      .study-lead-mark {
-        padding: 0.06em 0.3em;
-        border-radius: 0.2em;
-        -webkit-box-decoration-break: clone;
-        box-decoration-break: clone;
-      }
-
       @media (max-width: 860px) {
         .study-years { font-size: clamp(2.5rem, 15vw, 4.5rem); }
         .study-caption { font-size: 0.875rem; }
         .study-history { gap: 12px; margin-top: 14px; padding: 12px 16px; }
-        .study-art { width: 64px; height: 64px; }
-        .study-since { font-size: 1rem; }
-        .study-event { font-size: 0.875rem; }
         .study-timeline { margin-top: 14px; padding: 0 20px; }
         .study-track { height: 34px; }
         .study-note { font-size: 0.875rem; }
-
-        /* Fewer squares to a row: at this width 28 of them would be specks. */
-        /* The line above them is long, and on a phone the two together have
-           only one screen: the squares keep the size they can. */
-        .study-lead-dots { grid-template-columns: repeat(23, 1fr); gap: 3px; }
-        .study-lead-dot { border-radius: 2px; }
-        /* On a phone the screen has one column and no room to spare: the
-           figure still leads, but by less. */
-        .study-lead-answer,
-        .study-lead-then { margin-top: 0.7em; }
-        .study-lead-say { font-size: 0.9375rem; }
-        .study-lead-years { font-size: 3rem; }
-        .study-lead-year { font-size: 1.875rem; }
-        .study-lead-card { gap: 14px; margin-top: 0.6em; padding: 22px 18px; }
-        .study-lead-card .study-art { width: 80px; height: 80px; }
-        .study-lead-card .study-since { font-size: 0.9375rem; }
-        .study-lead-card .study-event { font-size: 0.9375rem; }
-        .study-lead-outro { font-size: 1.375rem; }
 
         /* The picture has no fixed height of its own, unlike the canvases in
            the other sections: a long event text must not be cut off. */
