@@ -47,9 +47,10 @@ export const meta = {
   // The board is what the section arrives with, rather than an empty field
   // that spends a beat of the reader's on filling it.
   opensOnStep: true,
-  // The board is there, the question comes up over it, the figures are added
-  // up into one — and the last screen counts that one down and answers itself.
-  steps: 4
+  // The board is there, the question comes up over it — and then the whole
+  // end plays out in one beat: the figures add up into one number, that number
+  // falls to one, and the one is told what it is.
+  steps: 3
 };
 
 export function init(root) {
@@ -636,13 +637,13 @@ export function init(root) {
   // The board is added up. The figures come into the middle one after another,
   // quicker and quicker, and the middle takes each of them on as it arrives —
   // so the number growing there is the sum of everything that has landed.
-  function addUp() {
+  function addUp(done) {
     stopCount();
     sum.classList.add('is-clearing');
     const c = L.big[0];
-    const span = 1500;
-    const flight = 760;
-    const gone = 380;                              // how long one takes to go
+    const span = 1000;
+    const flight = 560;
+    const gone = 300;                              // how long one takes to go
 
     // Nearest first: the middle of the board empties before the figure that
     // is growing there has to share the room with anything, and the drain
@@ -667,7 +668,7 @@ export function init(root) {
       };
     }), { dur: flight, fade: gone, delay: wait });
 
-    if (still) { placeSum(c, { dur: 0, text: nf(TOTAL) }); return; }
+    if (still) { placeSum(c, { dur: 0, text: nf(TOTAL) }); done(); return; }
 
     // Each of them is taken on at the moment it disappears, so the number in
     // the middle grows exactly as the board is spent.
@@ -685,6 +686,7 @@ export function init(root) {
       if (t < last) { counting = requestAnimationFrame(frame); return; }
       counting = null;
       sum.textContent = nf(TOTAL);
+      done();
     };
     counting = requestAnimationFrame(frame);
   }
@@ -696,7 +698,7 @@ export function init(root) {
     stopCount();
     if (still) { done(); return; }
     const t0 = performance.now();
-    const dur = 3200;
+    const dur = 2200;
     const frame = (now) => {
       const raw = Math.min(1, (now - t0) / dur);
       const u = 1 - Math.pow(1 - raw, 1.6);
@@ -783,31 +785,28 @@ export function init(root) {
       return;
     }
 
-    // The board adds itself up into the middle, with the question still
-    // standing where the heading was.
-    if (i === 2) {
-      say('turn');
-      hush(true);
-      paint(true);
-      addUp();
-      return;
-    }
-
-    // The last screen plays itself out: the sum counts down to one, and a
-    // moment later the answer arrives on its own — there is nothing left to
-    // scroll for.
+    // The end, all of it, on one turn of the wheel. The board adds itself up
+    // into the middle, that number falls to one, and the one is told what it
+    // is — with the question still standing where the heading was. Splitting
+    // this across beats made the reader ask for the answer to a question the
+    // screen had already finished asking; it is one thought, so it is one
+    // movement, and nothing waits on the wheel again.
     say('turn');
     hush(true);
-    apply(tiles.map(() => null), { dur: 0 });
-    placeSum(L.big[0], { dur: 0, text: nf(TOTAL), color: INK.ink });
-    later(() => countDown(() => {
-      landOne();
-      // The one is left alone for a moment before it is told what it is.
-      later(() => {
-        say('end');
-        placeSum(L.end[0], { dur: 620 });
-      }, 1200);
-    }), 300);
+    paint(true);
+    addUp(() => {
+      // The whole sum is held for a moment first — it is the figure the whole
+      // page has been adding up to, and it would not be read at all if it
+      // started coming apart the instant it was finished.
+      later(() => countDown(() => {
+        landOne();
+        // And the one is left alone for a moment before it is told what it is.
+        later(() => {
+          say('end');
+          placeSum(L.end[0], { dur: 620 });
+        }, 900);
+      }), 550);
+    });
   }
 
   // ---------- Wiring ----------
@@ -830,11 +829,11 @@ export function init(root) {
       shown = i;
       play(i);
     },
-    // The two steps that play longer than a beat hold the wheel until they are
-    // done: the board adding up takes 2.3 s in all, and a quick reader would
-    // otherwise set the count going over a sum still being made. The count
-    // with its answer runs longer than the shell allows — it is given the
-    // most there is, and plays the rest out on a screen that stays put.
-    span: (i) => (still || narrow.matches ? 0 : i === 2 ? 2300 : i === 3 ? 2500 : 0)
+    // The closing beat runs some five seconds, far longer than the shell will
+    // hold the wheel for: it is given the most there is, and plays the rest
+    // out on a screen that stays put. Nothing follows it, so an overrun costs
+    // the reader nothing — and holding the wheel at all stops a quick one from
+    // setting the count going over a sum still being made.
+    span: (i) => (still || narrow.matches ? 0 : i === 2 ? 2500 : 0)
   };
 }
