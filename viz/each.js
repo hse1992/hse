@@ -795,17 +795,21 @@ export function init(root) {
     hush(true);
     paint(true);
     addUp(() => {
-      // The whole sum is held for a moment first — it is the figure the whole
-      // page has been adding up to, and it would not be read at all if it
-      // started coming apart the instant it was finished.
+      // The whole sum is held first — it is the figure the page has been
+      // adding up to, and seven digits take a moment to become a number
+      // rather than a row of marks. Half a second was not enough: it began
+      // coming apart while the eye was still reading it.
       later(() => countDown(() => {
         landOne();
-        // And the one is left alone for a moment before it is told what it is.
+        // And the one is left alone before it is told what it is — a shorter
+        // wait than the sum got, and deliberately so. One digit is read at a
+        // glance, and the count slows into it of its own accord, so the pause
+        // that number needed would be a stop here.
         later(() => {
           say('end');
           placeSum(L.end[0], { dur: 620 });
         }, 900);
-      }), 550);
+      }), 1200);
     });
   }
 
