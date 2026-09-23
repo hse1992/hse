@@ -26,13 +26,99 @@ const kindsOf = (p) => (p.kinds ? p.kinds.split(',').map((s) => s.trim()) : []);
 const mark = (text) =>
   `<span class="prof-mark" style="font-weight: 900; color: var(--text)">${text}</span>`;
 
+// The styles of the card itself travel with the heading, not with the block:
+// the shell draws the heading and the line under it several beats before the
+// block is built, and the block is where a module's stylesheet lives. Left
+// there, these parts stand unstyled while the card plays — both headings at
+// once, and a line the shell cannot squeeze shut, because an inline span takes
+// no height. The card then does not grow into place: it simply appears.
+const CARD_STYLE = `<style>
+  /* A line of air over the line under the logo while the card holds: without
+     it the two read as one block. Once the card settles it is the subtitle of
+     a heading again and needs none — so the air goes away with the card, by
+     --intro-body. A block, not a span: the shell opens a part of the card by
+     its height, and height is something only a block has. */
+  .prof-lead {
+    display: block;
+    margin-top: calc(1em * (1 - var(--intro-body, 1)));
+  }
+
+  /* The patch under two words of the heading. Colour comes inline with the
+     markup; what is left here is the shape of it. */
+  .prof-accent {
+    padding: 0.06em 0.3em;
+    border-radius: 0.2em;
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+  }
+
+  /* The two headings of the card hand over to each other: each holds as much
+     height as the other has given up, so the card is one thing all the way
+     down and the shell can centre it at both ends. Both heights are measured —
+     see measureHeads() below. */
+  .prof-open,
+  .prof-settled {
+    display: block;
+    overflow: hidden;
+  }
+
+  .prof-open {
+    /* Everything on this card is measured against the logo: it is the one
+       thing on the screen, and the words beside it are its size. */
+    --prof-logo: min(26vh, 25vw, 240px);
+    height: calc(var(--prof-open-h, 0px) * (1 - var(--intro-body, 1)));
+    opacity: calc(1 - var(--intro-body, 1));
+  }
+
+  /* «Мы —» and the logo stand side by side in the middle of the screen. The
+     heading is as wide as the section, so centring them here centres them on
+     the screen. */
+  .prof-open-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: calc(var(--prof-logo) * 0.1);
+  }
+
+  .prof-settled {
+    height: calc(var(--prof-settled-h, 1.2em) * var(--intro-body, 1));
+    opacity: var(--intro-body, 1);
+  }
+
+  .prof-open-we {
+    font-size: calc(var(--prof-logo) * 0.4);
+    line-height: 1;
+    letter-spacing: -0.03em;
+  }
+
+  /* The logo is laid out at the size it settles at and blown up with the card,
+     like everything else in the heading. */
+  .prof-open-logo {
+    display: block;
+    position: relative;
+    width: var(--prof-logo);
+    aspect-ratio: 1;
+  }
+
+  .prof-open-logo svg,
+  .prof-open-logo img {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+</style>`;
+
 export const meta = {
   id: 'professions',
   // The card and the section have different headings. While the card holds,
   // it is «Мы —» and the logo under it, and the logo opens up on a beat of its
   // own to let «не только» into its ring. Once the card settles, the heading of
   // the section takes its place — the same one the block is read under.
-  title: '<span class="prof-open" aria-hidden="true">'
+  title: CARD_STYLE
+    + '<span class="prof-open" aria-hidden="true">'
     +   '<span class="prof-open-row">'
     +     '<span class="prof-open-we">Мы —</span>'
     +     '<span class="prof-open-logo" data-el="logo"></span>'
@@ -58,80 +144,13 @@ export function init(root) {
   root.classList.add('prof-body');
   root.innerHTML = `
     <style>
-      /* A line of air over this line while the card holds: there it stands
-         under the logo, and without it the two read as one block. Once the
-         card settles it is the subtitle of a heading again and needs none —
-         so the air goes away with the card, by --intro-body. */
-      .prof-lead {
-        display: block;
-        margin-top: calc(1em * (1 - var(--intro-body, 1)));
-      }
-
-      /* The patch under two words of the heading. Colour comes inline with the
-         markup — the shell draws the heading before these styles arrive; what
-         is left here is the shape of it. */
-      .prof-accent {
-        padding: 0.06em 0.3em;
-        border-radius: 0.2em;
-        -webkit-box-decoration-break: clone;
-        box-decoration-break: clone;
-      }
-
-      /* The two headings of the card hand over to each other: each holds as
-         much height as the other has given up, so the card is one thing all
-         the way down and the shell can centre it at both ends. Both heights
-         are measured — see measureHeads() below. */
-      .prof-open,
-      .prof-settled {
-        display: block;
-        overflow: hidden;
-      }
-
-      .prof-open {
-        /* Everything on this card is measured against the logo: it is the one
-           thing on the screen, and the words beside it are its size. */
-        --prof-logo: min(26vh, 25vw, 240px);
-        height: calc(var(--prof-open-h, 0px) * (1 - var(--intro-body, 1)));
-        opacity: calc(1 - var(--intro-body, 1));
-      }
-
-      /* «Мы —» and the logo stand side by side in the middle of the screen.
-         The heading is as wide as the section, so centring them here centres
-         them on the screen. */
-      .prof-open-row {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        justify-content: center;
-        gap: calc(var(--prof-logo) * 0.1);
-      }
-
-      .prof-settled {
-        height: calc(var(--prof-settled-h, 1.2em) * var(--intro-body, 1));
-        opacity: var(--intro-body, 1);
-      }
-
-      .prof-open-we {
-        font-size: calc(var(--prof-logo) * 0.4);
-        line-height: 1;
-        letter-spacing: -0.03em;
-      }
-
-      /* The logo is laid out at the size it settles at and blown up with the
-         card, like everything else in the heading. */
-      .prof-open-logo {
-        display: block;
-        width: var(--prof-logo);
-      }
-
-      .prof-open-logo,
       .prof-rest-logo {
+        display: block;
         position: relative;
+        width: 100%;
         aspect-ratio: 1;
       }
 
-      .prof-open-logo svg,
-      .prof-open-logo img,
       .prof-rest-logo svg,
       .prof-rest-logo img {
         position: absolute;
@@ -139,11 +158,6 @@ export function init(root) {
         display: block;
         width: 100%;
         height: 100%;
-      }
-
-      .prof-rest-logo {
-        display: block;
-        width: 100%;
       }
 
       /* Nothing to switch here, so the section has no left column: the card
