@@ -142,10 +142,10 @@ export const meta = {
         <span>${SAID[2]}</span>
         <span class="metro-brief-fig metro-brief-fig-train">
           <!-- the styles of the module arrive with the module, a moment after
-               the shell has drawn the heading, and the file is 5446 px wide:
+               the shell has drawn the heading, and the file is 4956 px wide:
                this keeps it in the page for that moment -->
           <img class="metro-brief-train" style="max-width: 100%"
-               src="assets/metro-train.png" alt="" aria-hidden="true">
+               src="assets/poezd.svg" alt="" aria-hidden="true">
           <span class="metro-brief-times">&times;&nbsp;${TRAINS}</span>
         </span>
       </span>
@@ -501,7 +501,7 @@ export function init(root) {
               </div>
               <span data-el="legendText"></span>
             </div>
-            <img class="metro-train" data-el="trainPhoto" src="assets/metro-train.png"
+            <img class="metro-train" data-el="trainPic" src="assets/poezd.svg"
                  alt="" aria-hidden="true">
             <div class="canvas-wrap" data-el="canvasWrap"></div>
           </div>
@@ -1170,7 +1170,7 @@ export function init(root) {
   const legendTrainEl = $('legendTrain');
   const legendBusEl = $('legendBus');
   const legendTextEl = $('legendText');
-  const trainPhotoEl = $('trainPhoto');
+  const trainPicEl = $('trainPic');
 
   // The little bus of the legend is exactly as long as the ones on the roads,
   // and the arrow between it and the picture is drawn every time either of
@@ -1342,7 +1342,7 @@ export function init(root) {
     // In the bus mode the caption is written on the bus itself.
     legendTextEl.textContent = state.mode === 'bus' ? '' : m.legend;
     legendTextEl.style.display = state.mode === 'bus' ? 'none' : '';
-    trainPhotoEl.style.display = state.mode === 'metro' ? '' : 'none';
+    trainPicEl.style.display = state.mode === 'metro' ? '' : 'none';
     legendTrainEl.style.display = state.mode === 'metro' ? '' : 'none';
     busLegendEl.style.display = state.mode === 'bus' ? '' : 'none';
     if (state.mode === 'bus') syncLegendSample();
