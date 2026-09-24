@@ -83,7 +83,7 @@ function tok(name) {
 const INK = tok('text'), CARD = tok('card'), SHELL = tok('shell'), EMPTY = tok('empty');
 const SECOND = tok('text-secondary'), HSE = tok('hse-blue'), PITCH = tok('pitch');
 const STUD = tok('students'), FOR = tok('foreign');
-const CYAN = tok('brand-cyan'), RED = tok('brand-red'), GREEN = tok('brand-green');
+const CYAN = tok('brand-cyan'), GREEN = tok('brand-green');
 const YELLOW = tok('brand-yellow'), ORANGE = tok('brand-orange'), NAVY = tok('brand-navy');
 const BLUE = tok('brand-blue');
 
@@ -104,10 +104,10 @@ const STORY = 15;
 const KEYS = [
   [0, 0], [1.4, 1.4], [3.0, 1.55], [3.45, 2.0],                     // doors
   [4.15, 2.7], [7.05, 3.85], [7.55, 4.3],                           // train
-  [8.35, 5.0], [9.85, 6.3], [12.55, 6.9], [13.05, 7.45],            // arena
-  [14.25, 8.6], [18.05, 9.7], [18.35, 9.9],                         // flags
-  [19.45, 10.95], [22.15, 11.12], [22.5, 11.3],                     // town
-  [23.2, 11.95], [25.6, 12.35], [25.9, 12.55],                      // centuries
+  [8.35, 5.0], [9.85, 6.3], [12.3, 6.9], [12.8, 7.45],              // arena
+  [14.0, 8.6], [17.3, 9.7], [17.6, 9.9],                            // flags
+  [18.3, 10.55], [20.6, 10.95], [21.2, 11.15], [21.6, 11.3],        // centuries
+  [22.6, 11.7], [25.4, 12.3], [25.9, 12.55],                        // orbit
   [26.5, 12.67], [28.7, 13.8], [30, 15]                             // title
 ];
 const KX = KEYS.map((k) => k[0]), KY = KEYS.map((k) => k[1]);
@@ -347,11 +347,11 @@ const TEXTS = [
   ['Среди них есть иностранцы', 330, { size: 76, t0: 7.15, t1: 9.75, marker: FOR }],
   ['Как думаешь,', 465, { size: 84, t0: 7.6, t1: 9.75, marker: HSE }],
   ['из скольких стран?', 580, { size: 84, t0: 7.75, t1: 9.75, marker: HSE }],
-  ['Сколько нужно зданий,', 430, { size: 84, t0: 9.95, t1: 11.2 }],
-  ['чтобы получился город?', 545, { size: 84, t0: 10.08, t1: 11.2, marker: HSE }],
-  ['Когда нужно поступить,', 430, { size: 84, t0: 11.3, t1: 12.42 }],
-  ['чтобы пройти', 540, { size: 84, t0: 11.4, t1: 12.42 }],
-  ['все программы?', 655, { size: 84, t0: 11.5, t1: 12.42, marker: HSE }],
+  ['Когда нужно поступить,', 430, { size: 84, t0: 9.9, t1: 11.02 }],
+  ['чтобы пройти', 540, { size: 84, t0: 10.0, t1: 11.02 }],
+  ['все программы?', 655, { size: 84, t0: 10.1, t1: 11.02, marker: HSE }],
+  ['Вышка достает даже до орбиты', 330, { size: 74, weight: 600, color: SECOND, t0: 11.45, t1: 12.45 }],
+  ['Сколько у нее спутников?', 450, { size: 84, t0: 11.65, t1: 12.45, marker: HSE }],
   ['Угадай. Проверь.', 1340, { size: 92, t0: 13.35, marker: HSE }],
   ['Ссылка в описании', 1460, { size: 56, weight: 600, color: SECOND, t0: 13.55 }]
 ];
@@ -588,7 +588,10 @@ function stadiumScene(t) {
 // ---------- scene 4: flags ----------
 
 const GC = [CX, 1040], GR = 320;
-const FLAG_COLORS = [FOR, CARD, STUD, GREEN, YELLOW, ORANGE, CYAN, NAVY];
+// The flags are made up, not quoted. Yellow is left out of them altogether:
+// with blue it reads as the flag of a country at war, and the lyceum wears
+// that colour on the stadium — here it would say something it does not mean.
+const FLAG_COLORS = [FOR, CARD, STUD, GREEN, ORANGE, CYAN, NAVY];
 const FLAGS = [];
 {
   const R = mulberry32(21);
@@ -674,10 +677,10 @@ function globeScene(t) {
     const [x, y, z] = flagAt(f, t);
     let a = clamp((z - 0.02) * 5);
     let dy = 0;
+    // The flags rain down as the line of the centuries draws itself under them.
     if (t >= 9.9) {
-      if (f.building) continue;
-      a *= 1 - seg(t, 9.9, 10.1);
-      dy = (t - 9.9) * 300;
+      a *= 1 - seg(t, 9.9, 10.15);
+      dy = (t - 9.9) * 700;
     }
     list.push({ f, x, y: y + dy, z, a, fp });
   }
@@ -713,95 +716,6 @@ function globeScene(t) {
   }
 }
 
-// ---------- scene 5: the town ----------
-
-const O = [CX, 1130];
-const cellPos = (i, j) => [O[0] + (i - j) * 64, O[1] + (i + j - 8) * 37];
-const BLD = [];
-{
-  const R = mulberry32(33);
-  for (let i = 0; i < 9; i++) {
-    for (let j = 0; j < 9; j++) {
-      if (j === 5 || i === 2) continue;
-      if (R() < 0.28) continue;
-      BLD.push({ i, j, h: 60 + R() * 110, c: cellPos(i, j), win: R() });
-    }
-  }
-  BLD.sort((p, q) => (p.i + p.j) - (q.i + q.j) || p.i - q.i);
-  BLD.forEach((b, n) => { b.n = n; });
-  const vis = FLAGS.filter((f) => f.tA + 0.3 <= 9.9 && flagAt(f, 9.9)[2] > 0.1).sort((p, q) => flagAt(p, 9.9)[0] - flagAt(q, 9.9)[0]);
-  [...BLD].sort((p, q) => p.c[0] - q.c[0]).forEach((b, idx) => {
-    const f = vis[Math.floor((idx * vis.length) / BLD.length)];
-    f.building = true;
-    b.flag = f;
-    b.from = flagAt(f, 9.9);
-  });
-}
-
-function building(c, hh, a, alpha, seed, win) {
-  const dx = 128 * a, dy = 74 * a;
-  const L = [c[0] - dx, c[1]], B = [c[0], c[1] + dy], R = [c[0] + dx, c[1]], K = [c[0], c[1] - dy];
-  const up = (p) => [p[0], p[1] - hh];
-  const o = { closed: true, width: 3.5, alpha, amp: 1.5, passes: 1 };
-  pen([L, B, up(B), up(L)], { ...o, fill: SHELL, seed });
-  pen([B, R, up(R), up(B)], { ...o, fill: EMPTY, seed: seed + 1 });
-  pen([up(L), up(B), up(R), up(K)], { ...o, fill: CARD, seed: seed + 2 });
-  if (hh > 40 && a > 0.2) {
-    g.save();
-    g.globalAlpha = alpha * 0.7; g.strokeStyle = INK; g.lineWidth = 3; g.lineCap = 'round';
-    const floors = Math.floor((hh - 20) / 30);
-    for (let fl = 0; fl < floors; fl++) {
-      for (const u of [0.3, 0.7]) {
-        if ((fl * 3 + u * 10 + win * 7) % 3 < 0.8) continue;
-        const x = lerp(L[0], B[0], u), y = lerp(L[1], B[1], u) - 22 - fl * 30;
-        g.beginPath(); g.moveTo(x - 6, y - 3.5); g.lineTo(x + 6, y + 3.5); g.stroke();
-      }
-    }
-    g.restore();
-  }
-}
-
-function townScene(t) {
-  const ta = seg(t, 9.9, 10.1) * (1 - seg(t, 11.3, 11.55));
-  if (ta > 0) {
-    pen([cellPos(-0.7, -0.7), cellPos(8.7, -0.7), cellPos(8.7, 8.7), cellPos(-0.7, 8.7)],
-      { closed: true, fill: SHELL, fillAlpha: 0.5, width: 4, alpha: ta, progress: seg(t, 9.95, 10.35), seed: 801 });
-    const river = [];
-    for (let i = -0.7; i <= 8.71; i += 0.25) { const p = cellPos(i, 5); river.push([p[0], p[1] + Math.sin(i * 1.3) * 10]); }
-    pen(river, { color: CYAN, width: 34, alpha: ta * 0.5, progress: seg(t, 10.1, 10.55), seed: 802, passes: 1 });
-    pen(river, { color: CYAN, width: 4, alpha: ta, progress: seg(t, 10.1, 10.55), seed: 803, passes: 1 });
-    const metro = [];
-    for (let j = -0.7; j <= 8.71; j += 0.5) metro.push(cellPos(2, j));
-    pen(metro, { color: RED, width: 10, alpha: ta, progress: seg(t, 10.3, 10.75), seed: 804, passes: 1 });
-  }
-  const q = inOut(seg(t, 11.15, 11.5));
-  const ba = 1 - seg(t, 11.45, 11.65);
-  const falling = [];
-  for (const b of BLD) {
-    const tS = 9.9 + (b.n / BLD.length) * 0.45, tL = tS + 0.3;
-    const p = seg(t, tS, tL);
-    if (p < 1) { falling.push({ b, p: p * p }); continue; }
-    const gp = out3(seg(t, tL, tL + 0.3));
-    const c = [b.c[0], lerp(b.c[1], 1150, q)];
-    building(c, b.h * gp * (1 - q), 0.34 * (1 - q * 0.8), ba, 820 + b.n * 5, b.win);
-  }
-  for (const { b, p } of falling) {
-    const x = lerp(b.from[0], b.c[0], p), y = lerp(b.from[1], b.c[1], p);
-    flag(x, y, 1 - 0.5 * p, b.flag, 1, t);
-  }
-  if (ta > 0) {
-    const sp = out3(seg(t, 10.7, 10.95));
-    if (sp > 0) {
-      const [x, y] = cellPos(2, 2.5);
-      pen(ell(x, y, 30 * sp, 30 * sp, 16), { closed: true, fill: RED, color: RED, width: 3, alpha: ta, seed: 806, passes: 1 });
-      g.save();
-      g.globalAlpha = ta; g.font = fontOf(38 * sp, 700); g.fillStyle = CARD; g.textAlign = 'center';
-      g.fillText('М', x, y + 13 * sp);
-      g.restore();
-    }
-  }
-}
-
 // ---------- scene 5b: back through the centuries ----------
 
 function student(x, y, run, a) {
@@ -819,20 +733,20 @@ function student(x, y, run, a) {
   pen([[x + 22, hy - 21], [x + 26, hy - 2]], { width: 3, alpha: a, seed: 957, passes: 1 });
 }
 
-const backAt = (t) => 700 * Math.pow(seg(t, 11.55, 12.55), 2.6);   // years rewound
+const backAt = (t) => 700 * Math.pow(seg(t, 10.15, 11.15), 2.6);   // years rewound
 
 function rulerScene(t) {
-  const a = seg(t, 11.3, 11.5) * (1 - seg(t, 12.45, 12.7));
+  const a = seg(t, 9.9, 10.1) * (1 - seg(t, 11.05, 11.3));
   if (a <= 0) return;
   const LY = 1150, NOW = 2026, PX = 3.4, AT = 860;
-  pen(line(40, LY, 1040, LY, 40), { width: 5, alpha: a, progress: seg(t, 11.3, 11.6), seed: 901 });
-  const q = seg(t, 11.55, 12.55);
+  pen(line(40, LY, 1040, LY, 40), { width: 5, alpha: a, progress: seg(t, 9.9, 10.2), seed: 901 });
+  const q = seg(t, 10.15, 11.15);
   const back = backAt(t);
   const vel = 700 * 2.6 * Math.pow(q, 1.6) * PX * RATE;   // px per video second
   const center = NOW - back;
   const X = (Y) => AT + (Y - center) * PX;
   const blur = Math.min(8, vel / 450);
-  const ta = a * seg(t, 11.45, 11.7);
+  const ta = a * seg(t, 10.05, 10.3);
   g.save();
   if (blur > 0.3) g.filter = `blur(${blur}px)`;
   const y0 = Math.ceil((center - AT / PX) / 10) * 10;
@@ -854,7 +768,96 @@ function rulerScene(t) {
   student(AT, LY - 4, clamp(vel / 300), ta);
 }
 
-// ---------- scene 6: the title ----------
+// ---------- scene 6: the orbit ----------
+
+// The Earth with the mark of the university stuck on it in four cities, and
+// one satellite going over the poles — how many there are is not said.
+const EC = [CX, 1150], ER = 300;
+const ORBIT = { rx: 150, ry: 420, tilt: -0.3 };
+const MARKS = [[-0.34, -0.22], [-0.08, -0.44], [0.2, -0.12], [-0.02, 0.14]];
+
+// z > 0 is the half of the ring that passes in front of the planet.
+function orbitAt(ang, cy) {
+  const c = Math.cos(ORBIT.tilt), s = Math.sin(ORBIT.tilt);
+  const x = ORBIT.rx * Math.cos(ang), y = ORBIT.ry * Math.sin(ang);
+  return [CX + x * c - y * s, cy + x * s + y * c, Math.cos(ang)];
+}
+
+function znakDisc(x, y, r, a) {
+  if (a <= 0.002 || r <= 0) return;
+  g.save();
+  g.globalAlpha = a;
+  g.translate(x, y);
+  g.fillStyle = HSE;
+  g.beginPath(); g.arc(0, 0, r, 0, TAU); g.fill();
+  g.translate(-r, -r);
+  g.scale((2 * r) / 283.47, (2 * r) / 283.47);
+  g.fillStyle = CARD;
+  g.fill(ZNAK);
+  g.restore();
+}
+
+function satellite(x, y, ang, sc, a) {
+  if (a <= 0.002) return;
+  g.save();
+  g.translate(x, y);
+  g.rotate(ang);
+  const o = { closed: true, width: 3, alpha: a, passes: 1, amp: 1 };
+  pen(rrect(-44 * sc, -7 * sc, 26 * sc, 14 * sc, 3), { ...o, fill: STUD, seed: 1201 });
+  pen(rrect(18 * sc, -7 * sc, 26 * sc, 14 * sc, 3), { ...o, fill: STUD, seed: 1202 });
+  pen(rrect(-17 * sc, -13 * sc, 34 * sc, 26 * sc, 5), { ...o, fill: CARD, seed: 1203 });
+  pen([[0, -13 * sc], [0, -30 * sc]], { width: 3, alpha: a, seed: 1204, passes: 1 });
+  g.restore();
+}
+
+function spaceScene(t) {
+  const p = out3(seg(t, 11.3, 11.85));
+  const a = p * (1 - seg(t, 12.48, 12.62));
+  if (a <= 0.002) return;
+  const cy = EC[1] + (1 - p) * 560;
+  const pr = seg(t, 11.4, 12.0);
+  const ang = (t - 11.3) * 2.0 - Math.PI / 2;
+  const ring = (front) => {
+    const style = { width: front ? 4 : 2.5, alpha: a * (front ? 0.9 : 0.3), progress: pr, passes: 1, amp: 1 };
+    let run = [], n = 0;
+    const flush = () => { if (run.length > 1) pen(run, { ...style, seed: 1100 + (front ? 20 : 0) + n++ }); run = []; };
+    for (let i = 0; i <= 96; i++) {
+      const s = orbitAt((i / 96) * TAU, cy);
+      if ((s[2] > 0) === front) run.push([s[0], s[1]]); else flush();
+    }
+    flush();
+  };
+
+  ring(false);
+  pen(ell(CX, cy, ER, ER, 72), { closed: true, fill: CYAN, fillAlpha: 0.07, width: 5, seed: 1103, alpha: a, progress: p });
+  for (let m = 0; m < 16; m++) {
+    const lam = (m * Math.PI) / 8 + (t - 11.3) * 0.25, z = Math.cos(lam);
+    if (z <= 0) continue;
+    const pts = [];
+    for (let i = 0; i <= 14; i++) { const ph = -Math.PI / 2 + (i / 14) * Math.PI; pts.push([CX + ER * Math.cos(ph) * Math.sin(lam), cy - ER * Math.sin(ph)]); }
+    pen(pts, { width: 2.5, alpha: a * z * 0.6, progress: pr, seed: 1110 + m, passes: 1 });
+  }
+  [-Math.PI / 3, -Math.PI / 6, 0, Math.PI / 6, Math.PI / 3].forEach((lat, i) => {
+    const r = ER * Math.cos(lat), y = cy - ER * Math.sin(lat);
+    pen(line(CX - r, y, CX + r, y, 30), { width: 2.5, alpha: a * 0.5, progress: pr, seed: 1130 + i, passes: 1 });
+  });
+  MARKS.forEach((m, i) => {
+    const mp = out3(seg(t, 11.7 + i * 0.06, 11.95 + i * 0.06));
+    znakDisc(CX + m[0] * ER, cy + m[1] * ER, 21 * mp, a);
+  });
+  ring(true);
+
+  const [sx, sy] = orbitAt(ang, cy);
+  const [nx, ny] = orbitAt(ang + 0.05, cy);
+  satellite(sx, sy, Math.atan2(ny - sy, nx - sx), 1.8, a * seg(t, 11.5, 11.7));
+
+  // The snapshot the finale of the page is made of: the shutter goes off and
+  // the ring of the flash runs out of the frame.
+  const fr = seg(t, 12.3, 12.62);
+  if (fr > 0) pen(ell(sx, sy, 40 + fr * 1000, 40 + fr * 1000, 56), { closed: true, width: 7 * (1 - fr), alpha: a * (1 - fr), seed: 1140 });
+}
+
+// ---------- scene 7: the title ----------
 
 const ZNAK = new Path2D('M135.6,133.32c32.26,0,44.81,21.45,44.81,60.69v29.51h-20.69v-63.35h-23.9v63.42h-18.28V53.65h18.78c7.03,0,17.71,1.58,25.25,10.95c3.93,4.73,6.34,11.04,7.19,17.38h-32.94v9.35h33.23c-0.27,6.04-1.49,12.8-7.42,19.97c-5.2,6.51-13.76,12.56-25.83,12.56c-0.06,0-0.13,0-0.2,0V133.32 M206.41,197.55c0-34.86-11.26-58.29-40.45-68.6c9.21-3.77,14.82-9.58,18.49-13.99c7.01-8.06,9.88-17.96,9.88-27.31c0-7.56-2.08-22.65-15.35-33.04c-9.1-7.04-17.16-10.43-36.43-10.43h-9.75c-0.3-0.01-0.6-0.01-0.96-0.01H91.65v189.79h114.76V197.55z');
 
@@ -933,8 +936,8 @@ function render(rt) {
   if (t < 2) tablo(t);
   if (t >= 4.85 && t < 8.3) stadiumScene(t);
   if (t >= 7.4 && t < 10.2) globeScene(t);
-  if (t >= 9.85 && t < 11.7) townScene(t);
-  if (t >= 11.25 && t < 12.75) rulerScene(t);
+  if (t >= 9.85 && t < 11.35) rulerScene(t);
+  if (t >= 11.25 && t < 12.65) spaceScene(t);
   if (t >= 12.6) titleScene(t);
   for (const [str, y, o] of TEXTS) say(str, y, o);
 }
@@ -1013,23 +1016,19 @@ function scheduleSound(ac, out, T0) {
   for (let s = S(8.05); s < S(9.8); s += 0.045) noise(s, 0.015, { f: 2600 + R() * 1400, q: 4, gain: 0.2 });
   for (let i = 0; i < 16; i++) tone(S(lerp(8.3, 9.6, R())), 900 + R() * 600, 0.07, { gain: 0.09 });
 
-  // town: a low bed under the whole of it, a knock for every other building
-  // that lands, and the station chiming when it opens
-  noise(S(10.0), span(10.0, 11.32), { type: 'lowpass', f: 240, gain: 0.22, attack: 0.5, hold: true });
-  tone(S(10.8), 659, 0.5, { type: 'triangle', gain: 0.09 });
-  tone(S(10.95), 880, 0.6, { type: 'triangle', gain: 0.07 });
-  BLD.forEach((b) => {
-    if (b.n % 2) return;
-    tone(S(9.9 + (b.n / BLD.length) * 0.45 + 0.3), 120 + R() * 100, 0.12, { gain: 0.14, f2: 60 });
-  });
-
   // centuries: a click for every decade that passes under the student
-  noise(S(11.3), span(11.3, 12.5), { type: 'lowpass', f: 200, gain: 0.25, attack: 0.3, hold: true });
-  noise(S(11.6), span(11.6, 12.5), { f: 3000, f2: 300, q: 0.7, gain: 0.22, attack: 0.6 });
-  for (let s = S(11.55), decade = 0, lastClick = -1; s < S(12.5); s += 0.01) {
+  noise(S(9.9), span(9.9, 11.32), { type: 'lowpass', f: 200, gain: 0.25, attack: 0.3, hold: true });
+  noise(S(10.2), span(10.2, 11.1), { f: 3000, f2: 300, q: 0.7, gain: 0.22, attack: 0.6 });
+  for (let s = S(10.15), decade = 0, lastClick = -1; s < S(11.1); s += 0.01) {
     const now = Math.floor(backAt(storyAt(s)) / 10);
     if (now !== decade && s - lastClick >= 0.025) { noise(s, 0.02, { f: 2000, q: 3, gain: 0.22 }); lastClick = s; decade = now; }
   }
+
+  // orbit: the hum of the planet, the beeps of the satellite, the shutter
+  noise(S(11.2), span(11.2, 12.75), { type: 'lowpass', f: 190, gain: 0.26, attack: 0.5, hold: true });
+  for (let i = 0; i < 7; i++) tone(S(11.6 + i * 0.13), 1180 + i * 90, 0.08, { gain: 0.07 });
+  noise(S(12.3), 0.05, { f: 2200, q: 2, gain: 0.32 });
+  tone(S(12.3), 420, 0.07, { gain: 0.22, f2: 190 });
 
   // title
   [392, 494, 587, 784].forEach((f) => tone(S(12.73), f, 3.0, { type: 'triangle', gain: 0.1, attack: 0.02 }));
@@ -1047,6 +1046,11 @@ const showTime = (t) => { timeEl.textContent = `${t.toFixed(2).replace('.', ',')
 const ready = Promise.all([...[400, 600, 700].map((w) => document.fonts.load(`${w} 80px "HSE Sans"`)), TABLO.decode()]);
 
 const FPS = 30, SR = 48000;
+// Picture quality of the export: the lower, the better and the heavier.
+// 0 is lossless, 51 is mush; the line art here holds up to the high twenties.
+// 30 keeps the file around 9 МБ and stays within 42 dB of a near-lossless
+// export — the difference lives in the paper grain, not in the drawing.
+const QP = Number(new URLSearchParams(location.search).get('qp')) || 30;
 
 let busy = false;
 const setBusy = (on) => { busy = on; playBtn.disabled = recBtn.disabled = on; };
@@ -1215,13 +1219,18 @@ async function exportVideo() {
       },
       error: (e) => { failure = e; }
     });
-    venc.configure({ codec: 'avc1.640028', width: W, height: H, bitrate: 14_000_000, framerate: FPS, avc: { format: 'avc' } });
+    // Constant quality rather than constant bitrate: a page of white paper with
+    // a few lines on it costs what it costs, and the file follows the drawing
+    // instead of the drawing being squeezed into a number. Key frames every
+    // five seconds — each one is a whole picture, and they are what a teaser
+    // of flat line art spends its bytes on.
+    venc.configure({ codec: 'avc1.640028', width: W, height: H, framerate: FPS, bitrateMode: 'quantizer', latencyMode: 'quality', avc: { format: 'avc' } });
     const frames = Math.round(DUR * FPS);
     for (let i = 0; i < frames && !failure; i++) {
       const t = i / FPS;
       render(t);
       const frame = new VideoFrame(canvas, { timestamp: Math.round(t * 1e6), duration: Math.round(1e6 / FPS) });
-      venc.encode(frame, { keyFrame: i % FPS === 0 });
+      venc.encode(frame, { keyFrame: i % (FPS * 5) === 0, avc: { quantizer: QP } });
       frame.close();
       while (venc.encodeQueueSize > 4) await new Promise((r) => venc.addEventListener('dequeue', r, { once: true }));
       if (i % 10 === 0) {
@@ -1248,7 +1257,9 @@ async function save(blob, ext) {
   const name = `teaser.${ext}`;
   try {
     const r = await fetch(`./${name}`, { method: 'PUT', body: blob });
-    if (r.ok) { statusEl.textContent = `Готово: teaser/${name} сохранен в проекте.`; return; }
+    // Megabytes as the Finder counts them, so the two agree.
+    const mb = (blob.size / 1e6).toFixed(1).replace('.', ',');
+    if (r.ok) { statusEl.textContent = `Готово: teaser/${name} сохранен в проекте, ${mb} МБ.`; return; }
   } catch (e) { /* no upload endpoint, fall back to a download */ }
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
@@ -1269,6 +1280,7 @@ ready.then(() => {
 });
 
 window.renderTeaser = render;
+window.teaserFlags = FLAGS;   // so the colours on the flags can be checked from outside
 </script>
 </body>
 </html>
