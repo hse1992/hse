@@ -91,8 +91,16 @@
   /* Doors of a metro car, after assets/doors.jpg — the curtain between the
      title screen and the first block. The body of the car, the rubber down the
      middle and along the threshold, the window and the white chevron. */
-  --door-body: #2E6B79;
-  --door-body-dark: #21525E;
+  /* Measured off the photograph rather than guessed: the side of the car
+     averages #336077 in the light, a blue-grey and not the teal it looks at a
+     glance, and falls to about this dark where the side turns away. */
+  --door-body: #336077;
+  --door-body-dark: #22465C;
+  /* One rib of the body: a bright crest with the shade it casts under itself.
+     In the photograph they run every 65px of 566 — about one ninth of the
+     height of the car — and the crest is a quarter of that step. */
+  --door-rib: rgba(197, 222, 244, 0.5);
+  --door-rib-shade: rgba(6, 20, 28, 0.42);
   --door-edge: #16292F;
   --door-frame: #12313A;
   --door-glass: #8A7430;
@@ -523,10 +531,16 @@ button { font-family: inherit; }
   top: 0;
   bottom: 0;
   width: 50.2%;
-  /* Ribs of the car body over the rounded shading of its side. */
+  /* Ribs of the car body over the rounded shading of its side. A rib is not a
+     line but a fold: the light catches the top of it and it shades what is
+     right under it, which is the whole of why the side of a carriage reads as
+     metal. Every 72px, after the photograph — see the tokens. */
   background-image:
     repeating-linear-gradient(to bottom,
-      rgba(0, 0, 0, 0.06) 0 1px, transparent 1px 34px),
+      transparent 0 56px,
+      var(--door-rib) 56px 60px,
+      var(--door-rib-shade) 60px 66px,
+      transparent 66px 72px),
     linear-gradient(to right,
       var(--door-body-dark), var(--door-body) 30%,
       var(--door-body) 68%, var(--door-body-dark));

@@ -60,8 +60,16 @@
   /* Doors of a metro car, after assets/doors.jpg — the curtain between the
      title screen and the first block. The body of the car, the rubber down the
      middle and along the threshold, the window and the white chevron. */
-  --door-body: #2E6B79;
-  --door-body-dark: #21525E;
+  /* Measured off the photograph rather than guessed: the side of the car
+     averages #336077 in the light, a blue-grey and not the teal it looks at a
+     glance, and falls to about this dark where the side turns away. */
+  --door-body: #336077;
+  --door-body-dark: #22465C;
+  /* One rib of the body: a bright crest with the shade it casts under itself.
+     In the photograph they run every 65px of 566 — about one ninth of the
+     height of the car — and the crest is a quarter of that step. */
+  --door-rib: rgba(197, 222, 244, 0.5);
+  --door-rib-shade: rgba(6, 20, 28, 0.42);
   --door-edge: #16292F;
   --door-frame: #12313A;
   --door-glass: #8A7430;
