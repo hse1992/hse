@@ -285,12 +285,68 @@ export function init(root) {
         box-shadow: 0 0 0 2px var(--hse-blue);
       }
 
+      /* Bar, mark and ruler share one box: the mark is placed against the bar
+         and reaches past it, the ruler hangs underneath. */
+      .world-track {
+        position: relative;
+        padding: 6px 0;
+        margin: -6px 0;
+      }
+
+      /* A ruler under the bar: a mark every ten countries and a longer one
+         with a figure every fifty, so a guess can be put down by eye rather
+         than by feel. It stays after the answer — 129 of 195 is easier to read
+         against it too. */
+      .world-ruler {
+        position: relative;
+        height: 19px;
+        margin-top: 5px;
+      }
+
+      .world-tick {
+        position: absolute;
+        top: 0;
+        width: 1px;
+        height: 4px;
+        margin-left: -0.5px;
+        background: var(--btn-border);
+      }
+
+      .world-tick.is-big {
+        height: 7px;
+        background: var(--text-caption);
+      }
+
+      .world-tick span {
+        position: absolute;
+        top: 9px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 0.6875rem;
+        line-height: 1;
+        color: var(--text-caption);
+        font-variant-numeric: tabular-nums;
+      }
+
+      /* The figures at the ends would hang over the edge of the card if they
+         were centred on their mark like the rest. */
+      .world-tick.is-first span {
+        left: 0;
+        transform: none;
+      }
+
+      .world-tick.is-last span {
+        left: auto;
+        right: 0;
+        transform: none;
+      }
+
       /* The reader's mark: a line across the bar with a head above it. It
          stays after the answer, so the distance to the filled part is seen. */
       .world-guess {
         position: absolute;
-        top: 3px;
-        bottom: 3px;
+        top: 0;
+        bottom: 0;
         left: 0;
         width: 3px;
         margin-left: -1.5px;
@@ -557,10 +613,13 @@ export function init(root) {
         </div>
         <div class="world-scale" data-el="scale" role="slider" tabindex="0"
              aria-label="Сколько стран, по-твоему" aria-valuemin="0" aria-valuemax="${WORLD}">
-          <div class="meter-bar">
-            <div class="meter-bar-seg world-bar-seg" data-el="barSeg"></div>
+          <div class="world-track">
+            <div class="meter-bar">
+              <div class="meter-bar-seg world-bar-seg" data-el="barSeg"></div>
+            </div>
+            <div class="world-guess" data-el="guess"></div>
           </div>
-          <div class="world-guess" data-el="guess"></div>
+          <div class="world-ruler" data-el="ruler" aria-hidden="true"></div>
         </div>
         <div class="world-verdict" data-el="verdict" aria-live="polite"></div>
         <div class="world-send">
@@ -799,6 +858,29 @@ export function init(root) {
   const guessEl = $('guess');
   const verdictEl = $('verdict');
   const check = $('check');
+
+  // The ruler under the bar. A mark every ten countries, a longer one with a
+  // figure every fifty — and the last one at the end of the scale, so both
+  // ends of it are named. A mark that would crowd the last one is left out.
+  const TICK = 10;
+  const FIGURE = 50;
+  const ruler = $('ruler');
+  const tick = (v, big) => {
+    const el = document.createElement('i');
+    el.className = `world-tick${big ? ' is-big' : ''}`;
+    el.style.left = `${(v / WORLD) * 100}%`;
+    if (big) {
+      el.innerHTML = `<span>${nf(v)}</span>`;
+      if (v === 0) el.classList.add('is-first');
+      if (v === WORLD) el.classList.add('is-last');
+    }
+    ruler.appendChild(el);
+  };
+  for (let v = 0; v < WORLD; v += TICK) {
+    if (WORLD - v < TICK) break;
+    tick(v, v % FIGURE === 0);
+  }
+  tick(WORLD, true);
 
   let guess = null;       // the reader's mark, or null while there is none
   let asking = null;      // the question is on the screen, not the answer
