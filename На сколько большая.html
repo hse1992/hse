@@ -13979,7 +13979,6 @@ const AREA_STUDY = CITIES.reduce((n, c) => n + c.areaStudy, 0);
 // answer, its line below has to change with it.
 const BUILDINGS = 196;      // buildings — the floor area section
 const PROGRAMS = 329;       // programmes — the studies section
-const YEARS = 912;          // years of study one after another — the same
 
 // The day the shot was taken is the day it is looked at: the frame along the
 // edge says «now», whenever the reader's now happens to be. Written out here
@@ -14066,7 +14065,6 @@ function init(root) {
     fig(AREA_TOTAL, 1.35, 'м² площади'),
     fig(AREA_STUDY, 0.85, 'м² для учебы'),
     fig(PROGRAMS, 1.1, of(PROGRAMS, 'программа', 'программы', 'программ')),
-    fig(YEARS, 1.2, `${of(YEARS, 'год', 'года', 'лет')} учебы`),
     fig(SATELLITES.length, 1.0, of(SATELLITES.length, 'спутник', 'спутника', 'спутников')),
     // The campuses themselves, just before what each of them holds.
     fig(CITIES.length, 1.0, of(CITIES.length, 'кампус', 'кампуса', 'кампусов')),
