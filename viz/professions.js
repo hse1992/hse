@@ -17,7 +17,19 @@ const AREAS = [...new Set(PROFESSIONS.map((p) => p.area))].map((area) => ({
   items: PROFESSIONS.filter((p) => p.area === area)
 }));
 
-const kindsOf = (p) => (p.kinds ? p.kinds.split(',').map((s) => s.trim()) : []);
+const listOf = (s) => (s ? s.split(',').map((x) => x.trim()).filter(Boolean) : []);
+const kindsOf = (p) => listOf(p.kinds);
+
+// What the card says beside the name. Usually the specializations the table
+// lists under the profession — but four of the 44 have none, and an empty
+// half of the card says nothing at all. Those four show the programmes of
+// their area instead.
+const insideOf = (p) => {
+  const kinds = kindsOf(p);
+  return kinds.length
+    ? { title: 'Специализации', items: kinds }
+    : { title: 'Программы направления', items: listOf(p.programs) };
+};
 
 // The figure a line turns on, picked out by weight alone: HSE Sans Black on
 // the plain text colour, against the grey the rest of the line is set in.
@@ -264,6 +276,12 @@ export function init(root) {
         color: var(--text-caption);
       }
 
+      /* The line and the list under it are one block, and it is that block the
+         card keeps room for — see reserve(). */
+      .prof-inside[hidden] {
+        display: none;
+      }
+
       .prof-kinds {
         margin: 0;
         padding: 0 0 0 1.1em;
@@ -320,7 +338,7 @@ export function init(root) {
         pointer-events: none;
       }
 
-      .prof-probe .prof-kinds,
+      .prof-probe .prof-inside,
       .prof-probe .prof-detail-head {
         min-height: 0;
       }
@@ -504,8 +522,10 @@ export function init(root) {
           </span>
         </div>
         <div class="prof-kinds-box">
-          <div class="prof-kinds-title" data-el="kindsTitle">Специализации</div>
-          <ul class="prof-kinds" data-el="kinds"></ul>
+          <div class="prof-inside" data-el="inside">
+            <div class="prof-kinds-title" data-el="kindsTitle">Специализации</div>
+            <ul class="prof-kinds" data-el="kinds"></ul>
+          </div>
           <p class="prof-note" data-el="note"></p>
         </div>
       </div>
@@ -581,6 +601,7 @@ export function init(root) {
   const areaEl = $('area');
   const nameEl = $('name');
   const kindsEl = $('kinds');
+  const insideEl = $('inside');
   const kindsTitleEl = $('kindsTitle');
   const noteEl = $('note');
   const grid = $('grid');
@@ -607,16 +628,15 @@ export function init(root) {
     areaEl.textContent = p ? p.area : '';
     nameEl.textContent = p ? p.name : '';
 
-    const kinds = p ? kindsOf(p) : [];
-    kindsEl.innerHTML = kinds.map((k) => `<li>${k}</li>`).join('');
-    // The list holds its place even when it is empty — a profession with no
-    // specializations beside it says nothing at all, and the card must not
-    // shrink around that silence.
-    kindsEl.hidden = !p;
+    const inside = p ? insideOf(p) : { title: '', items: [] };
+    kindsEl.innerHTML = inside.items.map((k) => `<li>${k}</li>`).join('');
+    // The block holds its place even when it is empty — the card must not
+    // shrink around a profession that has less to say than its neighbours.
+    insideEl.hidden = !p;
     // Hidden rather than dropped: the caption keeps its place over the
-    // invitation and over a profession that has nothing beside it, so the card
-    // stays one height.
-    kindsTitleEl.style.visibility = kinds.length ? '' : 'hidden';
+    // invitation, so the card stays one height.
+    kindsTitleEl.textContent = inside.title || 'Специализации';
+    kindsTitleEl.style.visibility = inside.items.length ? '' : 'hidden';
     // The invitation stands only while nothing is picked.
     noteEl.hidden = !!p;
     noteEl.textContent = REST_NOTE;
@@ -638,8 +658,8 @@ export function init(root) {
     // keep room the card never needs.
     detailEl.classList.remove('at-rest');
     noteEl.hidden = true;
-    kindsEl.hidden = false;
-    const width = kindsEl.clientWidth;
+    insideEl.hidden = false;
+    const width = insideEl.clientWidth;
     if (!width || width === measuredAt) {
       show(back);
       return;
@@ -650,8 +670,13 @@ export function init(root) {
     // after writing the text makes the browser lay the whole page out again,
     // and 88 of those is most of what building this section used to cost. Here
     // they are written into one hidden probe and read in a single pass.
-    const list = tallest(width, PROFESSIONS.map((p) =>
-      `<ul class="prof-kinds">${kindsOf(p).map((k) => `<li>${k}</li>`).join('')}</ul>`).join(''));
+    const list = tallest(width, PROFESSIONS.map((p) => {
+      const inside = insideOf(p);
+      return '<div class="prof-inside">'
+        + `<div class="prof-kinds-title">${inside.title}</div>`
+        + `<ul class="prof-kinds">${inside.items.map((k) => `<li>${k}</li>`).join('')}</ul>`
+        + '</div>';
+    }).join(''));
     const head = tallest(headEl.clientWidth, PROFESSIONS.map((p) =>
       '<div class="prof-detail-head">'
       + '<span class="prof-detail-art"></span>'
@@ -660,7 +685,7 @@ export function init(root) {
       +   `<span class="prof-detail-name">${p.name}</span>`
       + '</span></div>').join(''));
 
-    kindsEl.style.minHeight = `${list}px`;
+    insideEl.style.minHeight = `${list}px`;
     noteEl.style.minHeight = `${list}px`;
     headEl.style.minHeight = `${head}px`;
     show(back);

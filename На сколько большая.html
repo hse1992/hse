@@ -687,10 +687,17 @@ button { font-family: inherit; }
 
 /* Where the reader is, in words. Comes up as a block starts, goes once they
    are into it, and comes back whenever the bar is pointed at. */
+/* Where the reader is, in words — set under the slot it is about, not off in
+   the corner: the number and the place it names should be one thing to look
+   at. It stands in the same row as the names, because everything below that
+   belongs to the block, and a lead-in screen that parks at the top of the
+   section comes right up to it. --count-x is the middle of the current slot,
+   put there from JS. */
 .page-progress-count {
   position: fixed;
-  top: 16px;
-  right: 16px;
+  top: 12px;
+  left: var(--count-x, 50%);
+  transform: translateX(-50%);
   z-index: 50;
   padding: 5px 11px;
   border-radius: 999px;
@@ -702,15 +709,18 @@ button { font-family: inherit; }
   line-height: 1;
   white-space: nowrap;
   opacity: 0;
-  transform: translateY(-4px);
-  transition: opacity 260ms ease, transform 260ms ease;
+  transition: opacity 260ms ease, left 260ms ease;
   pointer-events: none;
 }
 
-.page-progress-count.is-here,
-.page-progress:hover ~ .page-progress-count {
+.page-progress-count.is-here {
   opacity: 1;
-  transform: none;
+}
+
+/* Pointing at the bar brings up the names, which stand in the same row and say
+   more than the count does — so the count steps aside for them. */
+.page-progress:hover ~ .page-progress-count {
+  opacity: 0;
 }
 
 /* Nothing to point at on a touch screen. */
@@ -1858,8 +1868,10 @@ button { font-family: inherit; }
     <!-- Nudge to scroll: fades out as soon as the reader does. -->
     <div class="scroll-hint" data-el="scrollHint" aria-hidden="true">
       <span class="scroll-hint-text">Листай<span class="on-keys"> или жми пробел</span></span>
-      <!-- Appears once the reader has a block behind them. -->
-      <span class="scroll-hint-back">Полоска сверху — к любому разделу</span>
+      <!-- Appears once the reader has a block behind them: by then «листай» has
+           been answered and there is room to say what else the page listens to.
+           Hidden on a touch screen, where none of it means anything. -->
+      <span class="scroll-hint-back">Стрелки и пробел тоже листают, полоска сверху — к любому разделу</span>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"
            stroke-linecap="round" stroke-linejoin="round">
         <path d="M12 3 L12 17" />
@@ -2233,6 +2245,22 @@ function mountProgress(titles = []) {
           counter.classList.remove('is-here');
           said.textContent = 'Титульный экран';
         }
+      }
+
+      // The count stands under the slot it is about, wherever that slot is —
+      // near the head of the bar at the beginning of the story and near its
+      // end at the end, so the number and the place it names are one thing to
+      // look at. Measured after the text is set, and kept on the screen at
+      // either edge, the way the names are.
+      const here = slots[place.index];
+      if (here) {
+        const box = here.getBoundingClientRect();
+        const half = counter.offsetWidth / 2;
+        const middle = Math.min(
+          Math.max(box.left + box.width / 2, EDGE + half),
+          window.innerWidth - EDGE - half
+        );
+        counter.style.setProperty('--count-x', `${Math.round(middle)}px`);
       }
       // The title screen is behind the reader as soon as the story starts, and
       // there is nowhere to go from it while they are still on it.
@@ -2929,6 +2957,29 @@ const NARROW = window.matchMedia('(max-width: 860px)');
 
 // Runs fn(p) from 0 to 1 over ms, then done(). Time is counted frame to frame,
 // and a gap longer than a stutter is dropped — a tab nobody is looking at gets
+// Nothing a block does may stop the page from being read.
+//
+// A beat is played by calling into a module, and the page waits for that call
+// to say it has finished before it listens to the wheel again. So an exception
+// thrown anywhere in there — a picture that cannot be painted, a step that
+// trips over a missing element — would leave the page waiting for ever: no
+// beat, no scrolling, no keys, nothing but a reload. One broken block would
+// take the whole story down with it, and the reader would have no way of
+// telling that from a page that simply stopped.
+//
+// So every call into a module goes through here. What throws is reported once,
+// for whoever is looking at the console, and the page carries on: the picture
+// may be wrong from then on, but the reading is not over.
+function tried(what, fn, fallback) {
+  try {
+    return fn();
+  } catch (err) {
+    console.error(`Такт «${what}» упал, страница читается дальше`, err);
+    if (fallback) fallback();
+    return undefined;
+  }
+}
+
 // no frames, and counting from the start would skip the beat to its end.
 function play(ms, fn, done) {
   let last = performance.now();
@@ -2938,7 +2989,11 @@ function play(ms, fn, done) {
     last = now;
     spent += dt > 250 ? 16 : dt;
     const p = Math.min(1, spent / ms);
-    fn(p);
+    // A frame that throws ends the beat rather than the rAF loop: stopping the
+    // loop here is exactly what would hang the page.
+    let alive = true;
+    tried('кадр', () => fn(p), () => { alive = false; });
+    if (!alive) { if (done) done(); return; }
     if (p < 1) requestAnimationFrame(tick);
     else if (done) done();
   };
@@ -3422,12 +3477,14 @@ function mountScrolled(entries, onProgress) {
       const entry = entries.find((e) => e.section === row.target);
       if (!entry || entry.built) return;
       entry.built = true;
-      entry.build();
-      // A scene is a story told in steps, and steps need a screen that holds
-      // still. Here it shows what it comes to in the end — the module says so
-      // itself by taking the last step.
-      if (entry.steps) entry.setStep(entry.steps - 1);
-      if (entry.opening) entry.opening.follow();
+      tried('сборка блока', () => {
+        entry.build();
+        // A scene is a story told in steps, and steps need a screen that holds
+        // still. Here it shows what it comes to in the end — the module says so
+        // itself by taking the last step.
+        if (entry.steps) entry.setStep(entry.steps - 1);
+        if (entry.opening) entry.opening.follow();
+      });
     });
   }, { rootMargin: '400px 0px' });
   entries.forEach((e) => watch.observe(e.section));
@@ -3568,11 +3625,11 @@ function mountStepper(entries, { onProgress, finale, signal } = {}) {
   // Nothing to watch: everything is put in its finished state at once, and the
   // page is left to scroll normally.
   if (REDUCED.matches) {
-    entries.forEach((e) => {
+    entries.forEach((e) => tried('сборка блока', () => {
       e.build();
       if (e.opening) e.opening.run(1);
       if (e.steps) e.setStep(e.steps - 1);
-    });
+    }));
     lit(true);
     if (onProgress) onProgress(1);
     return { free: true };
@@ -3647,9 +3704,31 @@ function mountStepper(entries, { onProgress, finale, signal } = {}) {
     return !!(next && next.hold && next.hold({ quiet: true }));
   };
 
+  // Every section of the page is in the document from the start, one under
+  // another, and the reader is shown one of them at a time. That is fine for
+  // the eye and wrong for the keyboard: Tab would walk out of the screen into
+  // the controls of blocks that have been read or have not been reached, and
+  // the browser would scroll the page to whatever it focused — against the
+  // beat that put the page where it is. A screen reader would wander the same
+  // way. So everything except the section on the screen is shut off; `inert`
+  // takes it out of the tab order and out of the accessibility tree at once.
+  //
+  // Only in the stepped reading: below 860px and with «less movement» the page
+  // is an ordinary page, everything on it is on the screen sooner or later,
+  // and shutting parts of it off would take them away from the keyboard for
+  // good.
+  const only = (current) => entries.forEach((e) => {
+    e.section.toggleAttribute('inert', e.section !== current);
+  });
+
   const report = () => {
     // The door light burns on its own beat and nowhere else.
     lit(at === 0 && !!signal);
+    const beat = at >= 0 ? beats[at] : null;
+    // The title screen belongs to no section; the credits at the end are not a
+    // section either, and there the last block is still what the reader sees.
+    const last = entries[entries.length - 1];
+    only(!beat || beat.title ? null : (beat.section || (last && last.section)));
     if (onProgress) onProgress((at + 1) / beats.length, { ...place(), waiting });
   };
 
@@ -3669,11 +3748,16 @@ function mountStepper(entries, { onProgress, finale, signal } = {}) {
   const prepare = (entry) => {
     if (!entry || entry.ready) return;
     entry.ready = true;
-    entry.build();
-    if (entry.opensOnStep && entry.steps) entry.setStep(0);
-    if (entry.opening) entry.opening.remeasure();
-    // A full-screen picture is a lump of its own — see backdropOf.
-    if (entry.lay) entry.lay();
+    // Made ready ahead of time and out of sight: a block that cannot be built
+    // must not take the page down with it, and the reader is not even looking
+    // at it yet.
+    tried('сборка блока', () => {
+      entry.build();
+      if (entry.opensOnStep && entry.steps) entry.setStep(0);
+      if (entry.opening) entry.opening.remeasure();
+      // A full-screen picture is a lump of its own — see backdropOf.
+      if (entry.lay) entry.lay();
+    });
   };
 
   // The browser hands out idle time between frames too, and a block is a
@@ -3711,7 +3795,9 @@ function mountStepper(entries, { onProgress, finale, signal } = {}) {
     at += 1;
     if (at > reached) reached = at;      // the story has never been further
     report();
-    beats[at].run(done);
+    // A beat that throws before it has started playing never calls `done`, and
+    // the page would wait for it for ever — so the fall counts as the end of it.
+    tried('вперед', () => beats[at].run(done), done);
   };
 
   // Going to a block, rather than to the next picture: everything before it is
@@ -3728,11 +3814,15 @@ function mountStepper(entries, { onProgress, finale, signal } = {}) {
     if (target < 0 || target === at) return;
     chill();
     busy = true;
-    entries.forEach((e) => {
+    // One block that cannot put itself back does not stop the jump: the rest
+    // still go where they belong, and the reader still arrives.
+    entries.forEach((e) => tried('сброс блока', () => {
       if (e.opening) e.opening.run(0);
       if (e.steps) e.setStep(0);
-    });
-    for (let k = 0; k <= target; k++) if (beats[k].settle) beats[k].settle();
+    }));
+    for (let k = 0; k <= target; k++) {
+      if (beats[k].settle) tried('подготовка такта', () => beats[k].settle());
+    }
     at = target;
     // Jumping ahead counts as having been there: what the reader skipped is
     // behind them now, and going back a beat at a time has to work from here.
@@ -3775,15 +3865,17 @@ function mountStepper(entries, { onProgress, finale, signal } = {}) {
     // title screen's own: taking it back is the light going out rather than
     // the page moving anywhere.
     if (at < 0) {
-      if (undoing.back) { undoing.back(done); return; }
+      if (undoing.back) { tried('назад', () => undoing.back(done), done); return; }
       glide(0, done);
       return;
     }
     const target = beats[at];
     if (undoing.back && undoing.section === target.section) {
-      undoing.back(done);
+      tried('назад', () => undoing.back(done), done);
     } else {
-      if (target.settle) target.settle();
+      // The travelling is the page's own and cannot fail; only putting the
+      // section back into the state it was left in can.
+      if (target.settle) tried('подготовка такта', () => target.settle());
       glide(target.top ? target.top() : target.section.offsetTop, done);
     }
   };
@@ -3858,10 +3950,10 @@ function mountStepper(entries, { onProgress, finale, signal } = {}) {
     if (at < 0 || busy) return;
     chill();
     busy = true;
-    entries.forEach((e) => {
+    entries.forEach((e) => tried('сброс блока', () => {
       if (e.opening) e.opening.run(0);
       if (e.steps) e.setStep(0);
-    });
+    }));
     at = -1;
     report();
     glide(0, done);
@@ -6236,6 +6328,11 @@ const { PROFESSIONS } = (() => {
 // направлении, к которому относятся программы, готовящие к ней, а если их
 // несколько — в том, где их больше.
 //
+// У четырех профессий специализаций в таблице нет, и карточке нечего было
+// показать. Им добавлено поле `programs` — программы Вышки по тому же
+// направлению, из того же assets/programs.xlsx. Остальным этого не нужно:
+// у них есть `kinds`.
+//
 // Порядок — порядок стены: профессии идут направлениями, от цифровых и
 // естественных наук через экономику, право и общество к гуманитарным наукам
 // и искусству, и модуль собирает из них группы, не сортируя.
@@ -6277,7 +6374,8 @@ const PROFESSIONS = [
     area: 'Физика и астрономия',
     name: 'Физик',
     icon: 'physicist',
-    kinds: ''
+    kinds: '',
+    programs: 'Физика'
   },
 
   {
@@ -6453,7 +6551,8 @@ const PROFESSIONS = [
     area: 'Философия, этика и религиоведение',
     name: 'Философ',
     icon: 'philosopher',
-    kinds: ''
+    kinds: '',
+    programs: 'Философия, Философские исследования, Религия и общество'
   },
 
   {
@@ -6487,7 +6586,8 @@ const PROFESSIONS = [
     area: 'Архитектура',
     name: 'Архитектор',
     icon: 'architect',
-    kinds: ''
+    kinds: '',
+    programs: 'Архитектура, Городское планирование, Управление пространственным развитием городов, Цифровая урбанистика и аналитика города'
   },
   {
     area: 'Архитектура',
@@ -6500,7 +6600,8 @@ const PROFESSIONS = [
     area: 'Сценические искусства и литературное творчество',
     name: 'Актер',
     icon: 'actor',
-    kinds: ''
+    kinds: '',
+    programs: 'Актер'
   },
 
   {
@@ -12031,7 +12132,19 @@ const AREAS = [...new Set(PROFESSIONS.map((p) => p.area))].map((area) => ({
   items: PROFESSIONS.filter((p) => p.area === area)
 }));
 
-const kindsOf = (p) => (p.kinds ? p.kinds.split(',').map((s) => s.trim()) : []);
+const listOf = (s) => (s ? s.split(',').map((x) => x.trim()).filter(Boolean) : []);
+const kindsOf = (p) => listOf(p.kinds);
+
+// What the card says beside the name. Usually the specializations the table
+// lists under the profession — but four of the 44 have none, and an empty
+// half of the card says nothing at all. Those four show the programmes of
+// their area instead.
+const insideOf = (p) => {
+  const kinds = kindsOf(p);
+  return kinds.length
+    ? { title: 'Специализации', items: kinds }
+    : { title: 'Программы направления', items: listOf(p.programs) };
+};
 
 // The figure a line turns on, picked out by weight alone: HSE Sans Black on
 // the plain text colour, against the grey the rest of the line is set in.
@@ -12278,6 +12391,12 @@ function init(root) {
         color: var(--text-caption);
       }
 
+      /* The line and the list under it are one block, and it is that block the
+         card keeps room for — see reserve(). */
+      .prof-inside[hidden] {
+        display: none;
+      }
+
       .prof-kinds {
         margin: 0;
         padding: 0 0 0 1.1em;
@@ -12334,7 +12453,7 @@ function init(root) {
         pointer-events: none;
       }
 
-      .prof-probe .prof-kinds,
+      .prof-probe .prof-inside,
       .prof-probe .prof-detail-head {
         min-height: 0;
       }
@@ -12518,8 +12637,10 @@ function init(root) {
           </span>
         </div>
         <div class="prof-kinds-box">
-          <div class="prof-kinds-title" data-el="kindsTitle">Специализации</div>
-          <ul class="prof-kinds" data-el="kinds"></ul>
+          <div class="prof-inside" data-el="inside">
+            <div class="prof-kinds-title" data-el="kindsTitle">Специализации</div>
+            <ul class="prof-kinds" data-el="kinds"></ul>
+          </div>
           <p class="prof-note" data-el="note"></p>
         </div>
       </div>
@@ -12595,6 +12716,7 @@ function init(root) {
   const areaEl = $('area');
   const nameEl = $('name');
   const kindsEl = $('kinds');
+  const insideEl = $('inside');
   const kindsTitleEl = $('kindsTitle');
   const noteEl = $('note');
   const grid = $('grid');
@@ -12621,16 +12743,15 @@ function init(root) {
     areaEl.textContent = p ? p.area : '';
     nameEl.textContent = p ? p.name : '';
 
-    const kinds = p ? kindsOf(p) : [];
-    kindsEl.innerHTML = kinds.map((k) => `<li>${k}</li>`).join('');
-    // The list holds its place even when it is empty — a profession with no
-    // specializations beside it says nothing at all, and the card must not
-    // shrink around that silence.
-    kindsEl.hidden = !p;
+    const inside = p ? insideOf(p) : { title: '', items: [] };
+    kindsEl.innerHTML = inside.items.map((k) => `<li>${k}</li>`).join('');
+    // The block holds its place even when it is empty — the card must not
+    // shrink around a profession that has less to say than its neighbours.
+    insideEl.hidden = !p;
     // Hidden rather than dropped: the caption keeps its place over the
-    // invitation and over a profession that has nothing beside it, so the card
-    // stays one height.
-    kindsTitleEl.style.visibility = kinds.length ? '' : 'hidden';
+    // invitation, so the card stays one height.
+    kindsTitleEl.textContent = inside.title || 'Специализации';
+    kindsTitleEl.style.visibility = inside.items.length ? '' : 'hidden';
     // The invitation stands only while nothing is picked.
     noteEl.hidden = !!p;
     noteEl.textContent = REST_NOTE;
@@ -12652,8 +12773,8 @@ function init(root) {
     // keep room the card never needs.
     detailEl.classList.remove('at-rest');
     noteEl.hidden = true;
-    kindsEl.hidden = false;
-    const width = kindsEl.clientWidth;
+    insideEl.hidden = false;
+    const width = insideEl.clientWidth;
     if (!width || width === measuredAt) {
       show(back);
       return;
@@ -12664,8 +12785,13 @@ function init(root) {
     // after writing the text makes the browser lay the whole page out again,
     // and 88 of those is most of what building this section used to cost. Here
     // they are written into one hidden probe and read in a single pass.
-    const list = tallest(width, PROFESSIONS.map((p) =>
-      `<ul class="prof-kinds">${kindsOf(p).map((k) => `<li>${k}</li>`).join('')}</ul>`).join(''));
+    const list = tallest(width, PROFESSIONS.map((p) => {
+      const inside = insideOf(p);
+      return '<div class="prof-inside">'
+        + `<div class="prof-kinds-title">${inside.title}</div>`
+        + `<ul class="prof-kinds">${inside.items.map((k) => `<li>${k}</li>`).join('')}</ul>`
+        + '</div>';
+    }).join(''));
     const head = tallest(headEl.clientWidth, PROFESSIONS.map((p) =>
       '<div class="prof-detail-head">'
       + '<span class="prof-detail-art"></span>'
@@ -12674,7 +12800,7 @@ function init(root) {
       +   `<span class="prof-detail-name">${p.name}</span>`
       + '</span></div>').join(''));
 
-    kindsEl.style.minHeight = `${list}px`;
+    insideEl.style.minHeight = `${list}px`;
     noteEl.style.minHeight = `${list}px`;
     headEl.style.minHeight = `${head}px`;
     show(back);

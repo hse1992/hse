@@ -451,10 +451,17 @@ button { font-family: inherit; }
 
 /* Where the reader is, in words. Comes up as a block starts, goes once they
    are into it, and comes back whenever the bar is pointed at. */
+/* Where the reader is, in words — set under the slot it is about, not off in
+   the corner: the number and the place it names should be one thing to look
+   at. It stands in the same row as the names, because everything below that
+   belongs to the block, and a lead-in screen that parks at the top of the
+   section comes right up to it. --count-x is the middle of the current slot,
+   put there from JS. */
 .page-progress-count {
   position: fixed;
-  top: 16px;
-  right: 16px;
+  top: 12px;
+  left: var(--count-x, 50%);
+  transform: translateX(-50%);
   z-index: 50;
   padding: 5px 11px;
   border-radius: 999px;
@@ -466,15 +473,18 @@ button { font-family: inherit; }
   line-height: 1;
   white-space: nowrap;
   opacity: 0;
-  transform: translateY(-4px);
-  transition: opacity 260ms ease, transform 260ms ease;
+  transition: opacity 260ms ease, left 260ms ease;
   pointer-events: none;
 }
 
-.page-progress-count.is-here,
-.page-progress:hover ~ .page-progress-count {
+.page-progress-count.is-here {
   opacity: 1;
-  transform: none;
+}
+
+/* Pointing at the bar brings up the names, which stand in the same row and say
+   more than the count does — so the count steps aside for them. */
+.page-progress:hover ~ .page-progress-count {
+  opacity: 0;
 }
 
 /* Nothing to point at on a touch screen. */
