@@ -109,7 +109,6 @@ export const COUNTRIES = [
   { code: 'sl', name: 'Сьерра-Леоне' },
   { code: 'tj', name: 'Таджикистан' },
   { code: 'th', name: 'Таиланд' },
-  { code: 'tw', name: 'Тайвань' },
   { code: 'tz', name: 'Танзания' },
   { code: 'tg', name: 'Того' },
   { code: 'tn', name: 'Тунис' },
@@ -140,7 +139,7 @@ export const COUNTRIES = [
 // countries are sorted by name. Together they cover COUNTRIES exactly.
 export const REGIONS = [
   { key: 'europe', label: 'Европа', codes: ['at', 'al', 'by', 'be', 'bg', 'ba', 'gb', 'hu', 'de', 'gr', 'is', 'es', 'it', 'lv', 'lt', 'md', 'no', 'ro', 'mk', 'rs', 'sk', 'si', 'ua', 'fi', 'fr', 'cz', 'ch', 'se', 'ee'] },
-  { key: 'asia', label: 'Азия', codes: ['ab', 'az', 'am', 'af', 'bd', 'bh', 'vn', 'ge', 'il', 'in', 'id', 'jo', 'iq', 'ir', 'ye', 'kz', 'kh', 'qa', 'kg', 'cn', 'la', 'lb', 'mn', 'mm', 'np', 'ae', 'pk', 'ps', 'sa', 'sy', 'tj', 'th', 'tw', 'tm', 'tr', 'uz', 'ph', 'lk', 'kr', 'os', 'jp'] },
+  { key: 'asia', label: 'Азия', codes: ['ab', 'az', 'am', 'af', 'bd', 'bh', 'vn', 'ge', 'il', 'in', 'id', 'jo', 'iq', 'ir', 'ye', 'kz', 'kh', 'qa', 'kg', 'cn', 'la', 'lb', 'mn', 'mm', 'np', 'ae', 'pk', 'ps', 'sa', 'sy', 'tj', 'th', 'tm', 'tr', 'uz', 'ph', 'lk', 'kr', 'os', 'jp'] },
   { key: 'africa', label: 'Африка', codes: ['dz', 'ao', 'bj', 'bw', 'bf', 'ga', 'gm', 'gh', 'gn', 'cd', 'eg', 'zm', 'zw', 'cm', 'ke', 'ci', 'lr', 'mu', 'mg', 'mw', 'ml', 'ma', 'mz', 'ng', 'rw', 'sn', 'sd', 'sl', 'tz', 'tg', 'tn', 'ug', 'td', 'et', 'za'] },
   { key: 'america', label: 'Северная и Южная Америка', codes: ['ar', 'bz', 'bo', 'br', 've', 'ht', 'gt', 'hn', 'do', 'ca', 'co', 'cr', 'cu', 'mx', 'ni', 'py', 'pe', 'sv', 'us', 'cl', 'ec'] },
   { key: 'oceania', label: 'Австралия и Океания', codes: ['au', 'vu', 'nz'] },
@@ -148,8 +147,8 @@ export const REGIONS = [
 
 // Which countries each campus has students from.
 export const BY_CITY = {
-  msk: ['ab', 'au', 'at', 'az', 'al', 'dz', 'ao', 'ar', 'am', 'af', 'bd', 'bh', 'by', 'bz', 'bg', 'bo', 'ba', 'br', 'bf', 'vu', 'gb', 'hu', 've', 'vn', 'ht', 'gm', 'gh', 'gt', 'gn', 'de', 'hn', 'gr', 'ge', 'cd', 'eg', 'zm', 'zw', 'il', 'in', 'id', 'jo', 'iq', 'ir', 'is', 'es', 'it', 'ye', 'kz', 'kh', 'cm', 'ca', 'qa', 'ke', 'kg', 'cn', 'co', 'cr', 'ci', 'cu', 'la', 'lv', 'lr', 'lb', 'lt', 'mu', 'mg', 'ml', 'ma', 'mx', 'md', 'mn', 'mm', 'np', 'ng', 'ni', 'nz', 'no', 'ae', 'pk', 'ps', 'py', 'pe', 'rw', 'ro', 'sv', 'sa', 'mk', 'sn', 'rs', 'sy', 'sk', 'si', 'sd', 'us', 'sl', 'tj', 'th', 'tw', 'tz', 'tg', 'tn', 'tm', 'tr', 'ug', 'uz', 'ua', 'fi', 'fr', 'td', 'cz', 'cl', 'ch', 'lk', 'ec', 'ee', 'et', 'za', 'kr', 'os', 'jp'],
-  spb: ['az', 'dz', 'am', 'af', 'bd', 'by', 'be', 'bj', 'bg', 'bo', 'bw', 'br', 'vn', 'gm', 'gh', 'de', 'ge', 'do', 'eg', 'zm', 'zw', 'in', 'id', 'ir', 'es', 'it', 'kz', 'cm', 'kg', 'cn', 'lv', 'lt', 'ma', 'mx', 'mz', 'md', 'np', 'ng', 'pk', 'sa', 'sy', 'sl', 'tj', 'th', 'tw', 'tm', 'tr', 'ug', 'uz', 'ua', 'ph', 'fr', 'td', 'cl', 'se', 'lk', 'ec', 'ee', 'et', 'kr', 'os'],
+  msk: ['ab', 'au', 'at', 'az', 'al', 'dz', 'ao', 'ar', 'am', 'af', 'bd', 'bh', 'by', 'bz', 'bg', 'bo', 'ba', 'br', 'bf', 'vu', 'gb', 'hu', 've', 'vn', 'ht', 'gm', 'gh', 'gt', 'gn', 'de', 'hn', 'gr', 'ge', 'cd', 'eg', 'zm', 'zw', 'il', 'in', 'id', 'jo', 'iq', 'ir', 'is', 'es', 'it', 'ye', 'kz', 'kh', 'cm', 'ca', 'qa', 'ke', 'kg', 'cn', 'co', 'cr', 'ci', 'cu', 'la', 'lv', 'lr', 'lb', 'lt', 'mu', 'mg', 'ml', 'ma', 'mx', 'md', 'mn', 'mm', 'np', 'ng', 'ni', 'nz', 'no', 'ae', 'pk', 'ps', 'py', 'pe', 'rw', 'ro', 'sv', 'sa', 'mk', 'sn', 'rs', 'sy', 'sk', 'si', 'sd', 'us', 'sl', 'tj', 'th', 'tz', 'tg', 'tn', 'tm', 'tr', 'ug', 'uz', 'ua', 'fi', 'fr', 'td', 'cz', 'cl', 'ch', 'lk', 'ec', 'ee', 'et', 'za', 'kr', 'os', 'jp'],
+  spb: ['az', 'dz', 'am', 'af', 'bd', 'by', 'be', 'bj', 'bg', 'bo', 'bw', 'br', 'vn', 'gm', 'gh', 'de', 'ge', 'do', 'eg', 'zm', 'zw', 'in', 'id', 'ir', 'es', 'it', 'kz', 'cm', 'kg', 'cn', 'lv', 'lt', 'ma', 'mx', 'mz', 'md', 'np', 'ng', 'pk', 'sa', 'sy', 'sl', 'tj', 'th', 'tm', 'tr', 'ug', 'uz', 'ua', 'ph', 'fr', 'td', 'cl', 'se', 'lk', 'ec', 'ee', 'et', 'kr', 'os'],
   nn: ['am', 'af', 'bd', 'by', 'ga', 'gh', 'de', 'eg', 'in', 'id', 'jo', 'iq', 'ir', 'kz', 'cm', 'kg', 'cn', 'co', 'lb', 'mw', 'ma', 'md', 'mn', 'ng', 'pk', 'ps', 'pe', 'sd', 'us', 'tz', 'tm', 'tr', 'uz', 'ua', 'ec', 'et'],
   perm: ['az', 'by', 'ge', 'kz', 'kg', 'cn', 'lv', 'md', 'mn', 'tj', 'tm', 'uz', 'ua'],
 };

@@ -169,7 +169,7 @@ export function init(root) {
          so the eye can follow one country while the cities are switched. */
       /* The flag fills the tile exactly, so it is rounded off itself instead of
          being clipped by one: the wall is drawn for the first time on the frame
-         it slides in, and 129 clipping layers are 129 things to do in it. */
+         it slides in, and 128 clipping layers are 128 things to do in it. */
       .world-tile {
         width: var(--tile, 40px);
         aspect-ratio: 4 / 3;
@@ -295,7 +295,7 @@ export function init(root) {
 
       /* A ruler under the bar: a mark every ten countries and a longer one
          with a figure every fifty, so a guess can be put down by eye rather
-         than by feel. It stays after the answer — 129 of 195 is easier to read
+         than by feel. It stays after the answer — 128 of 195 is easier to read
          against it too. */
       .world-ruler {
         position: relative;
@@ -559,7 +559,7 @@ export function init(root) {
         }
       }
 
-      /* Five captions and 129 flags do not fit into a screen-sized card on a
+      /* Five captions and 128 flags do not fit into a screen-sized card on a
          phone: squeezed into 40dvh a flag is 16px wide and unrecognisable. So
          here the wall grows to its full height and scrolls with the page, and
          the counter sticks to the top instead of the picture. */
@@ -724,7 +724,7 @@ export function init(root) {
 
   // The block is built a screen before it is shown, and then the whole wall
   // arrives in one movement. A flag left to be decoded on the frame it appears
-  // is one of 129 doing the same thing at once — so they are decoded here,
+  // is one of 128 doing the same thing at once — so they are decoded here,
   // while the reader is still reading the title card.
   grid.querySelectorAll('img').forEach((img) => {
     if (img.decode) img.decode().catch(() => {});
@@ -733,7 +733,7 @@ export function init(root) {
   new ResizeObserver(layout).observe(grid);
 
   // ---------- The name under the cursor ----------
-  // One tip for the whole wall, and one listener: 129 flags with a listener
+  // One tip for the whole wall, and one listener: 128 flags with a listener
   // each would cost more to build than the wall itself. Only where there is a
   // cursor to follow — a tap on a phone would leave the name standing there.
   const tip = $('tip');
@@ -892,7 +892,7 @@ export function init(root) {
   const stepped = () => document.documentElement.classList.contains('is-stepped');
 
   // What to say once the answer is out. Judged by how far off the guess was
-  // against the answer, not by the bare difference: forty away from 129 is
+  // against the answer, not by the bare difference: forty away from 128 is
   // close, forty away from sixty is not. Nearly everyone guesses low, so that
   // side gets the most words.
   function verdict(g) {
