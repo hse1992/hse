@@ -76,23 +76,25 @@ const DOT_LIGHT = 'var(--brand-violet)';
 const GUESS_MAX = 1000;
 
 // The ruler under the bar, the same one the question about countries has: a
-// mark every fifty years, a longer one with a figure every two hundred. A bar
-// with nothing but its ends named gives the eye nothing to measure against.
+// mark every hundred years, and every one of them says which. A bar with
+// nothing but its ends named gives the eye nothing to measure against.
 // Built here and not in init(): the screen is drawn several beats before the
 // block, and a scale that arrives later would arrive after the question.
 const RULER = (() => {
-  const TICK = 50;
-  const FIGURE = 200;
+  const TICK = 100;
+  const FIGURE = 100;
   let out = '';
   for (let v = 0; v <= GUESS_MAX; v += TICK) {
-    const big = v % FIGURE === 0;
+    // The last figure carries the unit and is that much wider, so the one
+    // before it stays a bare mark rather than crowding into it.
+    const big = v % FIGURE === 0 && v !== GUESS_MAX - FIGURE;
     const where = v === 0 ? ' is-first' : v === GUESS_MAX ? ' is-last' : '';
-    out += `<span class="study-tick${big ? ' is-big' : ''}${where}"`
+    out += `<span class="study-guess-tick${big ? ' is-big' : ''}${where}"`
       + ` style="left: ${(v / GUESS_MAX) * 100}%">`
-      + (big ? `<span>${nf(v)}</span>` : '')
+      + (big ? `<span>${nf(v)}${v === GUESS_MAX ? ' лет' : ''}</span>` : '')
       + '</span>';
   }
-  return `<span class="study-ruler" aria-hidden="true">${out}</span>`;
+  return `<span class="study-guess-ruler" aria-hidden="true">${out}</span>`;
 })();
 
 // One square per programme, and they arrive a level at a time: first the
@@ -297,45 +299,47 @@ const LEAD_STYLE = `<style>
     background: var(--brand-grey-light);
   }
 
-  .study-scale-mark,
-  .study-scale-true {
+  /* The true figure fills the bar up to itself, the way the answer about
+     countries does: two marks side by side would leave the reader working out
+     which of them is theirs. It grows with the beat that brings the answer. */
+  .study-scale-fill {
     position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 0;
+    border-radius: 5px;
+    background: var(--hse-blue);
+  }
+
+  /* The reader's own mark: a line across the bar, dark enough to be read both
+     on the empty bar and on the filled one. */
+  .study-scale-mark {
+    position: absolute;
+    left: 0;
     top: 50%;
     width: 5px;
     height: 30px;
     border-radius: 3px;
+    background: var(--text);
+    opacity: 0;
     transform: translate(-50%, -50%);
     transition: left 160ms ease;
   }
 
-  /* The reader's mark: grey, and there only once it has been put down. */
-  .study-scale-mark {
-    left: 0;
-    background: var(--text-secondary);
-    opacity: 0;
-  }
-
   .study-scale-mark.is-set { opacity: 1; }
-
-  /* The true figure, in the corporate blue of the screen — it arrives with
-     the answer and not a beat earlier. */
-  .study-scale-true {
-    left: 0;
-    background: var(--hse-blue);
-    opacity: calc(var(--lead-stage-4, 0) * 2 - 1);
-  }
 
   /* The ruler under the bar — the same one the question about countries has,
      so the two questions of the page are read the same way. It starts clear
      of the marks: they hang below the bar and must not be read through it. */
-  .study-ruler {
+  .study-guess-ruler {
     display: block;
     position: relative;
     height: calc(1.6em * var(--intro-k, 1.55));
     margin-top: 16px;
   }
 
-  .study-tick {
+  .study-guess-tick {
     position: absolute;
     top: 0;
     width: 1px;
@@ -344,16 +348,17 @@ const LEAD_STYLE = `<style>
     background: var(--btn-border);
   }
 
-  .study-tick.is-big {
+  .study-guess-tick.is-big {
     height: 9px;
     background: var(--text-caption);
   }
 
-  .study-tick span {
+  .study-guess-tick span {
     position: absolute;
     top: 12px;
     left: 50%;
     transform: translateX(-50%);
+    white-space: nowrap;
     font-size: calc(0.6875rem * var(--intro-k, 1.55));
     line-height: 1;
     color: var(--text-caption);
@@ -362,12 +367,12 @@ const LEAD_STYLE = `<style>
 
   /* The figures at the ends would hang over the edge of the screen if they
      were centred on their mark like the rest. */
-  .study-tick.is-first span {
+  .study-guess-tick.is-first span {
     left: 0;
     transform: none;
   }
 
-  .study-tick.is-last span {
+  .study-guess-tick.is-last span {
     left: auto;
     right: 0;
     transform: none;
@@ -433,7 +438,7 @@ const LEAD_STYLE = `<style>
   @media (prefers-reduced-motion: reduce) {
     .study-scale.is-nudged .study-scale-bar { animation: none; }
     .study-scale-mark,
-    .study-scale-true { transition: none; }
+    .study-scale-fill { transition: none; }
   }
 
   /* The same figure the block itself opens with, so the screen and the
@@ -604,10 +609,9 @@ const LEAD_STYLE = `<style>
     .study-lead-then { margin-top: 0.7em; }
     .study-scale { padding: 10px 0 2px; }
     .study-scale-bar { height: 8px; }
-    .study-scale-mark,
-    .study-scale-true { width: 4px; height: 26px; }
-    .study-ruler { height: 1.6em; margin-top: 12px; }
-    .study-tick span { font-size: 0.6875rem; top: 10px; }
+    .study-scale-mark { width: 4px; height: 26px; }
+    .study-guess-ruler { height: 1.6em; margin-top: 12px; }
+    .study-guess-tick span { font-size: 0.6875rem; top: 10px; }
     .study-lead-verdict { font-size: 0.9375rem; }
     .study-lead-check { font-size: 0.875rem; padding: 0.6em 1.6em; }
     .study-lead-say { font-size: 0.9375rem; }
@@ -667,7 +671,7 @@ export const meta = {
       + '<span class="study-lead-guess intro-stage" data-stage="3"><span class="study-lead-guess-in">'
       +   `<span class="study-scale" data-el="scale" role="slider" tabindex="0" aria-label="Сколько лет, по-твоему" aria-valuemin="0" aria-valuemax="${GUESS_MAX}">`
       +     '<span class="study-scale-bar">'
-      +       '<span class="study-scale-true" data-el="markTrue"></span>'
+      +       '<span class="study-scale-fill" data-el="fill"></span>'
       +       '<span class="study-scale-mark" data-el="markGuess"></span>'
       +     '</span>'
       +     RULER
@@ -1176,7 +1180,7 @@ export function init(root) {
   const scaleEl = atLead('scale');
   const barEl = scaleEl && scaleEl.querySelector('.study-scale-bar');
   const markGuessEl = atLead('markGuess');
-  const markTrueEl = atLead('markTrue');
+  const fillEl = atLead('fill');
   const guessValueEl = atLead('guessValue');
   const guessUnitEl = atLead('guessUnit');
   const verdictEl = atLead('verdict');
@@ -1227,11 +1231,11 @@ export function init(root) {
     if (told) {
       verdictEl.innerHTML = guess === null
         ? ''
-        : `<b>${verdict(guess)}</b> — твоя метка ${nf(guess)}`;
+        : `<b>${verdict(guess)}</b> — твоя догадка ${nf(guess)}`;
     } else if (!scaleEl.classList.contains('is-nudged')) {
       verdictEl.textContent = guess === null
         ? 'Нажми на полосу или потяни метку'
-        : `Твоя метка — ${nf(guess)} ${years(guess)}`;
+        : `Твоя догадка — ${nf(guess)} ${years(guess)}`;
     }
     // Where the page waits for a mark, the button waits with it; where it
     // scrolls on regardless, there is no beat to ask for and no button.
@@ -1250,12 +1254,14 @@ export function init(root) {
     paintGuess();
   }
 
-  // Marks are put down in tens: the reader is guessing centuries, not years.
-  const STEP = 10;
+  // Down to a single year: the answer is 912, and a mark that can only be put
+  // down in tens could never land on it. The bar is wide enough for that — a
+  // pixel of it is less than a year and a half.
+  const STEP = 1;
   const valueAt = (x) => {
     const box = barEl.getBoundingClientRect();
     const part = Math.min(1, Math.max(0, (x - box.left) / box.width));
-    return Math.round((part * GUESS_MAX) / STEP) * STEP;
+    return Math.round(part * GUESS_MAX);
   };
 
   // Taken by a click and by dragging, never by the wheel: on a wide screen the
@@ -1264,7 +1270,6 @@ export function init(root) {
     if (told) return;
     e.preventDefault();
     scaleEl.setPointerCapture(e.pointerId);
-    scaleEl.focus({ preventScroll: true });
     setGuess(valueAt(e.clientX));
   });
   scaleEl.addEventListener('pointermove', (e) => {
@@ -1276,7 +1281,9 @@ export function init(root) {
     if (!by) return;
     e.preventDefault();
     const from = guess === null ? 0 : guess;
-    const step = e.shiftKey ? STEP * 10 : STEP;
+    // A year at a time, ten with Shift: a thousand of them by arrow alone
+    // would be a long walk.
+    const step = e.shiftKey ? 10 : STEP;
     setGuess(Math.min(GUESS_MAX, Math.max(0, from + by * step)));
   });
 
@@ -1317,7 +1324,7 @@ export function init(root) {
   window.addEventListener('resize', reserveParts);
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(reserveParts);
 
-  markTrueEl.style.left = along(YEARS_TOTAL);
+  fillEl.style.width = `calc(${along(YEARS_TOTAL)} * var(--lead-stage-4, 0))`;
   const followAnswer = () => {
     const at = parseFloat(section.style.getPropertyValue('--lead-stage-4')) || 0;
     if ((at > 0.5) === told) return;
