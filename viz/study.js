@@ -70,6 +70,31 @@ const mark = (text) =>
 const DOT = 'var(--brand-cyan)';
 const DOT_LIGHT = 'var(--brand-violet)';
 
+// The far end of the scale the reader puts a mark on. A thousand years: round,
+// so it reads as «up to a thousand» rather than as a hint, and the answer sits
+// almost at the end of it — which is the picture the screen is after.
+const GUESS_MAX = 1000;
+
+// The ruler under the bar, the same one the question about countries has: a
+// mark every fifty years, a longer one with a figure every two hundred. A bar
+// with nothing but its ends named gives the eye nothing to measure against.
+// Built here and not in init(): the screen is drawn several beats before the
+// block, and a scale that arrives later would arrive after the question.
+const RULER = (() => {
+  const TICK = 50;
+  const FIGURE = 200;
+  let out = '';
+  for (let v = 0; v <= GUESS_MAX; v += TICK) {
+    const big = v % FIGURE === 0;
+    const where = v === 0 ? ' is-first' : v === GUESS_MAX ? ' is-last' : '';
+    out += `<span class="study-tick${big ? ' is-big' : ''}${where}"`
+      + ` style="left: ${(v / GUESS_MAX) * 100}%">`
+      + (big ? `<span>${nf(v)}</span>` : '')
+      + '</span>';
+  }
+  return `<span class="study-ruler" aria-hidden="true">${out}</span>`;
+})();
+
 // One square per programme, and they arrive a level at a time: first the
 // longer degree, then the shorter one under it. The campuses have their own
 // colours later on — here it is the levels that are told apart.
@@ -175,9 +200,12 @@ const LEAD_STYLE = `<style>
     margin-top: 0.45em;
   }
 
+  /* The layers sit at the foot of the box, not at its head: the box is as
+     tall as the squares all the way through, and a beat pinned to the top of
+     it would stand a long way above the scale it belongs with. */
   .study-lead-beat {
     grid-area: 1 / 1;
-    align-self: start;
+    align-self: end;
   }
 
   /* The three share the box, so they must not be seen through each other:
@@ -190,14 +218,23 @@ const LEAD_STYLE = `<style>
     opacity: calc(1 - var(--lead-stage-3, 0) * 2.5);
   }
 
-  /* The turn of the screen, and it is given room: the answer should not
-     read as the next line of the heading. Like the squares before it, the
-     figure both comes and goes — the year takes its place. */
-  .study-lead-answer {
+  /* The question stands in the same place and is given the same room as the
+     answer that replaces it, so nothing moves between the two beats. */
+  .study-lead-ask {
     display: block;
     margin-top: 1.8em;
     opacity: min(calc(var(--lead-stage-3, 1) * 2 - 1),
                  calc(1 - var(--lead-stage-4, 0) * 2.5));
+  }
+
+  /* The turn of the screen, and it is given room: the answer should not
+     read as the next line of the heading. Like the question before it, the
+     figure both comes and goes — the year takes its place. */
+  .study-lead-answer {
+    display: block;
+    margin-top: 1.8em;
+    opacity: min(calc(var(--lead-stage-4, 1) * 2 - 1),
+                 calc(1 - var(--lead-stage-5, 0) * 2.5));
   }
 
   /* What the figure answers, set small under it — the number is the thing
@@ -214,7 +251,189 @@ const LEAD_STYLE = `<style>
   .study-lead-then {
     display: block;
     margin-top: 1.8em;
-    opacity: calc(var(--lead-stage-4, 1) * 2 - 1);
+    opacity: calc(var(--lead-stage-5, 1) * 2 - 1);
+  }
+
+  /* ---------- The mark the reader puts down ---------- */
+
+  /* The scale comes with the question and stays through the answer: the mark
+     and the true figure are read against each other. It goes only when the
+     year takes the screen — by then it has said everything it had to. */
+  .study-lead-guess {
+    display: block;
+    margin-top: 1.1em;
+  }
+
+  .study-lead-guess-in {
+    display: block;
+    opacity: calc(1 - var(--lead-stage-5, 0) * 2.5);
+  }
+
+  /* The bar is the slider: its hit area reaches above and below, so the mark
+     can be put down by a click anywhere along it. */
+  .study-scale {
+    display: block;
+    position: relative;
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 14px 0 4px;
+    cursor: pointer;
+    touch-action: none;
+  }
+
+  .study-scale:focus-visible {
+    outline: 2px solid var(--hse-blue);
+    outline-offset: 6px;
+    border-radius: 4px;
+  }
+
+  /* The screen itself stands on the page ground, so the bar cannot be that
+     same grey — it would not be seen at all. */
+  .study-scale-bar {
+    display: block;
+    position: relative;
+    height: 10px;
+    border-radius: 5px;
+    background: var(--brand-grey-light);
+  }
+
+  .study-scale-mark,
+  .study-scale-true {
+    position: absolute;
+    top: 50%;
+    width: 5px;
+    height: 30px;
+    border-radius: 3px;
+    transform: translate(-50%, -50%);
+    transition: left 160ms ease;
+  }
+
+  /* The reader's mark: grey, and there only once it has been put down. */
+  .study-scale-mark {
+    left: 0;
+    background: var(--text-secondary);
+    opacity: 0;
+  }
+
+  .study-scale-mark.is-set { opacity: 1; }
+
+  /* The true figure, in the corporate blue of the screen — it arrives with
+     the answer and not a beat earlier. */
+  .study-scale-true {
+    left: 0;
+    background: var(--hse-blue);
+    opacity: calc(var(--lead-stage-4, 0) * 2 - 1);
+  }
+
+  /* The ruler under the bar — the same one the question about countries has,
+     so the two questions of the page are read the same way. It starts clear
+     of the marks: they hang below the bar and must not be read through it. */
+  .study-ruler {
+    display: block;
+    position: relative;
+    height: calc(1.6em * var(--intro-k, 1.55));
+    margin-top: 16px;
+  }
+
+  .study-tick {
+    position: absolute;
+    top: 0;
+    width: 1px;
+    height: 5px;
+    margin-left: -0.5px;
+    background: var(--btn-border);
+  }
+
+  .study-tick.is-big {
+    height: 9px;
+    background: var(--text-caption);
+  }
+
+  .study-tick span {
+    position: absolute;
+    top: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: calc(0.6875rem * var(--intro-k, 1.55));
+    line-height: 1;
+    color: var(--text-caption);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* The figures at the ends would hang over the edge of the screen if they
+     were centred on their mark like the rest. */
+  .study-tick.is-first span {
+    left: 0;
+    transform: none;
+  }
+
+  .study-tick.is-last span {
+    left: auto;
+    right: 0;
+    transform: none;
+  }
+
+  /* One line under the bar: what the mark says now, and what it said once the
+     answer is out. */
+  .study-lead-verdict {
+    display: block;
+    margin-top: 0.5em;
+    text-align: center;
+    font-size: calc(1rem * var(--intro-k, 1.55));
+    color: var(--text-secondary);
+  }
+
+  .study-lead-verdict b {
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  /* The same button the other question of the page sends its guess with —
+     filled, in the corporate blue — but set against this screen, which is
+     blown up as a whole. */
+  .study-lead-check {
+    display: block;
+    margin: 0.8em auto 0;
+    padding: 0.62em 2em;
+    font-size: calc(0.9375rem * var(--intro-k, 1.55));
+    font-weight: 600;
+    color: var(--card);
+    background: var(--hse-blue);
+    border-color: var(--hse-blue);
+  }
+
+  .study-lead-check:hover {
+    color: var(--card);
+    background: var(--link-hover);
+    border-color: var(--link-hover);
+  }
+
+  .study-lead-check:disabled {
+    opacity: 0.35;
+    cursor: default;
+    background: var(--hse-blue);
+    border-color: var(--hse-blue);
+  }
+
+  .study-lead-check[hidden] {
+    display: none;
+  }
+
+  /* Asked to go on without a mark: the bar says where the reader is expected. */
+  .study-scale.is-nudged .study-scale-bar {
+    animation: study-nudge 620ms cubic-bezier(0.215, 0.61, 0.355, 1);
+  }
+
+  @keyframes study-nudge {
+    0%, 100% { background: var(--brand-grey-light); }
+    30% { background: var(--brand-cyan); }
+  }
+
+
+  @media (prefers-reduced-motion: reduce) {
+    .study-scale.is-nudged .study-scale-bar { animation: none; }
+    .study-scale-mark,
+    .study-scale-true { transition: none; }
   }
 
   /* The same figure the block itself opens with, so the screen and the
@@ -380,8 +599,17 @@ const LEAD_STYLE = `<style>
     .study-lead-dot { border-radius: 2px; }
     /* On a phone the screen has one column and no room to spare: the
        figure still leads, but by less. */
+    .study-lead-ask,
     .study-lead-answer,
     .study-lead-then { margin-top: 0.7em; }
+    .study-scale { padding: 10px 0 2px; }
+    .study-scale-bar { height: 8px; }
+    .study-scale-mark,
+    .study-scale-true { width: 4px; height: 26px; }
+    .study-ruler { height: 1.6em; margin-top: 12px; }
+    .study-tick span { font-size: 0.6875rem; top: 10px; }
+    .study-lead-verdict { font-size: 0.9375rem; }
+    .study-lead-check { font-size: 0.875rem; padding: 0.6em 1.6em; }
     .study-lead-say { font-size: 0.9375rem; }
     .study-lead-years { font-size: 3rem; }
     .study-lead-year { font-size: 1.875rem; }
@@ -410,10 +638,19 @@ export const meta = {
       + '<span class="study-lead-beat"><span class="study-lead-gone">'
       +   `${dotsOf(LEVELS[0], 1, true)}${dotsOf(LEVELS[1], 2, false)}`
       + '</span></span>'
-      // The answer, and then what it means, each on a beat of its own: first
-      // the figure alone, with the sentence it answers under it — the number
-      // is what the screen turns on, so it is read before the words.
-      + '<span class="study-lead-beat intro-stage" data-stage="3"><span class="study-lead-answer">'
+      // The question stands where the answer will: a figure of its own, still
+      // unknown, and one line asking for it. The scale to put a mark on is
+      // under the screen — see below.
+      + '<span class="study-lead-beat intro-stage" data-stage="3"><span class="study-lead-ask">'
+      +   '<span class="study-lead-years"><span data-el="guessValue">?</span>'
+      +     '<span class="study-lead-years-unit" data-el="guessUnit">лет</span>'
+      +   '</span>'
+      +   '<span class="study-lead-say">уйдет, чтобы пройти их все одну за другой. '
+      +     '<span data-el="askTail">Как думаешь, сколько?</span></span>'
+      + '</span></span>'
+      // The answer, in the place the question held: the figure first — it is
+      // what the screen turns on — and the sentence it answers under it.
+      + '<span class="study-lead-beat intro-stage" data-stage="4"><span class="study-lead-answer">'
       +   `<span class="study-lead-years">${nf(YEARS_TOTAL)}`
       +     `<span class="study-lead-years-unit">${plural(YEARS_TOTAL, 'год', 'года', 'лет')}</span>`
       +   '</span>'
@@ -421,10 +658,24 @@ export const meta = {
       + '</span></span>'
       // The figure gives way to the year it lands on, in the same place: one
       // thought turning into the next, not two standing side by side.
-      + '<span class="study-lead-beat intro-stage" data-stage="4"><span class="study-lead-then">'
+      + '<span class="study-lead-beat intro-stage" data-stage="5"><span class="study-lead-then">'
       +   `<span class="study-lead-card">${LEAD_CARD}</span>`
       + '</span></span></span>'
-      + '<span class="study-lead-outro intro-stage" data-stage="5">В общем нужно…</span>'
+      // The scale stands under the screen rather than inside the swap: the
+      // mark the reader put down stays where it was while the answer lands
+      // beside it, and the two are read against each other.
+      + '<span class="study-lead-guess intro-stage" data-stage="3"><span class="study-lead-guess-in">'
+      +   `<span class="study-scale" data-el="scale" role="slider" tabindex="0" aria-label="Сколько лет, по-твоему" aria-valuemin="0" aria-valuemax="${GUESS_MAX}">`
+      +     '<span class="study-scale-bar">'
+      +       '<span class="study-scale-true" data-el="markTrue"></span>'
+      +       '<span class="study-scale-mark" data-el="markGuess"></span>'
+      +     '</span>'
+      +     RULER
+      +   '</span>'
+      +   '<span class="study-lead-verdict" data-el="verdict">Нажми на полосу или потяни метку</span>'
+      +   '<button type="button" class="btn study-lead-check" data-el="check" disabled>Ответить</button>'
+      + '</span></span>'
+      + '<span class="study-lead-outro intro-stage" data-stage="6">В общем нужно…</span>'
   },
   title: 'Учиться, учиться и еще раз учиться',
   // The heading arrives on its own — the reader has just been told all this on
@@ -915,4 +1166,175 @@ export function init(root) {
 
   render(true);
   alignColumns();
+
+  // ---------- The guess on the lead-in screen ----------
+  // Before the screen says how many years it would take, it asks. The mark,
+  // the scale and the button are drawn by the shell as part of the lead-in,
+  // outside this block — so they are found through the section.
+  const section = root.closest('.viz-section');
+  const atLead = (name) => section && section.querySelector(`[data-el="${name}"]`);
+  const scaleEl = atLead('scale');
+  const barEl = scaleEl && scaleEl.querySelector('.study-scale-bar');
+  const markGuessEl = atLead('markGuess');
+  const markTrueEl = atLead('markTrue');
+  const guessValueEl = atLead('guessValue');
+  const guessUnitEl = atLead('guessUnit');
+  const verdictEl = atLead('verdict');
+  const checkEl = atLead('check');
+  const askTailEl = atLead('askTail');
+  const guessBoxEl = section && section.querySelector('.study-lead-guess');
+
+  // A screen with no scale on it is a screen the shell has not drawn — there
+  // is nothing to ask and nothing to wait for.
+  if (!scaleEl) return {};
+
+  const years = (n) => plural(n, 'год', 'года', 'лет');
+  const along = (v) => `${(v / GUESS_MAX) * 100}%`;
+
+  let guess = null;        // the reader's mark, or null while there is none
+  let told = false;        // the answer is out
+
+  // Beat by beat the page is read only on a wide screen. Elsewhere it simply
+  // scrolls, there is no next beat to ask for, and the answer comes on its own.
+  const stepped = () => document.documentElement.classList.contains('is-stepped');
+
+  // What the mark turned out to be worth. A large miss is easier to feel as a
+  // multiple than as a difference, so it is said that way — and nearly
+  // everyone guesses low.
+  function verdict(v) {
+    const diff = YEARS_TOTAL - v;
+    if (diff === 0) return 'В точку!';
+    if (Math.abs(diff) <= Math.round(YEARS_TOTAL * 0.1)) return 'Почти в точку';
+    if (!v) return `Ни года? А их ${nf(YEARS_TOTAL)}`;
+    if (diff > 0) {
+      const ratio = YEARS_TOTAL / v;
+      if (ratio >= 1.75) {
+        const k = Math.round(ratio);
+        const almost = ratio < k - 0.1 ? 'Почти в' : 'В';
+        return `${almost} ${nf(k)} ${plural(k, 'раз', 'раза', 'раз')} больше, чем казалось`;
+      }
+      return `На ${nf(diff)} ${years(diff)} больше, чем казалось`;
+    }
+    return `На ${nf(-diff)} ${years(-diff)} меньше, чем казалось`;
+  }
+
+  function paintGuess() {
+    guessValueEl.textContent = guess === null ? '?' : nf(guess);
+    guessUnitEl.textContent = years(guess === null ? 0 : guess);
+    // With a mark in place the line already says a number, and asking «how
+    // many, do you think» after it would be asking about what it just said.
+    if (askTailEl) askTailEl.textContent = guess === null ? 'Как думаешь, сколько?' : 'Проверим?';
+    if (told) {
+      verdictEl.innerHTML = guess === null
+        ? ''
+        : `<b>${verdict(guess)}</b> — твоя метка ${nf(guess)}`;
+    } else if (!scaleEl.classList.contains('is-nudged')) {
+      verdictEl.textContent = guess === null
+        ? 'Нажми на полосу или потяни метку'
+        : `Твоя метка — ${nf(guess)} ${years(guess)}`;
+    }
+    // Where the page waits for a mark, the button waits with it; where it
+    // scrolls on regardless, there is no beat to ask for and no button.
+    checkEl.disabled = guess === null;
+    checkEl.hidden = told || !stepped();
+  }
+
+  function setGuess(v) {
+    if (v === guess || told) return;
+    guess = v;
+    markGuessEl.style.left = along(v);
+    markGuessEl.classList.add('is-set');
+    scaleEl.setAttribute('aria-valuenow', v);
+    scaleEl.setAttribute('aria-valuetext', `${nf(v)} ${years(v)}`);
+    scaleEl.classList.remove('is-nudged');
+    paintGuess();
+  }
+
+  // Marks are put down in tens: the reader is guessing centuries, not years.
+  const STEP = 10;
+  const valueAt = (x) => {
+    const box = barEl.getBoundingClientRect();
+    const part = Math.min(1, Math.max(0, (x - box.left) / box.width));
+    return Math.round((part * GUESS_MAX) / STEP) * STEP;
+  };
+
+  // Taken by a click and by dragging, never by the wheel: on a wide screen the
+  // wheel belongs to the story.
+  scaleEl.addEventListener('pointerdown', (e) => {
+    if (told) return;
+    e.preventDefault();
+    scaleEl.setPointerCapture(e.pointerId);
+    scaleEl.focus({ preventScroll: true });
+    setGuess(valueAt(e.clientX));
+  });
+  scaleEl.addEventListener('pointermove', (e) => {
+    if (!told && scaleEl.hasPointerCapture(e.pointerId)) setGuess(valueAt(e.clientX));
+  });
+  scaleEl.addEventListener('keydown', (e) => {
+    if (told) return;
+    const by = { ArrowRight: 1, ArrowUp: 1, ArrowLeft: -1, ArrowDown: -1 }[e.key];
+    if (!by) return;
+    e.preventDefault();
+    const from = guess === null ? 0 : guess;
+    const step = e.shiftKey ? STEP * 10 : STEP;
+    setGuess(Math.min(GUESS_MAX, Math.max(0, from + by * step)));
+  });
+
+  // The button sends the mark: the page is asked for its next beat, and that
+  // beat is the one that brings the answer.
+  checkEl.addEventListener('click', () => {
+    root.dispatchEvent(new CustomEvent('story:next', { bubbles: true }));
+  });
+
+  // Asked to go on without a mark: the page stays where it is, and the bar
+  // says where the reader is expected.
+  function nudge() {
+    scaleEl.classList.remove('is-nudged');
+    void scaleEl.offsetWidth;            // the same animation again, from its start
+    scaleEl.classList.add('is-nudged');
+    verdictEl.textContent = 'Сначала поставь метку на полосе';
+    scaleEl.focus({ preventScroll: true });
+  }
+
+  // The shell owns the beats of the screen and says how far each has come
+  // through --lead-stage-N. The line under the bar follows the beat that
+  // brings the answer — and goes back to naming the mark if the reader steps
+  // back to the question.
+  // The scale keeps its room from the first beat of the screen, empty until
+  // its turn. The screen holds the middle of the window, so anything arriving
+  // under it pushes everything above it up — and the line the reader has just
+  // read would move under their eyes. min-height beats the height the shell
+  // squeezes the part with, so the part still fades in, it just no longer
+  // grows. Measured, because how tall it comes out depends on the window.
+  const outroEl = section.querySelector('.study-lead-outro');
+  const reserve = (el) => {
+    if (!el) return;
+    el.style.minHeight = '';
+    el.style.minHeight = `${el.scrollHeight}px`;
+  };
+  const reserveParts = () => { reserve(guessBoxEl); reserve(outroEl); };
+  reserveParts();
+  window.addEventListener('resize', reserveParts);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(reserveParts);
+
+  markTrueEl.style.left = along(YEARS_TOTAL);
+  const followAnswer = () => {
+    const at = parseFloat(section.style.getPropertyValue('--lead-stage-4')) || 0;
+    if ((at > 0.5) === told) return;
+    told = at > 0.5;
+    paintGuess();
+  };
+  new MutationObserver(followAnswer)
+    .observe(section, { attributes: true, attributeFilter: ['style'] });
+
+  paintGuess();
+
+  // Only the beat that opens the answer waits, and only until there is a mark.
+  return {
+    holdIntro: (stage, { quiet = false } = {}) => {
+      if (stage !== 4 || guess !== null) return false;
+      if (!quiet) nudge();
+      return true;
+    }
+  };
 }
