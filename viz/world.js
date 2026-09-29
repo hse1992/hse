@@ -924,7 +924,7 @@ export function init(root) {
       if (!verdictEl.classList.contains('is-nudged')) {
         verdictEl.textContent = guess === null
           ? 'Нажми на полосу или потяни метку'
-          : `Твоя метка — ${nf(guess)}`;
+          : `Твоя догадка — ${nf(guess)}`;
       }
       // Where the page waits for a mark the button waits with it. Where the
       // page scrolls on regardless, the answer can be had without one.
@@ -944,7 +944,7 @@ export function init(root) {
     noteEl.textContent = `из ${nf(WORLD)} стран мира — ${pct(set.size, WORLD)}`;
     barSeg.style.width = `${(set.size / WORLD) * 100}%`;
     // Said against all of them, whatever the switches are showing now.
-    verdictEl.innerHTML = guess === null ? '' : `<b>${verdict(guess)}</b> — твоя метка ${nf(guess)}`;
+    verdictEl.innerHTML = guess === null ? '' : `<b>${verdict(guess)}</b> — твоя догадка ${nf(guess)}`;
   }
 
   function setGuess(v) {
