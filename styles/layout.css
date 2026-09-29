@@ -808,6 +808,15 @@ button { font-family: inherit; }
   pointer-events: none;
 }
 
+/* The screen itself takes no clicks: it flies over the page and would swallow
+   whatever is under it. But a screen can ask the reader something — a mark to
+   put down, a button to send it — and those have to be usable. */
+.viz-lead button,
+.viz-lead input,
+.viz-lead [role="slider"] {
+  pointer-events: auto;
+}
+
 /* Set in the same type as the heading of the card it hands over to: the same
    size, weight and tracking, so one reads as a continuation of the other. */
 /* --lead-fit is set by lib/page.js: a headline of one line that very nearly
