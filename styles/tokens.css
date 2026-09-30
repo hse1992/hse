@@ -190,8 +190,10 @@
   --header-glow: rgba(35, 75, 155, 0.5);
   --header-glow-soft: rgba(16, 45, 105, 0.3);
 
-  /* The reading hint floats over whatever is on the screen at the time. */
-  --hint-veil: rgba(255, 255, 255, 0.74);
+  /* The reading hint floats over whatever is on the screen at the time —
+     including the one dark card on the page, where a thinner veil would leave
+     its words to be read against the night sky. */
+  --hint-veil: rgba(255, 255, 255, 0.86);
 
   /* Elevation */
   --card-shadow: 0 1px 2px rgba(16, 24, 40, 0.06);

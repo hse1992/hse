@@ -221,8 +221,10 @@
   --header-glow: rgba(35, 75, 155, 0.5);
   --header-glow-soft: rgba(16, 45, 105, 0.3);
 
-  /* The reading hint floats over whatever is on the screen at the time. */
-  --hint-veil: rgba(255, 255, 255, 0.74);
+  /* The reading hint floats over whatever is on the screen at the time —
+     including the one dark card on the page, where a thinner veil would leave
+     its words to be read against the night sky. */
+  --hint-veil: rgba(255, 255, 255, 0.86);
 
   /* Elevation */
   --card-shadow: 0 1px 2px rgba(16, 24, 40, 0.06);
@@ -940,25 +942,38 @@ button { font-family: inherit; }
    beat by beat, which no scrollbar tells the reader — so the hint says how to
    move, and the arrow under it drifts down and back. Both leave for good the
    moment the reader starts. */
+/* One line and no more. The hint stands over whatever the reader is looking at
+   — and on the dark card of the satellites that is the caption under the globe
+   — so it takes as little of the screen as it can: the arrow is set beside the
+   words rather than under them, and only one of the two lines is ever shown. */
 .scroll-hint {
   position: fixed;
-  left: 50%;
+  /* Centred by margins rather than by half its own width: pinned at left: 50%
+     it could only ever be as wide as the half of the screen to the right of
+     that, and the longer line broke in two against a limit nobody set. */
+  left: 0;
+  right: 0;
+  width: fit-content;
+  max-width: calc(100% - 32px);
+  margin: 0 auto;
   bottom: 44px;
   z-index: 5;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
-  gap: 4px;
+  gap: 8px;
   /* It can come back over a drawing, not only over the empty opening screen,
      so it carries its own light backing. */
-  padding: 9px 15px 5px;
+  padding: 6px 14px;
   border-radius: 999px;
   background: var(--hint-veil);
   -webkit-backdrop-filter: blur(8px);   /* Safari reads the prefixed one */
   backdrop-filter: blur(8px);
-  color: var(--text-caption);
+  /* A step darker than a caption: the hint is small now, and it has to be
+     read over the dark card of the satellites as well as over the page. */
+  color: var(--text-secondary);
   opacity: 0;
-  transform: translate(-50%, 8px);
+  transform: translateY(8px);
   transition: opacity 420ms ease, transform 420ms ease;
   pointer-events: none;
 }
@@ -966,7 +981,7 @@ button { font-family: inherit; }
 /* Put there by lib/page.js when the reader has been still long enough. */
 .scroll-hint.is-here {
   opacity: 0.85;
-  transform: translate(-50%, 0);
+  transform: none;
 }
 
 .scroll-hint-text {
@@ -974,16 +989,21 @@ button { font-family: inherit; }
   line-height: 1;
 }
 
-/* Said only once there is a block behind the reader to go back to. */
+/* Said only once there is a block behind the reader — and instead of the first
+   line, not under it: by then «листай» has been answered by the reader
+   themselves, and two lines of hint over a drawing are one too many. */
 .scroll-hint-back {
   display: none;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   line-height: 1;
-  color: var(--text-faded);
 }
 
 .scroll-hint.has-way-back .scroll-hint-back {
   display: block;
+}
+
+.scroll-hint.has-way-back .scroll-hint-text {
+  display: none;
 }
 
 /* Nothing to click on a touch screen — there the bar is only a bar. */
@@ -996,16 +1016,23 @@ button { font-family: inherit; }
   .scroll-hint-text .on-keys { display: none; }
 }
 
+/* Beside the words, and the size of them: it says which way to go, it is not
+   the point of the hint. Once the reader has a block behind them they know
+   which way, and the arrow goes with the line it belonged to. */
 .scroll-hint svg {
   display: block;
-  width: 24px;
-  height: 24px;
+  width: 17px;
+  height: 17px;
   animation: scroll-hint 2.8s ease-in-out infinite;
+}
+
+.scroll-hint.has-way-back svg {
+  display: none;
 }
 
 @keyframes scroll-hint {
   0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(7px); }
+  50% { transform: translateY(4px); }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -14734,7 +14761,14 @@ function init(root) {
       /* The board is a shot from orbit: the corners of a viewfinder, and the
          satellite's own caption along the edges of the frame. It belongs to
          the photograph only — once the figures start adding up, the frame is
-         no longer a picture of anything and goes. */
+         no longer a picture of anything and goes.
+
+         The caption says what took the shot, from how high, and when — and,
+         first of all, what was shot. Without that last field the heading
+         promises a university seen from orbit and the screen answers with a
+         board of figures, leaving the reader to make the connection; said in
+         the caption it is not an explanation from the page, it is the frame
+         stating its subject the way a frame does. */
       .each-hud {
         position: absolute;
         inset: 0;
@@ -14921,7 +14955,7 @@ function init(root) {
         <div class="each-hud" data-el="hud" aria-hidden="true">
           <i class="each-corner tl"></i><i class="each-corner tr"></i>
           <i class="each-corner bl"></i><i class="each-corner br"></i>
-          <div class="each-meta tl" data-el="metaTop"><b>${CAMERA}</b></div>
+          <div class="each-meta tl" data-el="metaTop"><b>${CAMERA}</b><span>Объект съемки: НИУ ВШЭ</span></div>
           <div class="each-meta tr"><span>высота ${nf(ORBIT_KM)} км</span><span>наклонение ${dec(INCLINE)}°</span></div>
           <div class="each-meta bl" data-el="metaBottom"><span>Дата снимка: ${today()}</span></div>
           <div class="each-meta br"><span>кадр 1</span></div>

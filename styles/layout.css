@@ -704,25 +704,38 @@ button { font-family: inherit; }
    beat by beat, which no scrollbar tells the reader — so the hint says how to
    move, and the arrow under it drifts down and back. Both leave for good the
    moment the reader starts. */
+/* One line and no more. The hint stands over whatever the reader is looking at
+   — and on the dark card of the satellites that is the caption under the globe
+   — so it takes as little of the screen as it can: the arrow is set beside the
+   words rather than under them, and only one of the two lines is ever shown. */
 .scroll-hint {
   position: fixed;
-  left: 50%;
+  /* Centred by margins rather than by half its own width: pinned at left: 50%
+     it could only ever be as wide as the half of the screen to the right of
+     that, and the longer line broke in two against a limit nobody set. */
+  left: 0;
+  right: 0;
+  width: fit-content;
+  max-width: calc(100% - 32px);
+  margin: 0 auto;
   bottom: 44px;
   z-index: 5;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
-  gap: 4px;
+  gap: 8px;
   /* It can come back over a drawing, not only over the empty opening screen,
      so it carries its own light backing. */
-  padding: 9px 15px 5px;
+  padding: 6px 14px;
   border-radius: 999px;
   background: var(--hint-veil);
   -webkit-backdrop-filter: blur(8px);   /* Safari reads the prefixed one */
   backdrop-filter: blur(8px);
-  color: var(--text-caption);
+  /* A step darker than a caption: the hint is small now, and it has to be
+     read over the dark card of the satellites as well as over the page. */
+  color: var(--text-secondary);
   opacity: 0;
-  transform: translate(-50%, 8px);
+  transform: translateY(8px);
   transition: opacity 420ms ease, transform 420ms ease;
   pointer-events: none;
 }
@@ -730,7 +743,7 @@ button { font-family: inherit; }
 /* Put there by lib/page.js when the reader has been still long enough. */
 .scroll-hint.is-here {
   opacity: 0.85;
-  transform: translate(-50%, 0);
+  transform: none;
 }
 
 .scroll-hint-text {
@@ -738,16 +751,21 @@ button { font-family: inherit; }
   line-height: 1;
 }
 
-/* Said only once there is a block behind the reader to go back to. */
+/* Said only once there is a block behind the reader — and instead of the first
+   line, not under it: by then «листай» has been answered by the reader
+   themselves, and two lines of hint over a drawing are one too many. */
 .scroll-hint-back {
   display: none;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   line-height: 1;
-  color: var(--text-faded);
 }
 
 .scroll-hint.has-way-back .scroll-hint-back {
   display: block;
+}
+
+.scroll-hint.has-way-back .scroll-hint-text {
+  display: none;
 }
 
 /* Nothing to click on a touch screen — there the bar is only a bar. */
@@ -760,16 +778,23 @@ button { font-family: inherit; }
   .scroll-hint-text .on-keys { display: none; }
 }
 
+/* Beside the words, and the size of them: it says which way to go, it is not
+   the point of the hint. Once the reader has a block behind them they know
+   which way, and the arrow goes with the line it belonged to. */
 .scroll-hint svg {
   display: block;
-  width: 24px;
-  height: 24px;
+  width: 17px;
+  height: 17px;
   animation: scroll-hint 2.8s ease-in-out infinite;
+}
+
+.scroll-hint.has-way-back svg {
+  display: none;
 }
 
 @keyframes scroll-hint {
   0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(7px); }
+  50% { transform: translateY(4px); }
 }
 
 @media (prefers-reduced-motion: reduce) {
