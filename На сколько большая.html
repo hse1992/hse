@@ -13503,16 +13503,12 @@ const MOD_space = (() => {
 
 
 
-
 // ---------- The objects ----------
 // What the satellites are — names, dates, the height and the lie of the orbit
 // — comes from data/satellites.js, which the finale reads as well: it prints
 // those figures along the edge of the picture taken here, and a figure kept in
 // two places comes apart sooner or later. What belongs to the drawing rather
 // than to the satellites stays here.
-//
-// FLOWN_MLN is nearly five times the 149,6 million kilometres from here to
-// the Sun — which is what the closing line says.
 const EARTH_KM = 6371;   // the planet they go round
 
 // Where the four campuses stand on the globe, degrees north and east. On a
@@ -13564,7 +13560,7 @@ const STORY = [
   },
   {
     line: 'Первые два завершили свои миссии и сошли с орбиты',
-    sub: ''   // this line counts itself up — see tell()
+    sub: 'Третий на орбите до сих пор'
   },
   {
     line: SEEN_FROM_ORBIT,
@@ -14365,7 +14361,6 @@ function init(root) {
       const p = (clock - sat.born) / ARRIVE_MS;
       sat.u += (dt / LAP_MS) * Math.PI * 2 * rush(p);
     });
-    if (counting) tell();
     paint();
     raf = requestAnimationFrame(frame);
   }
@@ -14477,29 +14472,15 @@ function init(root) {
   let started = false;
   let opened = false;
   let shown = -1;
-  let counting = 0;
-
-  // The closing line counts itself up: the laps and the kilometres arrive
-  // together, the way the share does on the stadium.
-  function tell() {
-    const p = counting ? Math.min(1, (clock - counting) / 1600) : 1;
-    const e = 1 - Math.pow(1 - p, 3);
-    subEl.textContent = `Третий на орбите до сих пор — ${nf(Math.round(LAPS * e))} витков`
-      + ` и ~${nf(Math.round(FLOWN_MLN * e))} млн км, почти пять расстояний до Солнца`;
-    if (p >= 1) counting = 0;
-  }
 
   function say(i) {
-    counting = 0;
     if (narrow.matches) {
       noteEl.innerHTML = POSTER.line;
       subEl.textContent = POSTER.sub;
       return;
     }
     noteEl.innerHTML = STORY[i].line;
-    if (i !== BURN) { subEl.textContent = STORY[i].sub; return; }
-    counting = still ? 0 : clock;
-    tell();
+    subEl.textContent = STORY[i].sub;
   }
 
   function step(i) {
@@ -14571,12 +14552,15 @@ function init(root) {
 
   return {
     step,
-    // A satellite drawing its own orbit takes longer than a beat, the figures
-    // of the last one count themselves up, and it takes its time to turn to
-    // the ground.
+    // A satellite drawing its own orbit takes longer than a beat, the two that
+    // come down take their time burning up, and the last one takes its time
+    // turning to the ground.
     span: (i) => {
       if (still || narrow.matches) return 0;
-      if (i === BURN) return 2200;
+      // The two flares run 900ms; the rest is for the line under them. It was
+      // 2200 while that line counted its laps up — with the counting gone,
+      // holding the wheel that long would be holding it on a still picture.
+      if (i === BURN) return 1400;
       if (i === HOLD) return AIM_MS;
       if (i === SHOT) return 600;
       return ARRIVE_MS;
