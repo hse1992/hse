@@ -177,7 +177,14 @@ export function init(root) {
       /* The board is a shot from orbit: the corners of a viewfinder, and the
          satellite's own caption along the edges of the frame. It belongs to
          the photograph only — once the figures start adding up, the frame is
-         no longer a picture of anything and goes. */
+         no longer a picture of anything and goes.
+
+         The caption says what took the shot, from how high, and when — and,
+         first of all, what was shot. Without that last field the heading
+         promises a university seen from orbit and the screen answers with a
+         board of figures, leaving the reader to make the connection; said in
+         the caption it is not an explanation from the page, it is the frame
+         stating its subject the way a frame does. */
       .each-hud {
         position: absolute;
         inset: 0;
@@ -364,7 +371,7 @@ export function init(root) {
         <div class="each-hud" data-el="hud" aria-hidden="true">
           <i class="each-corner tl"></i><i class="each-corner tr"></i>
           <i class="each-corner bl"></i><i class="each-corner br"></i>
-          <div class="each-meta tl" data-el="metaTop"><b>${CAMERA}</b></div>
+          <div class="each-meta tl" data-el="metaTop"><b>${CAMERA}</b><span>Объект съемки: НИУ ВШЭ</span></div>
           <div class="each-meta tr"><span>высота ${nf(ORBIT_KM)} км</span><span>наклонение ${dec(INCLINE)}°</span></div>
           <div class="each-meta bl" data-el="metaBottom"><span>Дата снимка: ${today()}</span></div>
           <div class="each-meta br"><span>кадр 1</span></div>
