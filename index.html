@@ -139,7 +139,10 @@
       span: (i) => (api && api.span ? api.span(i) : 0),
       // A section is built on its way onto the screen, not before: whatever it
       // animates on start then plays in front of the reader.
-      build: () => { if (!api) api = mod.init(section.querySelector('.viz-body')) || {}; }
+      build: () => { if (!api) api = mod.init(section.querySelector('.viz-body')) || {}; },
+      // And whenever it comes onto the screen — first time or coming back — the
+      // picture inside it starts from the beginning. See lib/stepper.js.
+      open: () => api && api.open && api.open()
     };
   });
 

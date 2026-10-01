@@ -841,7 +841,7 @@ export function init(root) {
   const LAST = 7;
 
   // The same town as the town section draws — see lib/town-map.js.
-  mountTownMap($('townMap'));
+  const townMap = mountTownMap($('townMap'));
 
   function step(i) {
     const told = i < LAST;
@@ -891,5 +891,11 @@ export function init(root) {
   paintStepHouse();
   step(0);
 
-  return { step };
+  return {
+    step,
+    // The page opens this block — first time, or the reader has come back to
+    // it. The town starts its traffic over, so the map is the same picture it
+    // was when they first saw it.
+    open: () => townMap.open()
+  };
 }

@@ -691,12 +691,12 @@ export function init(root) {
     const px = (ex * ux + ey * uy) / ra, py = (ex * tx + ey * ty) / rb;
     const far = Math.hypot(px, py);
     if (far > 1.02) {
-      const mid = Math.atan2(py, px), open = Math.acos(1 / far);
+      const mid = Math.atan2(py, px), spread = Math.acos(1 / far);
       ctx.globalAlpha = 0.3 * a;
       ctx.beginPath();
       ctx.moveTo(lx, ly);
       for (const side of [-1, 1]) {
-        const w = mid + side * open;
+        const w = mid + side * spread;
         const along = Math.cos(w) * ra, across = Math.sin(w) * rb;
         ctx.lineTo(g.x + ux * along + tx * across, g.y + uy * along + ty * across);
       }
@@ -979,7 +979,6 @@ export function init(root) {
   });
 
   let started = false;
-  let opened = false;
   let shown = -1;
 
   function say(i) {
@@ -992,11 +991,37 @@ export function init(root) {
     subEl.textContent = STORY[i].sub;
   }
 
+  // The page opens this block: the reader has just come to it, by beats or
+  // straight from the bar, and whatever has been going on here while they were
+  // elsewhere starts over. The block is put together long before they get to
+  // it, and the Earth has been turning all that while — set back, it meets them
+  // with the side of it the university is on.
+  function open() {
+    spin = 45;
+    steer = null;
+    // A flick of the hand carries the globe on and dies out in half a second —
+    // but only while the block is on the screen, and nothing turns here while
+    // it is not. Left in, it would be waiting to go off when the reader came
+    // back, and the globe would set off from under their hand.
+    fling = 0;
+    // On a narrow screen the block is not read beat by beat: it stands there
+    // with all three satellites up, and there is no story to take back.
+    if (!narrow.matches) {
+      frozen = false;
+      shown = -1;
+      SATS.forEach((sat) => {
+        sat.born = null;
+        sat.died = null;
+        sat.aim = null;
+        sat.shot = null;
+        sat.u = sat.start;
+        sat.uIn = sat.start;
+      });
+    }
+    paint();
+  }
+
   function step(i) {
-    // The block is put together long before the reader gets to it, and the
-    // Earth has been turning all that while. The first beat sets it back, so
-    // that whoever arrives is met by the side of it the university is on.
-    if (!opened) { opened = true; spin = 45; }
     const jumped = i !== shown + 1 && shown !== -1;
     const instant = still || shown === -1 || jumped;
     // On a narrow screen the whole story is one picture, so all three stay.
@@ -1061,6 +1086,7 @@ export function init(root) {
 
   return {
     step,
+    open,
     // A satellite drawing its own orbit takes longer than a beat, the two that
     // come down take their time burning up, and the last one takes its time
     // turning to the ground.

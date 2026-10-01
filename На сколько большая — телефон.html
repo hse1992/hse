@@ -938,6 +938,14 @@ button { font-family: inherit; }
 
 /* ---------- Scroll hint ---------- */
 
+/* The strip at the foot of the screen the hint stands in, and that the blocks
+   keep out of: how low it sits plus how tall it is plus a little air. Measured
+   rather than guessed — the pill is one line of 0.9375rem with 6px of padding
+   above and below, 29px in all. */
+:root {
+  --hint-room: 56px;
+}
+
 /* A line and a thin arrow at the foot of the opening screen. The page is read
    beat by beat, which no scrollbar tells the reader — so the hint says how to
    move, and the arrow under it drifts down and back. Both leave for good the
@@ -956,7 +964,10 @@ button { font-family: inherit; }
   width: fit-content;
   max-width: calc(100% - 32px);
   margin: 0 auto;
-  bottom: 44px;
+  /* As low as it will go: the strip it stands in is taken away from every
+     block (see --hint-room), so every pixel it climbs is a pixel off each
+     drawing on the page. */
+  bottom: 16px;
   z-index: 5;
   display: flex;
   flex-direction: row;
@@ -1066,7 +1077,12 @@ button { font-family: inherit; }
      lead-in is not scaled, so it takes that gap already multiplied — and the
      two subtitles end up on the same line. */
   gap: calc(14px * var(--intro-k, 1.55));
-  transform: translate(var(--lead-x, 0), var(--lead-y, 0));
+  /* --lead-squeeze is set by lib/page.js: a screen taller than the room it has
+     is scaled down by what does not fit. About its own middle, so a screen
+     placed by its centre stays centred and one placed by its top barely
+     moves. */
+  transform: translate(var(--lead-x, 0), var(--lead-y, 0))
+             scale(var(--lead-squeeze, 1));
   will-change: transform;
   pointer-events: none;
 }
@@ -1205,6 +1221,12 @@ button { font-family: inherit; }
   height: 100dvh;
   min-height: 0;
   overflow: hidden;
+  /* The foot of the screen belongs to the reading hint, on every block and not
+     only on the opening one: it comes back whenever the reader has been still
+     for a while, wherever they are, and a block that filled the screen to the
+     bottom edge would have its last line read through it. So the strip is
+     taken off the block instead — see --hint-room. */
+  padding-bottom: var(--hint-room);
 }
 
 /* The bar is the only cue to how far along the reader is, so the scrollbar
@@ -2511,6 +2533,13 @@ function leadCard(section, K = () => CARD_K, cardHeight = null) {
   // Squeezed shut until their turn — see stageCards for why by height.
   const parts = [...lead.querySelectorAll('.intro-stage')];
   parts.forEach((el) => { el.style.overflow = 'hidden'; });
+  // A beat for every number, not for every box: two parts of the screen can
+  // carry the same `data-stage` — a question and the scale under it arrive
+  // together — and counting boxes would then buy a beat with nothing on it at
+  // the end of the screen.
+  const stages = parts.length
+    ? Math.max(...parts.map((el) => Number(el.dataset.stage) || 1))
+    : 0;
   const openHeight = openHeights(lead, section);
 
   // Stylesheet value: it cannot change while a beat plays.
@@ -2520,8 +2549,8 @@ function leadCard(section, K = () => CARD_K, cardHeight = null) {
     return pad;
   };
   window.addEventListener('resize', () => { pad = null; });
-  const screens = LEAD_SCREENS + parts.length * LEAD_STAGE_SCREENS;
-  const hold = LEAD_HOLD + parts.length * LEAD_STAGE_SCREENS;
+  const screens = LEAD_SCREENS + stages * LEAD_STAGE_SCREENS;
+  const hold = LEAD_HOLD + stages * LEAD_STAGE_SCREENS;
 
   // A figure of one short line — «Только первокурсников ~22 000 человек» — is
   // read at a glance, and breaking it in two spoils that. Where such a line
@@ -2530,7 +2559,7 @@ function leadCard(section, K = () => CARD_K, cardHeight = null) {
   // Measured, not guessed: the same rule then holds for any lead-in.
   const NEARLY = 1.35;         // how much of a squeeze is still worth it
   const value = lead.querySelector('.viz-lead-value');
-  const fit = () => {
+  const fitLine = () => {
     if (!value) return;
     section.style.setProperty('--lead-fit', '1');
     lead.dataset.line = 'one';                 // measured as it would be set
@@ -2545,6 +2574,28 @@ function leadCard(section, K = () => CARD_K, cardHeight = null) {
       section.style.setProperty('--lead-fit', (room / line - 0.004).toFixed(4));
     }
   };
+
+  // And the same for its height. A screen that has grown part by part can come
+  // out taller than the room it has — the one with the question, the answer and
+  // the year it lands on is the tallest on the page — and the foot of the
+  // window is not free: the reading hint stands there. So the screen is scaled
+  // down as a whole by exactly what does not fit. Measured with every part of
+  // it open, because that is the height it has to fit at; scaled about its own
+  // middle, so the placement below needs to know nothing about it.
+  const fitHeight = () => {
+    const kept = parts.map((el) => [el.style.height, el.style.opacity]);
+    parts.forEach((el) => { el.style.height = ''; el.style.opacity = '1'; });
+    section.style.setProperty('--lead-squeeze', '1');
+    const full = lead.offsetHeight;
+    const room = container.clientHeight;
+    const k = full > room && room > 0 ? room / full : 1;
+    parts.forEach((el, i) => { [el.style.height, el.style.opacity] = kept[i]; });
+    section.style.setProperty('--lead-squeeze', k.toFixed(4));
+  };
+
+  // Both are taken together, and only when something they depend on has moved
+  // — the card asks for it before every beat, see measure() in introRunner.
+  const fit = () => { fitLine(); fitHeight(); };
 
   const paint = (q, narrow) => {
     // Sit exactly where the title card will: same top edge, so the swap is a
@@ -2637,7 +2688,7 @@ function leadCard(section, K = () => CARD_K, cardHeight = null) {
   // one that parks takes the block up with it, one that slides aside brings
   // the card in from the right as it goes.
   const together = lead.dataset.together === 'block';
-  return { screens, hold, parts: parts.length, paint, fit, together, parks };
+  return { screens, hold, parts: stages, paint, fit, together, parks };
 }
 
 // The title card: a beat to read it where it stands, then it settles into
@@ -2840,8 +2891,18 @@ function introRunner(section, stages = 1, scale = CARD_K) {
     + `|${[...header.querySelectorAll('img')].filter((img) => img.complete).length}`;
   let taken = null;
   let edited = false;
-  new MutationObserver(() => { edited = true; })
-    .observe(header, { childList: true, characterData: true, subtree: true });
+  const watch = (el, what) => {
+    if (el) new MutationObserver(() => { edited = true; }).observe(el, what);
+  };
+  watch(header, { childList: true, characterData: true, subtree: true });
+  // The lead-in screen is measured in the same pass, and its height is not
+  // settled when the shell first draws it: the styles that shape it come inside
+  // the block, which is put together much later. So the block arriving counts
+  // as an edit too — otherwise the screen is placed against a height it had
+  // before it knew how tall it was, and reaches past the foot of the window.
+  watch(section.querySelector('.viz-lead'),
+    { childList: true, characterData: true, subtree: true });
+  watch(section.querySelector('.viz-body'), { childList: true });
   const remeasure = () => { if (edited || state() !== taken) measure(); };
 
   measure();
@@ -3386,17 +3447,22 @@ const CURTAINS = {
 // animate). Both the card and a scene step are a function of one number, so
 // putting either of them back where it was is exact, not an approximation.
 function beatsOf(entry, before = null) {
-  const { section, opening, steps, setStep, build, opensOnStep, hold, holdIntro, span, curtain } = entry;
+  const { section, opening, steps, setStep, build, open, opensOnStep, hold, holdIntro,
+    span, curtain } = entry;
   const list = [];
 
   // The block has just been put together and the section is on its way in:
-  // this is the moment the card can be measured for real.
+  // this is the moment the card can be measured for real — and the moment the
+  // picture inside it goes back to its beginning. Behind a curtain this
+  // happens with the curtain shut, so the first train pulls in just as the
+  // doors open on it.
   const enter = () => {
     build();
     // A block that opens already showing its first step is put into it here:
     // that picture is what the section arrives with, and the beat that fades
     // the block in is the one that brings it.
     if (opensOnStep && steps) setStep(0);
+    if (open) tried('открытие блока', open);
     if (opening) { opening.remeasure(); opening.runBeat(0, 0); }
   };
 
@@ -3459,15 +3525,23 @@ function beatsOf(entry, before = null) {
       // data-stage="1". What the screen does after that, and the rest of the
       // opening, is nobody's to hold.
       const stage = i < (opening.leadParts || 0) ? i + 1 : 0;
+      // The block itself is under the card until the last of these beats, and
+      // that is the beat the reader first sees it on — so it is there, and not
+      // at the arrival, that whatever it has going starts from its beginning.
+      const reveals = open && i === opening.beats.length - 1;
       list.push({
         section,
         hold: stage && holdIntro ? (options) => holdIntro(stage, options) : null,
         run: (done) => {
           if (opening.remeasure) opening.remeasure();
+          if (reveals) tried('открытие блока', open);
           play(BEAT_MS, (p) => opening.runBeat(i, p), done);
         },
         back: (done) => play(BEAT_MS, (p) => opening.runBeat(i, 1 - p), done),
-        settle: () => opening.runBeat(i, 1)
+        settle: () => {
+          if (reveals) tried('открытие блока', open);
+          opening.runBeat(i, 1);
+        }
       });
     });
   }
@@ -3522,16 +3596,23 @@ function mountScrolled(entries, onProgress) {
     rows.forEach((row) => {
       if (!row.isIntersecting) return;
       const entry = entries.find((e) => e.section === row.target);
-      if (!entry || entry.built) return;
-      entry.built = true;
-      tried('сборка блока', () => {
-        entry.build();
-        // A scene is a story told in steps, and steps need a screen that holds
-        // still. Here it shows what it comes to in the end — the module says so
-        // itself by taking the last step.
-        if (entry.steps) entry.setStep(entry.steps - 1);
-        if (entry.opening) entry.opening.follow();
-      });
+      if (!entry) return;
+      // Coming onto the screen starts whatever the block has going of its own
+      // from the beginning — scrolling back to a block is opening it again.
+      // Asked before the block is built, so that a block arriving for the first
+      // time is simply new rather than new and then put back.
+      if (entry.open) tried('открытие блока', entry.open);
+      if (!entry.built) {
+        entry.built = true;
+        tried('сборка блока', () => {
+          entry.build();
+          // A scene is a story told in steps, and steps need a screen that
+          // holds still. Here it shows what it comes to in the end — the module
+          // says so itself by taking the last step.
+          if (entry.steps) entry.setStep(entry.steps - 1);
+          if (entry.opening) entry.opening.follow();
+        });
+      }
     });
   }, { rootMargin: '400px 0px' });
   entries.forEach((e) => watch.observe(e.section));
@@ -3794,7 +3875,26 @@ function mountStepper(entries, { onProgress, finale, signal } = {}) {
     e.section.toggleAttribute('inert', e.section !== current);
   });
 
+  // A block that has something of its own going — a train running, a globe
+  // turning — starts it from the beginning whenever it comes onto the screen,
+  // so that whoever opens it sees the same first picture: the one the block
+  // was written around. Said here because every way of getting to a block
+  // passes through here: the beat that brings it, a step back into it from the
+  // block after, a jump from the bar. The beat that brings a section in says
+  // it again when the section is actually placed — behind a curtain that is a
+  // second later — so a block is told to open more than once, and being told
+  // twice has to mean exactly what being told once means.
+  let onScreen = -2;
+  const reopen = () => {
+    const here = blockOf(at);
+    if (here === onScreen) return;
+    onScreen = here;
+    const entry = here >= 0 ? entries[here] : null;
+    if (entry && entry.open) tried('открытие блока', entry.open);
+  };
+
   const report = () => {
+    reopen();
     // The light is lit by the beat that opens the page and goes out with it.
     // Wherever the reader ends up before that beat — stepping back, or sent
     // home from the bar — the title screen is the one they first saw, dark.
@@ -5282,6 +5382,10 @@ function buildTown() {
     }
     if (!moved) break;
   }
+  // Where each bus set off from, once they have been pulled apart: the place
+  // open() puts it back to. Taken after this pass and not before it, or the
+  // two buses it moved would come back onto the spot it cleared for them.
+  for (const bus of buses) bus.home = bus.s;
 
   return { rows: ys, rivers, streets: [...streets.values()], letters, slogan, blocks, stations, buildings, drawOrder, trees, metro, routes, buses };
 }
@@ -5943,7 +6047,25 @@ function mountTownMap(root) {
     document.fonts.load(`900 ${LETTER}px "HSE Sans"`).then(() => { if (view.W) { paintStatic(); requestDraw(); } }, () => {});
   }
 
-  return {};
+  return {
+    // Back to the first frame of the town: every bus at the place it set off
+    // from, none of them waiting at a stop or holding a crossroads. The block
+    // that shows the map calls this when the page opens it, so that a reader
+    // coming back to it is met by the same picture as the first time rather
+    // than by traffic that has been driving in an empty room.
+    open() {
+      for (const bus of town.buses) {
+        bus.s = bus.home;
+        bus.speed = BUS_SPEED;
+        bus.wait = 0;
+        bus.stuck = 0;
+        bus.pass = 0;
+        bus.claims.clear();
+      }
+      draw();
+      requestDraw();
+    }
+  };
 }
 
 return { mountTownMap };
@@ -8344,6 +8466,17 @@ function init(root) {
 
   render('instant');
   paint();
+
+  return {
+    // The page opens this block — the reader has just arrived at it, or come
+    // back to it. The trains start their ride over, so that whoever looks at
+    // the track sees the first of them come in from the right rather than a
+    // line that has been running since the page was loaded.
+    open() {
+      epoch = performance.now();
+      if (frame === null) paint();
+    }
+  };
 }
 
 return { meta, init };
@@ -11211,7 +11344,7 @@ function init(root) {
   const LAST = 7;
 
   // The same town as the town section draws — see lib/town-map.js.
-  mountTownMap($('townMap'));
+  const townMap = mountTownMap($('townMap'));
 
   function step(i) {
     const told = i < LAST;
@@ -11261,7 +11394,13 @@ function init(root) {
   paintStepHouse();
   step(0);
 
-  return { step };
+  return {
+    step,
+    // The page opens this block — first time, or the reader has come back to
+    // it. The town starts its traffic over, so the map is the same picture it
+    // was when they first saw it.
+    open: () => townMap.open()
+  };
 }
 
 return { meta, init };
@@ -14194,12 +14333,12 @@ function init(root) {
     const px = (ex * ux + ey * uy) / ra, py = (ex * tx + ey * ty) / rb;
     const far = Math.hypot(px, py);
     if (far > 1.02) {
-      const mid = Math.atan2(py, px), open = Math.acos(1 / far);
+      const mid = Math.atan2(py, px), spread = Math.acos(1 / far);
       ctx.globalAlpha = 0.3 * a;
       ctx.beginPath();
       ctx.moveTo(lx, ly);
       for (const side of [-1, 1]) {
-        const w = mid + side * open;
+        const w = mid + side * spread;
         const along = Math.cos(w) * ra, across = Math.sin(w) * rb;
         ctx.lineTo(g.x + ux * along + tx * across, g.y + uy * along + ty * across);
       }
@@ -14482,7 +14621,6 @@ function init(root) {
   });
 
   let started = false;
-  let opened = false;
   let shown = -1;
 
   function say(i) {
@@ -14495,11 +14633,38 @@ function init(root) {
     subEl.textContent = STORY[i].sub;
   }
 
+  // The page opens this block: the reader has just come to it, by beats or
+  // straight from the bar, and whatever has been going on here while they were
+  // elsewhere starts over. The block is put together long before they get to
+  // it, and the Earth has been turning all that while — set back, it meets them
+  // with the side of it the university is on.
+  function open() {
+    window.__opens = (window.__opens || 0) + 1;
+    spin = 45;
+    steer = null;
+    // A flick of the hand carries the globe on and dies out in half a second —
+    // but only while the block is on the screen, and nothing turns here while
+    // it is not. Left in, it would be waiting to go off when the reader came
+    // back, and the globe would set off from under their hand.
+    fling = 0;
+    // On a narrow screen the block is not read beat by beat: it stands there
+    // with all three satellites up, and there is no story to take back.
+    if (!narrow.matches) {
+      frozen = false;
+      shown = -1;
+      SATS.forEach((sat) => {
+        sat.born = null;
+        sat.died = null;
+        sat.aim = null;
+        sat.shot = null;
+        sat.u = sat.start;
+        sat.uIn = sat.start;
+      });
+    }
+    paint();
+  }
+
   function step(i) {
-    // The block is put together long before the reader gets to it, and the
-    // Earth has been turning all that while. The first beat sets it back, so
-    // that whoever arrives is met by the side of it the university is on.
-    if (!opened) { opened = true; spin = 45; }
     const jumped = i !== shown + 1 && shown !== -1;
     const instant = still || shown === -1 || jumped;
     // On a narrow screen the whole story is one picture, so all three stay.
@@ -14560,10 +14725,12 @@ function init(root) {
     if (still) paint();
   }
 
+  window.__spin = () => spin;
   paint();
 
   return {
     step,
+    open,
     // A satellite drawing its own orbit takes longer than a beat, the two that
     // come down take their time burning up, and the last one takes its time
     // turning to the ground.
@@ -15499,7 +15666,10 @@ const page = document.getElementById('page');
       span: (i) => (api && api.span ? api.span(i) : 0),
       // A section is built on its way onto the screen, not before: whatever it
       // animates on start then plays in front of the reader.
-      build: () => { if (!api) api = mod.init(section.querySelector('.viz-body')) || {}; }
+      build: () => { if (!api) api = mod.init(section.querySelector('.viz-body')) || {}; },
+      // And whenever it comes onto the screen — first time or coming back — the
+      // picture inside it starts from the beginning. See lib/stepper.js.
+      open: () => api && api.open && api.open()
     };
   });
 

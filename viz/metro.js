@@ -1361,4 +1361,15 @@ export function init(root) {
 
   render('instant');
   paint();
+
+  return {
+    // The page opens this block — the reader has just arrived at it, or come
+    // back to it. The trains start their ride over, so that whoever looks at
+    // the track sees the first of them come in from the right rather than a
+    // line that has been running since the page was loaded.
+    open() {
+      epoch = performance.now();
+      if (frame === null) paint();
+    }
+  };
 }
