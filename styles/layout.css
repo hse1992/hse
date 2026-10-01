@@ -700,6 +700,14 @@ button { font-family: inherit; }
 
 /* ---------- Scroll hint ---------- */
 
+/* The strip at the foot of the screen the hint stands in, and that the blocks
+   keep out of: how low it sits plus how tall it is plus a little air. Measured
+   rather than guessed — the pill is one line of 0.9375rem with 6px of padding
+   above and below, 29px in all. */
+:root {
+  --hint-room: 56px;
+}
+
 /* A line and a thin arrow at the foot of the opening screen. The page is read
    beat by beat, which no scrollbar tells the reader — so the hint says how to
    move, and the arrow under it drifts down and back. Both leave for good the
@@ -718,7 +726,10 @@ button { font-family: inherit; }
   width: fit-content;
   max-width: calc(100% - 32px);
   margin: 0 auto;
-  bottom: 44px;
+  /* As low as it will go: the strip it stands in is taken away from every
+     block (see --hint-room), so every pixel it climbs is a pixel off each
+     drawing on the page. */
+  bottom: 16px;
   z-index: 5;
   display: flex;
   flex-direction: row;
@@ -828,7 +839,12 @@ button { font-family: inherit; }
      lead-in is not scaled, so it takes that gap already multiplied — and the
      two subtitles end up on the same line. */
   gap: calc(14px * var(--intro-k, 1.55));
-  transform: translate(var(--lead-x, 0), var(--lead-y, 0));
+  /* --lead-squeeze is set by lib/page.js: a screen taller than the room it has
+     is scaled down by what does not fit. About its own middle, so a screen
+     placed by its centre stays centred and one placed by its top barely
+     moves. */
+  transform: translate(var(--lead-x, 0), var(--lead-y, 0))
+             scale(var(--lead-squeeze, 1));
   will-change: transform;
   pointer-events: none;
 }
@@ -986,6 +1002,12 @@ button { font-family: inherit; }
   height: 100dvh;
   min-height: 0;
   overflow: hidden;
+  /* The foot of the screen belongs to the reading hint, on every block and not
+     only on the opening one: it comes back whenever the reader has been still
+     for a while, wherever they are, and a block that filled the screen to the
+     bottom edge would have its last line read through it. So the strip is
+     taken off the block instead — see --hint-room. */
+  padding-bottom: var(--hint-room);
 }
 
 /* The bar is the only cue to how far along the reader is, so the scrollbar
