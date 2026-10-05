@@ -14995,6 +14995,14 @@ function init(root) {
       @media (min-width: 861px) {
         .each-scene .viz-header {
           position: relative;
+          /* And room for two lines of it is held from the first beat, before
+             there is anything to show. The question is long enough to need
+             them at any width, and it is laid over the heading rather than
+             put in its place — so nothing in the flow grows when it arrives,
+             and without room held here its second line would come down onto
+             the card. Held from the start the board never moves under it;
+             added on arrival, the whole board would re-pack mid-sentence. */
+          min-height: calc(2.12 * clamp(1.125rem, 3.3vw, 2.25rem));
         }
       }
 
@@ -15004,9 +15012,9 @@ function init(root) {
         right: 0;
         top: 0;
         /* Larger than the heading it replaces — it has to be the one thing on
-           the screen that is read. The size gives way on a narrow window so
-           the sentence never breaks onto a second line and never reaches the
-           card underneath. */
+           the screen that is read. It runs to two lines, and the size gives
+           way on a narrow window so that it stays at two and never reaches
+           the card underneath. */
         font-size: clamp(1.125rem, 3.3vw, 2.25rem);
         font-weight: 700;
         line-height: 1.06;
@@ -15144,8 +15152,8 @@ function init(root) {
 
   const turn = document.createElement('div');
   turn.className = 'each-turn';
-  turn.innerHTML = 'Но несмотря на весь масштаб, есть '
-    + '<span class="each-mark">самая главная цифра</span>';
+  turn.innerHTML = 'Но несмотря на весь масштаб Вышки и количество показателей, есть '
+    + '<span class="each-mark">одна самая главная цифра</span>';
   const header = host.querySelector('.viz-header');
   if (header) header.appendChild(turn);
 
