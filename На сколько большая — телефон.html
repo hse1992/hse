@@ -13707,7 +13707,7 @@ const STORY = [
   },
   {
     line: `${SATELLITES[2].name} — запуск ${SATELLITES[2].launched}, уже с Восточного`,
-    sub: 'Снимает Землю и ловит сигналы судов. Расчетный срок работы — год'
+    sub: 'Снимает Землю и ловит сигналы судов'
   },
   {
     line: 'Первые два завершили свои миссии и сошли с орбиты',
@@ -14639,7 +14639,6 @@ function init(root) {
   // it, and the Earth has been turning all that while — set back, it meets them
   // with the side of it the university is on.
   function open() {
-    window.__opens = (window.__opens || 0) + 1;
     spin = 45;
     steer = null;
     // A flick of the hand carries the globe on and dies out in half a second —
@@ -14725,7 +14724,6 @@ function init(root) {
     if (still) paint();
   }
 
-  window.__spin = () => spin;
   paint();
 
   return {
