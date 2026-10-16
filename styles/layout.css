@@ -1657,3 +1657,24 @@ button { font-family: inherit; }
     bottom: 16px;
   }
 }
+
+/* ---------- Targets for a thumb ---------- */
+
+/* A finger is not a cursor: what the eye hits at a pixel the thumb needs a
+   square of. What carries the look keeps its size — the knob of a switch is as
+   wide as it ever was, and 51 by 31 is what the phones use for their own — and
+   what grows is the part that answers the tap, which is invisible either way.
+   Measured on a phone: the row of kinds came out 83 by 19, less than the
+   smallest square a standard will call a target.
+   Last in the file and named by two classes on purpose: the blocks bring their
+   own stylesheets with them, and those arrive after this one. */
+@media (max-width: 860px) {
+  .viz-section .kind-item {
+    padding: 11px 2px;
+    margin: -11px -2px;
+  }
+
+  .viz-section .btn {
+    padding: 12px 15px;
+  }
+}

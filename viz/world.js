@@ -323,7 +323,7 @@ export function init(root) {
         top: 9px;
         left: 50%;
         transform: translateX(-50%);
-        font-size: 0.6875rem;
+        font-size: 0.75rem;
         line-height: 1;
         color: var(--text-caption);
         font-variant-numeric: tabular-nums;

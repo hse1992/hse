@@ -98,6 +98,22 @@ const CARD_STYLE = `<style>
     opacity: var(--intro-body, 1);
   }
 
+  /* On a phone the card does not play, it follows the thumb — and a reader can
+     stop anywhere, including halfway through this swap, where the logo and the
+     line that replaces it stand on top of each other at half height each. A
+     beat nobody can pause is one thing; a picture somebody can park in the
+     middle of has to be right at every point of it. So the phone gets the
+     plain heading alone, like every other block, and the logo stays a thing
+     the wide screen does. */
+  @media (max-width: 860px) {
+    .prof-open { display: none; }
+
+    .prof-settled {
+      height: auto;
+      opacity: 1;
+    }
+  }
+
   .prof-open-we {
     font-size: calc(var(--prof-logo) * 0.4);
     line-height: 1;

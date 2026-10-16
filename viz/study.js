@@ -619,7 +619,7 @@ const LEAD_STYLE = `<style>
     .study-scale-bar { height: 8px; }
     .study-scale-mark { width: 4px; height: 26px; }
     .study-guess-ruler { height: 1.6em; margin-top: 12px; }
-    .study-guess-tick span { font-size: 0.6875rem; top: 10px; }
+    .study-guess-tick span { font-size: 0.75rem; top: 10px; }
     .study-lead-verdict { font-size: 0.9375rem; }
     .study-lead-check { font-size: 0.875rem; padding: 0.6em 1.6em; }
     .study-lead-say { font-size: 0.9375rem; }
