@@ -681,7 +681,15 @@ export function init(root) {
       // The wave crosses the whole wall in about the same time a repaint takes
       // elsewhere on the page.
       tile.style.setProperty('--d', `${Math.round(index * (340 / COUNTRIES.length))}ms`);
-      tile.innerHTML = `<img src="assets/flags/${code}.svg" alt="${name}">`;
+      // On a phone the wall is reached by scrolling, flag after flag, so they
+      // are loaded as they are reached: a hundred and twenty-eight of them are
+      // nearly a megabyte, and that is most of the page arriving before the
+      // reader has got anywhere near it. Where the page is read beat by beat
+      // the whole wall appears in one movement instead, and a flag that starts
+      // loading on the frame it appears is a flag that appears empty — there
+      // they are asked for as the block is built, a beat ahead.
+      tile.innerHTML = `<img src="assets/flags/${code}.svg" alt="${name}" decoding="async"`
+        + `${phone.matches ? ' loading="lazy"' : ''}>`;
       flags.appendChild(tile);
       tiles.set(code, tile);
       index++;
@@ -726,10 +734,13 @@ export function init(root) {
   // The block is built a screen before it is shown, and then the whole wall
   // arrives in one movement. A flag left to be decoded on the frame it appears
   // is one of 128 doing the same thing at once — so they are decoded here,
-  // while the reader is still reading the title card.
-  grid.querySelectorAll('img').forEach((img) => {
-    if (img.decode) img.decode().catch(() => {});
-  });
+  // while the reader is still reading the title card. On a phone there is
+  // nothing to decode yet: the flags are left to load as they are reached.
+  if (!phone.matches) {
+    grid.querySelectorAll('img').forEach((img) => {
+      if (img.decode) img.decode().catch(() => {});
+    });
+  }
 
   onResize(grid, layout);
 

@@ -1902,6 +1902,27 @@ button { font-family: inherit; }
   }
 }
 
+/* ---------- Targets for a thumb ---------- */
+
+/* A finger is not a cursor: what the eye hits at a pixel the thumb needs a
+   square of. What carries the look keeps its size — the knob of a switch is as
+   wide as it ever was, and 51 by 31 is what the phones use for their own — and
+   what grows is the part that answers the tap, which is invisible either way.
+   Measured on a phone: the row of kinds came out 83 by 19, less than the
+   smallest square a standard will call a target.
+   Last in the file and named by two classes on purpose: the blocks bring their
+   own stylesheets with them, and those arrive after this one. */
+@media (max-width: 860px) {
+  .viz-section .kind-item {
+    padding: 11px 2px;
+    margin: -11px -2px;
+  }
+
+  .viz-section .btn {
+    padding: 12px 15px;
+  }
+}
+
 </style>
 </head>
 <body>
@@ -2478,7 +2499,7 @@ function titleCard(section, zone = INTRO_SCREENS, K = () => CARD_K, fullHeight =
     // intro itself: it settles at the top of the screen and waits there while
     // the block comes up to meet it.
     if (narrow) {
-      const hold = window.innerHeight * zone + header.offsetHeight;
+      const hold = window.innerHeight * zone * ZONE_NARROW + header.offsetHeight;
       section.style.setProperty('--intro-hold', `${Math.round(hold)}px`);
     }
   };
@@ -2522,6 +2543,22 @@ const BEAT = 0.7;
 // beat to read it, one to see it go.
 const LEAD_SCREENS = 2 * BEAT;
 const LEAD_HOLD = 0.5;                 // the share of that spent holding
+
+// Which way the page is read — the lead-in screen is placed differently in
+// each, and it is the one piece that has to know.
+const NARROW = window.matchMedia('(max-width: 860px)');
+
+// Air left above and below a lead-in screen on a phone, where it is fixed to
+// the window and has nothing else to stand off from.
+const LEAD_AIR = 20;
+
+// How much of that scrolling a phone asks for. On a wide screen every part of
+// the opening is a beat — one movement of the wheel each — and the same count
+// on a phone turned into a screen of thumb for every one of them: the screen
+// with the question held still for two full screens, and the opening of the
+// studies block alone was seven. The opening plays the same, it is simply
+// asked for in half the distance.
+const ZONE_NARROW = 0.5;
 
 // The lead-in can arrive in parts, the same way the title card does: what is
 // marked `.intro-stage` inside it waits its turn and then grows into place
@@ -2613,8 +2650,23 @@ function leadCard(section, K = () => CARD_K, cardHeight = null) {
     const kept = parts.map((el) => [el.style.height, el.style.opacity]);
     parts.forEach((el) => { el.style.height = ''; el.style.opacity = '1'; });
     section.style.setProperty('--lead-squeeze', '1');
-    const full = lead.offsetHeight;
-    const room = container.clientHeight;
+    // How tall the screen really is, and what it has to fit into.
+    //
+    // On a wide screen the box of the screen is the screen, and it stands in
+    // the pinned container. On a phone the box is the window — the styles give
+    // it the height of one — so its own height says nothing, and the room is
+    // the window itself: what can overflow there is the content inside the box,
+    // above the top edge and below the bottom one. Measuring the box against
+    // the container was wrong twice over: it asked the screen to fit a section
+    // seven thousand pixels tall, so nothing was ever squeezed and the tallest
+    // screen on the page was cut off at both ends, head and question alike.
+    const kids = [...lead.children].map((el) => el.getBoundingClientRect());
+    const full = NARROW.matches && kids.length
+      ? Math.max(...kids.map((r) => r.bottom)) - Math.min(...kids.map((r) => r.top))
+      : lead.offsetHeight;
+    const room = NARROW.matches
+      ? window.innerHeight - LEAD_AIR * 2
+      : container.clientHeight;
     const k = full > room && room > 0 ? room / full : 1;
     parts.forEach((el, i) => { [el.style.height, el.style.opacity] = kept[i]; });
     section.style.setProperty('--lead-squeeze', k.toFixed(4));
@@ -2637,7 +2689,12 @@ function leadCard(section, K = () => CARD_K, cardHeight = null) {
     const top = lifted ? padding() : cardTop;
     if (!narrow && !centres) lead.style.top = `${Math.round(top)}px`;
     if (narrow) lead.style.top = '';
-    lead.style.visibility = narrow && section.getBoundingClientRect().top > 1
+    // Fixed to the window, it is on the screen whatever the page does — so it
+    // is hidden whenever its own section is not: below the reader, where its
+    // turn has not come, and above them, where a screen left half faded would
+    // otherwise hang over every block that follows.
+    const own = section.getBoundingClientRect();
+    lead.style.visibility = narrow && (own.top > 1 || own.bottom < 1)
       ? 'hidden'
       : '';
     // Centred against the same screen height as the heading — in pixels, not
@@ -3012,7 +3069,10 @@ function introRunner(section, stages = 1, scale = CARD_K) {
     // it reads its own position and paints the frame that belongs to it.
     follow() {
       narrow = true;
-      const q = introProgress(section, true, zone);
+      // The same opening over a shorter run of scrolling — see ZONE_NARROW.
+      // The zone the section reserves for it is cut by the same amount, so
+      // the two still agree about where in the opening the reader is.
+      const q = introProgress(section, true, zone * ZONE_NARROW);
       if (q !== null) draw(q * zone);
     },
     // One stretch of it, p from 0 to 1 within that stretch.
@@ -9920,7 +9980,7 @@ function init(root) {
         top: 9px;
         left: 50%;
         transform: translateX(-50%);
-        font-size: 0.6875rem;
+        font-size: 0.75rem;
         line-height: 1;
         color: var(--text-caption);
         font-variant-numeric: tabular-nums;
@@ -10278,7 +10338,15 @@ function init(root) {
       // The wave crosses the whole wall in about the same time a repaint takes
       // elsewhere on the page.
       tile.style.setProperty('--d', `${Math.round(index * (340 / COUNTRIES.length))}ms`);
-      tile.innerHTML = `<img src="${FLAGS[code] || ''}" alt="${name}">`;
+      // On a phone the wall is reached by scrolling, flag after flag, so they
+      // are loaded as they are reached: a hundred and twenty-eight of them are
+      // nearly a megabyte, and that is most of the page arriving before the
+      // reader has got anywhere near it. Where the page is read beat by beat
+      // the whole wall appears in one movement instead, and a flag that starts
+      // loading on the frame it appears is a flag that appears empty — there
+      // they are asked for as the block is built, a beat ahead.
+      tile.innerHTML = `<img src="${FLAGS[code] || ''}" alt="${name}" decoding="async"`
+        + `${phone.matches ? ' loading="lazy"' : ''}>`;
       flags.appendChild(tile);
       tiles.set(code, tile);
       index++;
@@ -10323,10 +10391,13 @@ function init(root) {
   // The block is built a screen before it is shown, and then the whole wall
   // arrives in one movement. A flag left to be decoded on the frame it appears
   // is one of 128 doing the same thing at once — so they are decoded here,
-  // while the reader is still reading the title card.
-  grid.querySelectorAll('img').forEach((img) => {
-    if (img.decode) img.decode().catch(() => {});
-  });
+  // while the reader is still reading the title card. On a phone there is
+  // nothing to decode yet: the flags are left to load as they are reached.
+  if (!phone.matches) {
+    grid.querySelectorAll('img').forEach((img) => {
+      if (img.decode) img.decode().catch(() => {});
+    });
+  }
 
   onResize(grid, layout);
 
@@ -12260,7 +12331,7 @@ const LEAD_STYLE = `<style>
     .study-scale-bar { height: 8px; }
     .study-scale-mark { width: 4px; height: 26px; }
     .study-guess-ruler { height: 1.6em; margin-top: 12px; }
-    .study-guess-tick span { font-size: 0.6875rem; top: 10px; }
+    .study-guess-tick span { font-size: 0.75rem; top: 10px; }
     .study-lead-verdict { font-size: 0.9375rem; }
     .study-lead-check { font-size: 0.875rem; padding: 0.6em 1.6em; }
     .study-lead-say { font-size: 0.9375rem; }
@@ -13095,6 +13166,22 @@ const CARD_STYLE = `<style>
   .prof-settled {
     height: calc(var(--prof-settled-h, 1.2em) * var(--intro-body, 1));
     opacity: var(--intro-body, 1);
+  }
+
+  /* On a phone the card does not play, it follows the thumb — and a reader can
+     stop anywhere, including halfway through this swap, where the logo and the
+     line that replaces it stand on top of each other at half height each. A
+     beat nobody can pause is one thing; a picture somebody can park in the
+     middle of has to be right at every point of it. So the phone gets the
+     plain heading alone, like every other block, and the logo stays a thing
+     the wide screen does. */
+  @media (max-width: 860px) {
+    .prof-open { display: none; }
+
+    .prof-settled {
+      height: auto;
+      opacity: 1;
+    }
   }
 
   .prof-open-we {
@@ -15350,10 +15437,20 @@ function init(root) {
       }
 
       @media (max-width: 860px) {
-        /* One column and no scene here: the board and the answer stand
-           together on one screen, so it gets the room a canvas would have. */
+        /* The turn of the whole page happened here on one screen: the board,
+           the one and the answer all at once, and the reader scrolled past
+           the answer to a question they had not been asked yet. So the block
+           is given a screen of travel and the card is pinned inside it —
+           board first, the one after. */
+        .each-scene .viz-body {
+          display: block;
+          min-height: 185dvh;
+        }
+
         .each-card {
           flex: none;
+          position: sticky;
+          top: 6dvh;
           height: 72dvh;
           min-height: 380px;
         }
@@ -15449,7 +15546,6 @@ function init(root) {
   stage.appendChild(probe);
 
   let sumM = null;                                 // the widest the middle gets
-  let oneM = null;                                 // and the narrowest
 
   function measure() {
     probe.style.fontSize = `${REF}px`;
@@ -15460,7 +15556,6 @@ function init(root) {
     };
     tiles.forEach((t) => { t.m = read(null, markup(t)); });
     sumM = read(nf(TOTAL));
-    oneM = read('1');
   }
 
   // ---------- Layout ----------
@@ -15571,15 +15666,13 @@ function init(root) {
       big,
       end: [{ ...big[0], cy: top + numH / 2 }],
       endTop: Math.round(top + numH + gap),
-      // No scene on a narrow screen: the board and the answer under it are one
-      // still picture, so the reader gets the whole thought at once.
-      // The sizes are drawn closer together than on the wide board: at a
-      // phone's width the smallest of them would otherwise be unreadable.
+      // On a phone the board has the card to itself — the one it comes down
+      // to arrives in its place, on the next turn of the finger, rather than
+      // standing under it from the start. The sizes are drawn closer together
+      // than on the wide board: at a phone's width the smallest of them would
+      // otherwise be unreadable.
       poster: pack(tiles.map((t) => ({ m: t.m, w: 0.6 + 0.4 * t.w })),
-        { x: 0, y: 0, w, h: Math.max(60, (h - endH - 16) * 0.66) }, 90),
-      posterOne: rows([{ m: oneM, w: 1 }],
-        Math.min(72, Math.max(34, h * 0.12)),
-        { x: 0, y: Math.max(60, (h - endH - 16) * 0.66), w, h: (h - endH - 16) * 0.34 }, true)
+        { x: airX, y: airY, w: Math.max(120, w - airX * 2), h: Math.max(60, h - airY * 2) }, 90)
     };
   }
 
@@ -15753,18 +15846,54 @@ function init(root) {
     lines.end.style.bottom = top === null ? '' : 'auto';
   }
 
-  // A narrow screen gets no scene at all, so it gets the whole thought at once
-  // instead: the board of figures, and the one they come down to under it.
-  function poster() {
+  // ---------- The phone ----------
+  // A narrow screen has no beats, so the turn is driven by the scroll. The
+  // card is pinned inside a block a screen and a half tall: first the board
+  // alone, and when the reader pushes past the middle of the block the
+  // figures go and the one is left standing in their place.
+  //
+  // Two states and a line between them, not a figure that grows with the
+  // finger. The whole page has been leading to this one turn, and a turn the
+  // reader can scrub back and forth is a toy, not a turn.
+  let phoneStage = -1;
+
+  function phoneBoard() {
     hush(false);
     paint(false);
-    // Nothing is flying past it here, and the clearing would only wash out the
-    // board standing right above it.
+    // Nothing is flying past it here, and the clearing would only wash out
+    // the board it stands in.
     sum.classList.remove('is-clearing');
-    endAt(null);
+    say(null);
+    placeSum(L.end[0], { dur: 0, show: false, text: '1', color: HSE });
     apply(tiles.map((t, k) => ({ ...L.poster[k], a: 1 })), { delay: rush(ALL, 700, 100) });
-    placeSum(L.posterOne[0], { dur: 0, text: '1', color: HSE });
+  }
+
+  function phoneOne() {
+    sum.classList.remove('is-clearing');
+    endAt(L.endTop);
+    apply(tiles.map(() => null), {});
+    placeSum(L.end[0], { dur: 620, text: '1', color: HSE });
     say('end');
+  }
+
+  // Where the reader is through the block, counted over the distance the
+  // pinned card can ride: 0 as it arrives at the top of the screen, 1 as the
+  // block lets go of it.
+  function phonePart() {
+    const box = host.getBoundingClientRect();
+    const vh = document.documentElement.clientHeight || window.innerHeight;
+    const travel = box.height - vh;
+    return travel > 8 ? Math.min(1, Math.max(0, -box.top / travel)) : 1;
+  }
+
+  // The line is crossed later going forward than coming back, so that a
+  // finger resting exactly on it does not flicker the answer on and off.
+  function phone(force) {
+    const p = phonePart();
+    const want = phoneStage === 1 ? (p > 0.42 ? 1 : 0) : (p > 0.52 ? 1 : 0);
+    if (want === phoneStage && !force) return;
+    phoneStage = want;
+    if (want === 1) phoneOne(); else phoneBoard();
   }
 
   // The closing beat, put back as it ended instead of played again. A window
@@ -15775,7 +15904,7 @@ function init(root) {
   function settle() {
     clearLater();
     stopCount();
-    if (narrow.matches) { poster(); return; }
+    if (narrow.matches) { phone(true); return; }
     $('hud').classList.add('is-gone');
     say('end');
     hush(true);
@@ -15791,7 +15920,7 @@ function init(root) {
     stopCount();
     done = false;
     if (!L) relayout();
-    if (narrow.matches) { poster(); return; }
+    if (narrow.matches) { phone(true); return; }
 
     // The shot stays a shot while the board is up; once it starts adding up,
     // the frame around it goes.
@@ -15863,6 +15992,15 @@ function init(root) {
   }
 
   onResize(stage, () => { relayout(); replay(); });
+
+  // Only the phone reads by scrolling; on a wide screen this never fires a
+  // thing. Answered on the next frame, like every other measurement here.
+  let asked = false;
+  window.addEventListener('scroll', () => {
+    if (!narrow.matches || asked) return;
+    asked = true;
+    requestAnimationFrame(() => { asked = false; if (L) phone(false); });
+  }, { passive: true });
   narrow.addEventListener('change', () => { relayout(); replay(); });
 
   return {
