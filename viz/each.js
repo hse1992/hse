@@ -353,10 +353,20 @@ export function init(root) {
       }
 
       @media (max-width: 860px) {
-        /* One column and no scene here: the board and the answer stand
-           together on one screen, so it gets the room a canvas would have. */
+        /* The turn of the whole page happened here on one screen: the board,
+           the one and the answer all at once, and the reader scrolled past
+           the answer to a question they had not been asked yet. So the block
+           is given a screen of travel and the card is pinned inside it —
+           board first, the one after. */
+        .each-scene .viz-body {
+          display: block;
+          min-height: 185dvh;
+        }
+
         .each-card {
           flex: none;
+          position: sticky;
+          top: 6dvh;
           height: 72dvh;
           min-height: 380px;
         }
@@ -452,7 +462,6 @@ export function init(root) {
   stage.appendChild(probe);
 
   let sumM = null;                                 // the widest the middle gets
-  let oneM = null;                                 // and the narrowest
 
   function measure() {
     probe.style.fontSize = `${REF}px`;
@@ -463,7 +472,6 @@ export function init(root) {
     };
     tiles.forEach((t) => { t.m = read(null, markup(t)); });
     sumM = read(nf(TOTAL));
-    oneM = read('1');
   }
 
   // ---------- Layout ----------
@@ -574,15 +582,13 @@ export function init(root) {
       big,
       end: [{ ...big[0], cy: top + numH / 2 }],
       endTop: Math.round(top + numH + gap),
-      // No scene on a narrow screen: the board and the answer under it are one
-      // still picture, so the reader gets the whole thought at once.
-      // The sizes are drawn closer together than on the wide board: at a
-      // phone's width the smallest of them would otherwise be unreadable.
+      // On a phone the board has the card to itself — the one it comes down
+      // to arrives in its place, on the next turn of the finger, rather than
+      // standing under it from the start. The sizes are drawn closer together
+      // than on the wide board: at a phone's width the smallest of them would
+      // otherwise be unreadable.
       poster: pack(tiles.map((t) => ({ m: t.m, w: 0.6 + 0.4 * t.w })),
-        { x: 0, y: 0, w, h: Math.max(60, (h - endH - 16) * 0.66) }, 90),
-      posterOne: rows([{ m: oneM, w: 1 }],
-        Math.min(72, Math.max(34, h * 0.12)),
-        { x: 0, y: Math.max(60, (h - endH - 16) * 0.66), w, h: (h - endH - 16) * 0.34 }, true)
+        { x: airX, y: airY, w: Math.max(120, w - airX * 2), h: Math.max(60, h - airY * 2) }, 90)
     };
   }
 
@@ -756,18 +762,54 @@ export function init(root) {
     lines.end.style.bottom = top === null ? '' : 'auto';
   }
 
-  // A narrow screen gets no scene at all, so it gets the whole thought at once
-  // instead: the board of figures, and the one they come down to under it.
-  function poster() {
+  // ---------- The phone ----------
+  // A narrow screen has no beats, so the turn is driven by the scroll. The
+  // card is pinned inside a block a screen and a half tall: first the board
+  // alone, and when the reader pushes past the middle of the block the
+  // figures go and the one is left standing in their place.
+  //
+  // Two states and a line between them, not a figure that grows with the
+  // finger. The whole page has been leading to this one turn, and a turn the
+  // reader can scrub back and forth is a toy, not a turn.
+  let phoneStage = -1;
+
+  function phoneBoard() {
     hush(false);
     paint(false);
-    // Nothing is flying past it here, and the clearing would only wash out the
-    // board standing right above it.
+    // Nothing is flying past it here, and the clearing would only wash out
+    // the board it stands in.
     sum.classList.remove('is-clearing');
-    endAt(null);
+    say(null);
+    placeSum(L.end[0], { dur: 0, show: false, text: '1', color: HSE });
     apply(tiles.map((t, k) => ({ ...L.poster[k], a: 1 })), { delay: rush(ALL, 700, 100) });
-    placeSum(L.posterOne[0], { dur: 0, text: '1', color: HSE });
+  }
+
+  function phoneOne() {
+    sum.classList.remove('is-clearing');
+    endAt(L.endTop);
+    apply(tiles.map(() => null), {});
+    placeSum(L.end[0], { dur: 620, text: '1', color: HSE });
     say('end');
+  }
+
+  // Where the reader is through the block, counted over the distance the
+  // pinned card can ride: 0 as it arrives at the top of the screen, 1 as the
+  // block lets go of it.
+  function phonePart() {
+    const box = host.getBoundingClientRect();
+    const vh = document.documentElement.clientHeight || window.innerHeight;
+    const travel = box.height - vh;
+    return travel > 8 ? Math.min(1, Math.max(0, -box.top / travel)) : 1;
+  }
+
+  // The line is crossed later going forward than coming back, so that a
+  // finger resting exactly on it does not flicker the answer on and off.
+  function phone(force) {
+    const p = phonePart();
+    const want = phoneStage === 1 ? (p > 0.42 ? 1 : 0) : (p > 0.52 ? 1 : 0);
+    if (want === phoneStage && !force) return;
+    phoneStage = want;
+    if (want === 1) phoneOne(); else phoneBoard();
   }
 
   // The closing beat, put back as it ended instead of played again. A window
@@ -778,7 +820,7 @@ export function init(root) {
   function settle() {
     clearLater();
     stopCount();
-    if (narrow.matches) { poster(); return; }
+    if (narrow.matches) { phone(true); return; }
     $('hud').classList.add('is-gone');
     say('end');
     hush(true);
@@ -794,7 +836,7 @@ export function init(root) {
     stopCount();
     done = false;
     if (!L) relayout();
-    if (narrow.matches) { poster(); return; }
+    if (narrow.matches) { phone(true); return; }
 
     // The shot stays a shot while the board is up; once it starts adding up,
     // the frame around it goes.
@@ -866,6 +908,15 @@ export function init(root) {
   }
 
   onResize(stage, () => { relayout(); replay(); });
+
+  // Only the phone reads by scrolling; on a wide screen this never fires a
+  // thing. Answered on the next frame, like every other measurement here.
+  let asked = false;
+  window.addEventListener('scroll', () => {
+    if (!narrow.matches || asked) return;
+    asked = true;
+    requestAnimationFrame(() => { asked = false; if (L) phone(false); });
+  }, { passive: true });
   narrow.addEventListener('change', () => { relayout(); replay(); });
 
   return {
