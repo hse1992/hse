@@ -7,6 +7,7 @@ import { CITIES, LYCEUM, STAFF, STUDENTS, FOREIGN, HSE_TOTAL, ADMITTED, AREA_TOT
 import { COUNTRIES } from '../data/countries.js';
 import { ORBIT_KM, INCLINE, SATELLITES } from '../data/satellites.js';
 import { nf, dec, plural } from '../lib/format.js';
+import { onResize } from '../lib/ui.js';
 
 // The teaching part of the floor area — data/hse.js keeps it campus by campus.
 const AREA_STUDY = CITIES.reduce((n, c) => n + c.areaStudy, 0);
@@ -769,9 +770,29 @@ export function init(root) {
     say('end');
   }
 
+  // The closing beat, put back as it ended instead of played again. A window
+  // resized after the answer has arrived still has to be laid out afresh —
+  // the board is packed to the size of the card — but running the whole count
+  // a second time would take the answer off the screen and make the reader
+  // watch five seconds of it to get the same screen back.
+  function settle() {
+    clearLater();
+    stopCount();
+    if (narrow.matches) { poster(); return; }
+    $('hud').classList.add('is-gone');
+    say('end');
+    hush(true);
+    paint(true);
+    endAt(L.endTop);
+    sum.classList.remove('is-clearing');
+    apply(tiles.map(() => null), { dur: 0 });
+    placeSum(L.end[0], { dur: 0, text: '1', color: HSE });
+  }
+
   function play(i) {
     clearLater();
     stopCount();
+    done = false;
     if (!L) relayout();
     if (narrow.matches) { poster(); return; }
 
@@ -821,6 +842,7 @@ export function init(root) {
         later(() => {
           say('end');
           placeSum(L.end[0], { dur: 620 });
+          done = true;
         }, 900);
       }), 1200);
     });
@@ -828,7 +850,12 @@ export function init(root) {
 
   // ---------- Wiring ----------
   let shown = -1;
-  const replay = () => { if (shown >= 0) play(shown); };
+  let done = false;             // the closing beat has played itself out
+  const replay = () => {
+    if (shown < 0) return;
+    if (done) { settle(); return; }
+    play(shown);
+  };
 
   measure();
   relayout();
@@ -838,7 +865,7 @@ export function init(root) {
     document.fonts.ready.then(() => { measure(); relayout(); replay(); });
   }
 
-  new ResizeObserver(() => { relayout(); replay(); }).observe(stage);
+  onResize(stage, () => { relayout(); replay(); });
   narrow.addEventListener('change', () => { relayout(); replay(); });
 
   return {
