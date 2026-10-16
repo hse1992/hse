@@ -1002,12 +1002,6 @@ button { font-family: inherit; }
   height: 100dvh;
   min-height: 0;
   overflow: hidden;
-  /* The foot of the screen belongs to the reading hint, on every block and not
-     only on the opening one: it comes back whenever the reader has been still
-     for a while, wherever they are, and a block that filled the screen to the
-     bottom edge would have its last line read through it. So the strip is
-     taken off the block instead — see --hint-room. */
-  padding-bottom: var(--hint-room);
 }
 
 /* The bar is the only cue to how far along the reader is, so the scrollbar
@@ -1024,7 +1018,14 @@ button { font-family: inherit; }
 
 .viz-section {
   min-height: 100vh;
-  padding: 24px 24px 20px;
+  /* The foot of the screen belongs to the reading hint, on every block and not
+     only on the opening one: it comes back whenever the reader has been still
+     for a while, wherever they are, and a block that filled the screen to the
+     bottom edge would have its last line read through it. So the strip is
+     taken off the block instead — see --hint-room. In every way of reading the
+     page: the hint stands over the one that scrolls just as it does over the
+     one that steps. */
+  padding: 24px 24px var(--hint-room);
   display: flex;
   justify-content: center;
 }
