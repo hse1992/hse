@@ -242,6 +242,12 @@ export function init(root) {
            down and pull it back up again mid-story. */
         .space-note { min-height: 104px; }
 
+        /* Taller than the usual card on a phone. Under a pinned picture there
+           is normally a block scrolling by; here there is only the travel the
+           story is told over, so the screen would be half empty for five
+           screens of it. The globe takes that room instead. */
+        .space-card { height: 56dvh; }
+
         /* On a phone the page scrolls instead of stepping, and the globe with
            its line is pinned to the top there. This is the travel that goes
            under them: a stretch for the empty Earth, one for each satellite

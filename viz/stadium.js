@@ -955,5 +955,10 @@ export function init(root) {
     paint: (target) => boxIn(target, drawStadium(target, studentsOnly()))
   };
 
-  return { step, carry };
+  // On a phone the story is driven by the travel above and by nothing else.
+  // The shell puts a scene into its finished state the moment it builds it —
+  // right after init, and after the first frame the travel has already set —
+  // so the arena arrived full while the line above it still said «Пустая
+  // арена». Here that call is given somewhere harmless to land.
+  return { step: phone.matches ? () => {} : step, carry };
 }
