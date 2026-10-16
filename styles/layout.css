@@ -771,22 +771,32 @@ button { font-family: inherit; }
   line-height: 1;
 }
 
-.scroll-hint.has-way-back .scroll-hint-back {
-  display: block;
+/* Both of these name keys, and the second one names the bar at the top as a
+   way to the sections. Neither is true everywhere.
+   Where the page scrolls — a phone, a narrow window, «less movement» — the
+   arrows and the space bar do what they do on any page, and the bar at the
+   top is only a bar: below 860px it takes no clicks at all. So the page would
+   have been telling a reader on a phone about keys that are not there and
+   about navigation it had itself turned off.
+   And a tablet wide enough to be read in beats has no keys either.
+   So the words wait for both: a page read beat by beat, and something to
+   press on. */
+@media (hover: hover) {
+  .is-stepped .scroll-hint-text .on-keys {
+    display: inline;
+  }
+
+  .is-stepped .scroll-hint.has-way-back .scroll-hint-back {
+    display: block;
+  }
+
+  .is-stepped .scroll-hint.has-way-back .scroll-hint-text {
+    display: none;
+  }
 }
 
-.scroll-hint.has-way-back .scroll-hint-text {
+.scroll-hint-text .on-keys {
   display: none;
-}
-
-/* Nothing to click on a touch screen — there the bar is only a bar. */
-@media (hover: none) {
-  .scroll-hint-back { display: none !important; }
-}
-
-/* Nothing to press on a touch screen. */
-@media (hover: none) {
-  .scroll-hint-text .on-keys { display: none; }
 }
 
 /* Beside the words, and the size of them: it says which way to go, it is not
@@ -799,8 +809,12 @@ button { font-family: inherit; }
   animation: scroll-hint 2.8s ease-in-out infinite;
 }
 
-.scroll-hint.has-way-back svg {
-  display: none;
+/* The arrow goes with the line it belonged to — and only where that line has
+   something to replace it with, see above. */
+@media (hover: hover) {
+  .is-stepped .scroll-hint.has-way-back svg {
+    display: none;
+  }
 }
 
 @keyframes scroll-hint {
@@ -950,6 +964,14 @@ button { font-family: inherit; }
 }
 
 @media (max-width: 860px) {
+  /* The lamp over the doors of a carriage, and the warning under it, belong to
+     the beat that shuts those doors. On a phone that beat does not exist — the
+     page scrolls into the first block instead — so the warning promised
+     something nothing was going to answer, blinked for as long as the reader
+     stayed, and pushed the headline a hundred and fifty pixels down the first
+     screen they ever see. */
+  .page-signal { display: none; }
+
   /* Nothing is pinned as a whole here, so the lead-in holds the screen itself:
      it is fixed to the middle of the window while its part of the zone lasts,
      and the heading waits off to the right, already pinned by its own hold.
@@ -1655,6 +1677,96 @@ button { font-family: inherit; }
 
   .scroll-hint {
     bottom: 16px;
+  }
+}
+
+/* ---------- The list of sections, for a thumb ---------- */
+
+/* The bar is eight targets for a mouse and none for a finger. On a phone it
+   becomes one: touching the hairline opens this list, and the names are read
+   instead of aimed at. Hidden entirely where the bar does its own job. */
+.page-sheet { display: none; }
+
+@media (max-width: 860px) {
+  /* Clicks come back to the bar — but to the bar itself, not to its slots:
+     43 by 4 is not a target. The strip that answers the touch is taller than
+     the hairline and invisible, so the bar still reads as a hairline. */
+  .page-progress {
+    pointer-events: auto;
+  }
+
+  .page-progress::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    height: 24px;
+  }
+
+  .page-progress-slot {
+    pointer-events: none;
+  }
+
+  /* `hidden` is an attribute, not a class, and the browser gives it a display
+     of none at the weakest strength there is — a rule of our own, however
+     plain, outranks it. Said here so the list is shut when it is shut. */
+  .page-sheet[hidden] { display: none; }
+
+  .page-sheet:not([hidden]) {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+  }
+
+  .page-sheet-veil {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    border: 0;
+    padding: 0;
+    background: rgba(20, 23, 28, 0.38);
+    -webkit-backdrop-filter: blur(2px);
+    backdrop-filter: blur(2px);
+  }
+
+  .page-sheet-list {
+    position: absolute;
+    left: 8px;
+    right: 8px;
+    top: 10px;
+    max-height: calc(100% - 20px);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    padding: 6px;
+    gap: 2px;
+    border-radius: 16px;
+    background: var(--card);
+    box-shadow: 0 12px 34px rgba(16, 24, 40, 0.24);
+  }
+
+  .page-sheet-row {
+    appearance: none;
+    border: 0;
+    background: none;
+    text-align: left;
+    font: inherit;
+    font-size: 1rem;
+    color: var(--text);
+    padding: 13px 12px;
+    border-radius: 10px;
+  }
+
+  .page-sheet-row[aria-current] {
+    background: var(--bg);
+    font-weight: 600;
+  }
+
+  .page-sheet-home {
+    color: var(--text-secondary);
+    font-size: 0.9375rem;
   }
 }
 

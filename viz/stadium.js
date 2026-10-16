@@ -222,12 +222,41 @@ export function init(root) {
         overflow: hidden;
       }
 
+      .stadium-run { display: none; }
+
+      /* On a phone the page scrolls, so the story is told by scrolling: the
+         arena, the meter and the line above them are already pinned to the top
+         there, and this gives the block the travel to go under them — a
+         stretch for the empty arena, one for every campus arriving, one for
+         the full house. Without it the phone was handed a stadium already
+         full, and the five lines that fill it — «Первыми пропустим лицеистов»
+         and the rest — were never shown at all. */
+      @media (max-width: 860px) {
+        .stadium-run {
+          display: block;
+          flex: none;
+          height: 240dvh;
+        }
+
+        /* While the story runs, the controls underneath are not the point yet:
+           they come up with the full house, the way they do in beats. */
+        .stadium-body.is-telling .col-left {
+          opacity: 0;
+          pointer-events: none;
+        }
+      }
+
       @media (prefers-reduced-motion: reduce) {
         .stadium-body .col-left,
         .stadium-body .meter-card,
         .stadium-body .stadium-figure { transition: none; }
       }
     </style>
+
+    <!-- The travel the story needs on a phone: the picture above is sticky and
+         this scrolls under it, a stretch of it for every arrival. Nothing on a
+         wide screen, where the story is told in beats. -->
+    <div class="stadium-run" data-el="run" aria-hidden="true"></div>
 
     <div class="col-left">
       <div class="kind-row" data-el="kindRow"></div>
@@ -839,6 +868,34 @@ export function init(root) {
   // settling and the first beat of the scene.
   step(0);
   paint();
+
+  // ---------- The story on a phone ----------
+  // There the page is not read in beats: nothing calls step() but the shell,
+  // once, with the last of them — so the arena arrived full and the five lines
+  // that fill it were never read. The travel is there in the markup (see
+  // .stadium-run), and this walks it: every stretch of it is one more campus
+  // in the stands. Scrolling back takes them out again, the way going back a
+  // beat does.
+  const phone = window.matchMedia('(max-width: 860px)');
+  if (phone.matches) {
+    const run = $('run');
+    let told = -1;
+    const follow = () => {
+      const h = run.offsetHeight;
+      if (!h) return;
+      const gone = -run.getBoundingClientRect().top;
+      const p = Math.min(1, Math.max(0, gone / h));
+      // The last stretch belongs to the full house, and the stretch after the
+      // travel is over to the stadium the reader is handed.
+      const i = Math.min(LAST, Math.floor(p * (LAST + 1)));
+      if (i === told) return;
+      told = i;
+      step(i);
+    };
+    window.addEventListener('scroll', follow, { passive: true });
+    window.addEventListener('resize', follow);
+    follow();
+  }
 
   // ---------- Handing over ----------
   // The page goes on to ask about the students from abroad, and it asks over

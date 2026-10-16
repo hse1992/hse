@@ -91,12 +91,6 @@ const BURN = SATS.length + 1;
 const HOLD = BURN + 1;
 const SHOT = HOLD + 1;
 
-// What the reader gets on a narrow screen, where the story is one picture.
-const POSTER = {
-  line: 'Три спутника Вышки — с 2021 по 2023 год',
-  sub: 'Миссии первых двух завершены, а третий до сих пор снимает Землю'
-};
-
 export const meta = {
   id: 'space',
   // The block opens on one sentence alone, and the card of the section comes
@@ -236,10 +230,30 @@ export function init(root) {
         font-variant-numeric: tabular-nums;
       }
 
+      .space-run { display: none; }
+
       @media (max-width: 860px) {
-        .space-note { min-height: 0; }
         .space-note-line { font-size: 1.125rem; }
         .space-note-sub { font-size: 0.9375rem; }
+
+        /* Room for the longest of the lines, held from the start. The line
+           and the globe under it are pinned to the top of a phone while the
+           story goes by, and a line that grew by a row would push the globe
+           down and pull it back up again mid-story. */
+        .space-note { min-height: 104px; }
+
+        /* On a phone the page scrolls instead of stepping, and the globe with
+           its line is pinned to the top there. This is the travel that goes
+           under them: a stretch for the empty Earth, one for each satellite
+           going up, one for the two that came down, one for the last one
+           turning its camera on the campuses, one for the picture. Without it
+           the phone was handed all three at once and none of those lines was
+           ever read. */
+        .space-run {
+          display: block;
+          flex: none;
+          height: 280dvh;
+        }
       }
     </style>
 
@@ -252,6 +266,7 @@ export function init(root) {
         <div class="canvas-wrap" data-el="wrap"></div>
       </div>
     </div>
+    <div class="space-run" data-el="run" aria-hidden="true"></div>
   `;
 
   // The section itself, so the block can say how its own heading arrives.
@@ -988,11 +1003,6 @@ export function init(root) {
   let shown = -1;
 
   function say(i) {
-    if (narrow.matches) {
-      noteEl.innerHTML = POSTER.line;
-      subEl.textContent = POSTER.sub;
-      return;
-    }
     noteEl.innerHTML = STORY[i].line;
     subEl.textContent = STORY[i].sub;
   }
@@ -1010,30 +1020,28 @@ export function init(root) {
     // it is not. Left in, it would be waiting to go off when the reader came
     // back, and the globe would set off from under their hand.
     fling = 0;
-    // On a narrow screen the block is not read beat by beat: it stands there
-    // with all three satellites up, and there is no story to take back.
-    if (!narrow.matches) {
-      frozen = false;
-      shown = -1;
-      SATS.forEach((sat) => {
-        sat.born = null;
-        sat.died = null;
-        sat.aim = null;
-        sat.shot = null;
-        sat.u = sat.start;
-        sat.uIn = sat.start;
-      });
-    }
+    frozen = false;
+    shown = -1;
+    SATS.forEach((sat) => {
+      sat.born = null;
+      sat.died = null;
+      sat.aim = null;
+      sat.shot = null;
+      sat.u = sat.start;
+      sat.uIn = sat.start;
+    });
+    // On a phone the story is told by the scroll, and the reader can come back
+    // to the middle of it: the run says where they are, and the block is put
+    // back to that, not to the beginning of the story.
+    if (narrow.matches) follow(true);
     paint();
   }
 
   function step(i) {
     const jumped = i !== shown + 1 && shown !== -1;
     const instant = still || shown === -1 || jumped;
-    // On a narrow screen the whole story is one picture, so all three stay.
     const last = i >= BURN;
-    const alive = narrow.matches && last;
-    const count = narrow.matches ? SATS.length : Math.min(i, SATS.length);
+    const count = Math.min(i, SATS.length);
 
     SATS.forEach((sat, k) => {
       const on = k < count;
@@ -1047,13 +1055,11 @@ export function init(root) {
       }
       if (!on) { sat.born = null; sat.died = null; }
       // The first two came down; the last beat is where the page says so.
-      const dies = last && !alive && k < 2;
+      const dies = last && k < 2;
       if (dies && sat.died === null) sat.died = instant ? clock - BURN_MS : clock;
       if (!dies) sat.died = null;
       // The one still flying comes round to face us and takes its picture.
-      // On a narrow screen the story is one picture of all three, so none of
-      // them stops for it.
-      const aims = on && i >= HOLD && !narrow.matches && k === SATS.length - 1;
+      const aims = on && i >= HOLD && k === SATS.length - 1;
       if (aims && !sat.aim) {
         // Wherever the globe and the satellite happen to be, both are brought
         // round: the campuses to face us, the satellite to the point of its
@@ -1080,7 +1086,7 @@ export function init(root) {
 
     // From the beat it comes round over the campuses, the globe stops turning
     // on its own: the reader needs the picture still to read the line over it.
-    frozen = i >= HOLD && !narrow.matches;
+    frozen = i >= HOLD;
 
     shown = i;
     say(i);
@@ -1088,10 +1094,48 @@ export function init(root) {
     if (still) paint();
   }
 
+  // ---------- The story on a phone ----------
+  // There the page is not read in beats: nothing calls step() but the shell,
+  // once, with the last of them — so the block stood there with all three
+  // satellites up and not one line of the story was ever read. The travel is
+  // in the markup (see .space-run), and this walks it: every stretch of it is
+  // one more step. Scrolling back takes the satellites down again, the way
+  // going back a beat does.
+  const runEl = $('run');
+  const colEl = root.querySelector('.col-right');
+  let told = -1;
+  const LAST = meta.steps - 1;
+
+  function follow(force) {
+    // The picture is pinned to the top of the screen while the run goes by
+    // under it — but only until the end of the run comes up to meet it, and
+    // the last screenful of travel is the picture leaving. The story is told
+    // over what is left, so that the picture it is taking is still there when
+    // it takes it.
+    const span = runEl.offsetHeight - colEl.offsetHeight;
+    if (span <= 0) return;
+    const gone = -runEl.getBoundingClientRect().top;
+    const p = Math.min(1, Math.max(0, gone / span));
+    // The last stretch belongs to the picture being taken, and so does
+    // everything past the end of the travel.
+    const i = Math.min(LAST, Math.floor(p * (LAST + 1)));
+    if (i === told && !force) return;
+    told = i;
+    step(i);
+  }
+
+  if (narrow.matches) {
+    window.addEventListener('scroll', () => follow(), { passive: true });
+    window.addEventListener('resize', () => follow());
+    follow(true);
+  }
+
   paint();
 
   return {
-    step,
+    // On a phone the run tells the story and the shell does not: its one call,
+    // with the last step, would be the end of it before it had begun.
+    step: narrow.matches ? () => {} : step,
     open,
     // A satellite drawing its own orbit takes longer than a beat, the two that
     // come down take their time burning up, and the last one takes its time

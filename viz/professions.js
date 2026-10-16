@@ -471,6 +471,27 @@ export function init(root) {
       @media (max-width: 860px) {
         .prof-detail { display: none; }
 
+        /* Forty-four professions in one column are seven screens of thumb, and
+           somewhere in the middle of them a reader has no idea which field they
+           are reading about any more. The caption of the group holds the top of
+           the screen while its own professions go by, and gives way to the next
+           one — the list says where it is without anything being added to it. */
+        .prof-group {
+          padding-top: 0;
+        }
+
+        .prof-group-title {
+          position: sticky;
+          top: 0;
+          z-index: 1;
+          margin: 0 0 3px;
+          padding: 7px 8px 5px;
+          background: var(--bg);
+          border-radius: 12px 12px 0 0;
+          font-size: 0.8125rem;
+          color: var(--text-secondary);
+        }
+
         .prof-body .col-right {
           position: static;
           padding: 0;
