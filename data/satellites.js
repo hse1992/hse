@@ -13,8 +13,6 @@
 
 export const ORBIT_KM = 500;
 export const INCLINE = 97.5;    // sun-synchronous, so the orbit passes over the poles
-export const LAPS = 16500;      // laps CubeSX-HSE-3 had flown by its third year
-export const FLOWN_MLN = 720;   // and million kilometres with them
 
 // In the order they went up.
 export const SATELLITES = [

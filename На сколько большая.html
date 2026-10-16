@@ -38,16 +38,22 @@
   --card: #FFFFFF;
 
   /* Text */
-  --text: #14171C;
-  --text-lead: #3D4451;     /* the opening paragraph — a step below the title */
-  --text-secondary: #6B7280;
-  --text-caption: #9AA1AC;
+  /* Four steps down from the title, and every one of them readable: measured
+     against the page background, the palest of them is at 4.6 to 1 where the
+     standard asks for 4.5. They used to be set by eye, and the two quiet ones
+     came out at 4.35 and 2.34 — close enough to look right to whoever picked
+     them on a good screen, and not close enough for anybody else. */
+  --text: #14171C;          /* 16.0 : 1 */
+  --text-lead: #3D4451;     /* 8.8 — the opening paragraph, a step below the title */
+  --text-secondary: #4E535D;/* 7.0 */
+  --text-caption: #6A6E76;  /* 4.6 */
   --text-faded: #C3C9D3;    /* type that has stepped back but is still there */
   --link: #2A55D6;
   --link-hover: #1B3EA8;
 
   /* Controls */
-  --check-inactive-label: #A9AFB9;
+  --check-inactive-label: #6A6E75;   /* 4.6 : 1 — a switch says which side it is on
+                                        by the knob, not by hiding the other word */
   --check-active: #4A505B;
   --check-inactive-border: #C4C9D2;
   --btn-border: #DDE0E6;
@@ -1240,12 +1246,6 @@ button { font-family: inherit; }
   height: 100dvh;
   min-height: 0;
   overflow: hidden;
-  /* The foot of the screen belongs to the reading hint, on every block and not
-     only on the opening one: it comes back whenever the reader has been still
-     for a while, wherever they are, and a block that filled the screen to the
-     bottom edge would have its last line read through it. So the strip is
-     taken off the block instead — see --hint-room. */
-  padding-bottom: var(--hint-room);
 }
 
 /* The bar is the only cue to how far along the reader is, so the scrollbar
@@ -1262,7 +1262,14 @@ button { font-family: inherit; }
 
 .viz-section {
   min-height: 100vh;
-  padding: 24px 24px 20px;
+  /* The foot of the screen belongs to the reading hint, on every block and not
+     only on the opening one: it comes back whenever the reader has been still
+     for a while, wherever they are, and a block that filled the screen to the
+     bottom edge would have its last line read through it. So the strip is
+     taken off the block instead — see --hint-room. In every way of reading the
+     page: the hint stands over the one that scrolls just as it does over the
+     one that steps. */
+  padding: 24px 24px var(--hint-room);
   display: flex;
   justify-content: center;
 }
@@ -1941,7 +1948,7 @@ button { font-family: inherit; }
   <div id="page"></div>
 
 <footer class="page-footer">
-    <span>Показатели за 2025 год</span>
+    <span data-el="year">Показатели за 2025 год</span>
     <a href="https://data.hse.ru" target="_blank" rel="noopener">© Дирекция по аналитике и управлению данными НИУ ВШЭ</a>
   </footer>
 </main>
@@ -2142,7 +2149,12 @@ function mountProgress(titles = []) {
   const bar = document.createElement('nav');
   bar.className = 'page-progress';
   bar.setAttribute('aria-label', 'Разделы');
-  document.body.appendChild(bar);
+  // First in the document, not last. It is fixed to the top of the window and
+  // reads as the navigation of the page, but Tab follows the document — and
+  // appended at the end it came after every control of the block and the
+  // credits, so a reader on the keyboard had to walk the whole screen to reach
+  // the way out of it.
+  document.body.insertBefore(bar, document.body.firstChild);
 
   // Which block of how many, in words: the bar shows the place but cannot say
   // it. Comes up as a block starts and goes once the reader is into it.
@@ -3012,6 +3024,158 @@ function introRunner(section, stages = 1, scale = CARD_K) {
 }
 
 return { mountProgress, mountTitleMark, introRunner };
+})();
+
+const { onResize, mountCanvas, nameSwitches } = (() => {
+// Small markup helpers for pieces that repeat across visualisations.
+
+// Watches an element for a change of size and answers on the next frame.
+//
+// A callback that measures and then writes — lines up two columns, shrinks an
+// icon to fit — changes the layout it was called about, and the browser
+// notices while it is still delivering the round of notifications it started.
+// It does not break anything; it says so out loud, with «ResizeObserver loop
+// completed with undelivered notifications» thrown at the window, and a page
+// that cries wolf nineteen times in a reading is a page whose console nobody
+// reads. Answering on the next frame instead puts the writing outside that
+// round, and the message goes away because the reason for it does.
+function onResize(el, fn) {
+  let queued = false;
+  new ResizeObserver(() => {
+    if (queued) return;
+    queued = true;
+    requestAnimationFrame(() => { queued = false; fn(); });
+  }).observe(el);
+}
+
+// Sets up a canvas that fills its .canvas-wrap parent and repaints on resize.
+// Returns { canvas, ctx, resize } — call resize() once after the first paint
+// setup if the module needs to force a redraw.
+//
+// `alt` is what the picture says, for a reader who cannot see it. A canvas is
+// a blank to a screen reader: without a word it is announced as nothing at
+// all, and the block loses its picture entirely. With one it is read as the
+// image it is. A canvas that only decorates something already said in words —
+// the little train beside the legend — passes nothing and is hidden instead,
+// which is the honest answer for it.
+function mountCanvas(wrap, paint, alt) {
+  const canvas = document.createElement('canvas');
+  if (alt) {
+    canvas.setAttribute('role', 'img');
+    canvas.setAttribute('aria-label', alt);
+  } else {
+    canvas.setAttribute('aria-hidden', 'true');
+  }
+  wrap.appendChild(canvas);
+  const ctx = canvas.getContext('2d');
+  // On the next frame, like everything else that answers a change of size:
+  // a paint is free to write a figure beside the picture it draws, and that
+  // is a change of layout inside the round of notifications it was called in
+  // — see onResize below for what the browser makes of that.
+  onResize(wrap, paint);
+  window.addEventListener('resize', paint);
+  return { canvas, ctx };
+}
+
+// Where a switch looks for its name: the row it stands in says what it
+// switches, and these are the parts of that row worth reading out.
+const NAMED = '.city-name, .kind-label, .toggle-label, [data-switch-name]';
+const ROWS = '.city-card, .kind-row, .metro-switch, .area-switch, .toggle-row';
+
+// Every block builds its switches from the same markup — a button with
+// role="switch" and a knob inside it — and whether one is on is the `on` class
+// the module puts on it. On its own such a button says neither what it
+// switches nor what state it is in: a screen reader found twenty-three
+// nameless switches on the page and could not tell which were on. Both answers
+// are already in the markup — the name in the row the switch sits in, the
+// state in that class — so they are read off here, once, instead of being
+// written out beside every place a module touches them. A block that wants to
+// say it better sets its own aria-label and this leaves it alone.
+function nameSwitches(root) {
+  const switches = [...root.querySelectorAll('[role="switch"]')];
+  if (!switches.length) return;
+
+  const tell = (el) => el.setAttribute('aria-checked', el.classList.contains('on') ? 'true' : 'false');
+
+  switches.forEach((el) => {
+    if (!el.hasAttribute('aria-label')) {
+      const row = el.closest(ROWS) || el.parentElement;
+      const named = row ? [...row.querySelectorAll(NAMED)].map((n) => n.textContent.trim()).filter(Boolean) : [];
+      const label = named.length ? named.join(', ')
+        : (row ? row.textContent.replace(/\s+/g, ' ').trim() : '');
+      if (label) el.setAttribute('aria-label', label);
+    }
+    tell(el);
+  });
+
+  // The class is set wherever the module happens to set it; the state follows
+  // it rather than being repeated at every one of those places.
+  const watch = new MutationObserver((rows) => rows.forEach((row) => tell(row.target)));
+  switches.forEach((el) => watch.observe(el, { attributes: true, attributeFilter: ['class'] }));
+}
+
+return { onResize, mountCanvas, nameSwitches };
+})();
+
+const { tint } = (() => {
+// Colour helpers. Canvas needs plain strings, so colours live in JS, not CSS.
+
+// Mixes a hex colour towards white. amount 0 = unchanged, 1 = white.
+function tint(hex, amount) {
+  const n = parseInt(hex.slice(1), 16);
+  const mix = (c) => Math.round(c + (255 - c) * amount);
+  const r = mix((n >> 16) & 255), g = mix((n >> 8) & 255), b = mix(n & 255);
+  return '#' + ((1 << 24) | (r << 16) | (g << 8) | b).toString(16).slice(1).toUpperCase();
+}
+
+return { tint };
+})();
+
+const { YEAR, CITIES, LYCEUM, LYCEUM_COLOR, FOREIGN, STUDENTS, STAFF, HSE_TOTAL, AREA_TOTAL, ADMITTED } = (() => {
+// Shared HSE figures, 2025. Every visualisation reads its numbers from here
+// so the whole page can never disagree with itself.
+
+// The year all of this is true for. The page says so in the credits and
+// counts back from it where it counts years at all — off this number and not
+// off the reader's clock, or a page opened in two years' time would quietly
+// move its own history while the credits went on naming 2025.
+const YEAR = 2025;
+
+// How much lighter the secondary shade of a city is (staff on the stadium,
+// any second series elsewhere). Same hue, just mixed towards white.
+const LIGHT = 0.52;
+
+// area — total floor area of the city's buildings, m².
+// areaStudy — the part of it used for teaching and labs.
+// admitted — students enrolled in the current admission campaign.
+// foreign — students from abroad, rounded down to tens.
+const city = (key, name, color, students, staff, area, areaStudy, admitted, foreign) => ({
+  key, name, students, staff, area, areaStudy, admitted, foreign,
+  color,                    // main colour of the city
+  colorLight: tint(color, LIGHT)
+});
+
+const CITIES = [
+  city('msk', 'Москва', '#11A0D7', 48139, 9612, 509397, 308789, 16803, 4500),
+  city('spb', 'Санкт-Петербург', '#EB681F', 7895, 1310, 111924, 60648, 2695, 700),
+  city('nn', 'Нижний Новгород', '#029C63', 4366, 572, 32332, 20949, 1476, 270),
+  city('perm', 'Пермь', '#7D4EBA', 2869, 324, 33679, 21227, 981, 130)
+];
+
+const LYCEUM = 2562;         // students of the lyceum, the exact count
+const LYCEUM_COLOR = '#FFD400';
+
+// Students from abroad on all campuses. The campus figures are rounded down, so
+// the page quotes the total as «5 600+», a scale rather than a figure to check.
+const FOREIGN = CITIES.reduce((n, c) => n + c.foreign, 0);
+
+const STUDENTS = CITIES.reduce((n, c) => n + c.students, 0);
+const STAFF = CITIES.reduce((n, c) => n + c.staff, 0);
+const HSE_TOTAL = STUDENTS + STAFF + LYCEUM;
+const AREA_TOTAL = CITIES.reduce((n, c) => n + c.area, 0);
+const ADMITTED = CITIES.reduce((n, c) => n + c.admitted, 0);
+
+return { YEAR, CITIES, LYCEUM, LYCEUM_COLOR, FOREIGN, STUDENTS, STAFF, HSE_TOTAL, AREA_TOTAL, ADMITTED };
 })();
 
 const { nf, pct, dec, plural } = (() => {
@@ -3886,9 +4050,22 @@ function mountStepper(entries, { onProgress, finale, signal } = {}) {
   // is an ordinary page, everything on it is on the screen sooner or later,
   // and shutting parts of it off would take them away from the keyboard for
   // good.
-  const only = (current) => entries.forEach((e) => {
-    e.section.toggleAttribute('inert', e.section !== current);
-  });
+  //
+  // The sections are not the whole page: the title screen above them and the
+  // credits below them hold links of their own, and they are off the screen
+  // just as surely. Left open, the first Tab of a reader in the middle of the
+  // story landed on the link in the title and the browser scrolled the page up
+  // to show it — away from the beat the page was on, with nothing to bring it
+  // back. So they are shut off too, each one open only where it belongs: the
+  // title before the story starts, the credits after it ends.
+  const header = document.querySelector('.page-header');
+  const only = (current) => {
+    entries.forEach((e) => {
+      e.section.toggleAttribute('inert', e.section !== current);
+    });
+    if (header) header.toggleAttribute('inert', at >= 0);
+    if (finale) finale.toggleAttribute('inert', at < beats.length - 1);
+  };
 
   // A block that has something of its own going — a train running, a globe
   // turning — starts it from the beginning whenever it comes onto the screen,
@@ -4156,9 +4333,16 @@ function mountStepper(entries, { onProgress, finale, signal } = {}) {
   const onKey = (e) => {
     // A slider the reader is moving from the keyboard keeps the arrows for
     // itself; space and Enter still carry the story on.
-    const control = e.target instanceof Element
-      && e.target.closest('[role="slider"]:not([aria-disabled="true"])');
+    const el = e.target instanceof Element ? e.target : null;
+    const control = el && el.closest('[role="slider"]:not([aria-disabled="true"])');
     if (control && e.key.startsWith('Arrow')) return;
+    // A control the reader has reached with Tab answers for itself. Space and
+    // Enter are what presses a button, and the page took them for its own — so
+    // a tumbler could be focused and never switched, and the story walked on
+    // instead. The wheel and the arrows still belong to the page: they turn it
+    // wherever the focus happens to be.
+    if ((e.key === ' ' || e.key === 'Enter')
+      && el && el.closest('button, a[href], input, select, textarea, [contenteditable=""], [contenteditable="true"]')) return;
     if (e.repeat) { e.preventDefault(); return; }   // holding a key is one press
     if (KEYS_FORWARD.includes(e.key)) { e.preventDefault(); forward(); }
     else if (KEYS_BACK.includes(e.key)) { e.preventDefault(); back(); }
@@ -4175,6 +4359,25 @@ function mountStepper(entries, { onProgress, finale, signal } = {}) {
   document.addEventListener('touchstart', onTouchStart, { passive: true, capture: true });
   document.addEventListener('touchmove', onTouchMove, grab);
   document.addEventListener('keydown', onKey, true);
+
+  // A section is exactly one screen tall, so changing the size of the window
+  // moves every one of them — while the page stays scrolled to the number it
+  // was at. The reader ends up between two blocks, with the bar still naming
+  // the one they were reading. Nobody resizes a window on purpose mid-read,
+  // but a toolbar folding away, devtools opening or a laptop waking on another
+  // monitor all do it for them. So the page goes back to the beat it is on.
+  // Not while one is playing: that beat is moving the page itself.
+  let settling = 0;
+  const hereTop = () => {
+    if (at < 0) return 0;
+    const beat = beats[at];
+    if (beat.top) return beat.top();
+    return beat.section ? beat.section.offsetTop : window.scrollY;
+  };
+  window.addEventListener('resize', () => {
+    clearTimeout(settling);
+    settling = setTimeout(() => { if (!busy) window.scrollTo(0, hereTop()); }, 120);
+  });
 
   // A block can ask for the next beat itself — a button that sends an answer,
   // say. It counts as the reader asking: a step that waits still has its say.
@@ -4194,79 +4397,6 @@ function mountStepper(entries, { onProgress, finale, signal } = {}) {
 }
 
 return { mountStepper };
-})();
-
-const { tint } = (() => {
-// Colour helpers. Canvas needs plain strings, so colours live in JS, not CSS.
-
-// Mixes a hex colour towards white. amount 0 = unchanged, 1 = white.
-function tint(hex, amount) {
-  const n = parseInt(hex.slice(1), 16);
-  const mix = (c) => Math.round(c + (255 - c) * amount);
-  const r = mix((n >> 16) & 255), g = mix((n >> 8) & 255), b = mix(n & 255);
-  return '#' + ((1 << 24) | (r << 16) | (g << 8) | b).toString(16).slice(1).toUpperCase();
-}
-
-return { tint };
-})();
-
-const { CITIES, LYCEUM, LYCEUM_COLOR, FOREIGN, STUDENTS, STAFF, HSE_TOTAL, AREA_TOTAL, ADMITTED } = (() => {
-// Shared HSE figures, 2025. Every visualisation reads its numbers from here
-// so the whole page can never disagree with itself.
-
-// How much lighter the secondary shade of a city is (staff on the stadium,
-// any second series elsewhere). Same hue, just mixed towards white.
-const LIGHT = 0.52;
-
-// area — total floor area of the city's buildings, m².
-// areaStudy — the part of it used for teaching and labs.
-// admitted — students enrolled in the current admission campaign.
-// foreign — students from abroad, rounded down to tens.
-const city = (key, name, color, students, staff, area, areaStudy, admitted, foreign) => ({
-  key, name, students, staff, area, areaStudy, admitted, foreign,
-  color,                    // main colour of the city
-  colorLight: tint(color, LIGHT)
-});
-
-const CITIES = [
-  city('msk', 'Москва', '#11A0D7', 48139, 9612, 509397, 308789, 16803, 4500),
-  city('spb', 'Санкт-Петербург', '#EB681F', 7895, 1310, 111924, 60648, 2695, 700),
-  city('nn', 'Нижний Новгород', '#029C63', 4366, 572, 32332, 20949, 1476, 270),
-  city('perm', 'Пермь', '#7D4EBA', 2869, 324, 33679, 21227, 981, 130)
-];
-
-const LYCEUM = 2562;         // students of the lyceum, the exact count
-const LYCEUM_COLOR = '#FFD400';
-
-// Students from abroad on all campuses. The campus figures are rounded down, so
-// the page quotes the total as «5 600+», a scale rather than a figure to check.
-const FOREIGN = CITIES.reduce((n, c) => n + c.foreign, 0);
-
-const STUDENTS = CITIES.reduce((n, c) => n + c.students, 0);
-const STAFF = CITIES.reduce((n, c) => n + c.staff, 0);
-const HSE_TOTAL = STUDENTS + STAFF + LYCEUM;
-const AREA_TOTAL = CITIES.reduce((n, c) => n + c.area, 0);
-const ADMITTED = CITIES.reduce((n, c) => n + c.admitted, 0);
-
-return { CITIES, LYCEUM, LYCEUM_COLOR, FOREIGN, STUDENTS, STAFF, HSE_TOTAL, AREA_TOTAL, ADMITTED };
-})();
-
-const { mountCanvas } = (() => {
-// Small markup helpers for pieces that repeat across visualisations.
-
-// Sets up a canvas that fills its .canvas-wrap parent and repaints on resize.
-// Returns { canvas, ctx, resize } — call resize() once after the first paint
-// setup if the module needs to force a redraw.
-function mountCanvas(wrap, paint) {
-  const canvas = document.createElement('canvas');
-  wrap.appendChild(canvas);
-  const ctx = canvas.getContext('2d');
-  new ResizeObserver(() => paint()).observe(wrap);
-  window.addEventListener('resize', paint);
-  return { canvas, ctx };
-}
-
-return { mountCanvas };
 })();
 
 const { loadMark } = (() => {
@@ -5544,6 +5674,18 @@ function drive(buses, dt) {
   });
 }
 
+// A rounded box on a path, for browsers that have roundRect and for the ones
+// that do not. Safari before 16.4 and Firefox before 112 have no roundRect at
+// all, and an unguarded call there threw on the first building of the map —
+// the whole block came up blank. A square corner is a smaller loss than no
+// town. Negative sides are clamped for the same reason: on a very short window
+// a box can come out inside out, and roundRect refuses a negative radius.
+const roundBox = (g, x, y, w, h, r) => {
+  const bw = Math.max(0, w), bh = Math.max(0, h);
+  const rr = Math.max(0, Math.min(r, bw / 2, bh / 2));
+  if (g.roundRect) g.roundRect(x, y, bw, bh, rr); else g.rect(x, y, bw, bh);
+};
+
 // ---------- Module ----------
 
 function mountTownMap(root) {
@@ -5647,7 +5789,8 @@ function mountTownMap(root) {
   const staticLayer = document.createElement('canvas');
   const labelLayer = document.createElement('canvas');
   const view = { W: 0, H: 0, dpr: 1, k: 1, ox: 0, oy: 0 };
-  const { canvas, ctx } = mountCanvas(wrap, resize);
+  const { canvas, ctx } = mountCanvas(wrap, resize,
+    'Карта города из всех зданий Вышки: кварталы, реки, мосты и улицы с автобусами');
 
   // Transform that draws map units at (x, y) of the map.
   const at = (g, x, y) => {
@@ -5692,7 +5835,7 @@ function mountTownMap(root) {
     const blocks = new Path2D(), parks = new Path2D();
     for (const b of town.blocks) {
       if (b.merged) continue;
-      (b.park || b.lawn ? parks : blocks).roundRect(b.x0 + 2, b.y0 + 2, b.x1 - b.x0 - 4, b.y1 - b.y0 - 4, 6);
+      roundBox(b.park || b.lawn ? parks : blocks, b.x0 + 2, b.y0 + 2, b.x1 - b.x0 - 4, b.y1 - b.y0 - 4, 6);
     }
     g.fillStyle = C.block;
     g.fill(blocks);
@@ -5713,7 +5856,7 @@ function mountTownMap(root) {
 
     // Squares for the station signs.
     g.fillStyle = C.plaza;
-    for (const { plaza: q } of town.stations) { g.beginPath(); g.roundRect(q.x0, q.y0, q.x1 - q.x0, q.y1 - q.y0, 6); g.fill(); }
+    for (const { plaza: q } of town.stations) { g.beginPath(); roundBox(g, q.x0, q.y0, q.x1 - q.x0, q.y1 - q.y0, 6); g.fill(); }
 
     // Bridges, then streets: every edge before any fill, so crossings merge.
     g.lineCap = 'butt';
@@ -6004,19 +6147,19 @@ function mountTownMap(root) {
     g.rotate(p.a);
     g.fillStyle = C.shadow;
     g.beginPath();
-    g.roundRect(-l / 2 + 1.2, -w / 2 + 1.4, l, w, 2.4);
+    roundBox(g, -l / 2 + 1.2, -w / 2 + 1.4, l, w, 2.4);
     g.fill();
     g.fillStyle = C.busBody;
     g.beginPath();
-    g.roundRect(-l / 2, -w / 2, l, w, 2.4);
+    roundBox(g, -l / 2, -w / 2, l, w, 2.4);
     g.fill();
     g.fillStyle = C.busRoof;
     g.beginPath();
-    g.roundRect(-l / 2 + 4, -w / 2 + 1.8, l - 9.5, w - 3.6, 1);
+    roundBox(g, -l / 2 + 4, -w / 2 + 1.8, l - 9.5, w - 3.6, 1);
     g.fill();
     g.fillStyle = C.busGlass;
     g.beginPath();
-    g.roundRect(l / 2 - 3.4, -w / 2 + 0.9, 2.4, w - 1.8, 0.8);
+    roundBox(g, l / 2 - 3.4, -w / 2 + 0.9, 2.4, w - 1.8, 0.8);
     g.fill();
     g.fillRect(-l / 2 + 0.8, -w / 2 + 1.5, 1.2, w - 3);
     g.fillStyle = C.busLight;
@@ -7090,7 +7233,7 @@ const LAND = RAW.map((poly) => poly.map((r) => {
 return { LAND };
 })();
 
-const { ORBIT_KM, INCLINE, LAPS, FLOWN_MLN, SATELLITES } = (() => {
+const { ORBIT_KM, INCLINE, SATELLITES } = (() => {
 // The satellites the university has put in orbit.
 //
 // Two blocks say the same things about them: «Космос» draws the picture from
@@ -7106,8 +7249,6 @@ const { ORBIT_KM, INCLINE, LAPS, FLOWN_MLN, SATELLITES } = (() => {
 
 const ORBIT_KM = 500;
 const INCLINE = 97.5;    // sun-synchronous, so the orbit passes over the poles
-const LAPS = 16500;      // laps CubeSX-HSE-3 had flown by its third year
-const FLOWN_MLN = 720;   // and million kilometres with them
 
 // In the order they went up.
 const SATELLITES = [
@@ -7116,7 +7257,7 @@ const SATELLITES = [
   { name: 'CubeSX-HSE-3', launched: '27 июня 2023', from: 'Восточный' }
 ];
 
-return { ORBIT_KM, INCLINE, LAPS, FLOWN_MLN, SATELLITES };
+return { ORBIT_KM, INCLINE, SATELLITES };
 })();
 
 const MOD_metro = (() => {
@@ -7152,6 +7293,8 @@ const MODES = [
     of: carsOf,
     stop: 'станция',
     title: 'Вагонов метро',
+    // What the picture shows, for a reader who cannot see it.
+    picture: 'Путь змейкой через весь экран, по нему идут поезда метро',
     noun: ['вагон', 'вагона', 'вагонов'],
     legend: `1 поезд — ${TRAIN} вагонов, в каждом вагоне ${PER_CAR} человек`
   },
@@ -7161,6 +7304,7 @@ const MODES = [
     of: busesOf,
     stop: 'остановка',
     title: 'Электробусов',
+    picture: 'Дороги по числу городов, по ним едут электробусы',
     noun: ['электробус', 'электробуса', 'электробусов'],
     legend: `Это электробус. Он вмещает ${PER_BUS} ${plural(PER_BUS, 'вышкинца', 'вышкинца', 'вышкинцев')}`
   }
@@ -7275,21 +7419,36 @@ const meta = {
 function init(root) {
   'use strict';
 
-  // Canvas has no CSS variables — same values as the tokens of the same name.
-  const BUS_GLASS = '#143B54';
-  const BUS_LIGHT = '#FFE08A';
-  const TAIL_LIGHT = '#E4573D';                  // --ebus-stop
-  const BUS_SHADOW = 'rgba(20, 23, 28, 0.12)';   // --city-shadow
-  const ROAD_FILL = '#F1F3F6';
-  const ROAD_EDGE = '#AEB6C2';
-  const ROAD_LINE = '#C2C9D3';
-  const SIGN_BLUE = '#1668E0';
-  const SIGN_EDGE = '#1A1D22';
-  const TUNNEL = '#464C56';
-  const GANGWAY = '#8B929C';                     // --metro-gangway
-  const BEAM_NEAR = 'rgba(255, 214, 102, 0.85)'; // --metro-beam
-  const BEAM_FAR = 'rgba(255, 214, 102, 0)';
-  const HSE_BLUE = '#102D69';
+  // Canvas has no CSS variables, so the palette is read once from the tokens —
+  // read and not copied: a value written out here goes on being the old one
+  // after the token beside it has changed, and nothing says so.
+  const token = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+
+  const BUS_GLASS = token('--ebus-glass');
+  const BUS_LIGHT = token('--ebus-light');
+  const TAIL_LIGHT = token('--ebus-stop');
+  const BUS_SHADOW = token('--city-shadow');
+  const ROAD_FILL = token('--road-fill');
+  const ROAD_EDGE = token('--road-edge');
+  const ROAD_LINE = token('--road-line');
+  const SIGN_BLUE = token('--sign-blue');
+  const SIGN_EDGE = token('--sign-edge');
+  const TUNNEL = token('--metro-tunnel');
+  const GANGWAY = token('--metro-gangway');
+  const BEAM_NEAR = token('--metro-beam');
+  // The far end of the same beam, where it has faded out altogether: the same
+  // colour at no opacity, which is nothing a token could say. Taken from the
+  // near end rather than written out beside it — written out, it would go on
+  // being the old colour after the token changed, and a gradient running from
+  // one colour to another colour's nothing fades through a tint of neither.
+  const clear = (colour) => {
+    const rgb = colour.match(/^rgba?\(([^)]+)\)$/);
+    if (rgb) return `rgba(${rgb[1].split(',').slice(0, 3).join(',')}, 0)`;
+    const hex = colour.match(/^#([0-9a-fA-F]{6})$/);
+    return hex ? `#${hex[1]}00` : 'rgba(255, 214, 102, 0)';
+  };
+  const BEAM_FAR = clear(BEAM_NEAR);
+  const HSE_BLUE = token('--hse-blue');
 
   const M = 22;                 // margin around the track
   const GAP = 0.26;             // coupling between cars, in car lengths
@@ -7567,7 +7726,7 @@ function init(root) {
     <div class="metro-inner">
       <div class="metro-switch" data-el="modeSwitch">
         <span class="metro-switch-label" data-value="${MODES[0].key}">${MODES[0].label}</span>
-        <button type="button" class="toggle" role="switch"><span class="toggle-knob"></span></button>
+        <button type="button" class="toggle" role="switch" aria-label="Везти электробусами, а не метро"><span class="toggle-knob"></span></button>
         <span class="metro-switch-label" data-value="${MODES[1].key}">${MODES[1].label}</span>
       </div>
 
@@ -7803,7 +7962,9 @@ function init(root) {
   let epoch = performance.now();
 
   // ---------- Canvas painting ----------
-  const { canvas, ctx } = mountCanvas($('canvasWrap'), paint);
+  // The picture is named here only so that it is announced as a picture at
+  // all; what it says is written anew with every count — see updateScore.
+  const { canvas, ctx } = mountCanvas($('canvasWrap'), paint, MODES[0].picture);
 
   // Point at `s` pixels along the track, plus the index of the sample after it.
   function at(s) {
@@ -7840,9 +8001,24 @@ function init(root) {
   }
 
   // A rounded box filled on a context; `r` is one radius or four.
-  function fillBox(c, x, y, bw, bh, r) {
+  //
+  // Sizes are clamped before they are used. On a short window the track is
+  // squeezed until a car comes out inside out, and roundRect answers a
+  // negative side or radius by throwing — which took the whole block down to
+  // a blank canvas. A car drawn too small to see is a far smaller loss.
+  // The path of one, without filling it: a caller that wants to stroke it too
+  // traces it itself.
+  function boxPath(c, x, y, bw, bh, r) {
+    const w = Math.max(0, bw), h = Math.max(0, bh);
+    const lim = Math.min(w, h) / 2;
+    const rr = Array.isArray(r) ? r.map((v) => Math.max(0, Math.min(v, lim)))
+      : Math.max(0, Math.min(r, lim));
     c.beginPath();
-    if (c.roundRect) c.roundRect(x, y, bw, bh, r); else c.rect(x, y, bw, bh);
+    if (c.roundRect) c.roundRect(x, y, w, h, rr); else c.rect(x, y, w, h);
+  }
+
+  function fillBox(c, x, y, bw, bh, r) {
+    boxPath(c, x, y, bw, bh, r);
     c.fill();
   }
 
@@ -7850,8 +8026,8 @@ function init(root) {
   // front is on the right. A metro train is the same at both ends, so the head
   // and the tail car both have a rounded nose on their outer end.
   function carRadii(len, w, car) {
-    const round = Math.min(w * 0.2, len / 2);
-    const nose = Math.min(w * 0.5, len / 2);
+    const round = Math.max(0, Math.min(w * 0.2, len / 2));
+    const nose = Math.max(0, Math.min(w * 0.5, len / 2));
     return [
       car.tail ? nose : round, car.head ? nose : round,
       car.head ? nose : round, car.tail ? nose : round
@@ -7901,6 +8077,10 @@ function init(root) {
   // the same origin as drawCarBody, and drawn before it, so the nose covers the
   // point. `reach` is the radius of the sector.
   function drawBeam(c, len, w, reach) {
+    // Nothing to light up: on a window too short for the track the cars come
+    // out smaller than their own headlights, and a circle of negative radius
+    // is refused the same way a negative corner is.
+    if (!(reach > 0)) return;
     const ax = len / 2 - w * 0.15;
     const glow = c.createRadialGradient(ax, 0, 0, ax, 0, reach);
     glow.addColorStop(0, BEAM_NEAR);
@@ -7966,10 +8146,7 @@ function init(root) {
 
     ctx.fillStyle = TUNNEL;
     const portal = (x, y, dir) => {
-      ctx.beginPath();
-      if (ctx.roundRect) ctx.roundRect(x, y - h / 2, w, h, dir === 1 ? [4, r, r, 4] : [r, 4, 4, r]);
-      else ctx.rect(x, y - h / 2, w, h);
-      ctx.fill();
+      fillBox(ctx, x, y - h / 2, w, h, dir === 1 ? [4, r, r, 4] : [r, 4, 4, r]);
     };
 
     portal(first.x, first.y, 1);
@@ -8097,10 +8274,7 @@ function init(root) {
     const y = road.top - font * 0.35 - plateH;
     const pad = Math.max(1.2, font * 0.16);
 
-    const plate = (px, py, pw, ph, r) => {
-      ctx.beginPath();
-      if (ctx.roundRect) ctx.roundRect(px, py, pw, ph, r); else ctx.rect(px, py, pw, ph);
-    };
+    const plate = (px, py, pw, ph, r) => boxPath(ctx, px, py, pw, ph, r);
 
     plate(x, y, plateW, plateH, plateH * 0.22);
     ctx.fillStyle = '#FFFFFF';
@@ -8134,11 +8308,7 @@ function init(root) {
     if (L < 0.5) return;
     // The map bus is 24 × 8.5; every detail keeps its share of that.
     const u = W / 8.5;
-    const box = (bx, by, bw, bh, r) => {
-      ctx.beginPath();
-      if (ctx.roundRect) ctx.roundRect(bx, by, bw, bh, r); else ctx.rect(bx, by, bw, bh);
-      ctx.fill();
-    };
+    const box = (bx, by, bw, bh, r) => fillBox(ctx, bx, by, bw, bh, r);
     const left = x - L / 2, top = y - W / 2;
 
     ctx.fillStyle = BUS_SHADOW;
@@ -8379,7 +8549,7 @@ function init(root) {
   // The picture of the bus moves with the width of the card, so its arrow is
   // redrawn whenever the legend changes size — that also covers the moment the
   // mode is switched and the layout has not settled yet.
-  new ResizeObserver(() => syncLegendSample()).observe(busLegendEl);
+  onResize(busLegendEl, syncLegendSample);
 
   const cityEls = {};
   CITIES.forEach((c) => {
@@ -8449,6 +8619,29 @@ function init(root) {
     peopleEl.textContent = nf(people);
   }
 
+  // What the picture says, for a reader who cannot see it: which picture it is
+  // now, how many vehicles stand on it and for how many people.
+  //
+  // Counted from the cities that are switched on, not from what is drawn this
+  // frame. The vehicles arrive one after another, and the loop that draws them
+  // is parked while the block is off the screen — a line taken off a frame
+  // would be caught mid-arrival and left there, telling a reader about three
+  // buses when the picture is about to hold two hundred and sixty.
+  function tellPicture() {
+    const m = mode();
+    let count = 0, people = 0;
+    CITIES.forEach((c) => {
+      if (!state.active[c.key]) return;
+      count += m.of(c);
+      people += c.admitted;
+    });
+    canvas.setAttribute('aria-label', count
+      ? `${m.picture}: ${nf(count)} ${plural(count, ...m.noun)} — столько нужно,`
+        + ` чтобы увезти разом ${nf(people)}`
+        + ` ${plural(people, 'принятого студента', 'принятых студента', 'принятых студентов')}`
+      : `${m.picture}. Сейчас пусто: ни одного города не выбрано`);
+  }
+
   function render(how) {
     const m = mode();
 
@@ -8475,6 +8668,7 @@ function init(root) {
       cityEls[c.key].text.textContent = `${nf(c.admitted)} принятых, ${n} ${plural(n, ...m.noun)}`;
     });
 
+    tellPicture();
     animateTo(targets(), how);
     if (frame === null) paint();     // keep things right while off screen
   }
@@ -8558,7 +8752,16 @@ function init(root) {
   // ---------- Data ----------
   const STRIPES = 800;
   const PER = TOTAL / STRIPES;
-  const EMPTY = '#D3D7DE';
+
+  // Canvas has no CSS variables, so the palette is read from the tokens —
+  // read and not copied: a value written out here goes on being the old one
+  // after the token beside it has changed, and nothing says so.
+  const token = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  const EMPTY = token('--empty');
+  const SHELL = token('--shell');
+  const GRASS = token('--pitch');
+  const EXIT = token('--exit');
+  const HSE_BLUE = token('--hse-blue');
 
   const KIND_DEFS = [
     { key: 'students', label: 'Студенты' },
@@ -8926,7 +9129,8 @@ function init(root) {
 
   // ---------- Canvas painting ----------
   const legendSwatch = $('legendSwatch');
-  const { canvas } = mountCanvas($('canvasWrap'), paint);
+  const { canvas } = mountCanvas($('canvasWrap'), paint,
+    'Трибуны «Лужников» сверху: каждая точка — один человек из Вышки, цвет точки — его кампус');
   let currentColors = null;
   let animFrame = null;
 
@@ -8959,7 +9163,7 @@ function init(root) {
     // outer shell
     ctx.beginPath();
     ctx.ellipse(0, 0, B.shellRx, B.shellRy, 0, 0, Math.PI * 2);
-    ctx.fillStyle = '#E7E9ED';
+    ctx.fillStyle = SHELL;
     ctx.fill();
 
     // pitch
@@ -8970,7 +9174,7 @@ function init(root) {
       if (i === 0) ctx.moveTo(p[0], p[1]); else ctx.lineTo(p[0], p[1]);
     }
     ctx.closePath();
-    ctx.fillStyle = '#8CC63F';
+    ctx.fillStyle = GRASS;
     ctx.fill();
 
     const fw = PITCH.rx * 0.80, fh = PITCH.ry * 0.76;
@@ -8989,7 +9193,7 @@ function init(root) {
     ctx.save();
     ctx.scale(s, s);
     ctx.translate(-141.73, -141.73);
-    ctx.fillStyle = '#102D69';
+    ctx.fillStyle = HSE_BLUE;
     ctx.fill(LOGO_DISC);
     ctx.fillStyle = '#FFFFFF';
     ctx.fill(LOGO_MARK);
@@ -9023,7 +9227,7 @@ function init(root) {
     });
 
     // vomitories
-    ctx.strokeStyle = '#CBD0D8';
+    ctx.strokeStyle = EXIT;
     B.exits.forEach((e) => {
       const t = e.f * Math.PI * 2;
       const p1 = sePoint(e.r1x, e.r1y, t, e.k1);
@@ -9209,7 +9413,7 @@ function init(root) {
     colRight.style.paddingTop = `${Math.max(0, Math.round(delta))}px`;
   }
 
-  new ResizeObserver(alignColumns).observe(kindRow);
+  onResize(kindRow, alignColumns);
   stacked.addEventListener('change', alignColumns);
   // The left column arrives with a transition; measure once it has settled.
   colLeft.addEventListener('transitionend', (e) => {
@@ -9335,7 +9539,6 @@ function init(root) {
   // are picked out among them. Nobody changes seats — they are the ones the
   // reader has just watched fill up — the rest simply go out. The shell carries
   // the picture over; see carry() in lib/stepper.js.
-  const token = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 
   function studentsOnly() {
     const arr = new Array(STRIPES).fill(EMPTY);
@@ -9395,6 +9598,7 @@ return { meta, init };
 
 const MOD_world = (() => {
 // Countries HSE students come from, as a wall of flags split by part of the world.
+
 
 
 
@@ -10124,7 +10328,7 @@ function init(root) {
     if (img.decode) img.decode().catch(() => {});
   });
 
-  new ResizeObserver(layout).observe(grid);
+  onResize(grid, layout);
 
   // ---------- The name under the cursor ----------
   // One tip for the whole wall, and one listener: 128 flags with a listener
@@ -10495,7 +10699,15 @@ function init(root) {
   // Step 0 asks, step 1 answers. Where the page scrolls the shell does not
   // walk the steps — it asks straight for the last one — so there the answer
   // waits for the button instead.
+  //
+  // Except for a reader who has asked for less movement. For them the page is
+  // not a story that plays but a page that is simply there, and the shell puts
+  // every block into the state it ends in. A block holding its question would
+  // be the one place that never got there: the number of countries was never
+  // shown at all unless they found the scale and answered it.
+  const still = window.matchMedia('(prefers-reduced-motion: reduce)');
   function step(i) {
+    if (!stepped() && still.matches) { setAsking(false); return; }
     setAsking(stepped() ? i < 1 : !checked);
   }
 
@@ -10600,16 +10812,22 @@ const PER_FLAT = Math.round(PEOPLE / (HOUSES_TOTAL * FLATS));
 function init(root) {
   'use strict';
 
-  // Canvas has no CSS variables — same values as the tokens of the same name.
-  const PITCH = '#8CC63F';
+  // Canvas has no CSS variables, so the palette is read once from the tokens —
+  // read and not copied: a value written out here goes on being the old one
+  // after the token beside it has changed, and nothing says so.
+  const token = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+
+  const PITCH = token('--pitch');
+  // The markings mown into the pitch: white at two strengths, which is not
+  // a colour of the page and has no token to be read from.
   const LINE = 'rgba(255,255,255,0.75)';
   const MOW = 'rgba(255,255,255,0.13)';
-  const WALL = '#E0D2BA';
-  const ROOF = '#8B929C';
-  const WINDOW = '#5C82A6';
-  const DOOR = '#6B5B48';
-  const WINDOW_LIT = '#FFC85C';
-  const DOT = '#102D69';          // a person on the pitch, in corporate blue
+  const WALL = token('--house-wall');
+  const ROOF = token('--house-roof');
+  const WINDOW = token('--house-window');
+  const DOOR = token('--house-door');
+  const WINDOW_LIT = token('--house-window-lit');
+  const DOT = token('--hse-blue');   // a person on the pitch, in corporate blue
   const GAP = 0.12;               // gap between icons, in icon widths
 
   // ---------- Markup ----------
@@ -11013,7 +11231,8 @@ function init(root) {
     CITIES.reduce((sum, c) => sum + (state.active[c.key] ? cityArea(c) : 0), 0);
 
   // ---------- Canvas painting ----------
-  const { canvas, ctx } = mountCanvas($('canvasWrap'), paint);
+  const { canvas, ctx } = mountCanvas($('canvasWrap'), paint,
+    'Площадь выбранных зданий, выложенная футбольными полями или пятиэтажками');
   let shown = null;         // icons currently drawn, animated
   let animFrame = null;
 
@@ -11400,7 +11619,7 @@ function init(root) {
       iconEls.forEach((el) => { el.style.maxWidth = `${Math.floor(width)}px`; });
     }
   }
-  new ResizeObserver(fitFigures).observe(stepsEl);
+  onResize(stepsEl, fitFigures);
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitFigures);
 
   render('instant');
@@ -11424,6 +11643,7 @@ return { meta, init };
 const MOD_study = (() => {
 // Every HSE programme taken one after another — how long a single student
 // would sit through all of them.
+
 
 
 
@@ -11458,9 +11678,16 @@ const YEARS_TOTAL = CITIES.reduce(
 );
 
 // The year the answer is counted back from — today's, off the clock. The
-// whole section is «so many years back from now», so it moves with the
-// calendar: on the first of January the scale ends with the new year and
-// every year it names moves with it.
+// section says «so many years back from now», and the reader's «now» is the
+// day they are reading on: the scale ends with this year and every year it
+// names moves with it, in the page and in a copy opened years later.
+//
+// It is deliberately not YEAR from data/hse.js, which says what the figures
+// are for and stands in the credits: the figures are of a reporting year, the
+// counting back is from today, and the two are different statements. The
+// events in data/history.js were written against a start of 1114, so as the
+// years go by the card says how far off the closest of them is — see
+// eventOf() and toldAs() below.
 const NOW = new Date().getFullYear();
 
 // The scale under the picture: from the earliest year the section can reach
@@ -12587,7 +12814,7 @@ function init(root) {
     colRight.style.paddingTop = `${kindRow.offsetHeight + gap}px`;
   }
 
-  new ResizeObserver(alignColumns).observe(kindRow);
+  onResize(kindRow, alignColumns);
   stacked.addEventListener('change', alignColumns);
 
   render(true);
@@ -13918,7 +14145,13 @@ function init(root) {
   const $ = (name) => root.querySelector(`[data-el="${name}"]`);
   const noteEl = $('note');
   const subEl = $('sub');
-  const { canvas, ctx } = mountCanvas($('wrap'), () => paint());
+  // What the picture holds, for whoever is read to rather than shown: the
+  // line under it tells the story beat by beat, so this says only the things
+  // that are nowhere in words — the planet, the rings round it, and the marks
+  // standing where the university does.
+  const { canvas, ctx } = mountCanvas($('wrap'), () => paint(),
+    'Земля из космоса, вокруг нее орбиты вышкинских спутников, '
+    + 'а на ней значки Вышки в четырех городах');
 
   // Canvas needs plain strings, so the palette is read once from the tokens.
   const token = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -14772,6 +15005,7 @@ const MOD_each = (() => {
 
 
 
+
 // The teaching part of the floor area — data/hse.js keeps it campus by campus.
 const AREA_STUDY = CITIES.reduce((n, c) => n + c.areaStudy, 0);
 
@@ -15533,9 +15767,29 @@ function init(root) {
     say('end');
   }
 
+  // The closing beat, put back as it ended instead of played again. A window
+  // resized after the answer has arrived still has to be laid out afresh —
+  // the board is packed to the size of the card — but running the whole count
+  // a second time would take the answer off the screen and make the reader
+  // watch five seconds of it to get the same screen back.
+  function settle() {
+    clearLater();
+    stopCount();
+    if (narrow.matches) { poster(); return; }
+    $('hud').classList.add('is-gone');
+    say('end');
+    hush(true);
+    paint(true);
+    endAt(L.endTop);
+    sum.classList.remove('is-clearing');
+    apply(tiles.map(() => null), { dur: 0 });
+    placeSum(L.end[0], { dur: 0, text: '1', color: HSE });
+  }
+
   function play(i) {
     clearLater();
     stopCount();
+    done = false;
     if (!L) relayout();
     if (narrow.matches) { poster(); return; }
 
@@ -15585,6 +15839,7 @@ function init(root) {
         later(() => {
           say('end');
           placeSum(L.end[0], { dur: 620 });
+          done = true;
         }, 900);
       }), 1200);
     });
@@ -15592,7 +15847,12 @@ function init(root) {
 
   // ---------- Wiring ----------
   let shown = -1;
-  const replay = () => { if (shown >= 0) play(shown); };
+  let done = false;             // the closing beat has played itself out
+  const replay = () => {
+    if (shown < 0) return;
+    if (done) { settle(); return; }
+    play(shown);
+  };
 
   measure();
   relayout();
@@ -15602,7 +15862,7 @@ function init(root) {
     document.fonts.ready.then(() => { measure(); relayout(); replay(); });
   }
 
-  new ResizeObserver(() => { relayout(); replay(); }).observe(stage);
+  onResize(stage, () => { relayout(); replay(); });
   narrow.addEventListener('change', () => { relayout(); replay(); });
 
   return {
@@ -15687,7 +15947,13 @@ const page = document.getElementById('page');
       span: (i) => (api && api.span ? api.span(i) : 0),
       // A section is built on its way onto the screen, not before: whatever it
       // animates on start then plays in front of the reader.
-      build: () => { if (!api) api = mod.init(section.querySelector('.viz-body')) || {}; },
+      build: () => {
+        if (api) return;
+        api = mod.init(section.querySelector('.viz-body')) || {};
+        // The switches of the block say what they switch and whether they are
+        // on — read off the markup they are already in, see lib/ui.js.
+        nameSwitches(section);
+      },
       // And whenever it comes onto the screen — first time or coming back — the
       // picture inside it starts from the beginning. See lib/stepper.js.
       open: () => api && api.open && api.open()

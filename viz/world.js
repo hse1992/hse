@@ -3,6 +3,7 @@
 import { CITIES, STUDENTS, FOREIGN } from '../data/hse.js';
 import { COUNTRIES, REGIONS, BY_CITY } from '../data/countries.js';
 import { nf, pct, plural } from '../lib/format.js';
+import { onResize } from '../lib/ui.js';
 
 // The world to compare against: 193 UN members plus 2 observer states, split
 // by part of the world the same way the countries above are (UN M49, so the
@@ -730,7 +731,7 @@ export function init(root) {
     if (img.decode) img.decode().catch(() => {});
   });
 
-  new ResizeObserver(layout).observe(grid);
+  onResize(grid, layout);
 
   // ---------- The name under the cursor ----------
   // One tip for the whole wall, and one listener: 128 flags with a listener
@@ -1101,7 +1102,15 @@ export function init(root) {
   // Step 0 asks, step 1 answers. Where the page scrolls the shell does not
   // walk the steps — it asks straight for the last one — so there the answer
   // waits for the button instead.
+  //
+  // Except for a reader who has asked for less movement. For them the page is
+  // not a story that plays but a page that is simply there, and the shell puts
+  // every block into the state it ends in. A block holding its question would
+  // be the one place that never got there: the number of countries was never
+  // shown at all unless they found the scale and answered it.
+  const still = window.matchMedia('(prefers-reduced-motion: reduce)');
   function step(i) {
+    if (!stepped() && still.matches) { setAsking(false); return; }
     setAsking(stepped() ? i < 1 : !checked);
   }
 

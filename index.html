@@ -52,7 +52,7 @@
   <div id="page"></div>
 
   <footer class="page-footer">
-    <span>Показатели за 2025 год</span>
+    <span data-el="year">Показатели за 2025 год</span>
     <a href="https://data.hse.ru" target="_blank" rel="noopener">© Дирекция по аналитике и управлению данными НИУ ВШЭ</a>
   </footer>
 </main>
@@ -67,6 +67,8 @@
   import * as space from './viz/space.js';
   import * as each from './viz/each.js';
   import { mountProgress, introRunner, mountTitleMark } from './lib/page.js';
+  import { nameSwitches } from './lib/ui.js';
+  import { YEAR } from './data/hse.js';
   import { mountStepper } from './lib/stepper.js';
 
   // Every visualisation on the page, in the order it appears.
@@ -74,6 +76,14 @@
   const MODULES = [metro, stadium, world, area, study, professions, space, each];
 
   const page = document.getElementById('page');
+
+  // The credits name the year the figures are for — see YEAR in data/hse.js.
+  // Written in from there rather than typed into the markup, so the number
+  // the page shows and the number the data is of are the same number. What
+  // counts years backwards does not use it: that counting is from today, and
+  // viz/study.js says why.
+  const yearEl = document.querySelector('[data-el="year"]');
+  if (yearEl) yearEl.textContent = `Показатели за ${YEAR} год`;
 
   // The page is read beat by beat: the shell lays the sections out and hands
   // the stepper what each of them can play — see lib/stepper.js.
@@ -139,7 +149,13 @@
       span: (i) => (api && api.span ? api.span(i) : 0),
       // A section is built on its way onto the screen, not before: whatever it
       // animates on start then plays in front of the reader.
-      build: () => { if (!api) api = mod.init(section.querySelector('.viz-body')) || {}; },
+      build: () => {
+        if (api) return;
+        api = mod.init(section.querySelector('.viz-body')) || {};
+        // The switches of the block say what they switch and whether they are
+        // on — read off the markup they are already in, see lib/ui.js.
+        nameSwitches(section);
+      },
       // And whenever it comes onto the screen — first time or coming back — the
       // picture inside it starts from the beginning. See lib/stepper.js.
       open: () => api && api.open && api.open()

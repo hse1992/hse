@@ -2,7 +2,7 @@
 
 import { CITIES, LYCEUM, LYCEUM_COLOR, ADMITTED } from '../data/hse.js';
 import { nf, pct, plural } from '../lib/format.js';
-import { mountCanvas } from '../lib/ui.js';
+import { mountCanvas, onResize } from '../lib/ui.js';
 
 // Seats in the arena — the figure the subtitle and the meter both quote.
 const TOTAL = 81000;
@@ -60,7 +60,16 @@ export function init(root) {
   // ---------- Data ----------
   const STRIPES = 800;
   const PER = TOTAL / STRIPES;
-  const EMPTY = '#D3D7DE';
+
+  // Canvas has no CSS variables, so the palette is read from the tokens —
+  // read and not copied: a value written out here goes on being the old one
+  // after the token beside it has changed, and nothing says so.
+  const token = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  const EMPTY = token('--empty');
+  const SHELL = token('--shell');
+  const GRASS = token('--pitch');
+  const EXIT = token('--exit');
+  const HSE_BLUE = token('--hse-blue');
 
   const KIND_DEFS = [
     { key: 'students', label: 'Студенты' },
@@ -428,7 +437,8 @@ export function init(root) {
 
   // ---------- Canvas painting ----------
   const legendSwatch = $('legendSwatch');
-  const { canvas } = mountCanvas($('canvasWrap'), paint);
+  const { canvas } = mountCanvas($('canvasWrap'), paint,
+    'Трибуны «Лужников» сверху: каждая точка — один человек из Вышки, цвет точки — его кампус');
   let currentColors = null;
   let animFrame = null;
 
@@ -461,7 +471,7 @@ export function init(root) {
     // outer shell
     ctx.beginPath();
     ctx.ellipse(0, 0, B.shellRx, B.shellRy, 0, 0, Math.PI * 2);
-    ctx.fillStyle = '#E7E9ED';
+    ctx.fillStyle = SHELL;
     ctx.fill();
 
     // pitch
@@ -472,7 +482,7 @@ export function init(root) {
       if (i === 0) ctx.moveTo(p[0], p[1]); else ctx.lineTo(p[0], p[1]);
     }
     ctx.closePath();
-    ctx.fillStyle = '#8CC63F';
+    ctx.fillStyle = GRASS;
     ctx.fill();
 
     const fw = PITCH.rx * 0.80, fh = PITCH.ry * 0.76;
@@ -491,7 +501,7 @@ export function init(root) {
     ctx.save();
     ctx.scale(s, s);
     ctx.translate(-141.73, -141.73);
-    ctx.fillStyle = '#102D69';
+    ctx.fillStyle = HSE_BLUE;
     ctx.fill(LOGO_DISC);
     ctx.fillStyle = '#FFFFFF';
     ctx.fill(LOGO_MARK);
@@ -525,7 +535,7 @@ export function init(root) {
     });
 
     // vomitories
-    ctx.strokeStyle = '#CBD0D8';
+    ctx.strokeStyle = EXIT;
     B.exits.forEach((e) => {
       const t = e.f * Math.PI * 2;
       const p1 = sePoint(e.r1x, e.r1y, t, e.k1);
@@ -711,7 +721,7 @@ export function init(root) {
     colRight.style.paddingTop = `${Math.max(0, Math.round(delta))}px`;
   }
 
-  new ResizeObserver(alignColumns).observe(kindRow);
+  onResize(kindRow, alignColumns);
   stacked.addEventListener('change', alignColumns);
   // The left column arrives with a transition; measure once it has settled.
   colLeft.addEventListener('transitionend', (e) => {
@@ -837,7 +847,6 @@ export function init(root) {
   // are picked out among them. Nobody changes seats — they are the ones the
   // reader has just watched fill up — the rest simply go out. The shell carries
   // the picture over; see carry() in lib/stepper.js.
-  const token = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 
   function studentsOnly() {
     const arr = new Array(STRIPES).fill(EMPTY);

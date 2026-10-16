@@ -1,6 +1,12 @@
 // Shared HSE figures, 2025. Every visualisation reads its numbers from here
 // so the whole page can never disagree with itself.
 
+// The year all of this is true for. The page says so in the credits and
+// counts back from it where it counts years at all — off this number and not
+// off the reader's clock, or a page opened in two years' time would quietly
+// move its own history while the credits went on naming 2025.
+export const YEAR = 2025;
+
 import { tint } from '../lib/color.js';
 
 // How much lighter the secondary shade of a city is (staff on the stadium,

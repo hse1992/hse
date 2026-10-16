@@ -2,7 +2,7 @@
 
 import { CITIES, AREA_TOTAL, STUDENTS, STAFF } from '../data/hse.js';
 import { nf, plural } from '../lib/format.js';
-import { mountCanvas } from '../lib/ui.js';
+import { mountCanvas, onResize } from '../lib/ui.js';
 import { mountTownMap } from '../lib/town-map.js';
 
 // Facts about the buildings themselves — they live here, not in data/hse.js,
@@ -82,16 +82,22 @@ const PER_FLAT = Math.round(PEOPLE / (HOUSES_TOTAL * FLATS));
 export function init(root) {
   'use strict';
 
-  // Canvas has no CSS variables — same values as the tokens of the same name.
-  const PITCH = '#8CC63F';
+  // Canvas has no CSS variables, so the palette is read once from the tokens —
+  // read and not copied: a value written out here goes on being the old one
+  // after the token beside it has changed, and nothing says so.
+  const token = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+
+  const PITCH = token('--pitch');
+  // The markings mown into the pitch: white at two strengths, which is not
+  // a colour of the page and has no token to be read from.
   const LINE = 'rgba(255,255,255,0.75)';
   const MOW = 'rgba(255,255,255,0.13)';
-  const WALL = '#E0D2BA';
-  const ROOF = '#8B929C';
-  const WINDOW = '#5C82A6';
-  const DOOR = '#6B5B48';
-  const WINDOW_LIT = '#FFC85C';
-  const DOT = '#102D69';          // a person on the pitch, in corporate blue
+  const WALL = token('--house-wall');
+  const ROOF = token('--house-roof');
+  const WINDOW = token('--house-window');
+  const DOOR = token('--house-door');
+  const WINDOW_LIT = token('--house-window-lit');
+  const DOT = token('--hse-blue');   // a person on the pitch, in corporate blue
   const GAP = 0.12;               // gap between icons, in icon widths
 
   // ---------- Markup ----------
@@ -495,7 +501,8 @@ export function init(root) {
     CITIES.reduce((sum, c) => sum + (state.active[c.key] ? cityArea(c) : 0), 0);
 
   // ---------- Canvas painting ----------
-  const { canvas, ctx } = mountCanvas($('canvasWrap'), paint);
+  const { canvas, ctx } = mountCanvas($('canvasWrap'), paint,
+    'Площадь выбранных зданий, выложенная футбольными полями или пятиэтажками');
   let shown = null;         // icons currently drawn, animated
   let animFrame = null;
 
@@ -882,7 +889,7 @@ export function init(root) {
       iconEls.forEach((el) => { el.style.maxWidth = `${Math.floor(width)}px`; });
     }
   }
-  new ResizeObserver(fitFigures).observe(stepsEl);
+  onResize(stepsEl, fitFigures);
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitFigures);
 
   render('instant');

@@ -4,6 +4,7 @@
 import { CITIES } from '../data/hse.js';
 import { HISTORY } from '../data/history.js';
 import { nf, plural } from '../lib/format.js';
+import { onResize } from '../lib/ui.js';
 
 // Facts about the curriculum itself — they live here, not in data/hse.js,
 // which only knows about the people. A bachelor's or a specialist's degree
@@ -36,9 +37,16 @@ const YEARS_TOTAL = CITIES.reduce(
 );
 
 // The year the answer is counted back from — today's, off the clock. The
-// whole section is «so many years back from now», so it moves with the
-// calendar: on the first of January the scale ends with the new year and
-// every year it names moves with it.
+// section says «so many years back from now», and the reader's «now» is the
+// day they are reading on: the scale ends with this year and every year it
+// names moves with it, in the page and in a copy opened years later.
+//
+// It is deliberately not YEAR from data/hse.js, which says what the figures
+// are for and stands in the credits: the figures are of a reporting year, the
+// counting back is from today, and the two are different statements. The
+// events in data/history.js were written against a start of 1114, so as the
+// years go by the card says how far off the closest of them is — see
+// eventOf() and toldAs() below.
 const NOW = new Date().getFullYear();
 
 // The scale under the picture: from the earliest year the section can reach
@@ -1165,7 +1173,7 @@ export function init(root) {
     colRight.style.paddingTop = `${kindRow.offsetHeight + gap}px`;
   }
 
-  new ResizeObserver(alignColumns).observe(kindRow);
+  onResize(kindRow, alignColumns);
   stacked.addEventListener('change', alignColumns);
 
   render(true);

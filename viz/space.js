@@ -261,7 +261,13 @@ export function init(root) {
   const $ = (name) => root.querySelector(`[data-el="${name}"]`);
   const noteEl = $('note');
   const subEl = $('sub');
-  const { canvas, ctx } = mountCanvas($('wrap'), () => paint());
+  // What the picture holds, for whoever is read to rather than shown: the
+  // line under it tells the story beat by beat, so this says only the things
+  // that are nowhere in words — the planet, the rings round it, and the marks
+  // standing where the university does.
+  const { canvas, ctx } = mountCanvas($('wrap'), () => paint(),
+    'Земля из космоса, вокруг нее орбиты вышкинских спутников, '
+    + 'а на ней значки Вышки в четырех городах');
 
   // Canvas needs plain strings, so the palette is read once from the tokens.
   const token = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();

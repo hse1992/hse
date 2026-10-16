@@ -4,7 +4,7 @@
 
 import { CITIES, ADMITTED } from '../data/hse.js';
 import { nf, plural } from '../lib/format.js';
-import { mountCanvas } from '../lib/ui.js';
+import { mountCanvas, onResize } from '../lib/ui.js';
 import { loadMark } from '../lib/hse-mark.js';
 
 // Facts about the transport itself — they live here, not in data/hse.js, which
@@ -32,6 +32,8 @@ const MODES = [
     of: carsOf,
     stop: 'станция',
     title: 'Вагонов метро',
+    // What the picture shows, for a reader who cannot see it.
+    picture: 'Путь змейкой через весь экран, по нему идут поезда метро',
     noun: ['вагон', 'вагона', 'вагонов'],
     legend: `1 поезд — ${TRAIN} вагонов, в каждом вагоне ${PER_CAR} человек`
   },
@@ -41,6 +43,7 @@ const MODES = [
     of: busesOf,
     stop: 'остановка',
     title: 'Электробусов',
+    picture: 'Дороги по числу городов, по ним едут электробусы',
     noun: ['электробус', 'электробуса', 'электробусов'],
     legend: `Это электробус. Он вмещает ${PER_BUS} ${plural(PER_BUS, 'вышкинца', 'вышкинца', 'вышкинцев')}`
   }
@@ -155,21 +158,36 @@ export const meta = {
 export function init(root) {
   'use strict';
 
-  // Canvas has no CSS variables — same values as the tokens of the same name.
-  const BUS_GLASS = '#143B54';
-  const BUS_LIGHT = '#FFE08A';
-  const TAIL_LIGHT = '#E4573D';                  // --ebus-stop
-  const BUS_SHADOW = 'rgba(20, 23, 28, 0.12)';   // --city-shadow
-  const ROAD_FILL = '#F1F3F6';
-  const ROAD_EDGE = '#AEB6C2';
-  const ROAD_LINE = '#C2C9D3';
-  const SIGN_BLUE = '#1668E0';
-  const SIGN_EDGE = '#1A1D22';
-  const TUNNEL = '#464C56';
-  const GANGWAY = '#8B929C';                     // --metro-gangway
-  const BEAM_NEAR = 'rgba(255, 214, 102, 0.85)'; // --metro-beam
-  const BEAM_FAR = 'rgba(255, 214, 102, 0)';
-  const HSE_BLUE = '#102D69';
+  // Canvas has no CSS variables, so the palette is read once from the tokens —
+  // read and not copied: a value written out here goes on being the old one
+  // after the token beside it has changed, and nothing says so.
+  const token = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+
+  const BUS_GLASS = token('--ebus-glass');
+  const BUS_LIGHT = token('--ebus-light');
+  const TAIL_LIGHT = token('--ebus-stop');
+  const BUS_SHADOW = token('--city-shadow');
+  const ROAD_FILL = token('--road-fill');
+  const ROAD_EDGE = token('--road-edge');
+  const ROAD_LINE = token('--road-line');
+  const SIGN_BLUE = token('--sign-blue');
+  const SIGN_EDGE = token('--sign-edge');
+  const TUNNEL = token('--metro-tunnel');
+  const GANGWAY = token('--metro-gangway');
+  const BEAM_NEAR = token('--metro-beam');
+  // The far end of the same beam, where it has faded out altogether: the same
+  // colour at no opacity, which is nothing a token could say. Taken from the
+  // near end rather than written out beside it — written out, it would go on
+  // being the old colour after the token changed, and a gradient running from
+  // one colour to another colour's nothing fades through a tint of neither.
+  const clear = (colour) => {
+    const rgb = colour.match(/^rgba?\(([^)]+)\)$/);
+    if (rgb) return `rgba(${rgb[1].split(',').slice(0, 3).join(',')}, 0)`;
+    const hex = colour.match(/^#([0-9a-fA-F]{6})$/);
+    return hex ? `#${hex[1]}00` : 'rgba(255, 214, 102, 0)';
+  };
+  const BEAM_FAR = clear(BEAM_NEAR);
+  const HSE_BLUE = token('--hse-blue');
 
   const M = 22;                 // margin around the track
   const GAP = 0.26;             // coupling between cars, in car lengths
@@ -447,7 +465,7 @@ export function init(root) {
     <div class="metro-inner">
       <div class="metro-switch" data-el="modeSwitch">
         <span class="metro-switch-label" data-value="${MODES[0].key}">${MODES[0].label}</span>
-        <button type="button" class="toggle" role="switch"><span class="toggle-knob"></span></button>
+        <button type="button" class="toggle" role="switch" aria-label="Везти электробусами, а не метро"><span class="toggle-knob"></span></button>
         <span class="metro-switch-label" data-value="${MODES[1].key}">${MODES[1].label}</span>
       </div>
 
@@ -683,7 +701,9 @@ export function init(root) {
   let epoch = performance.now();
 
   // ---------- Canvas painting ----------
-  const { canvas, ctx } = mountCanvas($('canvasWrap'), paint);
+  // The picture is named here only so that it is announced as a picture at
+  // all; what it says is written anew with every count — see updateScore.
+  const { canvas, ctx } = mountCanvas($('canvasWrap'), paint, MODES[0].picture);
 
   // Point at `s` pixels along the track, plus the index of the sample after it.
   function at(s) {
@@ -720,9 +740,24 @@ export function init(root) {
   }
 
   // A rounded box filled on a context; `r` is one radius or four.
-  function fillBox(c, x, y, bw, bh, r) {
+  //
+  // Sizes are clamped before they are used. On a short window the track is
+  // squeezed until a car comes out inside out, and roundRect answers a
+  // negative side or radius by throwing — which took the whole block down to
+  // a blank canvas. A car drawn too small to see is a far smaller loss.
+  // The path of one, without filling it: a caller that wants to stroke it too
+  // traces it itself.
+  function boxPath(c, x, y, bw, bh, r) {
+    const w = Math.max(0, bw), h = Math.max(0, bh);
+    const lim = Math.min(w, h) / 2;
+    const rr = Array.isArray(r) ? r.map((v) => Math.max(0, Math.min(v, lim)))
+      : Math.max(0, Math.min(r, lim));
     c.beginPath();
-    if (c.roundRect) c.roundRect(x, y, bw, bh, r); else c.rect(x, y, bw, bh);
+    if (c.roundRect) c.roundRect(x, y, w, h, rr); else c.rect(x, y, w, h);
+  }
+
+  function fillBox(c, x, y, bw, bh, r) {
+    boxPath(c, x, y, bw, bh, r);
     c.fill();
   }
 
@@ -730,8 +765,8 @@ export function init(root) {
   // front is on the right. A metro train is the same at both ends, so the head
   // and the tail car both have a rounded nose on their outer end.
   function carRadii(len, w, car) {
-    const round = Math.min(w * 0.2, len / 2);
-    const nose = Math.min(w * 0.5, len / 2);
+    const round = Math.max(0, Math.min(w * 0.2, len / 2));
+    const nose = Math.max(0, Math.min(w * 0.5, len / 2));
     return [
       car.tail ? nose : round, car.head ? nose : round,
       car.head ? nose : round, car.tail ? nose : round
@@ -781,6 +816,10 @@ export function init(root) {
   // the same origin as drawCarBody, and drawn before it, so the nose covers the
   // point. `reach` is the radius of the sector.
   function drawBeam(c, len, w, reach) {
+    // Nothing to light up: on a window too short for the track the cars come
+    // out smaller than their own headlights, and a circle of negative radius
+    // is refused the same way a negative corner is.
+    if (!(reach > 0)) return;
     const ax = len / 2 - w * 0.15;
     const glow = c.createRadialGradient(ax, 0, 0, ax, 0, reach);
     glow.addColorStop(0, BEAM_NEAR);
@@ -846,10 +885,7 @@ export function init(root) {
 
     ctx.fillStyle = TUNNEL;
     const portal = (x, y, dir) => {
-      ctx.beginPath();
-      if (ctx.roundRect) ctx.roundRect(x, y - h / 2, w, h, dir === 1 ? [4, r, r, 4] : [r, 4, 4, r]);
-      else ctx.rect(x, y - h / 2, w, h);
-      ctx.fill();
+      fillBox(ctx, x, y - h / 2, w, h, dir === 1 ? [4, r, r, 4] : [r, 4, 4, r]);
     };
 
     portal(first.x, first.y, 1);
@@ -977,10 +1013,7 @@ export function init(root) {
     const y = road.top - font * 0.35 - plateH;
     const pad = Math.max(1.2, font * 0.16);
 
-    const plate = (px, py, pw, ph, r) => {
-      ctx.beginPath();
-      if (ctx.roundRect) ctx.roundRect(px, py, pw, ph, r); else ctx.rect(px, py, pw, ph);
-    };
+    const plate = (px, py, pw, ph, r) => boxPath(ctx, px, py, pw, ph, r);
 
     plate(x, y, plateW, plateH, plateH * 0.22);
     ctx.fillStyle = '#FFFFFF';
@@ -1014,11 +1047,7 @@ export function init(root) {
     if (L < 0.5) return;
     // The map bus is 24 × 8.5; every detail keeps its share of that.
     const u = W / 8.5;
-    const box = (bx, by, bw, bh, r) => {
-      ctx.beginPath();
-      if (ctx.roundRect) ctx.roundRect(bx, by, bw, bh, r); else ctx.rect(bx, by, bw, bh);
-      ctx.fill();
-    };
+    const box = (bx, by, bw, bh, r) => fillBox(ctx, bx, by, bw, bh, r);
     const left = x - L / 2, top = y - W / 2;
 
     ctx.fillStyle = BUS_SHADOW;
@@ -1259,7 +1288,7 @@ export function init(root) {
   // The picture of the bus moves with the width of the card, so its arrow is
   // redrawn whenever the legend changes size — that also covers the moment the
   // mode is switched and the layout has not settled yet.
-  new ResizeObserver(() => syncLegendSample()).observe(busLegendEl);
+  onResize(busLegendEl, syncLegendSample);
 
   const cityEls = {};
   CITIES.forEach((c) => {
@@ -1329,6 +1358,29 @@ export function init(root) {
     peopleEl.textContent = nf(people);
   }
 
+  // What the picture says, for a reader who cannot see it: which picture it is
+  // now, how many vehicles stand on it and for how many people.
+  //
+  // Counted from the cities that are switched on, not from what is drawn this
+  // frame. The vehicles arrive one after another, and the loop that draws them
+  // is parked while the block is off the screen — a line taken off a frame
+  // would be caught mid-arrival and left there, telling a reader about three
+  // buses when the picture is about to hold two hundred and sixty.
+  function tellPicture() {
+    const m = mode();
+    let count = 0, people = 0;
+    CITIES.forEach((c) => {
+      if (!state.active[c.key]) return;
+      count += m.of(c);
+      people += c.admitted;
+    });
+    canvas.setAttribute('aria-label', count
+      ? `${m.picture}: ${nf(count)} ${plural(count, ...m.noun)} — столько нужно,`
+        + ` чтобы увезти разом ${nf(people)}`
+        + ` ${plural(people, 'принятого студента', 'принятых студента', 'принятых студентов')}`
+      : `${m.picture}. Сейчас пусто: ни одного города не выбрано`);
+  }
+
   function render(how) {
     const m = mode();
 
@@ -1355,6 +1407,7 @@ export function init(root) {
       cityEls[c.key].text.textContent = `${nf(c.admitted)} принятых, ${n} ${plural(n, ...m.noun)}`;
     });
 
+    tellPicture();
     animateTo(targets(), how);
     if (frame === null) paint();     // keep things right while off screen
   }
