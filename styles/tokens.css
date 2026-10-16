@@ -7,16 +7,22 @@
   --card: #FFFFFF;
 
   /* Text */
-  --text: #14171C;
-  --text-lead: #3D4451;     /* the opening paragraph — a step below the title */
-  --text-secondary: #6B7280;
-  --text-caption: #9AA1AC;
+  /* Four steps down from the title, and every one of them readable: measured
+     against the page background, the palest of them is at 4.6 to 1 where the
+     standard asks for 4.5. They used to be set by eye, and the two quiet ones
+     came out at 4.35 and 2.34 — close enough to look right to whoever picked
+     them on a good screen, and not close enough for anybody else. */
+  --text: #14171C;          /* 16.0 : 1 */
+  --text-lead: #3D4451;     /* 8.8 — the opening paragraph, a step below the title */
+  --text-secondary: #4E535D;/* 7.0 */
+  --text-caption: #6A6E76;  /* 4.6 */
   --text-faded: #C3C9D3;    /* type that has stepped back but is still there */
   --link: #2A55D6;
   --link-hover: #1B3EA8;
 
   /* Controls */
-  --check-inactive-label: #A9AFB9;
+  --check-inactive-label: #6A6E75;   /* 4.6 : 1 — a switch says which side it is on
+                                        by the knob, not by hiding the other word */
   --check-active: #4A505B;
   --check-inactive-border: #C4C9D2;
   --btn-border: #DDE0E6;
