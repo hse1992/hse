@@ -2915,7 +2915,12 @@ const LEAD_AIR = 20;
 // with the question held still for two full screens, and the opening of the
 // studies block alone was seven. The opening plays the same, it is simply
 // asked for in half the distance.
-const ZONE_NARROW = 0.5;
+// Measured again once the page was walked screen by screen: at a half the
+// openings still held the same picture for two half-screens of thumb in a row —
+// five places on the page where a whole screen of scrolling brought nothing
+// new. At 0,38 each part of an opening costs about two thirds of a screen,
+// which is a flick, and the openings keep every part they had.
+const ZONE_NARROW = 0.38;
 
 // The lead-in can arrive in parts, the same way the title card does: what is
 // marked `.intro-stage` inside it waits its turn and then grows into place
