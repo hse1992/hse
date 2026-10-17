@@ -1650,9 +1650,39 @@ button { font-family: inherit; }
   color: var(--text-caption);
 }
 
+/* What there is to do for a reader who got to the end. It stands above the
+   credits and is the only thing on the page that is not about the Higher
+   School of Economics being large — so it is set apart from the line under it
+   rather than reading as part of it. */
+.page-end {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+/* A thumb, not a cursor: the twenty-four pixels every other target on a phone
+   keeps to, with room around the words. */
+.page-footer .page-end-act {
+  padding: 12px 16px;
+  font-size: 0.875rem;
+  text-decoration: none;
+}
+
 .page-footer a {
   color: var(--text-caption);
   text-decoration: none;
+}
+
+/* A link dressed as a button keeps the colour of a button, not of the credits
+   it stands above. */
+.page-footer a.page-end-act {
+  color: var(--text-secondary);
+}
+
+.page-footer a.page-end-act:hover {
+  color: var(--text);
 }
 
 .page-footer a:hover {
@@ -2161,6 +2191,13 @@ button { font-family: inherit; }
   <div id="page"></div>
 
 <footer class="page-footer">
+    <!-- Дочитавшему есть что сделать. Раньше после «Это ты» шла одна строка
+         копирайта, и страница не заканчивалась, а обрывалась. -->
+    <div class="page-end">
+      <button type="button" class="btn page-end-act" data-el="again">Прочитать сначала</button>
+      <button type="button" class="btn page-end-act" data-el="share" hidden>Поделиться</button>
+      <a class="btn page-end-act" href="https://data.hse.ru" target="_blank" rel="noopener">Откуда цифры</a>
+    </div>
     <span data-el="year">Показатели за 2025 год</span>
     <a href="https://data.hse.ru" target="_blank" rel="noopener">© Дирекция по аналитике и управлению данными НИУ ВШЭ</a>
   </footer>
@@ -16878,6 +16915,35 @@ const page = document.getElementById('page');
   // The progress bar doubles as the way back: a click on a block goes there,
   // and the narrow slot at its head returns to the title screen.
   progress.pick(story.toBlock, story.rewind);
+
+  // Что делать дочитавшему. «Сначала» ведет тем же путем, что и узкий слот в
+  // начале полоски, — одна дорога назад на всю страницу.
+  const again = document.querySelector('[data-el="again"]');
+  if (again) again.addEventListener('click', () => story.rewind());
+
+  // «Поделиться» показывается только там, где ему есть чем поделиться:
+  // у автономной копии адрес вида file:// , и слать его некому.
+  const share = document.querySelector('[data-el="share"]');
+  if (share && location.protocol !== 'file:') {
+    const sheet = navigator.share ? 'окно' : navigator.clipboard ? 'буфер' : null;
+    if (sheet) {
+      share.hidden = false;
+      share.addEventListener('click', async () => {
+        const what = { title: document.title, url: location.href };
+        try {
+          if (sheet === 'окно') await navigator.share(what);
+          else {
+            await navigator.clipboard.writeText(location.href);
+            const was = share.textContent;
+            share.textContent = 'Ссылка скопирована';
+            setTimeout(() => { share.textContent = was; }, 2000);
+          }
+        } catch (err) {
+          // Отказ в системном окне — это ответ, а не поломка.
+        }
+      });
+    }
+  }
 </script>
 </body>
 </html>

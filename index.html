@@ -52,6 +52,13 @@
   <div id="page"></div>
 
   <footer class="page-footer">
+    <!-- Дочитавшему есть что сделать. Раньше после «Это ты» шла одна строка
+         копирайта, и страница не заканчивалась, а обрывалась. -->
+    <div class="page-end">
+      <button type="button" class="btn page-end-act" data-el="again">Прочитать сначала</button>
+      <button type="button" class="btn page-end-act" data-el="share" hidden>Поделиться</button>
+      <a class="btn page-end-act" href="https://data.hse.ru" target="_blank" rel="noopener">Откуда цифры</a>
+    </div>
     <span data-el="year">Показатели за 2025 год</span>
     <a href="https://data.hse.ru" target="_blank" rel="noopener">© Дирекция по аналитике и управлению данными НИУ ВШЭ</a>
   </footer>
@@ -184,6 +191,35 @@
   // The progress bar doubles as the way back: a click on a block goes there,
   // and the narrow slot at its head returns to the title screen.
   progress.pick(story.toBlock, story.rewind);
+
+  // Что делать дочитавшему. «Сначала» ведет тем же путем, что и узкий слот в
+  // начале полоски, — одна дорога назад на всю страницу.
+  const again = document.querySelector('[data-el="again"]');
+  if (again) again.addEventListener('click', () => story.rewind());
+
+  // «Поделиться» показывается только там, где ему есть чем поделиться:
+  // у автономной копии адрес вида file:// , и слать его некому.
+  const share = document.querySelector('[data-el="share"]');
+  if (share && location.protocol !== 'file:') {
+    const sheet = navigator.share ? 'окно' : navigator.clipboard ? 'буфер' : null;
+    if (sheet) {
+      share.hidden = false;
+      share.addEventListener('click', async () => {
+        const what = { title: document.title, url: location.href };
+        try {
+          if (sheet === 'окно') await navigator.share(what);
+          else {
+            await navigator.clipboard.writeText(location.href);
+            const was = share.textContent;
+            share.textContent = 'Ссылка скопирована';
+            setTimeout(() => { share.textContent = was; }, 2000);
+          }
+        } catch (err) {
+          // Отказ в системном окне — это ответ, а не поломка.
+        }
+      });
+    }
+  }
 
 </script>
 </body>
