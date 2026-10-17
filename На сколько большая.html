@@ -1015,22 +1015,32 @@ button { font-family: inherit; }
   line-height: 1;
 }
 
-.scroll-hint.has-way-back .scroll-hint-back {
-  display: block;
+/* Both of these name keys, and the second one names the bar at the top as a
+   way to the sections. Neither is true everywhere.
+   Where the page scrolls — a phone, a narrow window, «less movement» — the
+   arrows and the space bar do what they do on any page, and the bar at the
+   top is only a bar: below 860px it takes no clicks at all. So the page would
+   have been telling a reader on a phone about keys that are not there and
+   about navigation it had itself turned off.
+   And a tablet wide enough to be read in beats has no keys either.
+   So the words wait for both: a page read beat by beat, and something to
+   press on. */
+@media (hover: hover) {
+  .is-stepped .scroll-hint-text .on-keys {
+    display: inline;
+  }
+
+  .is-stepped .scroll-hint.has-way-back .scroll-hint-back {
+    display: block;
+  }
+
+  .is-stepped .scroll-hint.has-way-back .scroll-hint-text {
+    display: none;
+  }
 }
 
-.scroll-hint.has-way-back .scroll-hint-text {
+.scroll-hint-text .on-keys {
   display: none;
-}
-
-/* Nothing to click on a touch screen — there the bar is only a bar. */
-@media (hover: none) {
-  .scroll-hint-back { display: none !important; }
-}
-
-/* Nothing to press on a touch screen. */
-@media (hover: none) {
-  .scroll-hint-text .on-keys { display: none; }
 }
 
 /* Beside the words, and the size of them: it says which way to go, it is not
@@ -1043,8 +1053,12 @@ button { font-family: inherit; }
   animation: scroll-hint 2.8s ease-in-out infinite;
 }
 
-.scroll-hint.has-way-back svg {
-  display: none;
+/* The arrow goes with the line it belonged to — and only where that line has
+   something to replace it with, see above. */
+@media (hover: hover) {
+  .is-stepped .scroll-hint.has-way-back svg {
+    display: none;
+  }
 }
 
 @keyframes scroll-hint {
@@ -1194,6 +1208,14 @@ button { font-family: inherit; }
 }
 
 @media (max-width: 860px) {
+  /* The lamp over the doors of a carriage, and the warning under it, belong to
+     the beat that shuts those doors. On a phone that beat does not exist — the
+     page scrolls into the first block instead — so the warning promised
+     something nothing was going to answer, blinked for as long as the reader
+     stayed, and pushed the headline a hundred and fifty pixels down the first
+     screen they ever see. */
+  .page-signal { display: none; }
+
   /* Nothing is pinned as a whole here, so the lead-in holds the screen itself:
      it is fixed to the middle of the window while its part of the zone lasts,
      and the heading waits off to the right, already pinned by its own hold.
@@ -1902,6 +1924,96 @@ button { font-family: inherit; }
   }
 }
 
+/* ---------- The list of sections, for a thumb ---------- */
+
+/* The bar is eight targets for a mouse and none for a finger. On a phone it
+   becomes one: touching the hairline opens this list, and the names are read
+   instead of aimed at. Hidden entirely where the bar does its own job. */
+.page-sheet { display: none; }
+
+@media (max-width: 860px) {
+  /* Clicks come back to the bar — but to the bar itself, not to its slots:
+     43 by 4 is not a target. The strip that answers the touch is taller than
+     the hairline and invisible, so the bar still reads as a hairline. */
+  .page-progress {
+    pointer-events: auto;
+  }
+
+  .page-progress::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    height: 24px;
+  }
+
+  .page-progress-slot {
+    pointer-events: none;
+  }
+
+  /* `hidden` is an attribute, not a class, and the browser gives it a display
+     of none at the weakest strength there is — a rule of our own, however
+     plain, outranks it. Said here so the list is shut when it is shut. */
+  .page-sheet[hidden] { display: none; }
+
+  .page-sheet:not([hidden]) {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+  }
+
+  .page-sheet-veil {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    border: 0;
+    padding: 0;
+    background: rgba(20, 23, 28, 0.38);
+    -webkit-backdrop-filter: blur(2px);
+    backdrop-filter: blur(2px);
+  }
+
+  .page-sheet-list {
+    position: absolute;
+    left: 8px;
+    right: 8px;
+    top: 10px;
+    max-height: calc(100% - 20px);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    padding: 6px;
+    gap: 2px;
+    border-radius: 16px;
+    background: var(--card);
+    box-shadow: 0 12px 34px rgba(16, 24, 40, 0.24);
+  }
+
+  .page-sheet-row {
+    appearance: none;
+    border: 0;
+    background: none;
+    text-align: left;
+    font: inherit;
+    font-size: 1rem;
+    color: var(--text);
+    padding: 13px 12px;
+    border-radius: 10px;
+  }
+
+  .page-sheet-row[aria-current] {
+    background: var(--bg);
+    font-weight: 600;
+  }
+
+  .page-sheet-home {
+    color: var(--text-secondary);
+    font-size: 0.9375rem;
+  }
+}
+
 /* ---------- Targets for a thumb ---------- */
 
 /* A finger is not a cursor: what the eye hits at a pixel the thumb needs a
@@ -2157,6 +2269,11 @@ const { mountProgress, mountTitleMark, introRunner } = (() => {
 // Page-level behaviour shared by every section: the reading progress bar,
 // starting a section when the reader gets to it, and sticky scenes.
 
+// Which way the page is read. The lead-in screen is placed differently in
+// each, and the bar at the top is eight targets in one and a single one in
+// the other — both have to know.
+const NARROW = window.matchMedia('(max-width: 860px)');
+
 // Thin bar along the top edge showing how far down the page the reader is —
 // divided into the blocks of the story, one slot each, so it also says how many
 // of them there are and which one is being read.
@@ -2280,7 +2397,75 @@ function mountProgress(titles = []) {
       bar.appendChild(slot);
       return slot;
     });
+    sheetFor(count);
   };
+
+  // The same places, written out — for a thumb.
+  //
+  // The bar is a hairline four pixels tall, and a slot of it is forty-three by
+  // four: a mouse hits that, a finger does not, and the names it shows live on
+  // hovering, which a phone has none of. So on a phone the bar stops being
+  // eight targets and becomes one: touching it anywhere opens the list of
+  // sections, and the names are read rather than aimed at. The hairline itself
+  // stays a hairline — what grows is the invisible strip that answers the
+  // touch, see the styles.
+  let sheet = null;
+  const sheetFor = (count) => {
+    if (sheet) sheet.remove();
+    sheet = document.createElement('div');
+    sheet.className = 'page-sheet';
+    sheet.hidden = true;
+
+    const veil = document.createElement('button');
+    veil.type = 'button';
+    veil.className = 'page-sheet-veil';
+    veil.setAttribute('aria-label', 'Закрыть список разделов');
+    veil.addEventListener('click', () => shut());
+    sheet.appendChild(veil);
+
+    const list = document.createElement('nav');
+    list.className = 'page-sheet-list';
+    list.setAttribute('aria-label', 'Разделы');
+    const row = (text, go, extra) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = extra ? `page-sheet-row ${extra}` : 'page-sheet-row';
+      b.textContent = text;
+      b.addEventListener('click', () => { shut(); go(); });
+      list.appendChild(b);
+      return b;
+    };
+    row('В начало', () => goHome && goHome(), 'page-sheet-home');
+    for (let i = 0; i < count; i++) {
+      const b = row(names[i] || `Раздел ${i + 1}`, () => jump && jump(i));
+      b.dataset.at = String(i);
+    }
+    sheet.appendChild(list);
+    document.body.appendChild(sheet);
+  };
+
+  const shut = () => {
+    if (!sheet || sheet.hidden) return;
+    sheet.hidden = true;
+    bar.setAttribute('aria-expanded', 'false');
+    bar.focus({ preventScroll: true });
+  };
+  const open = () => {
+    if (!sheet) return;
+    sheet.hidden = false;
+    bar.setAttribute('aria-expanded', 'true');
+    const here = sheet.querySelector('.page-sheet-row[aria-current]') || sheet.querySelector('.page-sheet-row');
+    if (here) here.focus({ preventScroll: true });
+  };
+
+  // Only where the bar is not eight targets of its own — see the styles, which
+  // give it back its clicks on a narrow screen and take them away on a wide one.
+  bar.addEventListener('click', (e) => {
+    if (!NARROW.matches) return;       // on a wide screen the slots are the navigation
+    if (e.target !== bar) return;      // a slot of its own was hit, not the strip
+    if (sheet && sheet.hidden) open(); else shut();
+  });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') shut(); });
 
   // The hint at the foot of the screen. It keeps out of the way while the
   // reader is reading and comes back whenever they have been still for a
@@ -2333,6 +2518,12 @@ function mountProgress(titles = []) {
         slot.disabled = false;
         if (i === place.index) slot.setAttribute('aria-current', 'step');
         else slot.removeAttribute('aria-current');
+        // The same place in the list the bar opens on a phone.
+        const row = sheet && sheet.querySelector(`.page-sheet-row[data-at="${i}"]`);
+        if (row) {
+          if (i === place.index) row.setAttribute('aria-current', 'true');
+          else row.removeAttribute('aria-current');
+        }
       });
 
       // «Третий из семи» — the one thing the bar cannot say by itself.
@@ -2543,10 +2734,6 @@ const BEAT = 0.7;
 // beat to read it, one to see it go.
 const LEAD_SCREENS = 2 * BEAT;
 const LEAD_HOLD = 0.5;                 // the share of that spent holding
-
-// Which way the page is read — the lead-in screen is placed differently in
-// each, and it is the one piece that has to know.
-const NARROW = window.matchMedia('(max-width: 860px)');
 
 // Air left above and below a lead-in screen on a phone, where it is fixed to
 // the window and has nothing else to stand off from.
@@ -4033,9 +4220,12 @@ function mountStepper(entries, { onProgress, finale, signal } = {}) {
   // would have to hide half of what they show, so here the page is a page —
   // it scrolls, and the story is told by that scrolling instead. The title
   // cards still play: each follows its own place on the screen.
-  // Nothing is played beat by beat here, so the signal is simply part of the
-  // title screen: the page scrolls past it into the story.
-  if (NARROW.matches) { lit(true); return mountScrolled(entries, onProgress); }
+  // Nothing is played beat by beat here — and the doors the lamp belongs to are
+  // not played either: on a phone there is no curtain to close. Lit, it blinked
+  // on for as long as the reader stayed on the title screen and warned them
+  // about doors that were never going to shut, from above the headline. So here
+  // it stays dark and the styles take it off the screen altogether.
+  if (NARROW.matches) return mountScrolled(entries, onProgress);
 
   // A tablet turned on its side crosses that width, and the two ways of reading
   // cannot be swapped under the reader's feet: the page starts over in the
@@ -8974,12 +9164,41 @@ function init(root) {
         overflow: hidden;
       }
 
+      .stadium-run { display: none; }
+
+      /* On a phone the page scrolls, so the story is told by scrolling: the
+         arena, the meter and the line above them are already pinned to the top
+         there, and this gives the block the travel to go under them — a
+         stretch for the empty arena, one for every campus arriving, one for
+         the full house. Without it the phone was handed a stadium already
+         full, and the five lines that fill it — «Первыми пропустим лицеистов»
+         and the rest — were never shown at all. */
+      @media (max-width: 860px) {
+        .stadium-run {
+          display: block;
+          flex: none;
+          height: 240dvh;
+        }
+
+        /* While the story runs, the controls underneath are not the point yet:
+           they come up with the full house, the way they do in beats. */
+        .stadium-body.is-telling .col-left {
+          opacity: 0;
+          pointer-events: none;
+        }
+      }
+
       @media (prefers-reduced-motion: reduce) {
         .stadium-body .col-left,
         .stadium-body .meter-card,
         .stadium-body .stadium-figure { transition: none; }
       }
     </style>
+
+    <!-- The travel the story needs on a phone: the picture above is sticky and
+         this scrolls under it, a stretch of it for every arrival. Nothing on a
+         wide screen, where the story is told in beats. -->
+    <div class="stadium-run" data-el="run" aria-hidden="true"></div>
 
     <div class="col-left">
       <div class="kind-row" data-el="kindRow"></div>
@@ -9592,6 +9811,34 @@ function init(root) {
   step(0);
   paint();
 
+  // ---------- The story on a phone ----------
+  // There the page is not read in beats: nothing calls step() but the shell,
+  // once, with the last of them — so the arena arrived full and the five lines
+  // that fill it were never read. The travel is there in the markup (see
+  // .stadium-run), and this walks it: every stretch of it is one more campus
+  // in the stands. Scrolling back takes them out again, the way going back a
+  // beat does.
+  const phone = window.matchMedia('(max-width: 860px)');
+  if (phone.matches) {
+    const run = $('run');
+    let told = -1;
+    const follow = () => {
+      const h = run.offsetHeight;
+      if (!h) return;
+      const gone = -run.getBoundingClientRect().top;
+      const p = Math.min(1, Math.max(0, gone / h));
+      // The last stretch belongs to the full house, and the stretch after the
+      // travel is over to the stadium the reader is handed.
+      const i = Math.min(LAST, Math.floor(p * (LAST + 1)));
+      if (i === told) return;
+      told = i;
+      step(i);
+    };
+    window.addEventListener('scroll', follow, { passive: true });
+    window.addEventListener('resize', follow);
+    follow();
+  }
+
   // ---------- Handing over ----------
   // The page goes on to ask about the students from abroad, and it asks over
   // this arena, grown to the screen under the question. Of everyone on it only
@@ -9650,7 +9897,12 @@ function init(root) {
     paint: (target) => boxIn(target, drawStadium(target, studentsOnly()))
   };
 
-  return { step, carry };
+  // On a phone the story is driven by the travel above and by nothing else.
+  // The shell puts a scene into its finished state the moment it builds it —
+  // right after init, and after the first frame the travel has already set —
+  // so the arena arrived full while the line above it still said «Пустая
+  // арена». Here that call is given somewhere harmless to land.
+  return { step: phone.matches ? () => {} : step, carry };
 }
 
 return { meta, init };
@@ -10992,6 +11244,17 @@ function init(root) {
       .area-step-pitch { aspect-ratio: 105 / 68; }
       .area-step-house { aspect-ratio: 1.55; }
 
+      /* Everything the story shows — the town and the steps over it — lies in
+         one stage above the visualisation, so on a phone the two can be pinned
+         to the screen together while the travel below scrolls under them. */
+      .area-stage,
+      .area-tell {
+        position: absolute;
+        inset: 0;
+      }
+
+      .area-run { display: none; }
+
       /* The town the buildings make, over the whole block — what comes up
          under the lead-in as it goes to the top. It steps aside for the
          figures the same way they come and go. */
@@ -11209,36 +11472,74 @@ function init(root) {
 
         .area-score-value { font-size: 2.5rem; }
         .area-score-note { font-size: 0.875rem; }
+
+        /* On a phone the page is scrolled and no one plays the eight steps:
+           the shell calls the last of them once, and the town, the pitches,
+           the blocks of flats and the question the two raise were never shown
+           at all. So the stage is pinned to the screen, and the travel under
+           it is walked a stretch at a time — a step for every stretch. */
+        .area-stage { position: static; }
+
+        .area-tell {
+          position: sticky;
+          top: 0;
+          height: calc(100dvh - var(--hint-room));
+        }
+
+        .area-run {
+          display: block;
+          height: 245dvh;
+        }
+
+        /* The steps keep their two columns here — the pitch beside the block
+           of flats is the whole comparison — so the type gives way instead. */
+        .area-steps { gap: 12px 16px; }
+
+        .area-step-title,
+        .area-step-question { font-size: 1.375rem; }
+
+        .area-step-line { font-size: 1rem; }
+        .area-step-note { font-size: 0.9375rem; }
+        .area-step-times { font-size: 1.375rem; }
       }
     </style>
 
-    <div class="area-town" data-el="town">
-      <p class="area-town-note">Тут правда ${nf(BUILDINGS)} ${plural(BUILDINGS, 'здание', 'здания', 'зданий')}</p>
-      <div class="area-town-map" data-el="townMap"></div>
-    </div>
-
-    <div class="area-steps">
-      <p class="area-step-title" data-el="areaTitle">Общая площадь этих зданий <span class="area-mark">${nf(AREA_TOTAL)} м²</span></p>
-
-      <div class="area-step area-step-fields" data-el="stepFields">
-        <p class="area-step-line">Это площадь ${nf(FIELDS_TOTAL)} футбольных полей</p>
-        <div class="area-step-fig">
-          <div class="canvas-wrap area-step-pitch" data-el="stepPitch"></div>
-          <div class="area-step-times">&times;&nbsp;${nf(FIELDS_TOTAL)}</div>
+    <div class="area-stage">
+      <div class="area-tell">
+        <div class="area-town" data-el="town">
+          <p class="area-town-note">Тут правда ${nf(BUILDINGS)} ${plural(BUILDINGS, 'здание', 'здания', 'зданий')}</p>
+          <div class="area-town-map" data-el="townMap"></div>
         </div>
-        <p class="area-step-note" data-el="pitchNote">Это ${nf(PER_PITCH)} «${plural(PER_PITCH, 'футболист', 'футболиста', 'футболистов')}» на одном поле</p>
+
+        <div class="area-steps">
+          <p class="area-step-title" data-el="areaTitle">Общая площадь этих зданий <span class="area-mark">${nf(AREA_TOTAL)} м²</span></p>
+
+          <div class="area-step area-step-fields" data-el="stepFields">
+            <p class="area-step-line">Это площадь ${nf(FIELDS_TOTAL)} футбольных полей</p>
+            <div class="area-step-fig">
+              <div class="canvas-wrap area-step-pitch" data-el="stepPitch"></div>
+              <div class="area-step-times">&times;&nbsp;${nf(FIELDS_TOTAL)}</div>
+            </div>
+            <p class="area-step-note" data-el="pitchNote">Это ${nf(PER_PITCH)} «${plural(PER_PITCH, 'футболист', 'футболиста', 'футболистов')}» на одном поле</p>
+          </div>
+
+          <div class="area-step area-step-houses" data-el="stepHouses">
+            <p class="area-step-line">Или ${nf(HOUSES_TOTAL)} ${plural(HOUSES_TOTAL, 'пятиэтажка', 'пятиэтажки', 'пятиэтажек')}</p>
+            <div class="area-step-fig">
+              <div class="canvas-wrap area-step-house" data-el="stepHouse"></div>
+              <div class="area-step-times">&times;&nbsp;${nf(HOUSES_TOTAL)}</div>
+            </div>
+            <p class="area-step-note" data-el="houseNote">Или по ${nf(PER_FLAT)} «${plural(PER_FLAT, 'жильцу', 'жильца', 'жильцов')}» в каждой квартире ${nf(FLAT_M2)} м²</p>
+          </div>
+
+          <p class="area-step-question" data-el="question">Много это или мало, учитывая сколько в Вышке студентов и сотрудников?</p>
+        </div>
       </div>
 
-      <div class="area-step area-step-houses" data-el="stepHouses">
-        <p class="area-step-line">Или ${nf(HOUSES_TOTAL)} ${plural(HOUSES_TOTAL, 'пятиэтажка', 'пятиэтажки', 'пятиэтажек')}</p>
-        <div class="area-step-fig">
-          <div class="canvas-wrap area-step-house" data-el="stepHouse"></div>
-          <div class="area-step-times">&times;&nbsp;${nf(HOUSES_TOTAL)}</div>
-        </div>
-        <p class="area-step-note" data-el="houseNote">Или по ${nf(PER_FLAT)} «${plural(PER_FLAT, 'жильцу', 'жильца', 'жильцов')}» в каждой квартире ${nf(FLAT_M2)} м²</p>
-      </div>
-
-      <p class="area-step-question" data-el="question">Много это или мало, учитывая сколько в Вышке студентов и сотрудников?</p>
+      <!-- The travel the story needs on a phone: the stage above is pinned to
+           the screen and this scrolls under it, a stretch of it for every step.
+           Nothing on a wide screen, where the story is told in beats. -->
+      <div class="area-run" data-el="run" aria-hidden="true"></div>
     </div>
 
     <div class="area-inner">
@@ -11674,7 +11975,10 @@ function init(root) {
   const stepsEl = root.querySelector('.area-steps');
   const iconEls = [$('stepPitch'), $('stepHouse')];
   const BREATHE = 24;                 // left free above the heading and below the question
-  const LEAST = 160;                  // an icon smaller than this stops reading as a picture
+  // An icon smaller than this stops reading as a picture. A phone column is
+  // narrower than a wide-screen one to begin with, so the floor is lower there.
+  const phone = window.matchMedia('(max-width: 860px)');
+  const LEAST = phone.matches ? 104 : 160;
   function fitFigures() {
     const room = stepsEl.clientHeight - BREATHE * 2;
     if (room <= 0) return;
@@ -11699,8 +12003,41 @@ function init(root) {
   paintStepHouse();
   step(0);
 
+  // ---------- The story on a phone ----------
+  // There the page is not read in beats: nothing calls step() but the shell,
+  // once, with the last of them — so the reader was handed the calculator and
+  // never saw the town, the pitches, the blocks of flats or the question. The
+  // travel is in the markup (see .area-run), and this walks it: every stretch
+  // of it is one step more. Scrolling back takes them off again, the way going
+  // back a beat does, and the calculator takes over exactly where the travel
+  // runs out.
+  if (phone.matches) {
+    const stage = root.querySelector('.area-stage');
+    const run = $('run');
+    let told = -1;
+    const follow = () => {
+      // Measured against the stage and not the travel under it: the stage is
+      // pinned for exactly the length of that travel, so this is 0 when it
+      // takes the screen and 1 when it lets go — and the calculator comes up
+      // in the same movement, with no blank screen in between.
+      const h = run.offsetHeight;
+      if (!h) return;
+      const gone = -stage.getBoundingClientRect().top;
+      const i = Math.min(LAST, Math.floor(Math.min(1, Math.max(0, gone / h)) * LAST));
+      if (i === told) return;
+      told = i;
+      step(i);
+    };
+    window.addEventListener('scroll', follow, { passive: true });
+    window.addEventListener('resize', follow);
+    follow();
+  }
+
   return {
-    step,
+    // On a phone the scroll above tells the story, and the shell must not cut
+    // in: it plays the last step once, right after init, and that would hand
+    // the reader the calculator while the travel still says step one.
+    step: phone.matches ? () => {} : step,
     // The page opens this block — first time, or the reader has come back to
     // it. The town starts its traffic over, so the map is the same picture it
     // was when they first saw it.
@@ -13541,6 +13878,27 @@ function init(root) {
       @media (max-width: 860px) {
         .prof-detail { display: none; }
 
+        /* Forty-four professions in one column are seven screens of thumb, and
+           somewhere in the middle of them a reader has no idea which field they
+           are reading about any more. The caption of the group holds the top of
+           the screen while its own professions go by, and gives way to the next
+           one — the list says where it is without anything being added to it. */
+        .prof-group {
+          padding-top: 0;
+        }
+
+        .prof-group-title {
+          position: sticky;
+          top: 0;
+          z-index: 1;
+          margin: 0 0 3px;
+          padding: 7px 8px 5px;
+          background: var(--bg);
+          border-radius: 12px 12px 0 0;
+          font-size: 0.8125rem;
+          color: var(--text-secondary);
+        }
+
         .prof-body .col-right {
           position: static;
           padding: 0;
@@ -14062,12 +14420,6 @@ const BURN = SATS.length + 1;
 const HOLD = BURN + 1;
 const SHOT = HOLD + 1;
 
-// What the reader gets on a narrow screen, where the story is one picture.
-const POSTER = {
-  line: 'Три спутника Вышки — с 2021 по 2023 год',
-  sub: 'Миссии первых двух завершены, а третий до сих пор снимает Землю'
-};
-
 const meta = {
   id: 'space',
   // The block opens on one sentence alone, and the card of the section comes
@@ -14207,10 +14559,36 @@ function init(root) {
         font-variant-numeric: tabular-nums;
       }
 
+      .space-run { display: none; }
+
       @media (max-width: 860px) {
-        .space-note { min-height: 0; }
         .space-note-line { font-size: 1.125rem; }
         .space-note-sub { font-size: 0.9375rem; }
+
+        /* Room for the longest of the lines, held from the start. The line
+           and the globe under it are pinned to the top of a phone while the
+           story goes by, and a line that grew by a row would push the globe
+           down and pull it back up again mid-story. */
+        .space-note { min-height: 104px; }
+
+        /* Taller than the usual card on a phone. Under a pinned picture there
+           is normally a block scrolling by; here there is only the travel the
+           story is told over, so the screen would be half empty for five
+           screens of it. The globe takes that room instead. */
+        .space-card { height: 56dvh; }
+
+        /* On a phone the page scrolls instead of stepping, and the globe with
+           its line is pinned to the top there. This is the travel that goes
+           under them: a stretch for the empty Earth, one for each satellite
+           going up, one for the two that came down, one for the last one
+           turning its camera on the campuses, one for the picture. Without it
+           the phone was handed all three at once and none of those lines was
+           ever read. */
+        .space-run {
+          display: block;
+          flex: none;
+          height: 280dvh;
+        }
       }
     </style>
 
@@ -14223,6 +14601,7 @@ function init(root) {
         <div class="canvas-wrap" data-el="wrap"></div>
       </div>
     </div>
+    <div class="space-run" data-el="run" aria-hidden="true"></div>
   `;
 
   // The section itself, so the block can say how its own heading arrives.
@@ -14959,11 +15338,6 @@ function init(root) {
   let shown = -1;
 
   function say(i) {
-    if (narrow.matches) {
-      noteEl.innerHTML = POSTER.line;
-      subEl.textContent = POSTER.sub;
-      return;
-    }
     noteEl.innerHTML = STORY[i].line;
     subEl.textContent = STORY[i].sub;
   }
@@ -14981,30 +15355,28 @@ function init(root) {
     // it is not. Left in, it would be waiting to go off when the reader came
     // back, and the globe would set off from under their hand.
     fling = 0;
-    // On a narrow screen the block is not read beat by beat: it stands there
-    // with all three satellites up, and there is no story to take back.
-    if (!narrow.matches) {
-      frozen = false;
-      shown = -1;
-      SATS.forEach((sat) => {
-        sat.born = null;
-        sat.died = null;
-        sat.aim = null;
-        sat.shot = null;
-        sat.u = sat.start;
-        sat.uIn = sat.start;
-      });
-    }
+    frozen = false;
+    shown = -1;
+    SATS.forEach((sat) => {
+      sat.born = null;
+      sat.died = null;
+      sat.aim = null;
+      sat.shot = null;
+      sat.u = sat.start;
+      sat.uIn = sat.start;
+    });
+    // On a phone the story is told by the scroll, and the reader can come back
+    // to the middle of it: the run says where they are, and the block is put
+    // back to that, not to the beginning of the story.
+    if (narrow.matches) follow(true);
     paint();
   }
 
   function step(i) {
     const jumped = i !== shown + 1 && shown !== -1;
     const instant = still || shown === -1 || jumped;
-    // On a narrow screen the whole story is one picture, so all three stay.
     const last = i >= BURN;
-    const alive = narrow.matches && last;
-    const count = narrow.matches ? SATS.length : Math.min(i, SATS.length);
+    const count = Math.min(i, SATS.length);
 
     SATS.forEach((sat, k) => {
       const on = k < count;
@@ -15018,13 +15390,11 @@ function init(root) {
       }
       if (!on) { sat.born = null; sat.died = null; }
       // The first two came down; the last beat is where the page says so.
-      const dies = last && !alive && k < 2;
+      const dies = last && k < 2;
       if (dies && sat.died === null) sat.died = instant ? clock - BURN_MS : clock;
       if (!dies) sat.died = null;
       // The one still flying comes round to face us and takes its picture.
-      // On a narrow screen the story is one picture of all three, so none of
-      // them stops for it.
-      const aims = on && i >= HOLD && !narrow.matches && k === SATS.length - 1;
+      const aims = on && i >= HOLD && k === SATS.length - 1;
       if (aims && !sat.aim) {
         // Wherever the globe and the satellite happen to be, both are brought
         // round: the campuses to face us, the satellite to the point of its
@@ -15051,7 +15421,7 @@ function init(root) {
 
     // From the beat it comes round over the campuses, the globe stops turning
     // on its own: the reader needs the picture still to read the line over it.
-    frozen = i >= HOLD && !narrow.matches;
+    frozen = i >= HOLD;
 
     shown = i;
     say(i);
@@ -15059,10 +15429,48 @@ function init(root) {
     if (still) paint();
   }
 
+  // ---------- The story on a phone ----------
+  // There the page is not read in beats: nothing calls step() but the shell,
+  // once, with the last of them — so the block stood there with all three
+  // satellites up and not one line of the story was ever read. The travel is
+  // in the markup (see .space-run), and this walks it: every stretch of it is
+  // one more step. Scrolling back takes the satellites down again, the way
+  // going back a beat does.
+  const runEl = $('run');
+  const colEl = root.querySelector('.col-right');
+  let told = -1;
+  const LAST = meta.steps - 1;
+
+  function follow(force) {
+    // The picture is pinned to the top of the screen while the run goes by
+    // under it — but only until the end of the run comes up to meet it, and
+    // the last screenful of travel is the picture leaving. The story is told
+    // over what is left, so that the picture it is taking is still there when
+    // it takes it.
+    const span = runEl.offsetHeight - colEl.offsetHeight;
+    if (span <= 0) return;
+    const gone = -runEl.getBoundingClientRect().top;
+    const p = Math.min(1, Math.max(0, gone / span));
+    // The last stretch belongs to the picture being taken, and so does
+    // everything past the end of the travel.
+    const i = Math.min(LAST, Math.floor(p * (LAST + 1)));
+    if (i === told && !force) return;
+    told = i;
+    step(i);
+  }
+
+  if (narrow.matches) {
+    window.addEventListener('scroll', () => follow(), { passive: true });
+    window.addEventListener('resize', () => follow());
+    follow(true);
+  }
+
   paint();
 
   return {
-    step,
+    // On a phone the run tells the story and the shell does not: its one call,
+    // with the last step, would be the end of it before it had begun.
+    step: narrow.matches ? () => {} : step,
     open,
     // A satellite drawing its own orbit takes longer than a beat, the two that
     // come down take their time burning up, and the last one takes its time
@@ -15440,11 +15848,27 @@ function init(root) {
         /* The turn of the whole page happened here on one screen: the board,
            the one and the answer all at once, and the reader scrolled past
            the answer to a question they had not been asked yet. So the block
-           is given a screen of travel and the card is pinned inside it —
-           board first, the one after. */
+           is given travel and the card is pinned inside it — the board, the
+           question over it, and the one after them. */
         .each-scene .viz-body {
           display: block;
-          min-height: 185dvh;
+          min-height: 235dvh;
+        }
+
+        /* By the time the board is pinned, the heading the question takes the
+           place of on a wide screen has scrolled off the top — so here the
+           question is said over the board itself, which steps back to grey
+           under it exactly as it does there. */
+        .each-stage .each-turn {
+          top: 50%;
+          z-index: 2;
+          padding: 0 16px;
+          text-align: center;
+          transform: translateY(calc(-50% + 12px));
+        }
+
+        .each-stage .each-turn.is-on {
+          transform: translateY(-50%);
         }
 
         .each-card {
@@ -15464,8 +15888,10 @@ function init(root) {
         .each-hud { display: none; }
 
         /* The figures on a phone come out small, and a word at a third of a
-           small number cannot be read — here it is set relatively larger. */
-        .each-w { font-size: 0.5em; }
+           small number cannot be read — here it is set relatively larger. At
+           half the smallest figure on the board it still came out at 11.4px,
+           under the twelve the rest of the page keeps to. */
+        .each-w { font-size: 0.55em; }
       }
     </style>
 
@@ -15500,8 +15926,13 @@ function init(root) {
   turn.className = 'each-turn';
   turn.innerHTML = 'Но несмотря на весь масштаб Вышки и количество показателей, есть '
     + '<span class="each-mark">одна самая главная цифра</span>';
+  // On a wide screen the question comes up in the place of the heading. On a
+  // phone the heading is above the travel the pinned card rides through, and
+  // is long gone by the time the question is due — so there it belongs to the
+  // board, inside the card.
   const header = host.querySelector('.viz-header');
-  if (header) header.appendChild(turn);
+  const seat = narrow.matches ? stage : header;
+  if (seat) seat.appendChild(turn);
 
   const tiles = FIGURES.map((f) => {
     const el = document.createElement('div');
@@ -15848,13 +16279,13 @@ function init(root) {
 
   // ---------- The phone ----------
   // A narrow screen has no beats, so the turn is driven by the scroll. The
-  // card is pinned inside a block a screen and a half tall: first the board
-  // alone, and when the reader pushes past the middle of the block the
-  // figures go and the one is left standing in their place.
+  // card is pinned inside a block of travel and the reader walks it: the
+  // board of figures, then the question over it, and then the figures go and
+  // the one is left standing in their place.
   //
-  // Two states and a line between them, not a figure that grows with the
-  // finger. The whole page has been leading to this one turn, and a turn the
-  // reader can scrub back and forth is a toy, not a turn.
+  // Three states and a line between each pair, not a figure that grows with
+  // the finger. The whole page has been leading to this one turn, and a turn
+  // the reader can scrub back and forth is a toy, not a turn.
   let phoneStage = -1;
 
   function phoneBoard() {
@@ -15866,6 +16297,18 @@ function init(root) {
     say(null);
     placeSum(L.end[0], { dur: 0, show: false, text: '1', color: HSE });
     apply(tiles.map((t, k) => ({ ...L.poster[k], a: 1 })), { delay: rush(ALL, 700, 100) });
+  }
+
+  // The question, which on a wide screen is read over a board gone grey. Here
+  // it is read over the board itself, so the board also gives way: grey alone
+  // left two things of equal weight on one small card.
+  function phoneAsk() {
+    hush(false);
+    paint(true);
+    sum.classList.remove('is-clearing');
+    say('turn');
+    placeSum(L.end[0], { dur: 0, show: false, text: '1', color: HSE });
+    apply(tiles.map((t, k) => ({ ...L.poster[k], a: 0.18 })), {});
   }
 
   function phoneOne() {
@@ -15886,14 +16329,20 @@ function init(root) {
     return travel > 8 ? Math.min(1, Math.max(0, -box.top / travel)) : 1;
   }
 
-  // The line is crossed later going forward than coming back, so that a
-  // finger resting exactly on it does not flicker the answer on and off.
+  // Each line is crossed later going forward than coming back, so that a
+  // finger resting exactly on one does not flicker the state on and off.
+  const AHEAD = [0.3, 0.62];          // far enough along for the next state
+  const BACK = [0.22, 0.54];          // far enough back for the one before
+  const PHONE_STATE = [phoneBoard, phoneAsk, phoneOne];
+
   function phone(force) {
     const p = phonePart();
-    const want = phoneStage === 1 ? (p > 0.42 ? 1 : 0) : (p > 0.52 ? 1 : 0);
+    let want = Math.max(0, phoneStage);
+    while (want < AHEAD.length && p > AHEAD[want]) want += 1;
+    while (want > 0 && p < BACK[want - 1]) want -= 1;
     if (want === phoneStage && !force) return;
     phoneStage = want;
-    if (want === 1) phoneOne(); else phoneBoard();
+    PHONE_STATE[want]();
   }
 
   // The closing beat, put back as it ended instead of played again. A window

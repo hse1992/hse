@@ -191,6 +191,17 @@ export function init(root) {
       .area-step-pitch { aspect-ratio: 105 / 68; }
       .area-step-house { aspect-ratio: 1.55; }
 
+      /* Everything the story shows — the town and the steps over it — lies in
+         one stage above the visualisation, so on a phone the two can be pinned
+         to the screen together while the travel below scrolls under them. */
+      .area-stage,
+      .area-tell {
+        position: absolute;
+        inset: 0;
+      }
+
+      .area-run { display: none; }
+
       /* The town the buildings make, over the whole block — what comes up
          under the lead-in as it goes to the top. It steps aside for the
          figures the same way they come and go. */
@@ -408,36 +419,74 @@ export function init(root) {
 
         .area-score-value { font-size: 2.5rem; }
         .area-score-note { font-size: 0.875rem; }
+
+        /* On a phone the page is scrolled and no one plays the eight steps:
+           the shell calls the last of them once, and the town, the pitches,
+           the blocks of flats and the question the two raise were never shown
+           at all. So the stage is pinned to the screen, and the travel under
+           it is walked a stretch at a time — a step for every stretch. */
+        .area-stage { position: static; }
+
+        .area-tell {
+          position: sticky;
+          top: 0;
+          height: calc(100dvh - var(--hint-room));
+        }
+
+        .area-run {
+          display: block;
+          height: 245dvh;
+        }
+
+        /* The steps keep their two columns here — the pitch beside the block
+           of flats is the whole comparison — so the type gives way instead. */
+        .area-steps { gap: 12px 16px; }
+
+        .area-step-title,
+        .area-step-question { font-size: 1.375rem; }
+
+        .area-step-line { font-size: 1rem; }
+        .area-step-note { font-size: 0.9375rem; }
+        .area-step-times { font-size: 1.375rem; }
       }
     </style>
 
-    <div class="area-town" data-el="town">
-      <p class="area-town-note">Тут правда ${nf(BUILDINGS)} ${plural(BUILDINGS, 'здание', 'здания', 'зданий')}</p>
-      <div class="area-town-map" data-el="townMap"></div>
-    </div>
-
-    <div class="area-steps">
-      <p class="area-step-title" data-el="areaTitle">Общая площадь этих зданий <span class="area-mark">${nf(AREA_TOTAL)} м²</span></p>
-
-      <div class="area-step area-step-fields" data-el="stepFields">
-        <p class="area-step-line">Это площадь ${nf(FIELDS_TOTAL)} футбольных полей</p>
-        <div class="area-step-fig">
-          <div class="canvas-wrap area-step-pitch" data-el="stepPitch"></div>
-          <div class="area-step-times">&times;&nbsp;${nf(FIELDS_TOTAL)}</div>
+    <div class="area-stage">
+      <div class="area-tell">
+        <div class="area-town" data-el="town">
+          <p class="area-town-note">Тут правда ${nf(BUILDINGS)} ${plural(BUILDINGS, 'здание', 'здания', 'зданий')}</p>
+          <div class="area-town-map" data-el="townMap"></div>
         </div>
-        <p class="area-step-note" data-el="pitchNote">Это ${nf(PER_PITCH)} «${plural(PER_PITCH, 'футболист', 'футболиста', 'футболистов')}» на одном поле</p>
+
+        <div class="area-steps">
+          <p class="area-step-title" data-el="areaTitle">Общая площадь этих зданий <span class="area-mark">${nf(AREA_TOTAL)} м²</span></p>
+
+          <div class="area-step area-step-fields" data-el="stepFields">
+            <p class="area-step-line">Это площадь ${nf(FIELDS_TOTAL)} футбольных полей</p>
+            <div class="area-step-fig">
+              <div class="canvas-wrap area-step-pitch" data-el="stepPitch"></div>
+              <div class="area-step-times">&times;&nbsp;${nf(FIELDS_TOTAL)}</div>
+            </div>
+            <p class="area-step-note" data-el="pitchNote">Это ${nf(PER_PITCH)} «${plural(PER_PITCH, 'футболист', 'футболиста', 'футболистов')}» на одном поле</p>
+          </div>
+
+          <div class="area-step area-step-houses" data-el="stepHouses">
+            <p class="area-step-line">Или ${nf(HOUSES_TOTAL)} ${plural(HOUSES_TOTAL, 'пятиэтажка', 'пятиэтажки', 'пятиэтажек')}</p>
+            <div class="area-step-fig">
+              <div class="canvas-wrap area-step-house" data-el="stepHouse"></div>
+              <div class="area-step-times">&times;&nbsp;${nf(HOUSES_TOTAL)}</div>
+            </div>
+            <p class="area-step-note" data-el="houseNote">Или по ${nf(PER_FLAT)} «${plural(PER_FLAT, 'жильцу', 'жильца', 'жильцов')}» в каждой квартире ${nf(FLAT_M2)} м²</p>
+          </div>
+
+          <p class="area-step-question" data-el="question">Много это или мало, учитывая сколько в Вышке студентов и сотрудников?</p>
+        </div>
       </div>
 
-      <div class="area-step area-step-houses" data-el="stepHouses">
-        <p class="area-step-line">Или ${nf(HOUSES_TOTAL)} ${plural(HOUSES_TOTAL, 'пятиэтажка', 'пятиэтажки', 'пятиэтажек')}</p>
-        <div class="area-step-fig">
-          <div class="canvas-wrap area-step-house" data-el="stepHouse"></div>
-          <div class="area-step-times">&times;&nbsp;${nf(HOUSES_TOTAL)}</div>
-        </div>
-        <p class="area-step-note" data-el="houseNote">Или по ${nf(PER_FLAT)} «${plural(PER_FLAT, 'жильцу', 'жильца', 'жильцов')}» в каждой квартире ${nf(FLAT_M2)} м²</p>
-      </div>
-
-      <p class="area-step-question" data-el="question">Много это или мало, учитывая сколько в Вышке студентов и сотрудников?</p>
+      <!-- The travel the story needs on a phone: the stage above is pinned to
+           the screen and this scrolls under it, a stretch of it for every step.
+           Nothing on a wide screen, where the story is told in beats. -->
+      <div class="area-run" data-el="run" aria-hidden="true"></div>
     </div>
 
     <div class="area-inner">
@@ -873,7 +922,10 @@ export function init(root) {
   const stepsEl = root.querySelector('.area-steps');
   const iconEls = [$('stepPitch'), $('stepHouse')];
   const BREATHE = 24;                 // left free above the heading and below the question
-  const LEAST = 160;                  // an icon smaller than this stops reading as a picture
+  // An icon smaller than this stops reading as a picture. A phone column is
+  // narrower than a wide-screen one to begin with, so the floor is lower there.
+  const phone = window.matchMedia('(max-width: 860px)');
+  const LEAST = phone.matches ? 104 : 160;
   function fitFigures() {
     const room = stepsEl.clientHeight - BREATHE * 2;
     if (room <= 0) return;
@@ -898,8 +950,41 @@ export function init(root) {
   paintStepHouse();
   step(0);
 
+  // ---------- The story on a phone ----------
+  // There the page is not read in beats: nothing calls step() but the shell,
+  // once, with the last of them — so the reader was handed the calculator and
+  // never saw the town, the pitches, the blocks of flats or the question. The
+  // travel is in the markup (see .area-run), and this walks it: every stretch
+  // of it is one step more. Scrolling back takes them off again, the way going
+  // back a beat does, and the calculator takes over exactly where the travel
+  // runs out.
+  if (phone.matches) {
+    const stage = root.querySelector('.area-stage');
+    const run = $('run');
+    let told = -1;
+    const follow = () => {
+      // Measured against the stage and not the travel under it: the stage is
+      // pinned for exactly the length of that travel, so this is 0 when it
+      // takes the screen and 1 when it lets go — and the calculator comes up
+      // in the same movement, with no blank screen in between.
+      const h = run.offsetHeight;
+      if (!h) return;
+      const gone = -stage.getBoundingClientRect().top;
+      const i = Math.min(LAST, Math.floor(Math.min(1, Math.max(0, gone / h)) * LAST));
+      if (i === told) return;
+      told = i;
+      step(i);
+    };
+    window.addEventListener('scroll', follow, { passive: true });
+    window.addEventListener('resize', follow);
+    follow();
+  }
+
   return {
-    step,
+    // On a phone the scroll above tells the story, and the shell must not cut
+    // in: it plays the last step once, right after init, and that would hand
+    // the reader the calculator while the travel still says step one.
+    step: phone.matches ? () => {} : step,
     // The page opens this block — first time, or the reader has come back to
     // it. The town starts its traffic over, so the map is the same picture it
     // was when they first saw it.
