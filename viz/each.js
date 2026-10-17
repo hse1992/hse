@@ -356,11 +356,27 @@ export function init(root) {
         /* The turn of the whole page happened here on one screen: the board,
            the one and the answer all at once, and the reader scrolled past
            the answer to a question they had not been asked yet. So the block
-           is given a screen of travel and the card is pinned inside it —
-           board first, the one after. */
+           is given travel and the card is pinned inside it — the board, the
+           question over it, and the one after them. */
         .each-scene .viz-body {
           display: block;
-          min-height: 185dvh;
+          min-height: 235dvh;
+        }
+
+        /* By the time the board is pinned, the heading the question takes the
+           place of on a wide screen has scrolled off the top — so here the
+           question is said over the board itself, which steps back to grey
+           under it exactly as it does there. */
+        .each-stage .each-turn {
+          top: 50%;
+          z-index: 2;
+          padding: 0 16px;
+          text-align: center;
+          transform: translateY(calc(-50% + 12px));
+        }
+
+        .each-stage .each-turn.is-on {
+          transform: translateY(-50%);
         }
 
         .each-card {
@@ -416,8 +432,13 @@ export function init(root) {
   turn.className = 'each-turn';
   turn.innerHTML = 'Но несмотря на весь масштаб Вышки и количество показателей, есть '
     + '<span class="each-mark">одна самая главная цифра</span>';
+  // On a wide screen the question comes up in the place of the heading. On a
+  // phone the heading is above the travel the pinned card rides through, and
+  // is long gone by the time the question is due — so there it belongs to the
+  // board, inside the card.
   const header = host.querySelector('.viz-header');
-  if (header) header.appendChild(turn);
+  const seat = narrow.matches ? stage : header;
+  if (seat) seat.appendChild(turn);
 
   const tiles = FIGURES.map((f) => {
     const el = document.createElement('div');
@@ -764,13 +785,13 @@ export function init(root) {
 
   // ---------- The phone ----------
   // A narrow screen has no beats, so the turn is driven by the scroll. The
-  // card is pinned inside a block a screen and a half tall: first the board
-  // alone, and when the reader pushes past the middle of the block the
-  // figures go and the one is left standing in their place.
+  // card is pinned inside a block of travel and the reader walks it: the
+  // board of figures, then the question over it, and then the figures go and
+  // the one is left standing in their place.
   //
-  // Two states and a line between them, not a figure that grows with the
-  // finger. The whole page has been leading to this one turn, and a turn the
-  // reader can scrub back and forth is a toy, not a turn.
+  // Three states and a line between each pair, not a figure that grows with
+  // the finger. The whole page has been leading to this one turn, and a turn
+  // the reader can scrub back and forth is a toy, not a turn.
   let phoneStage = -1;
 
   function phoneBoard() {
@@ -782,6 +803,18 @@ export function init(root) {
     say(null);
     placeSum(L.end[0], { dur: 0, show: false, text: '1', color: HSE });
     apply(tiles.map((t, k) => ({ ...L.poster[k], a: 1 })), { delay: rush(ALL, 700, 100) });
+  }
+
+  // The question, which on a wide screen is read over a board gone grey. Here
+  // it is read over the board itself, so the board also gives way: grey alone
+  // left two things of equal weight on one small card.
+  function phoneAsk() {
+    hush(false);
+    paint(true);
+    sum.classList.remove('is-clearing');
+    say('turn');
+    placeSum(L.end[0], { dur: 0, show: false, text: '1', color: HSE });
+    apply(tiles.map((t, k) => ({ ...L.poster[k], a: 0.18 })), {});
   }
 
   function phoneOne() {
@@ -802,14 +835,20 @@ export function init(root) {
     return travel > 8 ? Math.min(1, Math.max(0, -box.top / travel)) : 1;
   }
 
-  // The line is crossed later going forward than coming back, so that a
-  // finger resting exactly on it does not flicker the answer on and off.
+  // Each line is crossed later going forward than coming back, so that a
+  // finger resting exactly on one does not flicker the state on and off.
+  const AHEAD = [0.3, 0.62];          // far enough along for the next state
+  const BACK = [0.22, 0.54];          // far enough back for the one before
+  const PHONE_STATE = [phoneBoard, phoneAsk, phoneOne];
+
   function phone(force) {
     const p = phonePart();
-    const want = phoneStage === 1 ? (p > 0.42 ? 1 : 0) : (p > 0.52 ? 1 : 0);
+    let want = Math.max(0, phoneStage);
+    while (want < AHEAD.length && p > AHEAD[want]) want += 1;
+    while (want > 0 && p < BACK[want - 1]) want -= 1;
     if (want === phoneStage && !force) return;
     phoneStage = want;
-    if (want === 1) phoneOne(); else phoneBoard();
+    PHONE_STATE[want]();
   }
 
   // The closing beat, put back as it ended instead of played again. A window
