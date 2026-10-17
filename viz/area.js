@@ -435,10 +435,13 @@ export function init(root) {
            Сцена забирает себе место перед ним. */
         .area-stage { position: static; order: -2; }
 
+        /* Под переходным экраном, который остался наверху: он читается как
+           заголовок блока и занимает верх каждого экрана, так что сцена
+           прибивается под ним и на столько же ниже ростом. */
         .area-tell {
           position: sticky;
-          top: 0;
-          height: calc(100dvh - var(--hint-room));
+          top: var(--lead-hold, 0px);
+          height: calc(100dvh - var(--hint-room) - var(--lead-hold, 0px));
         }
 
         .area-run {
@@ -913,6 +916,7 @@ export function init(root) {
   const pitchNoteEl = $('pitchNote');
   const houseNoteEl = $('houseNote');
   const innerEl = root.querySelector('.area-inner');
+  const host = root.closest('.viz-section') || root.parentElement;
   const LAST = 7;
 
   // The same town as the town section draws — see lib/town-map.js.
@@ -931,6 +935,10 @@ export function init(root) {
     showCrowd(told && i >= 5);
     lightUp(told && i >= 6);
     innerEl.classList.toggle('off', told);
+    // На телефоне переходный экран припаркован наверху и читается как
+    // заголовок блока. Когда блок отдан читателю, место под ним нужнее
+    // переключателям, а какой это раздел, говорит полоска сверху.
+    host.classList.toggle('lead-gone', !told);
   }
 
   // The heading, both figures with their notes and the question under them

@@ -1882,6 +1882,28 @@ button { font-family: inherit; }
     top: 8px;
   }
 
+  /* Переходный экран, который паркуется наверху, остается там на весь блок и
+     читается как его заголовок. Значит, верх каждого экрана занят им, и все,
+     что блок прибивает к верху, прибивается под ним, а не за ним. Высоту
+     парковки считает lib/page.js — она зависит от того, сколько строк в этом
+     экране на этой ширине. */
+  .viz-section.lead-parks .col-right {
+    top: var(--lead-hold, 0px);
+  }
+
+  /* Блок кончился и отдан читателю — припаркованный экран уходит: его место
+     наверху нужнее тому, чем теперь управляют, а название раздела говорит
+     полоска. Класс ставит сам блок, когда отдает себя. */
+  .viz-section.lead-parks.lead-gone .viz-lead {
+    opacity: 0;
+    visibility: hidden;
+  }
+
+  .viz-section.lead-parks.lead-gone .col-right {
+    top: 0;
+  }
+
+
   .viz-container {
     gap: 12px;
   }
@@ -2962,6 +2984,13 @@ function leadCard(section, K = () => CARD_K, cardHeight = null) {
   // the card coming up from below in its place — for a screen that says how
   // far up something is, where sliding sideways would cut across the sense.
   const parks = lead.dataset.exit === 'top';
+  // How tall the screen stands, once squeezed — measured in fitHeight.
+  let span = 0;
+  // A block whose lead-in parks reads that screen as its heading, and its own
+  // heading never comes in — on a wide screen the card simply waits off to the
+  // right for ever. The styles need to know on a phone, where the card has a
+  // screen of travel held for it that nothing would ever use.
+  if (parks) section.classList.add('lead-parks');
   const rises = lead.dataset.exit === 'up';
 
   // A screen of one line starts where the heading of the title card will be,
@@ -3046,6 +3075,12 @@ function leadCard(section, K = () => CARD_K, cardHeight = null) {
     const k = full > room && room > 0 ? room / full : 1;
     parts.forEach((el, i) => { [el.style.height, el.style.opacity] = kept[i]; });
     section.style.setProperty('--lead-squeeze', k.toFixed(4));
+    // How tall the screen stands after all that, for parking it on a phone:
+    // there it is fixed to the middle of the window, and going up to the top
+    // edge means going up by half of what is left over. Taken here rather than
+    // measured again on every frame, where the measurement would be reading
+    // back the very move it is about to make.
+    span = full * k;
   };
 
   // Both are taken together, and only when something they depend on has moved
@@ -3120,6 +3155,27 @@ function leadCard(section, K = () => CARD_K, cardHeight = null) {
       section.style.setProperty('--card-x', '108vw');
       section.style.setProperty('--lead-hold',
         `${Math.max(0, Math.round(lead.offsetHeight - header.offsetHeight))}px`);
+      return;
+    }
+
+    // The same parking on a phone. There the screen is pinned to the window
+    // rather than to the section, so it goes up to the top edge of the window
+    // and stays there — and the block comes up underneath it, which is the
+    // whole point of parking: «Но есть 196 зданий. А это уже целый город» and
+    // the town those buildings make belong on one screen. Sliding it aside
+    // instead, as every other screen is slid aside, left the phrase gone a
+    // screen before the picture it was about arrived.
+    if (parks) {
+      lead.style.setProperty('--lead-x', '0px');
+      lead.style.setProperty('--lead-y',
+        `${(-e * Math.max(0, (window.innerHeight - span) / 2 - LEAD_AIR)).toFixed(1)}px`);
+      lead.style.opacity = '';
+      // And the room it takes at the top of every screen of the block, so that
+      // what the block pins to the top pins itself under the parked screen
+      // instead of behind it — the same room the wide layout holds, measured
+      // against the window rather than against the pinned container.
+      section.style.setProperty('--lead-hold',
+        `${Math.round(e * (span + LEAD_AIR * 2))}px`);
       return;
     }
 
@@ -11848,10 +11904,13 @@ function init(root) {
            Сцена забирает себе место перед ним. */
         .area-stage { position: static; order: -2; }
 
+        /* Под переходным экраном, который остался наверху: он читается как
+           заголовок блока и занимает верх каждого экрана, так что сцена
+           прибивается под ним и на столько же ниже ростом. */
         .area-tell {
           position: sticky;
-          top: 0;
-          height: calc(100dvh - var(--hint-room));
+          top: var(--lead-hold, 0px);
+          height: calc(100dvh - var(--hint-room) - var(--lead-hold, 0px));
         }
 
         .area-run {
@@ -12326,6 +12385,7 @@ function init(root) {
   const pitchNoteEl = $('pitchNote');
   const houseNoteEl = $('houseNote');
   const innerEl = root.querySelector('.area-inner');
+  const host = root.closest('.viz-section') || root.parentElement;
   const LAST = 7;
 
   // The same town as the town section draws — see lib/town-map.js.
@@ -12344,6 +12404,10 @@ function init(root) {
     showCrowd(told && i >= 5);
     lightUp(told && i >= 6);
     innerEl.classList.toggle('off', told);
+    // На телефоне переходный экран припаркован наверху и читается как
+    // заголовок блока. Когда блок отдан читателю, место под ним нужнее
+    // переключателям, а какой это раздел, говорит полоска сверху.
+    host.classList.toggle('lead-gone', !told);
   }
 
   // The heading, both figures with their notes and the question under them
