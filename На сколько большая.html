@@ -1970,6 +1970,10 @@ button { font-family: inherit; }
     flex-wrap: wrap;
     min-height: 0;
     gap: 2px 12px;
+    /* В колонке это центрирование было вертикальным и ничего не решало, а в
+       строке стало горизонтальным: числа встали по середине карточки, каждое
+       со своим отступом, и ни одно не совпало с именем города над ним. */
+    justify-content: flex-start;
   }
 
   /* The picture is pinned to the top and the controls are read in the strip
