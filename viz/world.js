@@ -284,6 +284,15 @@ export function init(root) {
         cursor: default;
       }
 
+      /* On a phone the scale runs the width of the screen, and a finger that
+         lands on it to scroll the page would be answering the question
+         instead: "none" hands every touch to the slider. "pan-y" keeps the
+         horizontal ones — the tap and the drag that set the guess — and gives
+         the vertical ones back to the page. */
+      @media (max-width: 860px) {
+        .world-scale { touch-action: pan-y; }
+      }
+
       .world-scale:focus-visible .meter-bar {
         box-shadow: 0 0 0 2px var(--hse-blue);
       }
