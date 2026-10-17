@@ -132,6 +132,10 @@
       section,
       opening,
       steps: mod.meta.steps || 0,
+      // Блок, который на телефоне читается кадрами, а не прокруткой: страница
+      // останавливается на нем, и каждое касание играет следующий кадр
+      // целиком — см. «Чтение кадрами» в lib/stepper.js.
+      taps: !!mod.meta.taps,
       opensOnStep: !!mod.meta.opensOnStep,
       // The figure this block ends on, handed over to the next — see lib/stepper.js.
       handoff: mod.meta.handoff || null,

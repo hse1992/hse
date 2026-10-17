@@ -2188,6 +2188,19 @@ button { font-family: inherit; }
   }
 
 
+/* ---------- Чтение кадрами ---------- */
+/* Страница остановлена на блоке: он рассказывает историю кадрами, и внизу
+   вместо стрелки вниз — просто «Дальше», потому что вниз сейчас некуда. */
+.page-next.is-tap span {
+  display: none;
+}
+
+/* Пока страница держится, ничто не должно тянуться резинкой под пальцем. */
+html.is-holding,
+html.is-holding body {
+  overscroll-behavior: none;
+}
+
 </style>
 </head>
 <body>
@@ -4259,6 +4272,11 @@ function beatsOf(entry, before = null) {
 // reader comes to it, its title card follows its own position on the screen,
 // and a scene shows the state it ends in, with its controls left to the reader.
 function mountScrolled(entries, onProgress) {
+  // Reading by frames belongs to the phone. This way of reading is also the
+  // one chosen for «less movement» on a wide screen, and there taking the
+  // scroll away from the reader would be the opposite of what they asked for.
+  const byTaps = (e) => !!e.taps && NARROW.matches && !REDUCED.matches;
+
   const near = (section, reach = 1.5) => {
     const box = section.getBoundingClientRect();
     return box.bottom > -window.innerHeight && box.top < window.innerHeight * reach;
@@ -4282,8 +4300,10 @@ function mountScrolled(entries, onProgress) {
           entry.build();
           // A scene is a story told in steps, and steps need a screen that
           // holds still. Here it shows what it comes to in the end — the module
-          // says so itself by taking the last step.
-          if (entry.steps) entry.setStep(entry.steps - 1);
+          // says so itself by taking the last step. A block read by taps keeps
+          // its story: there the screen does hold still, and the story is told
+          // frame by frame from the first one.
+          if (entry.steps) entry.setStep(byTaps(entry) ? 0 : entry.steps - 1);
           if (entry.opening) entry.opening.follow();
         });
       }
@@ -4307,6 +4327,135 @@ function mountScrolled(entries, onProgress) {
   };
 
   const height = () => Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
+
+  // ---------- Чтение кадрами ----------
+  // A block that tells its story in frames holds the screen while it tells it:
+  // the page stops at its top edge, a touch plays the next frame whole, and
+  // when the story is told the page is let go and the reader goes on. It is the
+  // same machine the wide screen is read by, with a thumb in place of the
+  // wheel — and it is the story as it was written, which scrolling could only
+  // approximate: a flick of the thumb is seven hundred pixels and a frame was
+  // two hundred, so three of them went past in one movement, each cutting off
+  // the one before.
+  //
+  // The way out is never shut. A pull down on the first frame lets the page go
+  // back up, the last frame lets it go on, and the bar at the top still leads
+  // anywhere. The page is held by fixing the body rather than by swallowing
+  // touches: on a phone a flick that has left the finger cannot be stopped any
+  // other way.
+  const TAP_PULL = 46;                  // px of drag that counts as one frame
+  let caught = null;                    // the block holding the screen
+  let frame = 0;                        // which frame it is on
+  let playing = false;
+  let keptY = 0;
+
+  const hold = () => {
+    keptY = window.scrollY;
+    document.documentElement.classList.add('is-holding');
+    document.body.style.position = 'fixed';
+    document.body.style.top = `${-keptY}px`;
+    document.body.style.left = '0';
+    document.body.style.right = '0';
+  };
+
+  const release = () => {
+    document.documentElement.classList.remove('is-holding');
+    document.body.style.position = '';
+    document.body.style.top = '';
+    document.body.style.left = '';
+    document.body.style.right = '';
+    window.scrollTo(0, keptY);
+  };
+
+  const letGo = (ahead) => {
+    const e = caught;
+    caught = null;
+    release();
+    if (!e) return;
+    // Told once and not caught again: coming back to a block that is behind
+    // the reader shows what it came to, the way every other block does.
+    if (ahead) e.told = true;
+    // Going back, a nudge up so the block does not catch the page again on the
+    // very next frame. Going on, the page stays exactly where it was: the
+    // block is still on the screen and has only just become the reader's.
+    if (!ahead) window.scrollBy(0, -10);
+    says();
+  };
+
+  const play = (to) => {
+    const e = caught;
+    if (!e || playing) return;
+    if (to < 0 || to > e.steps - 1) { letGo(to > 0); return; }
+    // A frame that waits for an answer is not passed by a touch either.
+    if (to > frame && e.hold && e.hold(frame)) return;
+    frame = to;
+    playing = true;
+    tried('кадр', () => e.setStep(frame));
+    // While the page is held there are no scroll events, so what the button
+    // says is asked for by hand after every frame.
+    says();
+    const span = Math.max(BEAT_MS, (e.span && e.span(frame)) || 0);
+    setTimeout(() => { playing = false; }, span);
+    // The last frame is the block handing itself over to the reader, and the
+    // page goes with it: holding on after the story is told would leave them
+    // pulling at a page that has nothing left to say.
+    if (frame >= e.steps - 1) letGo(true);
+  };
+
+  // Catching is done at the top edge: the block is already there, its first
+  // frame has been put up by the build, and all that is left is to stop the
+  // page. Half a screen of it has to be on the screen, so that a block merely
+  // passed by on the way to the bar does not catch anybody.
+  const maybeCatch = () => {
+    if (caught) return;
+    const e = entries.find((x) => byTaps(x) && x.steps && !x.told && x.built);
+    if (!e) return;
+    // The block itself, not the section around it: the section begins with the
+    // opening — the lead-in screen and the title card — and that is read by
+    // scrolling, like everything that is not the story. Caught at the section
+    // the page stopped a screen too early, and the frames played behind the
+    // lead-in screen where nobody could see them.
+    const body = e.section.querySelector('.viz-body');
+    const box = (body || e.section).getBoundingClientRect();
+    if (box.top > 2 || box.bottom < window.innerHeight * 0.5) return;
+    window.scrollTo(0, window.scrollY + box.top);
+    caught = e;
+    frame = 0;
+    tried('кадр', () => e.setStep(0));
+    hold();
+    says();
+  };
+
+  let pulled = null;
+  window.addEventListener('touchstart', (ev) => {
+    pulled = ev.touches.length === 1 ? ev.touches[0].clientY : null;
+  }, { passive: true });
+
+  window.addEventListener('touchmove', (ev) => {
+    if (!caught || pulled === null) return;
+    ev.preventDefault();
+    const dy = pulled - ev.touches[0].clientY;
+    if (Math.abs(dy) < TAP_PULL) return;
+    pulled = ev.touches[0].clientY;
+    play(frame + (dy > 0 ? 1 : -1));
+  }, { passive: false });
+
+  // The trackpad and the wheel, for a narrow window on a desktop.
+  window.addEventListener('wheel', (ev) => {
+    if (!caught) return;
+    ev.preventDefault();
+    if (Math.abs(ev.deltaY) < 8) return;
+    play(frame + (ev.deltaY > 0 ? 1 : -1));
+  }, { passive: false });
+
+  // And the touch that asks for nothing in particular: anywhere on the block
+  // that is not something to press.
+  window.addEventListener('click', (ev) => {
+    if (!caught) return;
+    if (ev.target.closest('button, a[href], input, [role="switch"], [role="slider"], .page-progress, .page-sheet')) return;
+    if (!caught.section.contains(ev.target)) return;
+    play(frame + 1);
+  });
 
   // ---------- «Далее» ----------
   // A story told by scrolling is told in stretches of a couple of hundred
@@ -4348,6 +4497,9 @@ function mountScrolled(entries, onProgress) {
   // The press is the whole gesture: pressed again before the page has arrived,
   // it would stack scrolls and fly past two states at once.
   next.addEventListener('click', () => {
+    // While a block holds the screen the button plays the next frame instead
+    // of moving the page: there is nowhere for the page to move.
+    if (caught) { play(frame + 1); return; }
     if (gliding) return;
     togo = left();
     if (togo <= 0) return;
@@ -4356,6 +4508,19 @@ function mountScrolled(entries, onProgress) {
   });
 
   const hint = document.querySelector('.scroll-hint');
+
+  // What the button offers, and whether the nudge at the foot of the screen
+  // has anything left to say. Asked on every scroll, and by hand while the
+  // page is held, where there are no scrolls to ask on.
+  const says = () => {
+    const here = entries[place().index];
+    const gap = !caught && here && here.ahead ? here.ahead() : 0;
+    const show = caught ? frame < caught.steps - 1 : gap > 0;
+    next.hidden = !show;
+    // Held, the page has nowhere to go down to: the arrow would be a lie.
+    next.classList.toggle('is-tap', !!caught);
+    if (hint) hint.classList.toggle('is-covered', show);
+  };
 
   let queued = false;
   const paint = () => {
@@ -4372,15 +4537,11 @@ function mountScrolled(entries, onProgress) {
       if (close || e.wasNear) e.opening.follow();
       e.wasNear = close;
     });
+    // A block that reads by frames stops the page at its top edge.
+    maybeCatch();
     const at = place();
     if (onProgress) onProgress(window.scrollY / height(), at);
-    // Shown only where there is a next state to go to. The nudge at the foot
-    // of the screen says the same thing in words, so the two never stand
-    // together.
-    const here = entries[at.index];
-    const gap = here && here.ahead ? here.ahead() : 0;
-    next.hidden = !(gap > 0);
-    if (hint) hint.classList.toggle('is-covered', gap > 0);
+    says();
   };
 
   // Every card is painted once at the start, even the ones far below: until a
@@ -9275,6 +9436,11 @@ const meta = {
   id: 'stadium',
   // Short enough for the strip at the top of a phone — see meta.short in CLAUDE.md.
   short: 'Стадион',
+  // На телефоне этот блок читается кадрами, а не прокруткой: страница
+  // останавливается на нем, касание играет следующий кадр целиком. История
+  // написана тактами, и прокрутка передавала ее с потерями — см. «Чтение
+  // кадрами» в lib/stepper.js.
+  taps: true,
   // Hands the reader over from the trains: a number they have just met, and
   // the question it raises.
   lead: {
@@ -9499,6 +9665,16 @@ function init(root) {
           flex: none;
           height: 240dvh;
         }
+
+        /* Кадрами страница не едет, и ход под историю не нужен: блок держит
+           ровно экран, а управление открывается, когда история рассказана. */
+        .stadium-body.is-tapped .stadium-run { display: none; }
+
+        .stadium-body.is-tapped {
+          min-height: calc(100dvh - var(--hint-room));
+        }
+
+        .stadium-body.is-tapped.is-telling .col-left { display: none; }
 
         /* The share grows as the stands fill — «0%», «2,7%», «95,9%» — and the
            head was laid out in one wrapping line, so it re-packed itself under
@@ -10083,6 +10259,10 @@ function init(root) {
   // arrive together.
   const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const phone = window.matchMedia('(max-width: 860px)');
+  // Кадрами ведет каркас; прокруточная история тогда не нужна и только мешала
+  // бы ему — два хозяина у одного step().
+  const tapped = phone.matches && meta.taps;
+  if (tapped) root.classList.add('is-tapped');
   let shownFilled = 0;
   let countFrame = null;
 
@@ -10198,7 +10378,7 @@ function init(root) {
   // .stadium-run), and this walks it: every stretch of it is one more campus
   // in the stands. Scrolling back takes them out again, the way going back a
   // beat does.
-  if (phone.matches) {
+  if (phone.matches && !tapped) {
     const run = $('run');
     let told = -1;
     // The story takes three quarters of the travel and the handover the rest.
@@ -10292,7 +10472,10 @@ function init(root) {
   // right after init, and after the first frame the travel has already set —
   // so the arena arrived full while the line above it still said «Пустая
   // арена». Here that call is given somewhere harmless to land.
-  return { step: phone.matches ? () => {} : step, carry, ahead: () => ahead() };
+  // Кадрами каркас зовет step() сам, так что отдается настоящий шаг. Там, где
+  // историю ведет прокрутка, каркасу отдается пустышка: его единственный вызов
+  // «покажи итог» перебил бы ход.
+  return { step: phone.matches && !tapped ? () => {} : step, carry, ahead: () => ahead() };
 }
 
 return { meta, init };
@@ -16986,6 +17169,10 @@ const page = document.getElementById('page');
       section,
       opening,
       steps: mod.meta.steps || 0,
+      // Блок, который на телефоне читается кадрами, а не прокруткой: страница
+      // останавливается на нем, и каждое касание играет следующий кадр
+      // целиком — см. «Чтение кадрами» в lib/stepper.js.
+      taps: !!mod.meta.taps,
       opensOnStep: !!mod.meta.opensOnStep,
       // The figure this block ends on, handed over to the next — see lib/stepper.js.
       handoff: mod.meta.handoff || null,

@@ -15,6 +15,11 @@ export const meta = {
   id: 'stadium',
   // Short enough for the strip at the top of a phone — see meta.short in CLAUDE.md.
   short: 'Стадион',
+  // На телефоне этот блок читается кадрами, а не прокруткой: страница
+  // останавливается на нем, касание играет следующий кадр целиком. История
+  // написана тактами, и прокрутка передавала ее с потерями — см. «Чтение
+  // кадрами» в lib/stepper.js.
+  taps: true,
   // Hands the reader over from the trains: a number they have just met, and
   // the question it raises.
   lead: {
@@ -239,6 +244,16 @@ export function init(root) {
           flex: none;
           height: 240dvh;
         }
+
+        /* Кадрами страница не едет, и ход под историю не нужен: блок держит
+           ровно экран, а управление открывается, когда история рассказана. */
+        .stadium-body.is-tapped .stadium-run { display: none; }
+
+        .stadium-body.is-tapped {
+          min-height: calc(100dvh - var(--hint-room));
+        }
+
+        .stadium-body.is-tapped.is-telling .col-left { display: none; }
 
         /* The share grows as the stands fill — «0%», «2,7%», «95,9%» — and the
            head was laid out in one wrapping line, so it re-packed itself under
@@ -823,6 +838,10 @@ export function init(root) {
   // arrive together.
   const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const phone = window.matchMedia('(max-width: 860px)');
+  // Кадрами ведет каркас; прокруточная история тогда не нужна и только мешала
+  // бы ему — два хозяина у одного step().
+  const tapped = phone.matches && meta.taps;
+  if (tapped) root.classList.add('is-tapped');
   let shownFilled = 0;
   let countFrame = null;
 
@@ -938,7 +957,7 @@ export function init(root) {
   // .stadium-run), and this walks it: every stretch of it is one more campus
   // in the stands. Scrolling back takes them out again, the way going back a
   // beat does.
-  if (phone.matches) {
+  if (phone.matches && !tapped) {
     const run = $('run');
     let told = -1;
     // The story takes three quarters of the travel and the handover the rest.
@@ -1032,5 +1051,8 @@ export function init(root) {
   // right after init, and after the first frame the travel has already set —
   // so the arena arrived full while the line above it still said «Пустая
   // арена». Here that call is given somewhere harmless to land.
-  return { step: phone.matches ? () => {} : step, carry, ahead: () => ahead() };
+  // Кадрами каркас зовет step() сам, так что отдается настоящий шаг. Там, где
+  // историю ведет прокрутка, каркасу отдается пустышка: его единственный вызов
+  // «покажи итог» перебил бы ход.
+  return { step: phone.matches && !tapped ? () => {} : step, carry, ahead: () => ahead() };
 }
