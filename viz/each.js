@@ -962,7 +962,23 @@ export function init(root) {
   }, { passive: true });
   narrow.addEventListener('change', () => { relayout(); replay(); });
 
+  // How far the next of the three states is, for the button the shell puts in
+  // the corner of a phone. The lines between them are not evenly spaced — the
+  // board holds the screen longer than the question does — so this asks the
+  // same thresholds follow asks, instead of cutting the travel into equal
+  // parts the way the other blocks can.
+  const ahead = () => {
+    if (!narrow.matches) return 0;
+    const box = host.getBoundingClientRect();
+    const travel = box.height - (document.documentElement.clientHeight || window.innerHeight);
+    if (travel <= 8 || box.top > 0) return 0;
+    const p = phonePart();
+    const line = AHEAD.find((m) => p < m);
+    return line === undefined ? 0 : Math.ceil((line - p) * travel) + 2;
+  };
+
   return {
+    ahead,
     step(i) {
       shown = i;
       play(i);

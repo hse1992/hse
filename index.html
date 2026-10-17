@@ -139,6 +139,10 @@
       // The picture it hands over as well, if any — see lib/stepper.js.
       carry: () => (api && api.carry) || null,
       setStep: (i) => api && api.step && api.step(i),
+      // How far the next state of the story is, in pixels of scroll — the
+      // block says it itself, because only it knows how its travel is cut up.
+      // Nought when there is nothing ahead. See «Далее» in lib/stepper.js.
+      ahead: () => (api && api.ahead ? api.ahead() : 0),
       // Whether step i has to wait for the reader — see lib/stepper.js. With
       // { quiet: true } the block only answers and shows nothing.
       hold: (i, options) => !!(api && api.hold && api.hold(i, options)),

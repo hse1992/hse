@@ -1023,6 +1023,47 @@ button { font-family: inherit; }
   transform: none;
 }
 
+/* The button in the corner says «dalshe» with a press behind it; the nudge
+   says the same thing in words. One of them is enough. */
+.scroll-hint.is-covered {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ---------- One state per touch ---------- */
+/* A story told by scrolling goes past three or four states in a single flick
+   of the thumb. This moves the page by exactly one of them, and stands where
+   the thumb already is — the bottom corner, clear of the nudge in the middle
+   and of everything the block itself offers. */
+.page-next {
+  position: fixed;
+  right: 14px;
+  bottom: 12px;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 12px 17px;
+  border: 1px solid var(--btn-border);
+  border-radius: 999px;
+  background: var(--card);
+  box-shadow: var(--card-shadow);
+  color: var(--text);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  line-height: 1;
+  cursor: pointer;
+  transition: opacity 260ms ease, transform 160ms ease;
+}
+
+.page-next[hidden] {
+  display: none;
+}
+
+.page-next:active {
+  transform: scale(0.96);
+}
+
 .scroll-hint-text {
   font-size: 0.9375rem;
   line-height: 1;
@@ -3329,7 +3370,7 @@ function introRunner(section, stages = 1, scale = CARD_K) {
 return { mountProgress, mountTitleMark, introRunner };
 })();
 
-const { onResize, mountCanvas, nameSwitches } = (() => {
+const { onResize, mountCanvas, nameSwitches, stepAhead } = (() => {
 // Small markup helpers for pieces that repeat across visualisations.
 
 // Watches an element for a change of size and answers on the next frame.
@@ -3417,7 +3458,25 @@ function nameSwitches(root) {
   switches.forEach((el) => watch.observe(el, { attributes: true, attributeFilter: ['class'] }));
 }
 
-return { onResize, mountCanvas, nameSwitches };
+// How far away the next stretch of a scroll-told story is, in pixels — the
+// answer a block gives the «Далее» button of the shell (see lib/stepper.js).
+//
+// A story read by scrolling is cut into equal stretches of travel: `gone` is
+// how much of that travel is behind, `span` how much there is of it, `parts`
+// how many stretches the story is told in, and `share` how much of the travel
+// the story takes at all — a block that hands itself over to the reader keeps
+// the last of it for that. Nought means there is nothing ahead: the block has
+// not taken the screen yet, or its story is told.
+function stepAhead(gone, span, parts, share = 1) {
+  if (!(span > 0) || !(parts > 0) || gone < 0) return 0;
+  if (gone >= span * share) return 0;
+  const stretch = (span * share) / parts;
+  // A pixel past the line rather than onto it: landing exactly on a boundary
+  // leaves which side of it the block is on to the rounding.
+  return Math.ceil((Math.floor(gone / stretch) + 1) * stretch - gone) + 1;
+}
+
+return { onResize, mountCanvas, nameSwitches, stepAhead };
 })();
 
 const { tint } = (() => {
@@ -4116,11 +4175,68 @@ function mountScrolled(entries, onProgress) {
 
   const height = () => Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
 
+  // ---------- «Далее» ----------
+  // A story told by scrolling is told in stretches of a couple of hundred
+  // pixels, and a flick of the thumb is seven hundred: three or four states go
+  // past in one movement, each of them starting an animation the next one cuts
+  // off. So a block that has a story left to tell offers a button in the
+  // corner the thumb reaches, and a press moves the page by exactly one state.
+  // It does not take the scroll away — the reader can go on flicking — it only
+  // makes one state per touch possible for anyone who wants it.
+  const next = document.createElement('button');
+  next.type = 'button';
+  next.className = 'page-next';
+  next.hidden = true;
+  next.innerHTML = 'Дальше <span aria-hidden="true">↓</span>';
+  document.body.appendChild(next);
+  // The page is moved by hand rather than by `behavior: 'smooth'`, and moved
+  // by asking the block again on every frame how much is left. A block changes
+  // its own height when it hands itself over to the reader — the figures fold
+  // up, the controls open — and the browser answers that by shifting the
+  // scroll under us to hold the picture still. A glide told «two hundred
+  // pixels from here» is cancelled by that shift; one told «until the next
+  // state» simply arrives.
+  let gliding = 0;
+  let togo = 0;
+  const left = () => {
+    const here = entries[place().index];
+    return here && here.ahead ? here.ahead() : 0;
+  };
+  const glide = () => {
+    if (togo <= 0 || performance.now() - gliding > 900) { gliding = 0; togo = 0; return; }
+    const by = Math.max(6, Math.min(togo, 22));
+    window.scrollBy(0, by);
+    // What was asked for, not what the page gave: when the block folds up on
+    // arriving, the browser shifts the scroll back to hold the picture still,
+    // and counting the difference would turn one state into three.
+    togo -= by;
+    requestAnimationFrame(glide);
+  };
+  // The press is the whole gesture: pressed again before the page has arrived,
+  // it would stack scrolls and fly past two states at once.
+  next.addEventListener('click', () => {
+    if (gliding) return;
+    togo = left();
+    if (togo <= 0) return;
+    gliding = performance.now();
+    requestAnimationFrame(glide);
+  });
+
+  const hint = document.querySelector('.scroll-hint');
+
   let queued = false;
   const paint = () => {
     queued = false;
     entries.forEach((e) => { if (e.opening && near(e.section)) e.opening.follow(); });
-    if (onProgress) onProgress(window.scrollY / height(), place());
+    const at = place();
+    if (onProgress) onProgress(window.scrollY / height(), at);
+    // Shown only where there is a next state to go to. The nudge at the foot
+    // of the screen says the same thing in words, so the two never stand
+    // together.
+    const here = entries[at.index];
+    const gap = here && here.ahead ? here.ahead() : 0;
+    next.hidden = !(gap > 0);
+    if (hint) hint.classList.toggle('is-covered', gap > 0);
   };
 
   // Every card is painted once at the start, even the ones far below: until a
@@ -9927,6 +10043,10 @@ function init(root) {
   fitNote();
   paint();
 
+  // Answered by the phone story below, if there is one; everywhere else there
+  // is no travel to walk and the shell asks for nothing.
+  let ahead = () => 0;
+
   // ---------- The story on a phone ----------
   // There the page is not read in beats: nothing calls step() but the shell,
   // once, with the last of them — so the arena arrived full and the five lines
@@ -9959,6 +10079,10 @@ function init(root) {
     window.addEventListener('scroll', follow, { passive: true });
     window.addEventListener('resize', follow);
     follow();
+
+    // And how far the next arrival is, for the button the shell puts in the
+    // corner: the same travel, read the other way round.
+    ahead = () => stepAhead(-run.getBoundingClientRect().top, run.offsetHeight, LAST, TELLING);
   }
 
   // ---------- Handing over ----------
@@ -10024,7 +10148,7 @@ function init(root) {
   // right after init, and after the first frame the travel has already set —
   // so the arena arrived full while the line above it still said «Пустая
   // арена». Here that call is given somewhere harmless to land.
-  return { step: phone.matches ? () => {} : step, carry };
+  return { step: phone.matches ? () => {} : step, carry, ahead: () => ahead() };
 }
 
 return { meta, init };
@@ -12148,6 +12272,10 @@ function init(root) {
   // of it is one step more. Scrolling back takes them off again, the way going
   // back a beat does, and the calculator takes over exactly where the travel
   // runs out.
+  // Answered by the phone story below; on a wide screen there is no travel to
+  // walk and the shell asks for nothing.
+  let ahead = () => 0;
+
   if (phone.matches) {
     const stage = root.querySelector('.area-stage');
     const run = $('run');
@@ -12176,6 +12304,10 @@ function init(root) {
     window.addEventListener('scroll', follow, { passive: true });
     window.addEventListener('resize', follow);
     follow();
+
+    // And how far the next step is, for the button the shell puts in the
+    // corner: the same travel, read the other way round.
+    ahead = () => stepAhead(-stage.getBoundingClientRect().top, run.offsetHeight, LAST, 0.8);
   }
 
   return {
@@ -12183,6 +12315,7 @@ function init(root) {
     // in: it plays the last step once, right after init, and that would hand
     // the reader the calculator while the travel still says step one.
     step: phone.matches ? () => {} : step,
+    ahead: () => ahead(),
     // The page opens this block — first time, or the reader has come back to
     // it. The town starts its traffic over, so the map is the same picture it
     // was when they first saw it.
@@ -15616,6 +15749,12 @@ function init(root) {
     follow(true);
   }
 
+  // How far the next step is, for the button the shell puts in the corner of a
+  // phone: the same travel as follow() walks, read the other way round.
+  const ahead = () => (narrow.matches
+    ? stepAhead(-runEl.getBoundingClientRect().top, runEl.offsetHeight - colEl.offsetHeight, LAST + 1)
+    : 0);
+
   paint();
 
   return {
@@ -15623,6 +15762,7 @@ function init(root) {
     // with the last step, would be the end of it before it had begun.
     step: narrow.matches ? () => {} : step,
     open,
+    ahead,
     // A satellite drawing its own orbit takes longer than a beat, the two that
     // come down take their time burning up, and the last one takes its time
     // turning to the ground.
@@ -16605,7 +16745,23 @@ function init(root) {
   }, { passive: true });
   narrow.addEventListener('change', () => { relayout(); replay(); });
 
+  // How far the next of the three states is, for the button the shell puts in
+  // the corner of a phone. The lines between them are not evenly spaced — the
+  // board holds the screen longer than the question does — so this asks the
+  // same thresholds follow asks, instead of cutting the travel into equal
+  // parts the way the other blocks can.
+  const ahead = () => {
+    if (!narrow.matches) return 0;
+    const box = host.getBoundingClientRect();
+    const travel = box.height - (document.documentElement.clientHeight || window.innerHeight);
+    if (travel <= 8 || box.top > 0) return 0;
+    const p = phonePart();
+    const line = AHEAD.find((m) => p < m);
+    return line === undefined ? 0 : Math.ceil((line - p) * travel) + 2;
+  };
+
   return {
+    ahead,
     step(i) {
       shown = i;
       play(i);
@@ -16677,6 +16833,10 @@ const page = document.getElementById('page');
       // The picture it hands over as well, if any — see lib/stepper.js.
       carry: () => (api && api.carry) || null,
       setStep: (i) => api && api.step && api.step(i),
+      // How far the next state of the story is, in pixels of scroll — the
+      // block says it itself, because only it knows how its travel is cut up.
+      // Nought when there is nothing ahead. See «Далее» in lib/stepper.js.
+      ahead: () => (api && api.ahead ? api.ahead() : 0),
       // Whether step i has to wait for the reader — see lib/stepper.js. With
       // { quiet: true } the block only answers and shows nothing.
       hold: (i, options) => !!(api && api.hold && api.hold(i, options)),

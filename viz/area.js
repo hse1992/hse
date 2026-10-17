@@ -2,7 +2,7 @@
 
 import { CITIES, AREA_TOTAL, STUDENTS, STAFF } from '../data/hse.js';
 import { nf, plural } from '../lib/format.js';
-import { mountCanvas, onResize } from '../lib/ui.js';
+import { mountCanvas, onResize, stepAhead } from '../lib/ui.js';
 import { mountTownMap } from '../lib/town-map.js';
 
 // Facts about the buildings themselves — they live here, not in data/hse.js,
@@ -971,6 +971,10 @@ export function init(root) {
   // of it is one step more. Scrolling back takes them off again, the way going
   // back a beat does, and the calculator takes over exactly where the travel
   // runs out.
+  // Answered by the phone story below; on a wide screen there is no travel to
+  // walk and the shell asks for nothing.
+  let ahead = () => 0;
+
   if (phone.matches) {
     const stage = root.querySelector('.area-stage');
     const run = $('run');
@@ -999,6 +1003,10 @@ export function init(root) {
     window.addEventListener('scroll', follow, { passive: true });
     window.addEventListener('resize', follow);
     follow();
+
+    // And how far the next step is, for the button the shell puts in the
+    // corner: the same travel, read the other way round.
+    ahead = () => stepAhead(-stage.getBoundingClientRect().top, run.offsetHeight, LAST, 0.8);
   }
 
   return {
@@ -1006,6 +1014,7 @@ export function init(root) {
     // in: it plays the last step once, right after init, and that would hand
     // the reader the calculator while the travel still says step one.
     step: phone.matches ? () => {} : step,
+    ahead: () => ahead(),
     // The page opens this block — first time, or the reader has come back to
     // it. The town starts its traffic over, so the map is the same picture it
     // was when they first saw it.

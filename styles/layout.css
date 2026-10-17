@@ -779,6 +779,47 @@ button { font-family: inherit; }
   transform: none;
 }
 
+/* The button in the corner says «dalshe» with a press behind it; the nudge
+   says the same thing in words. One of them is enough. */
+.scroll-hint.is-covered {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ---------- One state per touch ---------- */
+/* A story told by scrolling goes past three or four states in a single flick
+   of the thumb. This moves the page by exactly one of them, and stands where
+   the thumb already is — the bottom corner, clear of the nudge in the middle
+   and of everything the block itself offers. */
+.page-next {
+  position: fixed;
+  right: 14px;
+  bottom: 12px;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 12px 17px;
+  border: 1px solid var(--btn-border);
+  border-radius: 999px;
+  background: var(--card);
+  box-shadow: var(--card-shadow);
+  color: var(--text);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  line-height: 1;
+  cursor: pointer;
+  transition: opacity 260ms ease, transform 160ms ease;
+}
+
+.page-next[hidden] {
+  display: none;
+}
+
+.page-next:active {
+  transform: scale(0.96);
+}
+
 .scroll-hint-text {
   font-size: 0.9375rem;
   line-height: 1;

@@ -6,7 +6,7 @@
 // planet. Only the satellites themselves are drawn larger than life — to
 // scale they would be smaller than a pixel.
 
-import { mountCanvas } from '../lib/ui.js';
+import { mountCanvas, stepAhead } from '../lib/ui.js';
 import { loadMark } from '../lib/hse-mark.js';
 import { CITIES } from '../data/hse.js';
 import { LAND } from '../data/earth.js';
@@ -1138,6 +1138,12 @@ export function init(root) {
     follow(true);
   }
 
+  // How far the next step is, for the button the shell puts in the corner of a
+  // phone: the same travel as follow() walks, read the other way round.
+  const ahead = () => (narrow.matches
+    ? stepAhead(-runEl.getBoundingClientRect().top, runEl.offsetHeight - colEl.offsetHeight, LAST + 1)
+    : 0);
+
   paint();
 
   return {
@@ -1145,6 +1151,7 @@ export function init(root) {
     // with the last step, would be the end of it before it had begun.
     step: narrow.matches ? () => {} : step,
     open,
+    ahead,
     // A satellite drawing its own orbit takes longer than a beat, the two that
     // come down take their time burning up, and the last one takes its time
     // turning to the ground.

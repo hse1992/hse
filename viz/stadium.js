@@ -2,7 +2,7 @@
 
 import { CITIES, LYCEUM, LYCEUM_COLOR, ADMITTED } from '../data/hse.js';
 import { nf, pct, plural } from '../lib/format.js';
-import { mountCanvas, onResize } from '../lib/ui.js';
+import { mountCanvas, onResize, stepAhead } from '../lib/ui.js';
 
 // Seats in the arena — the figure the subtitle and the meter both quote.
 const TOTAL = 81000;
@@ -927,6 +927,10 @@ export function init(root) {
   fitNote();
   paint();
 
+  // Answered by the phone story below, if there is one; everywhere else there
+  // is no travel to walk and the shell asks for nothing.
+  let ahead = () => 0;
+
   // ---------- The story on a phone ----------
   // There the page is not read in beats: nothing calls step() but the shell,
   // once, with the last of them — so the arena arrived full and the five lines
@@ -959,6 +963,10 @@ export function init(root) {
     window.addEventListener('scroll', follow, { passive: true });
     window.addEventListener('resize', follow);
     follow();
+
+    // And how far the next arrival is, for the button the shell puts in the
+    // corner: the same travel, read the other way round.
+    ahead = () => stepAhead(-run.getBoundingClientRect().top, run.offsetHeight, LAST, TELLING);
   }
 
   // ---------- Handing over ----------
@@ -1024,5 +1032,5 @@ export function init(root) {
   // right after init, and after the first frame the travel has already set —
   // so the arena arrived full while the line above it still said «Пустая
   // арена». Here that call is given somewhere harmless to land.
-  return { step: phone.matches ? () => {} : step, carry };
+  return { step: phone.matches ? () => {} : step, carry, ahead: () => ahead() };
 }
