@@ -1655,6 +1655,16 @@ button { font-family: inherit; }
     font-size: 0.875rem;
   }
 
+  /* The page never goes sideways. A title card waits a screen to the right of
+     the block being read until its turn comes, and the document grew to twice
+     its width around it: the reader could swipe the page off to one side and
+     find nothing there. Clipped at the section rather than hidden — `hidden`
+     would make a scrolling box of every section, and the pictures pinned to
+     the top of the screen are pinned to the window, not to a box inside it. */
+  .viz-section {
+    overflow-x: clip;
+  }
+
   .viz-body {
     flex-direction: column;
     gap: 12px;

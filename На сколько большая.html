@@ -1899,6 +1899,16 @@ button { font-family: inherit; }
     font-size: 0.875rem;
   }
 
+  /* The page never goes sideways. A title card waits a screen to the right of
+     the block being read until its turn comes, and the document grew to twice
+     its width around it: the reader could swipe the page off to one side and
+     find nothing there. Clipped at the section rather than hidden — `hidden`
+     would make a scrolling box of every section, and the pictures pinned to
+     the top of the screen are pinned to the window, not to a box inside it. */
+  .viz-section {
+    overflow-x: clip;
+  }
+
   .viz-body {
     flex-direction: column;
     gap: 12px;
@@ -4305,7 +4315,18 @@ function mountScrolled(entries, onProgress) {
   let queued = false;
   const paint = () => {
     queued = false;
-    entries.forEach((e) => { if (e.opening && near(e.section)) e.opening.follow(); });
+    // A block is only painted while it is anywhere near the screen — but the
+    // last painting before it leaves must be the settled one, or it is left
+    // mid-flight for the rest of the page. The title card of the flags block
+    // stayed parked a screen to the right that way, and the document grew to
+    // twice its width around it. So a block that has just gone out of range is
+    // painted once more, and only then left alone.
+    entries.forEach((e) => {
+      if (!e.opening) return;
+      const close = near(e.section);
+      if (close || e.wasNear) e.opening.follow();
+      e.wasNear = close;
+    });
     const at = place();
     if (onProgress) onProgress(window.scrollY / height(), at);
     // Shown only where there is a next state to go to. The nudge at the foot
