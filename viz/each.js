@@ -396,8 +396,10 @@ export function init(root) {
         .each-hud { display: none; }
 
         /* The figures on a phone come out small, and a word at a third of a
-           small number cannot be read — here it is set relatively larger. */
-        .each-w { font-size: 0.5em; }
+           small number cannot be read — here it is set relatively larger. At
+           half the smallest figure on the board it still came out at 11.4px,
+           under the twelve the rest of the page keeps to. */
+        .each-w { font-size: 0.55em; }
       }
     </style>
 
