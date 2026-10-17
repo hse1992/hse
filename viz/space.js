@@ -93,6 +93,8 @@ const SHOT = HOLD + 1;
 
 export const meta = {
   id: 'space',
+  // Short enough for the strip at the top of a phone — see meta.short in CLAUDE.md.
+  short: 'Космос',
   // The block opens on one sentence alone, and the card of the section comes
   // in over it a beat later — see the lead-in screen in lib/page.js.
   lead: {

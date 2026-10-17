@@ -492,6 +492,28 @@ button { font-family: inherit; }
   .page-progress-name { display: none; }
 }
 
+/* On a phone the strip carries the name of the block as well as its number,
+   and a name can be longer than the screen. It keeps to one line and gives up
+   its tail rather than pushing itself off the edge. */
+@media (max-width: 860px) {
+  .page-progress-count {
+    /* On a wide screen it stands under the slot of the bar it is about. Here
+       there is no room to move: it goes to the right corner, where the top
+       line of a block runs out, instead of across the middle of that line. */
+    left: auto;
+    right: 12px;
+    transform: none;
+    max-width: calc(100vw - 32px);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    /* Over the page it is a veil; here it stands over the top line of the
+       pinned picture, and a veil over type is two things read at once. */
+    background: var(--card);
+    box-shadow: var(--card-shadow);
+    color: var(--text);
+  }
+}
+
 /* Pinned to the slot rather than given height: 100% — inside a stretched flex
    item WebKit reads a percentage height as nothing, and the fill disappears. */
 .page-progress-slot i {

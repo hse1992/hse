@@ -31,6 +31,8 @@ const ASK_SUBTITLE = 'Поставь метку на полосе';
 
 export const meta = {
   id: 'world',
+  // Short enough for the strip at the top of a phone — see meta.short in CLAUDE.md.
+  short: 'Страны',
   // Hands the reader over from the stadium: the whole student body first, and
   // then the part of it that brings the quotation on.
   // The question comes straight after the figure it is about, and it stays:

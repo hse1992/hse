@@ -635,6 +635,8 @@ const LEAD_STYLE = `<style>
 
 export const meta = {
   id: 'study',
+  // Short enough for the strip at the top of a phone — see meta.short in CLAUDE.md.
+  short: 'Годы учебы',
   // Hands the reader over from the buildings: what they are all for, said at
   // once and shown at once — a square for every programme. The squares give
   // way to how long it would take to sit through them one after another, and

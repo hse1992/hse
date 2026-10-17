@@ -36,6 +36,8 @@ const CAMERA = SATELLITES[SATELLITES.length - 1].name;
 
 export const meta = {
   id: 'each',
+  // Short enough for the strip at the top of a phone — see meta.short in CLAUDE.md.
+  short: 'Все цифры',
   // The section arrives out of the white of a satellite's flash, like a photo
   // developing — and the heading is the caption to that shot: the whole
   // university in one frame.

@@ -113,6 +113,8 @@ const SAID = [
 
 export const meta = {
   id: 'metro',
+  // Short enough for the strip at the top of a phone — see meta.short in CLAUDE.md.
+  short: 'Вагоны метро',
   // The title card of the section fills in as the reader scrolls: first the
   // heading with one sentence, then a sentence and a picture at a time.
   introStages: 3,

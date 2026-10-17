@@ -162,7 +162,12 @@
     };
   });
 
-  const progress = mountProgress(MODULES.map((mod) => mod.meta.title));
+  const progress = mountProgress(
+    MODULES.map((mod) => mod.meta.title),
+    // A name short enough to stand in the strip at the top of a phone, where
+    // the whole heading would not fit — see meta.short in CLAUDE.md.
+    MODULES.map((mod) => mod.meta.short || '')
+  );
   mountTitleMark();
   const story = mountStepper(plan, {
     onProgress: progress.set,

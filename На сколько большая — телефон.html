@@ -736,6 +736,28 @@ button { font-family: inherit; }
   .page-progress-name { display: none; }
 }
 
+/* On a phone the strip carries the name of the block as well as its number,
+   and a name can be longer than the screen. It keeps to one line and gives up
+   its tail rather than pushing itself off the edge. */
+
+  .page-progress-count {
+    /* On a wide screen it stands under the slot of the bar it is about. Here
+       there is no room to move: it goes to the right corner, where the top
+       line of a block runs out, instead of across the middle of that line. */
+    left: auto;
+    right: 12px;
+    transform: none;
+    max-width: calc(100vw - 32px);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    /* Over the page it is a veil; here it stands over the top line of the
+       pinned picture, and a veil over type is two things read at once. */
+    background: var(--card);
+    box-shadow: var(--card-shadow);
+    color: var(--text);
+  }
+
+
 /* Pinned to the slot rather than given height: 100% — inside a stretched flex
    item WebKit reads a percentage height as nothing, and the fill disappears. */
 .page-progress-slot i {
@@ -2300,7 +2322,7 @@ const NARROW = window.matchMedia('(max-width: 860px)');
 //
 // `titles` name the blocks, in order; `pick` is handed the stepper's jump once
 // there is one.
-function mountProgress(titles = []) {
+function mountProgress(titles = [], shorts = []) {
   const bar = document.createElement('nav');
   bar.className = 'page-progress';
   bar.setAttribute('aria-label', 'Разделы');
@@ -2506,6 +2528,11 @@ function mountProgress(titles = []) {
 
   // The count is shown while a block is new and then left alone.
   const COUNT_MS = 1900;
+  // On a phone the strip follows the finger, so it is measured from the last
+  // move rather than from the start of a block: long enough to be read without
+  // hurry, short enough that a reader who has stopped to look at the picture
+  // gets the picture back.
+  const CALM_MS = 1400;
   let told = -2;               // the block the count last named
   let counting = 0;
 
@@ -2544,18 +2571,30 @@ function mountProgress(titles = []) {
       });
 
       // «Третий из семи» — the one thing the bar cannot say by itself.
-      if (place.index !== told) {
-        told = place.index;
+      //
+      // On a phone it also says which block that is, and says it again on
+      // every move rather than only as a block starts. There the picture is
+      // pinned to the top of the screen and the heading of the block went up
+      // with the first screen of it: five screens in, with the arena in front
+      // of them, the reader has nothing at all to say which question this
+      // block answers. The strip comes up under the finger and goes as soon as
+      // the page is still again, so it never stands in front of the picture
+      // for long.
+      const phone = NARROW.matches;
+      const fresh = place.index !== told;
+      told = place.index;
+      if (place.index >= 0 && (fresh || phone)) {
+        const name = phone && shorts[place.index] ? ` — ${shorts[place.index]}` : '';
+        const says = `${place.index + 1} из ${place.count}${name}`;
+        if (counter.textContent !== says) counter.textContent = says;
+        counter.classList.add('is-here');
         clearTimeout(counting);
-        if (place.index >= 0) {
-          counter.textContent = `${place.index + 1} из ${place.count}`;
-          counter.classList.add('is-here');
-          counting = setTimeout(() => counter.classList.remove('is-here'), COUNT_MS);
-          said.textContent = `Раздел ${place.index + 1} из ${place.count}. ${names[place.index] || ''}`;
-        } else {
-          counter.classList.remove('is-here');
-          said.textContent = 'Титульный экран';
-        }
+        counting = setTimeout(() => counter.classList.remove('is-here'), phone ? CALM_MS : COUNT_MS);
+        if (fresh) said.textContent = `Раздел ${place.index + 1} из ${place.count}. ${names[place.index] || ''}`;
+      } else if (fresh && place.index < 0) {
+        clearTimeout(counting);
+        counter.classList.remove('is-here');
+        said.textContent = 'Титульный экран';
       }
 
       // The count stands under the slot it is about, wherever that slot is —
@@ -7641,6 +7680,8 @@ const SAID = [
 
 const meta = {
   id: 'metro',
+  // Short enough for the strip at the top of a phone — see meta.short in CLAUDE.md.
+  short: 'Вагоны метро',
   // The title card of the section fills in as the reader scrolls: first the
   // heading with one sentence, then a sentence and a picture at a time.
   introStages: 3,
@@ -8972,6 +9013,8 @@ const ADMITTED_ROUND = Math.round(ADMITTED / 1000) * 1000;
 
 const meta = {
   id: 'stadium',
+  // Short enough for the strip at the top of a phone — see meta.short in CLAUDE.md.
+  short: 'Стадион',
   // Hands the reader over from the trains: a number they have just met, and
   // the question it raises.
   lead: {
@@ -10019,6 +10062,8 @@ const ASK_SUBTITLE = 'Поставь метку на полосе';
 
 const meta = {
   id: 'world',
+  // Short enough for the strip at the top of a phone — see meta.short in CLAUDE.md.
+  short: 'Страны',
   // Hands the reader over from the stadium: the whole student body first, and
   // then the part of it that brings the quotation on.
   // The question comes straight after the figure it is about, and it stays:
@@ -11173,6 +11218,8 @@ const UNITS = [
 
 const meta = {
   id: 'area',
+  // Short enough for the strip at the top of a phone — see meta.short in CLAUDE.md.
+  short: 'Здания',
   // The reader arrives straight from the arena, so the section opens with a
   // screen of its own, told in two goes: the stadium the university has not
   // got, and the town its buildings make instead. It does not leave — it goes
@@ -12782,6 +12829,8 @@ const LEAD_STYLE = `<style>
 
 const meta = {
   id: 'study',
+  // Short enough for the strip at the top of a phone — see meta.short in CLAUDE.md.
+  short: 'Годы учебы',
   // Hands the reader over from the buildings: what they are all for, said at
   // once and shown at once — a square for every programme. The squares give
   // way to how long it would take to sit through them one after another, and
@@ -13646,6 +13695,8 @@ const CARD_STYLE = `<style>
 
 const meta = {
   id: 'professions',
+  // Short enough for the strip at the top of a phone — see meta.short in CLAUDE.md.
+  short: 'Профессии',
   // The card and the section have different headings. While the card holds,
   // it is «Мы —» and the logo under it, and the logo opens up on a beat of its
   // own to let «не только» into its ring. Once the card settles, the heading of
@@ -14520,6 +14571,8 @@ const SHOT = HOLD + 1;
 
 const meta = {
   id: 'space',
+  // Short enough for the strip at the top of a phone — see meta.short in CLAUDE.md.
+  short: 'Космос',
   // The block opens on one sentence alone, and the card of the section comes
   // in over it a beat later — see the lead-in screen in lib/page.js.
   lead: {
@@ -15626,6 +15679,8 @@ const CAMERA = SATELLITES[SATELLITES.length - 1].name;
 
 const meta = {
   id: 'each',
+  // Short enough for the strip at the top of a phone — see meta.short in CLAUDE.md.
+  short: 'Все цифры',
   // The section arrives out of the white of a satellite's flash, like a photo
   // developing — and the heading is the caption to that shot: the whole
   // university in one frame.
@@ -16645,7 +16700,12 @@ const page = document.getElementById('page');
     };
   });
 
-  const progress = mountProgress(MODULES.map((mod) => mod.meta.title));
+  const progress = mountProgress(
+    MODULES.map((mod) => mod.meta.title),
+    // A name short enough to stand in the strip at the top of a phone, where
+    // the whole heading would not fit — see meta.short in CLAUDE.md.
+    MODULES.map((mod) => mod.meta.short || '')
+  );
   mountTitleMark();
   const story = mountStepper(plan, {
     onProgress: progress.set,

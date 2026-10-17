@@ -41,6 +41,8 @@ const UNITS = [
 
 export const meta = {
   id: 'area',
+  // Short enough for the strip at the top of a phone — see meta.short in CLAUDE.md.
+  short: 'Здания',
   // The reader arrives straight from the arena, so the section opens with a
   // screen of its own, told in two goes: the stadium the university has not
   // got, and the town its buildings make instead. It does not leave — it goes

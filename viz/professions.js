@@ -141,6 +141,8 @@ const CARD_STYLE = `<style>
 
 export const meta = {
   id: 'professions',
+  // Short enough for the strip at the top of a phone — see meta.short in CLAUDE.md.
+  short: 'Профессии',
   // The card and the section have different headings. While the card holds,
   // it is «Мы —» and the logo under it, and the logo opens up on a beat of its
   // own to let «не только» into its ring. Once the card settles, the heading of

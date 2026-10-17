@@ -13,6 +13,8 @@ const ADMITTED_ROUND = Math.round(ADMITTED / 1000) * 1000;
 
 export const meta = {
   id: 'stadium',
+  // Short enough for the strip at the top of a phone — see meta.short in CLAUDE.md.
+  short: 'Стадион',
   // Hands the reader over from the trains: a number they have just met, and
   // the question it raises.
   lead: {
