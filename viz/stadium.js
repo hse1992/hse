@@ -238,6 +238,28 @@ export function init(root) {
           height: 240dvh;
         }
 
+        /* The share grows as the stands fill — «0%», «2,7%», «95,9%» — and the
+           head was laid out in one wrapping line, so it re-packed itself under
+           the reader: first the count in brackets dropped to a line of its
+           own, then the share did. On a wide screen that only breathes; here
+           the arena is pinned right under it, and every re-pack threw the
+           picture down the screen by a hundred pixels, which is what reading a
+           step at a time looked like. So the three parts stand one under
+           another from the start and never change places. The line that says
+           «(всего …)» is empty on the empty arena and keeps its room anyway. */
+        .stadium-figure-head { display: block; }
+
+        .stadium-figure-label,
+        .stadium-figure-value,
+        .stadium-figure-people { display: block; }
+
+        .stadium-figure-people { min-height: 1.45em; }
+
+        /* Room for the tallest state, so the figure keeps one height through
+           the whole story — see fitNote(). The cap is lifted accordingly: the
+           old 240 was cut to a head that packed itself tighter. */
+        .stadium-body .stadium-figure { max-height: 340px; }
+
         /* While the story runs, the controls underneath are not the point yet:
            they come up with the full house, the way they do in beats. */
         .stadium-body.is-telling .col-left {
@@ -798,6 +820,7 @@ export function init(root) {
   // 620 ms the stands take to change colour, so the number and the picture
   // arrive together.
   const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const phone = window.matchMedia('(max-width: 860px)');
   let shownFilled = 0;
   let countFrame = null;
 
@@ -863,10 +886,43 @@ export function init(root) {
     alignColumns();
   }
 
+  // The line under the share is a different length at every arrival — one row
+  // for the empty arena, three for the lyceums of two cities — and on a phone
+  // the arena hangs right under it, so the picture moved down the screen and
+  // back on every step. Here the line is given the room of its tallest state
+  // and keeps it. Measured rather than counted in rows: how many rows a phrase
+  // takes depends on the width, and the width is the reader's, not ours.
+  const NOTES = [`Пустая арена — ${nf(TOTAL)} мест`, ...ARRIVALS.map((a) => a.note)];
+
+  function fitNote() {
+    figureNote.style.minHeight = '';
+    if (!phone.matches) return;
+    const was = figureNote.innerHTML;
+    let tall = 0;
+    NOTES.forEach((html) => {
+      figureNote.innerHTML = html;
+      tall = Math.max(tall, figureNote.offsetHeight);
+    });
+    figureNote.innerHTML = was;
+    figureNote.style.minHeight = `${tall}px`;
+  }
+
+  // Width is what decides how many rows a phrase takes. A phone that changes
+  // its height as the address bar slides away is not a reason to measure the
+  // six phrases again — and measuring from a size observer would mean growing
+  // the very box being observed.
+  let fitAt = window.innerWidth;
+  window.addEventListener('resize', () => {
+    if (window.innerWidth === fitAt) return;
+    fitAt = window.innerWidth;
+    fitNote();
+  });
+
   // The story starts on an empty arena. Built with the default state instead,
   // the block would show a full stadium for the moment between the title card
   // settling and the first beat of the scene.
   step(0);
+  fitNote();
   paint();
 
   // ---------- The story on a phone ----------
@@ -876,7 +932,6 @@ export function init(root) {
   // .stadium-run), and this walks it: every stretch of it is one more campus
   // in the stands. Scrolling back takes them out again, the way going back a
   // beat does.
-  const phone = window.matchMedia('(max-width: 860px)');
   if (phone.matches) {
     const run = $('run');
     let told = -1;
