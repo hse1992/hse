@@ -935,14 +935,21 @@ export function init(root) {
   if (phone.matches) {
     const run = $('run');
     let told = -1;
+    // The story takes three quarters of the travel and the handover the rest.
+    // Handing over at the very end of it looked like the reader was given
+    // nothing at all: the controls stand under the travel, so by the time the
+    // block let go of them they had already gone up behind the pinned arena,
+    // and the only thing left on the screen was the two buttons under an
+    // invitation to switch a city off. Now the arena is handed over a screen
+    // before they arrive, and they come up alive.
+    const TELLING = 0.75;
     const follow = () => {
       const h = run.offsetHeight;
       if (!h) return;
       const gone = -run.getBoundingClientRect().top;
       const p = Math.min(1, Math.max(0, gone / h));
-      // The last stretch belongs to the full house, and the stretch after the
-      // travel is over to the stadium the reader is handed.
-      const i = Math.min(LAST, Math.floor(p * (LAST + 1)));
+      const i = p >= TELLING ? LAST
+        : Math.min(LAST - 1, Math.floor((p / TELLING) * LAST));
       if (i === told) return;
       told = i;
       step(i);

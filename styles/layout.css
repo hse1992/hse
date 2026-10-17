@@ -1573,8 +1573,8 @@ button { font-family: inherit; }
     top: 0;
     z-index: 2;
     flex: none;
-    gap: 10px;
-    padding: 10px 0 12px;
+    gap: 8px;
+    padding: 8px 0 8px;
     background: var(--bg);
   }
 
@@ -1592,16 +1592,48 @@ button { font-family: inherit; }
 
   .col-left {
     width: auto;
+    gap: 8px;
   }
 
   .city-list {
     overflow: visible;
+    gap: 5px;
   }
 
+  /* The cards of the cities are read under a picture pinned to the top of the
+     screen, so what is left for them is the strip between that picture and the
+     bottom edge — about a third of the screen. At the height they have on a
+     wide screen the column of them was taller than the whole block had left to
+     scroll: by the time the reader got to the end of the section, its head —
+     the switches of what is counted and the first city — had gone up under the
+     picture, and what was left on the screen was a bare list of cities with
+     nothing above it. So here a card is one line of type with its numbers
+     under it, and the numbers stand in a row instead of a column. */
+  .city-card {
+    padding: 8px 12px;
+    gap: 12px;
+  }
+
+  .city-info {
+    gap: 2px;
+  }
+
+  .city-stats {
+    flex-direction: row;
+    flex-wrap: wrap;
+    min-height: 0;
+    gap: 2px 12px;
+  }
+
+  /* The picture is pinned to the top and the controls are read in the strip
+     under it, so every pixel it takes is a pixel they lose. Thirty-five
+     hundredths of the screen is the most it can have and still leave the whole
+     column of switches — the kinds, every city and the two buttons — standing
+     under it at the end of the block, where the reader comes to rest. */
   .canvas-card {
     flex: none;
-    height: 40dvh;
-    min-height: 230px;
+    height: 35dvh;
+    min-height: 210px;
     padding: 8px;
   }
 

@@ -438,6 +438,17 @@ export function init(root) {
           height: 245dvh;
         }
 
+        /* The calculator is read in the strip under a picture pinned to the
+           top of the screen, and everything it is steered by has to stand in
+           that strip: both switches, every city, both buttons. The picture
+           gives up the few dozen pixels they are short of — otherwise the
+           switch of what is counted sits behind its lower edge, and the list
+           of cities begins with nothing above it to say what the numbers in
+           it are. */
+        .area-body .canvas-card { height: 31dvh; }
+
+        .area-switches { gap: 6px 24px; padding: 0; }
+
         /* The steps keep their two columns here — the pitch beside the block
            of flats is the whole comparison — so the type gives way instead. */
         .area-steps { gap: 12px 16px; }
@@ -970,7 +981,15 @@ export function init(root) {
       const h = run.offsetHeight;
       if (!h) return;
       const gone = -stage.getBoundingClientRect().top;
-      const i = Math.min(LAST, Math.floor(Math.min(1, Math.max(0, gone / h)) * LAST));
+      const p = Math.min(1, Math.max(0, gone / h));
+      // The story takes four fifths of the travel and the calculator the rest.
+      // Opening it exactly where the travel ran out put the change of state
+      // right where the reader comes to rest at the end of the block: the
+      // calculator is taller than the story it replaces, so the page lurched
+      // under the finger, and the switches at the head of it had already gone
+      // up behind the pinned picture. A screen earlier, and it is open and
+      // still by the time the reader gets there.
+      const i = p >= 0.8 ? LAST : Math.min(LAST - 1, Math.floor((p / 0.8) * LAST));
       if (i === told) return;
       told = i;
       step(i);
