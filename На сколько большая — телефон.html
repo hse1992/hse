@@ -11821,7 +11821,13 @@ function init(root) {
            the blocks of flats and the question the two raise were never shown
            at all. So the stage is pinned to the screen, and the travel under
            it is walked a stretch at a time — a step for every stretch. */
-        .area-stage { position: static; }
+        /* Первой на узком экране идет сцена, а не калькулятор. Общее правило
+           поднимает картинку блока (.col-right) наверх и прибивает ее там —
+           но калькулятор принадлежит концу блока, а не его истории, и, встав
+           выше сцены, он занимал верх экрана с самого начала: город из
+           зданий, поля и пятиэтажки показывались под ним, в нижней половине.
+           Сцена забирает себе место перед ним. */
+        .area-stage { position: static; order: -2; }
 
         .area-tell {
           position: sticky;
