@@ -1889,6 +1889,22 @@ button { font-family: inherit; }
     font-weight: 600;
   }
 
+  /* Behind the reader. The tick is drawn rather than written so the row still
+     reads as its own name and nothing else. */
+  .page-sheet-row.is-read {
+    color: var(--text-secondary);
+  }
+
+  .page-sheet-row.is-read::after {
+    content: '';
+    float: right;
+    width: 7px;
+    height: 7px;
+    margin-top: 6px;
+    border-radius: 50%;
+    background: var(--hse-blue);
+  }
+
   .page-sheet-home {
     color: var(--text-secondary);
     font-size: 0.9375rem;
