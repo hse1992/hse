@@ -1804,13 +1804,27 @@ button { font-family: inherit; }
    the screen, so the picture stays visible while the controls scroll under it.
    Sections stop being screen-height — they are as tall as their content. */
 
+  /* Обложка. Заголовок на телефоне упирался в нижнюю границу clamp и выходил
+     56 пикселей — вдвое меньше, чем позволяет ширина, и страница про размер
+     начиналась с мелкой строчки. Теперь он занимает ширину почти целиком, а
+     текст стоит в нижней половине экрана: сверху остается воздух с бликом,
+     снизу — подсказка. */
   .page-header {
     min-height: 100dvh;
     padding: 20px 16px 28px;
+    align-items: flex-end;
+    padding-bottom: calc(var(--hint-room) + 15dvh);
   }
 
   .page-header-inner {
-    gap: 26px;
+    gap: 20px;
+  }
+
+  .page-header h1 {
+    /* 18 сотых ширины — столько, чтобы «На сколько» шло в строку и почти
+       доходило до краев; верхняя граница держит планшет. */
+    font-size: min(18vw, 4.25rem);
+    line-height: 0.96;
   }
 
   /* One number scales the whole ladder: the paragraphs are sized off it. */
@@ -2029,8 +2043,10 @@ button { font-family: inherit; }
     gap: 22px;
   }
 
+  /* Низкий экран — это и телефон вроде SE: ширина там тоже решает, иначе на
+     нем заголовок оставался вдвое мельче, чем на соседнем телефоне повыше. */
   .page-header h1 {
-    font-size: clamp(2.5rem, 8vw, 3.5rem);
+    font-size: clamp(2.5rem, 16.5vw, 3.75rem);
   }
 
   .page-header-text {
