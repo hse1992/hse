@@ -255,6 +255,22 @@ export function init(root) {
 
         .stadium-body.is-tapped.is-telling .col-left { display: none; }
 
+        /* Пока идет история, управления на экране нет, а арена все равно
+           занимала свои 35% — под ней стояло две трети экрана пустого места.
+           Здесь картинка забирает все, что осталось от экрана после строки
+           со счетом: блок рассказывает историю, и смотреть в нем нужно на
+           арену. Когда блок отдан читателю, картинка возвращается к своему
+           размеру — под ней появляются виды, города и кнопки. */
+        .stadium-body.is-tapped.is-telling .col-right {
+          height: calc(100dvh - var(--hint-room));
+        }
+
+        .stadium-body.is-tapped.is-telling .canvas-card {
+          height: auto;
+          flex: 1;
+          min-height: 0;
+        }
+
         /* The share grows as the stands fill — «0%», «2,7%», «95,9%» — and the
            head was laid out in one wrapping line, so it re-packed itself under
            the reader: first the count in brackets dropped to a line of its
@@ -509,6 +525,27 @@ export function init(root) {
     'Трибуны «Лужников» сверху: каждая точка — один человек из Вышки, цвет точки — его кампус');
   let currentColors = null;
   let animFrame = null;
+  // Which way the arena lies: 0 — along the screen, 1 — across it. Only a
+  // phone reading the block by frames ever turns it, and only while the story
+  // is being told: once the block is handed over, the controls take the lower
+  // half of the screen and the picture is wider than it is tall again.
+  let turn = 0;
+  let turnFrame = null;
+
+  function faceTo(want, instant) {
+    if (turnFrame) cancelAnimationFrame(turnFrame);
+    if (want === turn) return;
+    if (instant || still) { turn = want; paint(); return; }
+    const from = turn, t0 = performance.now();
+    const run = (now) => {
+      const raw = Math.min(1, (now - t0) / 620);
+      turn = from + (want - from) * (1 - Math.pow(1 - raw, 3));
+      paint();
+      if (raw < 1) turnFrame = requestAnimationFrame(run);
+      else { turn = want; turnFrame = null; paint(); }
+    };
+    turnFrame = requestAnimationFrame(run);
+  }
 
   function paint() {
     if (!currentColors) currentColors = colorsFor(state.active);
@@ -529,12 +566,24 @@ export function init(root) {
     const B = buildBowl();
     const cssW = target.clientWidth || 900;
     const cssH = target.clientHeight || 600;
-    const scale = Math.min(cssW / B.W, cssH / B.H) * zoom;
+    // A quarter turn, somewhere between none and all of it. The bowl is half
+    // again as wide as it is tall, and a phone is the other way round: laid
+    // flat in a tall box it is held back by the width and leaves three hundred
+    // pixels of white above and below. Turned, the same box fits it half again
+    // larger. The scale follows the angle — the box the picture needs while it
+    // is turning is the box of a rotated rectangle — so it fits at every point
+    // of the movement and nothing is ever cut.
+    const a = (turn * Math.PI) / 2;
+    const ca = Math.abs(Math.cos(a)), sa = Math.abs(Math.sin(a));
+    const needW = B.W * ca + B.H * sa;
+    const needH = B.W * sa + B.H * ca;
+    const scale = Math.min(cssW / needW, cssH / needH) * zoom;
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     target.width = Math.round(cssW * dpr);
     target.height = Math.round(cssH * dpr);
     ctx.setTransform(dpr * scale, 0, 0, dpr * scale, dpr * cssW / 2, dpr * cssH / 2);
     ctx.clearRect(-cssW / (2 * scale), -cssH / (2 * scale), cssW / scale, cssH / scale);
+    if (a) ctx.rotate(-a);
 
     // outer shell
     ctx.beginPath();
@@ -567,6 +616,8 @@ export function init(root) {
 
     const R = fh * 0.34, s = (R * 2) / 283.47;
     ctx.save();
+    // The one thing on the pitch that has a right way up.
+    if (a) ctx.rotate(a);
     ctx.scale(s, s);
     ctx.translate(-141.73, -141.73);
     ctx.fillStyle = HSE_BLUE;
@@ -901,6 +952,10 @@ export function init(root) {
       noteEl.textContent = 'Стадион твой: попробуй выключить город или категорию';
     }
 
+    // Пока идет история, арена лежит поперек экрана и оттого крупнее; когда
+    // блок отдан читателю, она поворачивается обратно — внизу нужно место
+    // видам, городам и кнопкам. См. faceTo().
+    faceTo(tapped && telling ? 1 : 0, firstFrame);
     render(firstFrame);
     countTo(filledCount());
     firstFrame = false;
