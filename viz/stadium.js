@@ -1104,17 +1104,23 @@ export function init(root) {
   }
 
   // Where the picture sits in a canvas it was drawn into at `scale`.
-  const boxIn = (target, scale) => {
+  const boxIn = (target, scale, turned = false) => {
     const B = buildBowl();
-    const w = B.W * scale, h = B.H * scale;
+    const w = (turned ? B.H : B.W) * scale, h = (turned ? B.W : B.H) * scale;
     return { x: (target.clientWidth - w) / 2, y: (target.clientHeight - h) / 2, w, h };
   };
 
   const carry = {
     from: canvas,
+    // На телефоне снимок отдается стоящим: под переходным экраном там
+    // остается высокая полоса в одну колонку, и стоящая арена занимает в ней
+    // вдвое больше места, чем лежащая. Каркас лепит карточку по этим же
+    // пропорциям, поэтому и мерка, и отрисовка должны думать одинаково.
     box: () => {
       const B = buildBowl();
-      return boxIn(canvas, Math.min(canvas.clientWidth / B.W, canvas.clientHeight / B.H));
+      const up = phone.matches;
+      const kx = up ? B.H : B.W, ky = up ? B.W : B.H;
+      return boxIn(canvas, Math.min(canvas.clientWidth / kx, canvas.clientHeight / ky), up);
     },
     // Fitted to the canvas, the way the arena sits in its own card: the shell
     // sizes the card to the picture.
@@ -1125,8 +1131,8 @@ export function init(root) {
     // таким — поймать его на полпути поворота значило бы оставить косым.
     paint: (target) => {
       const был = turn;
-      turn = 0;
-      const box = boxIn(target, drawStadium(target, studentsOnly()));
+      turn = phone.matches ? 1 : 0;
+      const box = boxIn(target, drawStadium(target, studentsOnly()), turn === 1);
       turn = был;
       return box;
     }

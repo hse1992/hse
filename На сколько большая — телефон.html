@@ -3199,16 +3199,21 @@ function leadCard(section, K = () => CARD_K, cardHeight = null) {
     // instead, as every other screen is slid aside, left the phrase gone a
     // screen before the picture it was about arrived.
     if (parks) {
+      const up = Math.max(0, (window.innerHeight - span) / 2 - LEAD_AIR);
+      // Экран, под которым лежит картинка из прошлого блока, стоит наверху с
+      // самого начала, а не съезжает туда по дороге: иначе строки держат
+      // середину окна, а арене достается полоса у нижнего края. На широком
+      // экране это давно так — см. lifted выше.
+      const held = section.classList.contains('has-backdrop');
       lead.style.setProperty('--lead-x', '0px');
-      lead.style.setProperty('--lead-y',
-        `${(-e * Math.max(0, (window.innerHeight - span) / 2 - LEAD_AIR)).toFixed(1)}px`);
+      lead.style.setProperty('--lead-y', `${(-(held ? up : e * up)).toFixed(1)}px`);
       lead.style.opacity = '';
       // And the room it takes at the top of every screen of the block, so that
       // what the block pins to the top pins itself under the parked screen
       // instead of behind it — the same room the wide layout holds, measured
       // against the window rather than against the pinned container.
       section.style.setProperty('--lead-hold',
-        `${Math.round(e * (span + LEAD_AIR * 2))}px`);
+        `${Math.round((held ? 1 : e) * (span + LEAD_AIR * 2))}px`);
       return;
     }
 
@@ -3997,8 +4002,12 @@ function backdropOf(section, picture) {
     width = Math.round(column.width);
     height = Math.round((width - 2 * pad) / ratio + 2 * pad);
   }
+  // Картинка стоит посередине того, что осталось под экраном, а не жмется
+  // сразу под строки: на телефоне свободного места под ними больше, чем ей
+  // нужно, и прижатая кверху она смотрится оброненной.
+  const rest = afloat ? Math.max(0, Math.round((free - height) / 2)) : 0;
   const left = Math.round((room.width - width) / 2);
-  const size = `${afloat}×${window.innerWidth}×${window.innerHeight}×${top}×${left}×${width}×${height}`;
+  const size = `${afloat}×${window.innerWidth}×${window.innerHeight}×${top}×${rest}×${left}×${width}×${height}`;
   if (frame && frame.dataset.size === size) return frame.picture;
   if (!frame) {
     frame = document.createElement('div');
@@ -4017,7 +4026,7 @@ function backdropOf(section, picture) {
   frame.dataset.size = size;
   frame.classList.toggle('is-afloat', afloat);
   Object.assign(frame.style, {
-    top: `${top}px`,
+    top: `${top + rest}px`,
     left: `${left}px`,
     width: `${width}px`,
     height: `${height}px`,
@@ -10754,17 +10763,23 @@ function init(root) {
   }
 
   // Where the picture sits in a canvas it was drawn into at `scale`.
-  const boxIn = (target, scale) => {
+  const boxIn = (target, scale, turned = false) => {
     const B = buildBowl();
-    const w = B.W * scale, h = B.H * scale;
+    const w = (turned ? B.H : B.W) * scale, h = (turned ? B.W : B.H) * scale;
     return { x: (target.clientWidth - w) / 2, y: (target.clientHeight - h) / 2, w, h };
   };
 
   const carry = {
     from: canvas,
+    // На телефоне снимок отдается стоящим: под переходным экраном там
+    // остается высокая полоса в одну колонку, и стоящая арена занимает в ней
+    // вдвое больше места, чем лежащая. Каркас лепит карточку по этим же
+    // пропорциям, поэтому и мерка, и отрисовка должны думать одинаково.
     box: () => {
       const B = buildBowl();
-      return boxIn(canvas, Math.min(canvas.clientWidth / B.W, canvas.clientHeight / B.H));
+      const up = phone.matches;
+      const kx = up ? B.H : B.W, ky = up ? B.W : B.H;
+      return boxIn(canvas, Math.min(canvas.clientWidth / kx, canvas.clientHeight / ky), up);
     },
     // Fitted to the canvas, the way the arena sits in its own card: the shell
     // sizes the card to the picture.
@@ -10775,8 +10790,8 @@ function init(root) {
     // таким — поймать его на полпути поворота значило бы оставить косым.
     paint: (target) => {
       const был = turn;
-      turn = 0;
-      const box = boxIn(target, drawStadium(target, studentsOnly()));
+      turn = phone.matches ? 1 : 0;
+      const box = boxIn(target, drawStadium(target, studentsOnly()), turn === 1);
       turn = был;
       return box;
     }
