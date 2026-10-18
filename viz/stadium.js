@@ -1118,7 +1118,18 @@ export function init(root) {
     },
     // Fitted to the canvas, the way the arena sits in its own card: the shell
     // sizes the card to the picture.
-    paint: (target) => boxIn(target, drawStadium(target, studentsOnly()))
+    //
+    // Всегда лежа, какой бы поворот ни шел сейчас в самом блоке: карточка под
+    // вопросом «Флагов» шире, чем выше, и лежащая арена занимает в ней больше
+    // места, чем стоящая. К тому же снимок рисуется один раз и остается
+    // таким — поймать его на полпути поворота значило бы оставить косым.
+    paint: (target) => {
+      const был = turn;
+      turn = 0;
+      const box = boxIn(target, drawStadium(target, studentsOnly()));
+      turn = был;
+      return box;
+    }
   };
 
   // On a phone the story is driven by the travel above and by nothing else.

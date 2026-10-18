@@ -984,6 +984,15 @@ button { font-family: inherit; }
   pointer-events: none;
 }
 
+/* На телефоне картинка под переходным экраном прибита к окну, как и сам
+   экран: секция там в тысячи пикселей высотой, и картинка, привязанная к ней,
+   уехала бы, пока экран стоит. Видна она только пока видна своя секция — это
+   ставит lib/stepper.js, тем же правилом, что и для самого экрана. */
+.viz-backdrop.is-afloat {
+  position: fixed;
+  z-index: 3;
+}
+
 .viz-backdrop canvas {
   display: block;
   width: 100%;
