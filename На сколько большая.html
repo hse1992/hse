@@ -4714,9 +4714,11 @@ function mountScrolled(entries, onProgress) {
   tip.className = 'page-next-tip';
   tip.setAttribute('aria-hidden', 'true');
   tip.innerHTML = '<span>Навигация по кнопке</span>'
+    // Наконечник построен по касательной в конце дуги, а не нарисован на
+    // глаз: иначе он смотрит в свою сторону, и стрелка выглядит сломанной.
     + '<svg viewBox="0 0 64 34" fill="none" aria-hidden="true">'
-    + '<path d="M4 3c3 12 14 22 52 26" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>'
-    + '<path d="M48 24 57 29.5 48.5 33" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/>'
+    + '<path d="M3 4C14 6 30 12 52 28" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>'
+    + '<path d="M46.7 18.3 52 28 41.2 25.9" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/>'
     + '</svg>';
   document.body.appendChild(tip);
   const dropTip = () => { tip.classList.add('is-gone'); };
