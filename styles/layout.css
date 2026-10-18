@@ -1700,6 +1700,29 @@ button { font-family: inherit; }
     font-size: 0.875rem;
   }
 
+  /* Страница не прокручивается вовсе: читатель ведет ее тактами — кнопкой,
+     касанием, колесом или клавишами, — а каркас двигает ее сам и всегда до
+     границы кадра. Браузеру прокрутку не отдаем ни жестом, ни оттяжкой за
+     край: см. «Страница не прокручивается» в lib/stepper.js.
+
+     Свое остается тому, что само умеет прокручиваться, — списку разделов. */
+  html {
+    touch-action: none;
+    overscroll-behavior: none;
+  }
+
+  /* Подсказка внизу говорила «листай» — листать больше нечем. Ее место у
+     нижнего края (--hint-room) занимает кнопка, и полоса эта по-прежнему
+     вычтена из высоты блока, так что ни один блок до нее не достает. */
+  .scroll-hint {
+    display: none;
+  }
+
+  .page-sheet,
+  .page-sheet * {
+    touch-action: pan-y;
+  }
+
   /* The page never goes sideways. A title card waits a screen to the right of
      the block being read until its turn comes, and the document grew to twice
      its width around it: the reader could swipe the page off to one side and
@@ -2001,6 +2024,35 @@ button { font-family: inherit; }
   .viz-section .btn {
     padding: 12px 15px;
   }
+}
+
+/* Подпись к кнопке на первом экране: страница не прокручивается, и один раз
+   нужно сказать, чем ее листают. Тонкая стрелка идет от слов к кнопке. */
+.page-next-tip {
+  position: fixed;
+  right: 22px;
+  bottom: 66px;
+  z-index: 39;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  color: var(--text-caption);
+  font-size: 0.875rem;
+  line-height: 1.2;
+  text-align: right;
+  pointer-events: none;
+  transition: opacity 420ms ease;
+}
+
+.page-next-tip svg {
+  width: 40px;
+  height: 27px;
+  flex: none;
+  margin-right: 10px;
+}
+
+.page-next-tip.is-gone {
+  opacity: 0;
 }
 
 /* ---------- Чтение кадрами ---------- */
