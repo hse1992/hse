@@ -33,7 +33,9 @@
   section.id = town.meta.id;
   section.querySelector('[data-el="title"]').innerHTML = town.meta.title;
   section.querySelector('[data-el="subtitle"]').innerHTML = town.meta.subtitle;
-  town.init(section.querySelector('.viz-body'));
+  // Черновик: ?seed=1993 — посмотреть другую раскладку того же города.
+  const seed = Number(new URLSearchParams(location.search).get('seed')) || undefined;
+  town.init(section.querySelector('.viz-body'), seed);
 </script>
 </body>
 </html>

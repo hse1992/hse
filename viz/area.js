@@ -944,7 +944,7 @@ export function init(root) {
   const phone = window.matchMedia('(max-width: 860px)');
   // На телефоне тот же город показывается втрое уже, и дом в восемь пикселей
   // читается как точка: там он просит дома покрупнее.
-  const townMap = mountTownMap($('townMap'), { houses: phone.matches ? 1.75 : 1, fill: phone.matches });
+  const townMap = mountTownMap($('townMap'), { fill: phone.matches, tall: phone.matches });
 
   function step(i) {
     const told = i < LAST;

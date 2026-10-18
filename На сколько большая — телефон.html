@@ -5368,8 +5368,30 @@ const STATION_NAME = 'Вышкинская';
 // The map is drawn in its own units. The town proper is CORE wide and tall and
 // always fits the card; around it lies a belt of roads and woods, so a card of
 // any shape shows a map to its very edges.
-const CORE = { w: 1500, h: 940 };
-const EXT = { x0: -560, y0: -460, x1: 2080, y1: 1400 };
+const CORE0 = { w: 1500, h: 940 };
+const EXT0 = { x0: -560, y0: -460, x1: 2080, y1: 1400 };
+
+// Та же карта, растянутая под коробку, в которой ее показывают. Город
+// нарисован лежащим — он в полтора раза шире, чем выше, — а телефон стоит, и
+// в его коробку такой город ложится полосой: в ширину он упирается, а
+// половина высоты остается поясу дорог. Дома от этого выходят по шесть
+// пикселей.
+//
+// Растяжение не трогает ни сами дома, ни их число: тянутся реки, берега и
+// рамка города, а кварталы и здания раскладываются уже внутри — площадь
+// города при этом сохраняется, поэтому все 196 помещаются по-прежнему. Зато
+// город встает в коробку целиком, и в тех же пикселях экрана ему достается
+// вдвое больше места.
+let CORE = { ...CORE0 };
+let EXT = { ...EXT0 };
+let WARP = { x: 1, y: 1 };
+const warp = ([x, y]) => [x * WARP.x, y * WARP.y];
+
+function shapeTown(kx, ky) {
+  WARP = { x: kx, y: ky };
+  CORE = { w: CORE0.w * kx, h: CORE0.h * ky };
+  EXT = { x0: EXT0.x0 * kx, y0: EXT0.y0 * ky, x1: EXT0.x1 * kx, y1: EXT0.y1 * ky };
+}
 
 // Rivers after the campus cities, widest first. They never meet: each crosses
 // the map on its own. The Kama runs dead straight along the embankment with
@@ -5729,12 +5751,12 @@ function makeBuilding(kind, rand) {
 
 // ---------- The town ----------
 
-function buildTown() {
-  const rand = seeded(1992);
+function buildTown(seed = 1992) {
+  const rand = seeded(seed);
   const between = (a, b) => a + rand() * (b - a);
 
   // Rivers, and how far every spot of the map is from water: negative in it.
-  const rivers = RIVERS.map((r) => ({ ...r, line: smooth(r.pts, 12) }));
+  const rivers = RIVERS.map((r) => ({ ...r, line: smooth(r.pts.map(warp), 12) }));
   const CELL = 5, REACH = 70;
   const cols = Math.ceil((EXT.x1 - EXT.x0) / CELL) + 1;
   const rows = Math.ceil((EXT.y1 - EXT.y0) / CELL) + 1;
@@ -5871,7 +5893,8 @@ function buildTown() {
   // Stations on crossroads open on all four sides.
   const open = (i, j) => i > 0 && j > 0 && streets.has(`h${i},${j}`) && streets.has(`h${i - 1},${j}`)
     && streets.has(`v${i},${j}`) && streets.has(`v${i},${j - 1}`);
-  const stations = STATIONS.map(({ at: [tx, ty], icon, river }) => {
+  const stations = STATIONS.map(({ at, icon, river }) => {
+    const [tx, ty] = warp(at);
     let best = null, bd = Infinity;
     for (let i = 1; i < nx - 1; i++) {
       for (let j = 1; j < ny - 1; j++) {
@@ -6457,11 +6480,18 @@ const roundBox = (g, x, y, w, h, r) => {
 
 // ---------- Module ----------
 
-function mountTownMap(root, { houses = 1, fill = false } = {}) {
-  // Модуль и так строгий — он модуль; директива тут не стоит, потому что
-  // функция с параметром по умолчанию ее не принимает.
-  SIZE = 1.15 * houses;
-  const town = buildTown();
+function mountTownMap(root, { fill = false, tall = false, seed = null } = {}) {
+  // Стоящая коробка просит стоящий город — см. shapeTown. Площадь города при
+  // этом та же, так что дома прежнего размера и все на месте; больше их
+  // делать нельзя — при следе в полтора раза крупнее в кварталы перестает
+  // помещаться половина.
+  SIZE = 1.15;
+  shapeTown(...(tall ? [0.703, 1.421] : [1, 1]));
+  // У стоящего города свое зерно. Раскладка считается из него, и при
+  // растянутой рамке прежнее оставляло без места московский кампус: кварталы
+  // у реки встают иначе. Перебрал несколько — на этом все 196 зданий и все
+  // четыре кампуса находят себе место.
+  const town = buildTown(seed === null ? (tall ? 1994 : 1992) : seed);
 
   // Canvas has no CSS variables: read the tokens once.
   const css = getComputedStyle(root);
@@ -6844,7 +6874,11 @@ function mountTownMap(root, { houses = 1, fill = false } = {}) {
       let from = -1, to = -1;
       for (let s = 0; s <= tr.len; s += 5) if (inView(pose(tr, s))) { if (from < 0) from = s; to = s; }
       if (from < 0) continue;
-      const copies = r.labels || 1;
+      // Сколько раз река подписана, зависит от того, сколько ее видно: на
+      // узкой карте три «реки Москвы» вставали вплотную друг к другу и
+      // читались как повтор. Одна подпись на каждые полтораста пикселей
+      // видимого русла, но не больше, чем просила сама река.
+      const copies = Math.max(1, Math.min(r.labels || 1, Math.floor((to - from) / 150)));
       for (let n = 0; n < copies; n++) {
         const lo = from + ((to - from) * n) / copies, hi = from + ((to - from) * (n + 1)) / copies;
         const aim = (lo + hi) / 2;
@@ -12740,7 +12774,7 @@ function init(root) {
   const phone = window.matchMedia('(max-width: 860px)');
   // На телефоне тот же город показывается втрое уже, и дом в восемь пикселей
   // читается как точка: там он просит дома покрупнее.
-  const townMap = mountTownMap($('townMap'), { houses: phone.matches ? 1.75 : 1, fill: phone.matches });
+  const townMap = mountTownMap($('townMap'), { fill: phone.matches, tall: phone.matches });
 
   function step(i) {
     const told = i < LAST;

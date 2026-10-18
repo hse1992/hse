@@ -11,10 +11,10 @@ export const meta = {
   subtitle: 'Если собрать все здания Вышки в одном месте, у нее будут свои реки, свое метро и свои электробусы'
 };
 
-export function init(root) {
+export function init(root, seed) {
   // Те же настройки, что у карты внутри блока про площадь: на телефоне город
   // занимает всю коробку, а дома строятся крупнее — иначе на трети ширины
   // дом читается точкой.
   const phone = window.matchMedia('(max-width: 860px)');
-  return mountTownMap(root, { houses: phone.matches ? 1.3 : 1, fill: phone.matches });
+  return mountTownMap(root, { fill: phone.matches, tall: phone.matches, seed });
 }
