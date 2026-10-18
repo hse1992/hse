@@ -4475,9 +4475,14 @@ function mountScrolled(entries, onProgress) {
     says();
   };
 
+  // Просьба, пришедшая, пока играет кадр, не теряется, а ждет своей очереди:
+  // касание, на которое страница не ответила ничем, читается как «подвисло».
+  let pending = 0;
+
   const play = (to) => {
     const e = caught;
-    if (!e || playing) return;
+    if (!e) return;
+    if (playing) { pending = to > frame ? 1 : -1; return; }
     if (to < 0 || to > e.steps - 1) { letGo(to > 0); return; }
     // A frame that waits for an answer is not passed by a touch either.
     if (to > frame && e.hold && e.hold(frame)) return;
@@ -4488,7 +4493,12 @@ function mountScrolled(entries, onProgress) {
     // says is asked for by hand after every frame.
     says();
     const span = Math.max(BEAT_MS, (e.span && e.span(frame)) || 0);
-    setTimeout(() => { playing = false; }, span);
+    setTimeout(() => {
+      playing = false;
+      const next = pending;
+      pending = 0;
+      if (next) play(frame + next);
+    }, span);
     // The last frame is the block handing itself over to the reader, and the
     // page goes with it: holding on after the story is told would leave them
     // pulling at a page that has nothing left to say.
@@ -4538,18 +4548,26 @@ function mountScrolled(entries, onProgress) {
   };
 
   let pulled = null;
+  let spent = false;                    // этот палец свой кадр уже отыграл
   window.addEventListener('touchstart', (ev) => {
     pulled = ev.touches.length === 1 ? ev.touches[0].clientY : null;
+    spent = false;
   }, { passive: true });
 
+  // Один палец — один кадр. Раньше кадр играл на каждые сорок шесть пикселей
+  // движения, и одно движение на полэкрана отматывало три кадра подряд,
+  // обрывая анимацию каждого: со стороны это и есть «листается криво».
   window.addEventListener('touchmove', (ev) => {
     if (!caught || pulled === null) return;
     ev.preventDefault();
+    if (spent) return;
     const dy = pulled - ev.touches[0].clientY;
     if (Math.abs(dy) < TAP_PULL) return;
-    pulled = ev.touches[0].clientY;
+    spent = true;
     play(frame + (dy > 0 ? 1 : -1));
   }, { passive: false });
+
+  window.addEventListener('touchend', () => { pulled = null; spent = false; }, { passive: true });
 
   // The trackpad and the wheel, for a narrow window on a desktop.
   window.addEventListener('wheel', (ev) => {
