@@ -6897,32 +6897,45 @@ function mountTownMap(root, { fill = false, tall = false, seed = null } = {}) {
       for (let n = 0; n < copies; n++) {
         const lo = from + ((to - from) * n) / copies, hi = from + ((to - from) * (n + 1)) / copies;
         const aim = (lo + hi) / 2;
+        // Ищем место в три захода, от строгого к снисходительному. На узкой
+        // карте реки видно короткими кусками: у Камы вдоль берега лежит
+        // слоган, у Невы на виду меньше ста пикселей, — и по строгим правилам
+        // обе оставались без имени. Река без имени хуже, чем имя, подошедшее
+        // к мосту ближе, чем хотелось бы.
         let bestS = -1, bestScore = Infinity;
-        for (let s = Math.max(lo, length / 2 + 6); s < Math.min(hi, tr.len - length / 2 - 6); s += 5) {
-          let turn = 0, prev = null, inside = true;
-          for (let q = 0; q <= 8; q++) {
-            const p = pose(tr, s - length / 2 + (length * q) / 8);
-            if (!inView(p)) { inside = false; break; }
-            if (prev !== null) {
-              let d = Math.abs(p.a - prev);
-              if (d > Math.PI) d = Math.PI * 2 - d;
-              turn += d;
+        for (const ease of [0, 1, 2]) {
+          const край = ease === 0 ? 6 : 2;              // отступ от концов русла
+          const мост = ease < 1;                        // держаться подальше от мостов
+          const рядом = ease < 2 ? length * 0.6 + 24 : length * 0.35 + 10;
+          for (let s = Math.max(lo, length / 2 + край); s < Math.min(hi, tr.len - length / 2 - край); s += 5) {
+            let turn = 0, prev = null, inside = true;
+            for (let q = 0; q <= 8; q++) {
+              const p = pose(tr, s - length / 2 + (length * q) / 8);
+              if (!inView(p)) { inside = false; break; }
+              if (prev !== null) {
+                let d = Math.abs(p.a - prev);
+                if (d > Math.PI) d = Math.PI * 2 - d;
+                turn += d;
+              }
+              prev = p.a;
             }
-            prev = p.a;
+            if (!inside) continue;
+            if (мост) {
+              let onBridge = false;
+              for (let d = -length / 2 - 6; d <= length / 2 + 6 && !onBridge; d += 3) {
+                const p = pose(tr, s + d);
+                onBridge = spans.some((b) => segDist(p.x, p.y, b.ax, b.ay, b.bx, b.by) < b.half + size * 0.6);
+              }
+              if (onBridge) continue;
+            }
+            // Никогда поверх станции, слогана или другого имени: лучше без
+            // имени, чем поверх них.
+            const c = pose(tr, s);
+            if (taken.some(([x, y]) => Math.hypot(x - c.x, y - c.y) < рядом)) continue;
+            const score = turn * 10 + Math.abs(s - aim) / (hi - lo);
+            if (score < bestScore) { bestScore = score; bestS = s; }
           }
-          if (!inside) continue;
-          let onBridge = false;
-          for (let d = -length / 2 - 6; d <= length / 2 + 6 && !onBridge; d += 3) {
-            const p = pose(tr, s + d);
-            onBridge = spans.some((b) => segDist(p.x, p.y, b.ax, b.ay, b.bx, b.by) < b.half + size * 0.6);
-          }
-          if (onBridge) continue;
-          // Never over a station, the slogan or another name: no name is
-          // better than a name on top of them.
-          const c = pose(tr, s);
-          if (taken.some(([x, y]) => Math.hypot(x - c.x, y - c.y) < length * 0.6 + 24)) continue;
-          const score = turn * 10 + Math.abs(s - aim) / (hi - lo);
-          if (score < bestScore) { bestScore = score; bestS = s; }
+          if (bestS >= 0) break;
         }
         if (bestS < 0) continue;
         // Read left to right whichever way the river flows.
