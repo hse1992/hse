@@ -98,20 +98,17 @@ const CARD_STYLE = `<style>
     opacity: var(--intro-body, 1);
   }
 
-  /* On a phone the card does not play, it follows the thumb — and a reader can
-     stop anywhere, including halfway through this swap, where the logo and the
-     line that replaces it stand on top of each other at half height each. A
-     beat nobody can pause is one thing; a picture somebody can park in the
-     middle of has to be right at every point of it. So the phone gets the
-     plain heading alone, like every other block, and the logo stays a thing
-     the wide screen does. */
+  /* The phone used to get the plain heading alone: the card followed the thumb
+     there, and a reader could park halfway through this swap, where the logo
+     and the line that replaces it stand on top of each other at half height
+     each. Now the page is read by beats on a phone too — the swap only ever
+     plays, never holds — so the logo is back. It only has to be measured
+     against the narrow screen: a quarter of its width is a logo the size of a
+     coin. */
   @media (max-width: 860px) {
-    .prof-open { display: none; }
+    .prof-open { --prof-logo: min(24vh, 44vw, 240px); }
 
-    .prof-settled {
-      height: auto;
-      opacity: 1;
-    }
+    .prof-open-we { font-size: calc(var(--prof-logo) * 0.34); }
   }
 
   .prof-open-we {

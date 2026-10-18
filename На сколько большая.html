@@ -3607,6 +3607,13 @@ function introRunner(section, stages = 1, scale = CARD_K) {
     // it reads its own position and paints the frame that belongs to it.
     follow() {
       narrow = true;
+      // Whoever plays the card on a wide screen measures it before every beat.
+      // Here the frames come from scrolling, so «before a beat» means «before a
+      // frame» — and the measurement costs nothing while nothing has moved.
+      // Without it the card keeps the height it had before the block was built:
+      // the heading of the professions block is a logo that arrives with the
+      // block, and the card was placed against a height three times smaller.
+      remeasure();
       // The same opening over a shorter run of scrolling — see ZONE_NARROW.
       // The zone the section reserves for it is cut by the same amount, so
       // the two still agree about where in the opening the reader is.
@@ -3617,9 +3624,13 @@ function introRunner(section, stages = 1, scale = CARD_K) {
     // телефоне открытие читается прокруткой, и вся его арифметика линейна:
     // такт, который на широком экране просят одним движением колеса, здесь
     // лежит на своем отрезке пути. По этим точкам кнопка «Дальше» и ведет.
+    // Ноль в начале — сам верх секции: раздел пришел, но ничего еще не
+    // сыграло. На широком экране это отдельный такт, и на телефоне он тоже
+    // нужен — иначе первое же нажатие проносит открытие мимо до конца первого
+    // такта, и то, что на нем менялось, читатель видит только уже измененным.
     stops() {
       const screen = ZONE_NARROW * window.innerHeight;
-      return beats.map(([, to]) => Math.round(to * screen));
+      return [0, ...beats.map(([, to]) => Math.round(to * screen))];
     },
     // One stretch of it, p from 0 to 1 within that stretch.
     runBeat(i, p) {
@@ -14683,20 +14694,17 @@ const CARD_STYLE = `<style>
     opacity: var(--intro-body, 1);
   }
 
-  /* On a phone the card does not play, it follows the thumb — and a reader can
-     stop anywhere, including halfway through this swap, where the logo and the
-     line that replaces it stand on top of each other at half height each. A
-     beat nobody can pause is one thing; a picture somebody can park in the
-     middle of has to be right at every point of it. So the phone gets the
-     plain heading alone, like every other block, and the logo stays a thing
-     the wide screen does. */
+  /* The phone used to get the plain heading alone: the card followed the thumb
+     there, and a reader could park halfway through this swap, where the logo
+     and the line that replaces it stand on top of each other at half height
+     each. Now the page is read by beats on a phone too — the swap only ever
+     plays, never holds — so the logo is back. It only has to be measured
+     against the narrow screen: a quarter of its width is a logo the size of a
+     coin. */
   @media (max-width: 860px) {
-    .prof-open { display: none; }
+    .prof-open { --prof-logo: min(24vh, 44vw, 240px); }
 
-    .prof-settled {
-      height: auto;
-      opacity: 1;
-    }
+    .prof-open-we { font-size: calc(var(--prof-logo) * 0.34); }
   }
 
   .prof-open-we {
