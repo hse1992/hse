@@ -458,6 +458,17 @@ export function init(root) {
            it are. */
         .area-body .canvas-card { height: 39dvh; }
 
+        /* Карта города занимает всю сцену, а не полосу посередине: у нее свои
+           пропорции только потому, что в них ровно укладывается сам город, —
+           а вокруг него лежит пояс дорог и леса, которым есть чем заполнить
+           экран любой формы. */
+        .area-town-map {
+          flex: 1;
+          width: 100%;
+          height: auto;
+          min-height: 0;
+        }
+
         .area-switches { gap: 6px 24px; padding: 0; }
 
         /* The steps keep their two columns here — the pitch beside the block
@@ -920,7 +931,10 @@ export function init(root) {
   const LAST = 7;
 
   // The same town as the town section draws — see lib/town-map.js.
-  const townMap = mountTownMap($('townMap'));
+  const phone = window.matchMedia('(max-width: 860px)');
+  // На телефоне тот же город показывается втрое уже, и дом в восемь пикселей
+  // читается как точка: там он просит дома покрупнее.
+  const townMap = mountTownMap($('townMap'), { houses: phone.matches ? 1.3 : 1, fill: phone.matches });
 
   function step(i) {
     const told = i < LAST;
@@ -951,7 +965,6 @@ export function init(root) {
   const BREATHE = 24;                 // left free above the heading and below the question
   // An icon smaller than this stops reading as a picture. A phone column is
   // narrower than a wide-screen one to begin with, so the floor is lower there.
-  const phone = window.matchMedia('(max-width: 860px)');
   const LEAST = phone.matches ? 104 : 160;
   function fitFigures() {
     const room = stepsEl.clientHeight - BREATHE * 2;

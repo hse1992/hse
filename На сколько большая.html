@@ -5514,7 +5514,11 @@ const PLAZA = { w: 130, h: 72 };
 const SIGN_GROUND = { w: 96, h: 58 };   // the least of it, which picks the corner   // the square a station sign stands on
 const LANE = 5.2;                 // bus lane, off the middle of the road
 const BUS = { l: 24, w: 7.6 };    // narrow enough for two lanes to pass clear on a turn
-const SIZE = 1.15;                // all building footprints, scaled at once
+// All building footprints, scaled at once. A phone shows the same town at a
+// third of the width, and at that size a house of eight pixels reads as a
+// speck — so the caller may ask for bigger ones. Set before the town is built,
+// which happens in the same breath as the call.
+let SIZE = 1.15;
 const BUS_SPEED = 58;             // map units a second
 const DWELL = 1.4;                // seconds at a stop
 const LETTER = 26;                // height of the slogan letters, map units
@@ -6468,9 +6472,10 @@ const roundBox = (g, x, y, w, h, r) => {
 
 // ---------- Module ----------
 
-function mountTownMap(root) {
-  'use strict';
-
+function mountTownMap(root, { houses = 1, fill = false } = {}) {
+  // Модуль и так строгий — он модуль; директива тут не стоит, потому что
+  // функция с параметром по умолчанию ее не принимает.
+  SIZE = 1.15 * houses;
   const town = buildTown();
 
   // Canvas has no CSS variables: read the tokens once.
@@ -6543,6 +6548,16 @@ function mountTownMap(root) {
       @media (max-width: 860px) {
         .town-stage { container-type: normal; }
         .town-map { width: 100%; height: auto; aspect-ratio: 1.6; }
+
+        /* Карта занимает всю отведенную коробку, какой бы формы та ни была:
+           город всегда помещается в нее целиком, а вокруг него лежит пояс
+           дорог и леса — ему и заполнять остальное. Просит об этом тот, кто
+           карту ставит. */
+        .town-stage.is-filling .town-map {
+          width: 100%;
+          height: 100%;
+          aspect-ratio: auto;
+        }
       }
     </style>
     <div class="town-stage">
@@ -6551,6 +6566,8 @@ function mountTownMap(root) {
       </div>
     </div>
   `;
+
+  if (fill) root.querySelector('.town-stage').classList.add('is-filling');
 
   const wrap = root.querySelector('[data-el="wrap"]');
 
@@ -6590,7 +6607,11 @@ function mountTownMap(root) {
     const lowest = CORE.h - 8;
     const top = town.rows.filter((y) => y <= 12).pop();
     let oy = (h - CORE.h * k) / 2;
-    if (top !== undefined) {
+    // Прижимать верх к улице нужно там, где у города по высоте нет запаса и
+    // его все равно срежет по верхнему краю. Если коробка заметно выше, чем
+    // нужно, — а на телефоне она такая, — город стоит посередине, и пояс
+    // дорог лежит поровну сверху и снизу.
+    if (top !== undefined && h / k - CORE.h < 60) {
       if (top + h / k < lowest) k = h / (lowest - top);
       oy = -top * k;
     }
@@ -12218,6 +12239,17 @@ function init(root) {
            it are. */
         .area-body .canvas-card { height: 39dvh; }
 
+        /* Карта города занимает всю сцену, а не полосу посередине: у нее свои
+           пропорции только потому, что в них ровно укладывается сам город, —
+           а вокруг него лежит пояс дорог и леса, которым есть чем заполнить
+           экран любой формы. */
+        .area-town-map {
+          flex: 1;
+          width: 100%;
+          height: auto;
+          min-height: 0;
+        }
+
         .area-switches { gap: 6px 24px; padding: 0; }
 
         /* The steps keep their two columns here — the pitch beside the block
@@ -12680,7 +12712,10 @@ function init(root) {
   const LAST = 7;
 
   // The same town as the town section draws — see lib/town-map.js.
-  const townMap = mountTownMap($('townMap'));
+  const phone = window.matchMedia('(max-width: 860px)');
+  // На телефоне тот же город показывается втрое уже, и дом в восемь пикселей
+  // читается как точка: там он просит дома покрупнее.
+  const townMap = mountTownMap($('townMap'), { houses: phone.matches ? 1.3 : 1, fill: phone.matches });
 
   function step(i) {
     const told = i < LAST;
@@ -12711,7 +12746,6 @@ function init(root) {
   const BREATHE = 24;                 // left free above the heading and below the question
   // An icon smaller than this stops reading as a picture. A phone column is
   // narrower than a wide-screen one to begin with, so the floor is lower there.
-  const phone = window.matchMedia('(max-width: 860px)');
   const LEAST = phone.matches ? 104 : 160;
   function fitFigures() {
     const room = stepsEl.clientHeight - BREATHE * 2;
