@@ -3545,6 +3545,14 @@ function introRunner(section, stages = 1, scale = CARD_K) {
       const q = introProgress(section, true, zone * ZONE_NARROW);
       if (q !== null) draw(q * zone);
     },
+    // Где кончается каждый такт открытия — в пикселях от верха секции. На
+    // телефоне открытие читается прокруткой, и вся его арифметика линейна:
+    // такт, который на широком экране просят одним движением колеса, здесь
+    // лежит на своем отрезке пути. По этим точкам кнопка «Дальше» и ведет.
+    stops() {
+      const screen = ZONE_NARROW * window.innerHeight;
+      return beats.map(([, to]) => Math.round(to * screen));
+    },
     // One stretch of it, p from 0 to 1 within that stretch.
     runBeat(i, p) {
       const [from, to, cardFrom = from, cardTo = to] = beats[i];
@@ -4601,22 +4609,53 @@ function mountScrolled(entries, onProgress) {
   // scroll under us to hold the picture still. A glide told «two hundred
   // pixels from here» is cancelled by that shift; one told «until the next
   // state» simply arrives.
-  let gliding = 0;
-  let togo = 0;
-  const left = () => {
+  // Сколько пикселей до следующего такта — чем бы этот такт ни был. Такты
+  // лежат в трех местах, и кнопка знает все три: части открытия (экран с
+  // цифрой приходит по кускам, за ним садится титульная карточка), состояния
+  // истории внутри блока и начало открытия следующего раздела.
+  const AT_MOST = 2.2;                 // дальше одного такта за раз не ходим, экранов
+  const стопы = () => {
+    const out = [];
+    const y = window.scrollY;
     const here = entries[place().index];
-    return here && here.ahead ? here.ahead() : 0;
+    // Внутри блока — его собственное следующее состояние.
+    const ahead = here && here.ahead ? here.ahead() : 0;
+    if (ahead > 0) out.push(ahead);
+    // Открытия: свои и соседние, те, что еще впереди.
+    entries.forEach((e) => {
+      if (!e.opening || !e.opening.stops) return;
+      const top = y + e.section.getBoundingClientRect().top;
+      tried('такты открытия', () => {
+        e.opening.stops().forEach((s) => { const d = top + s - y; if (d > 2) out.push(d); });
+      });
+    });
+    const рядом = out.filter((d) => d > 2).sort((a, b) => a - b);
+    if (рядом.length) return рядом;
+    // Хвост блока, где тактов больше нет: список профессий, лента лет,
+    // переключатели. Кнопка не исчезает — там она просто листает экран, как
+    // палец, только ровно и до конца.
+    const дно = Math.max(0, document.documentElement.scrollHeight - window.innerHeight - y);
+    return дно > 4 ? [Math.min(дно, Math.round(window.innerHeight * 0.82))] : [];
   };
-  const glide = () => {
-    if (togo <= 0 || performance.now() - gliding > 900) { gliding = 0; togo = 0; return; }
-    const by = Math.max(6, Math.min(togo, 22));
-    window.scrollBy(0, by);
-    // What was asked for, not what the page gave: when the block folds up on
-    // arriving, the browser shifts the scroll back to hold the picture still,
-    // and counting the difference would turn one state into three.
-    togo -= by;
-    requestAnimationFrame(glide);
+
+  let gliding = 0;
+  let total = 0;
+  let asked = 0;
+  let span = 0;
+  const glide = (now) => {
+    if (!gliding) return;
+    const t = Math.min(1, (now - gliding) / span);
+    const want = Math.round(total * (1 - Math.pow(1 - t, 3)));
+    // Сдвигаем на то, что попросили, а не на то, что страница дала: блок,
+    // который на приходе складывает свои цифры, меняет высоту, браузер
+    // отвечает на это сдвигом прокрутки, и разница превратила бы один такт
+    // в три.
+    window.scrollBy(0, want - asked);
+    asked = want;
+    if (t < 1) requestAnimationFrame(glide);
+    else gliding = 0;
   };
+
   // The press is the whole gesture: pressed again before the page has arrived,
   // it would stack scrolls and fly past two states at once.
   next.addEventListener('click', () => {
@@ -4624,8 +4663,11 @@ function mountScrolled(entries, onProgress) {
     // of moving the page: there is nowhere for the page to move.
     if (caught) { play(frame + 1); return; }
     if (gliding) return;
-    togo = left();
-    if (togo <= 0) return;
+    const [first] = стопы();
+    if (first === undefined) return;
+    total = Math.min(first, Math.round(window.innerHeight * AT_MOST));
+    asked = 0;
+    span = Math.min(700, 200 + total / 2.5);
     gliding = performance.now();
     requestAnimationFrame(glide);
   });
@@ -4657,9 +4699,7 @@ function mountScrolled(entries, onProgress) {
   // has anything left to say. Asked on every scroll, and by hand while the
   // page is held, where there are no scrolls to ask on.
   const says = () => {
-    const here = entries[place().index];
-    const gap = !caught && here && here.ahead ? here.ahead() : 0;
-    const show = caught ? frame < caught.steps - 1 : gap > 0;
+    const show = caught ? frame < caught.steps - 1 : стопы().length > 0;
     next.hidden = !show;
     // Held, the page has nowhere to go down to: the arrow would be a lie.
     next.classList.toggle('is-tap', !!caught);
