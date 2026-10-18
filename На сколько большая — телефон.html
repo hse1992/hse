@@ -1973,8 +1973,16 @@ button { font-family: inherit; }
     gap: 12px;
   }
 
+  /* Имя и числа — в строку, а не друг под другом: пока они помещаются, город
+     занимает одну строку, и карточка садится на высоту самого переключателя,
+     ниже которой ей все равно не стать. Там, где чисел два («48 139
+     студентов, 9 612 сотрудников» на стадионе), строка переносится сама, и
+     карточка остается прежней. */
   .city-info {
-    gap: 2px;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 2px 10px;
   }
 
   .city-stats {
@@ -2029,8 +2037,10 @@ button { font-family: inherit; }
     white-space: normal;
   }
 
+  /* Узкий телефон: карточка и так села на высоту переключателя, лишние
+     четыре пикселя сверху и снизу ей не нужны — они нужны картинке. */
   .city-card {
-    padding: 12px 14px;
+    padding: 8px 12px;
   }
 }
 
@@ -8491,7 +8501,7 @@ function init(root) {
         .metro-inner .city-stats { display: none; }
 
         /* И освободившееся отдается картинке. */
-        .metro-inner .canvas-card { height: 42dvh; }
+        .metro-inner .canvas-card { height: 45dvh; }
       }
     </style>
 
@@ -12136,7 +12146,7 @@ function init(root) {
            switch of what is counted sits behind its lower edge, and the list
            of cities begins with nothing above it to say what the numbers in
            it are. */
-        .area-body .canvas-card { height: 31dvh; }
+        .area-body .canvas-card { height: 39dvh; }
 
         .area-switches { gap: 6px 24px; padding: 0; }
 

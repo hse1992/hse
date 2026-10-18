@@ -456,7 +456,7 @@ export function init(root) {
            switch of what is counted sits behind its lower edge, and the list
            of cities begins with nothing above it to say what the numbers in
            it are. */
-        .area-body .canvas-card { height: 31dvh; }
+        .area-body .canvas-card { height: 39dvh; }
 
         .area-switches { gap: 6px 24px; padding: 0; }
 

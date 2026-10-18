@@ -475,7 +475,7 @@ export function init(root) {
         .metro-inner .city-stats { display: none; }
 
         /* И освободившееся отдается картинке. */
-        .metro-inner .canvas-card { height: 42dvh; }
+        .metro-inner .canvas-card { height: 45dvh; }
       }
     </style>
 
