@@ -2030,8 +2030,8 @@ button { font-family: inherit; }
    нужно сказать, чем ее листают. Тонкая стрелка идет от слов к кнопке. */
 .page-next-tip {
   position: fixed;
-  right: 22px;
-  bottom: 66px;
+  right: 104px;
+  bottom: 62px;
   z-index: 39;
   display: flex;
   flex-direction: column;
@@ -2045,10 +2045,11 @@ button { font-family: inherit; }
 }
 
 .page-next-tip svg {
-  width: 40px;
-  height: 27px;
+  width: 64px;
+  height: 34px;
   flex: none;
-  margin-right: 10px;
+  /* Стрелка свешивается правее слов и дотягивается до кнопки. */
+  margin-right: -34px;
 }
 
 .page-next-tip.is-gone {

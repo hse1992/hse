@@ -2250,8 +2250,8 @@ button { font-family: inherit; }
    нужно сказать, чем ее листают. Тонкая стрелка идет от слов к кнопке. */
 .page-next-tip {
   position: fixed;
-  right: 22px;
-  bottom: 66px;
+  right: 104px;
+  bottom: 62px;
   z-index: 39;
   display: flex;
   flex-direction: column;
@@ -2265,10 +2265,11 @@ button { font-family: inherit; }
 }
 
 .page-next-tip svg {
-  width: 40px;
-  height: 27px;
+  width: 64px;
+  height: 34px;
   flex: none;
-  margin-right: 10px;
+  /* Стрелка свешивается правее слов и дотягивается до кнопки. */
+  margin-right: -34px;
 }
 
 .page-next-tip.is-gone {
@@ -4698,9 +4699,9 @@ function mountScrolled(entries, onProgress) {
   tip.className = 'page-next-tip';
   tip.setAttribute('aria-hidden', 'true');
   tip.innerHTML = '<span>Навигация по кнопке</span>'
-    + '<svg viewBox="0 0 44 30" fill="none" aria-hidden="true">'
-    + '<path d="M5 3c4 10 12 18 30 23" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>'
-    + '<path d="M28.5 21.5 35.5 26.5 27 29" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/>'
+    + '<svg viewBox="0 0 64 34" fill="none" aria-hidden="true">'
+    + '<path d="M4 3c3 12 14 22 52 26" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>'
+    + '<path d="M48 24 57 29.5 48.5 33" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/>'
     + '</svg>';
   document.body.appendChild(tip);
   const dropTip = () => { tip.classList.add('is-gone'); };
