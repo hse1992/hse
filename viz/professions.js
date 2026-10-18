@@ -459,8 +459,11 @@ export function init(root) {
       }
 
       /* Every tile carries its specializations, but on a wide screen they are
-         read in the card above — here they would only be a cut-off line. */
-      .prof-item-kinds {
+         read in the card above — here they would only be a cut-off line. The
+         same goes for the mark that says a tile opens: there is nothing to
+         open, the card has it all already. */
+      .prof-item-kinds,
+      .prof-item-more {
         display: none;
       }
 
@@ -539,11 +542,61 @@ export function init(root) {
           font-size: 0.875rem;
         }
 
+        /* Специализации есть у каждой профессии, и это еще три строки мелким
+           шрифтом: сорок четыре профессии так разворачиваются в семь экранов
+           пальца, и читатель листает их, уже не глядя. Поэтому список держит
+           одни названия, а специализации приходят по тапу — по одной
+           профессии за раз. */
         .prof-item-kinds {
-          display: block;
+          display: grid;
+          grid-template-rows: 0fr;
+          opacity: 0;
           font-size: 0.75rem;
           line-height: 1.3;
           color: var(--text-caption);
+          transition: grid-template-rows 260ms ease, opacity 260ms ease;
+        }
+
+        /* Закрытая плитка прячет специализации и от экранного диктора:
+           нулевая высота для него не значит ничего, и кнопка называлась бы
+           всеми пятью специализациями разом — при том что aria-expanded
+           говорит, что они закрыты. Переход держит их видимыми, пока строка
+           складывается: visibility переключается в скрытое в конце, а в
+           видимое — сразу. */
+        .prof-item-kinds > span {
+          overflow: hidden;
+          visibility: hidden;
+          transition: visibility 260ms ease;
+        }
+
+        .prof-item.on .prof-item-kinds {
+          grid-template-rows: 1fr;
+          opacity: 1;
+        }
+
+        .prof-item.on .prof-item-kinds > span {
+          visibility: visible;
+        }
+
+        /* Тонкая галка у правого края: без нее о том, что плитку можно
+           нажать, читателю неоткуда узнать. Стоит она на строке с названием,
+           а не посередине плитки — раскрытая плитка вдвое выше, и галка
+           уехала бы к специализациям. */
+        .prof-item-more {
+          flex: none;
+          display: block;
+          align-self: flex-start;
+          width: 8px;
+          height: 8px;
+          margin: 13px 2px 0 auto;
+          border: solid var(--text-caption);
+          border-width: 0 1.5px 1.5px 0;
+          transform: rotate(45deg);
+          transition: transform 260ms ease;
+        }
+
+        .prof-item.on .prof-item-more {
+          transform: translateY(3px) rotate(-135deg);
         }
       }
     </style>
@@ -890,18 +943,37 @@ export function init(root) {
         <img class="prof-item-art" src="assets/professions/${p.icon}.svg" alt="" aria-hidden="true">
         <span class="prof-item-text">
           <span class="prof-item-name"></span>
-          <span class="prof-item-kinds"></span>
+          <span class="prof-item-kinds"><span></span></span>
         </span>
+        <span class="prof-item-more" aria-hidden="true"></span>
       `;
       item.querySelector('.prof-item-name').textContent = p.name;
-      item.querySelector('.prof-item-kinds').textContent = kindsOf(p).join(', ');
+      item.querySelector('.prof-item-kinds > span').textContent = kindsOf(p).join(', ');
 
-      // The card follows the pointer and the keyboard alike, and keeps the
-      // last profession when the pointer leaves the wall: it is there to be
-      // read, not to blink.
-      item.addEventListener('pointerenter', () => pick(item, p));
-      item.addEventListener('focus', () => pick(item, p));
-      item.addEventListener('click', () => pick(item, p));
+      if (stacked.matches) {
+        // На телефоне карточки с подробностями нет, и плитка открывается
+        // сама. Открыта всегда одна: сорок четыре раскрытых профессии — это
+        // ровно тот список, от которого тап и спасает. Повторный тап
+        // закрывает — иначе однажды открытое уже никак не убрать.
+        item.setAttribute('aria-expanded', 'false');
+        item.addEventListener('click', () => {
+          const open = current !== item;
+          if (current) {
+            current.classList.remove('on');
+            current.setAttribute('aria-expanded', 'false');
+          }
+          current = open ? item : null;
+          item.classList.toggle('on', open);
+          item.setAttribute('aria-expanded', String(open));
+        });
+      } else {
+        // The card follows the pointer and the keyboard alike, and keeps the
+        // last profession when the pointer leaves the wall: it is there to be
+        // read, not to blink.
+        item.addEventListener('pointerenter', () => pick(item, p));
+        item.addEventListener('focus', () => pick(item, p));
+        item.addEventListener('click', () => pick(item, p));
+      }
 
       box.appendChild(item);
     });
