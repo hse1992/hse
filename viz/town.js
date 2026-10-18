@@ -12,5 +12,9 @@ export const meta = {
 };
 
 export function init(root) {
-  return mountTownMap(root);
+  // Те же настройки, что у карты внутри блока про площадь: на телефоне город
+  // занимает всю коробку, а дома строятся крупнее — иначе на трети ширины
+  // дом читается точкой.
+  const phone = window.matchMedia('(max-width: 860px)');
+  return mountTownMap(root, { houses: phone.matches ? 1.3 : 1, fill: phone.matches });
 }

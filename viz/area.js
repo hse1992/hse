@@ -458,6 +458,16 @@ export function init(root) {
            it are. */
         .area-body .canvas-card { height: 39dvh; }
 
+        /* Картинка перестает быть прибитой: блок помещается на экран целиком,
+           и прибивать ее не к чему — зато при прокрутке она наезжала на
+           переключатели, и те уходили под нее. На низком экране все наоборот:
+           там блок в экран не влезает, и прибитая картинка нужна, чтобы было
+           видно, что меняется. */
+        @media (min-height: 760px) {
+          .area-body .col-right { position: static; }
+        }
+
+
         /* Карта города занимает всю сцену, а не полосу посередине: у нее свои
            пропорции только потому, что в них ровно укладывается сам город, —
            а вокруг него лежит пояс дорог и леса, которым есть чем заполнить
@@ -934,7 +944,7 @@ export function init(root) {
   const phone = window.matchMedia('(max-width: 860px)');
   // На телефоне тот же город показывается втрое уже, и дом в восемь пикселей
   // читается как точка: там он просит дома покрупнее.
-  const townMap = mountTownMap($('townMap'), { houses: phone.matches ? 1.3 : 1, fill: phone.matches });
+  const townMap = mountTownMap($('townMap'), { houses: phone.matches ? 1.75 : 1, fill: phone.matches });
 
   function step(i) {
     const told = i < LAST;
