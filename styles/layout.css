@@ -779,47 +779,6 @@ button { font-family: inherit; }
   transform: none;
 }
 
-/* The button in the corner says «dalshe» with a press behind it; the nudge
-   says the same thing in words. One of them is enough. */
-.scroll-hint.is-covered {
-  opacity: 0;
-  pointer-events: none;
-}
-
-/* ---------- One state per touch ---------- */
-/* A story told by scrolling goes past three or four states in a single flick
-   of the thumb. This moves the page by exactly one of them, and stands where
-   the thumb already is — the bottom corner, clear of the nudge in the middle
-   and of everything the block itself offers. */
-.page-next {
-  position: fixed;
-  right: 14px;
-  bottom: 12px;
-  z-index: 40;
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  padding: 12px 17px;
-  border: 1px solid var(--btn-border);
-  border-radius: 999px;
-  background: var(--card);
-  box-shadow: var(--card-shadow);
-  color: var(--text);
-  font-size: 0.9375rem;
-  font-weight: 500;
-  line-height: 1;
-  cursor: pointer;
-  transition: opacity 260ms ease, transform 160ms ease;
-}
-
-.page-next[hidden] {
-  display: none;
-}
-
-.page-next:active {
-  transform: scale(0.96);
-}
-
 .scroll-hint-text {
   font-size: 0.9375rem;
   line-height: 1;
@@ -1596,13 +1555,17 @@ button { font-family: inherit; }
   /* Обложка. Заголовок на телефоне упирался в нижнюю границу clamp и выходил
      56 пикселей — вдвое меньше, чем позволяет ширина, и страница про размер
      начиналась с мелкой строчки. Теперь он занимает ширину почти целиком, а
-     текст стоит в нижней половине экрана: сверху остается воздух с бликом,
-     снизу — подсказка. */
+     текст стоит чуть ниже середины экрана: сверху остается воздух с бликом,
+     снизу — подсказка и кнопка.
+
+     Сколько именно воздуха под текстом — min(24dvh, 190px): на телефоне это
+     почти четверть экрана, а на низком, где заголовок и так ужат до SE-шного
+     размера, отступ перестает расти, и обложка не выходит за свой экран. */
   .page-header {
     min-height: 100dvh;
     padding: 20px 16px 28px;
     align-items: flex-end;
-    padding-bottom: calc(var(--hint-room) + 15dvh);
+    padding-bottom: calc(var(--hint-room) + min(24dvh, 190px));
   }
 
   .page-header-inner {
@@ -1700,8 +1663,24 @@ button { font-family: inherit; }
     font-size: 0.875rem;
   }
 
-  /* Страница не прокручивается вовсе: читатель ведет ее тактами — кнопкой,
-     касанием, колесом или клавишами, — а каркас двигает ее сам и всегда до
+  /* Подзаголовок — это четыре-пять строк, и на телефоне они стоят между
+     заголовком и картинкой насовсем. Прочитаны они были на титульной карточке,
+     где в них весь смысл и где под них отдан целый экран; дальше они только
+     отнимают у визуализации треть высоты. Поэтому здесь подзаголовок живет
+     ровно столько, сколько держится карточка, и складывается вместе с ней — по
+     той же --intro-body. Высоту каркас меряет сам и кладет в --sub-h, иначе
+     складывать было бы нечего: у текста нет высоты, от которой можно отнять.
+
+     Только у секций с открытием: у блока без карточки подзаголовок негде было
+     бы прочитать, и он остается на месте. */
+  .viz-intro .viz-header p {
+    overflow: hidden;
+    height: calc(var(--sub-h, 0px) * (1 - var(--intro-body, 1)));
+    opacity: calc(1 - var(--intro-body, 1));
+  }
+
+  /* Страница не прокручивается вовсе: читатель ведет ее тактами — махом
+     пальца, колесом или клавишами, — а каркас двигает ее сам и всегда до
      границы кадра. Браузеру прокрутку не отдаем ни жестом, ни оттяжкой за
      край: см. «Страница не прокручивается» в lib/stepper.js.
 
@@ -1709,13 +1688,6 @@ button { font-family: inherit; }
   html {
     touch-action: none;
     overscroll-behavior: none;
-  }
-
-  /* Подсказка внизу говорила «листай» — листать больше нечем. Ее место у
-     нижнего края (--hint-room) занимает кнопка, и полоса эта по-прежнему
-     вычтена из высоты блока, так что ни один блок до нее не достает. */
-  .scroll-hint {
-    display: none;
   }
 
   .page-sheet,
@@ -2026,43 +1998,7 @@ button { font-family: inherit; }
   }
 }
 
-/* Подпись к кнопке на первом экране: страница не прокручивается, и один раз
-   нужно сказать, чем ее листают. Тонкая стрелка идет от слов к кнопке. */
-.page-next-tip {
-  position: fixed;
-  right: 104px;
-  bottom: 62px;
-  z-index: 39;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  color: var(--text-caption);
-  font-size: 0.875rem;
-  line-height: 1.2;
-  text-align: right;
-  pointer-events: none;
-  transition: opacity 420ms ease;
-}
-
-.page-next-tip svg {
-  width: 64px;
-  height: 34px;
-  flex: none;
-  /* Стрелка свешивается правее слов и дотягивается до кнопки. */
-  margin-right: -34px;
-}
-
-.page-next-tip.is-gone {
-  opacity: 0;
-}
-
 /* ---------- Чтение кадрами ---------- */
-/* Страница остановлена на блоке: он рассказывает историю кадрами, и внизу
-   вместо стрелки вниз — просто «Дальше», потому что вниз сейчас некуда. */
-.page-next.is-tap span {
-  display: none;
-}
-
 /* Пока страница держится, ничто не должно тянуться резинкой под пальцем. */
 html.is-holding,
 html.is-holding body {

@@ -1023,47 +1023,6 @@ button { font-family: inherit; }
   transform: none;
 }
 
-/* The button in the corner says «dalshe» with a press behind it; the nudge
-   says the same thing in words. One of them is enough. */
-.scroll-hint.is-covered {
-  opacity: 0;
-  pointer-events: none;
-}
-
-/* ---------- One state per touch ---------- */
-/* A story told by scrolling goes past three or four states in a single flick
-   of the thumb. This moves the page by exactly one of them, and stands where
-   the thumb already is — the bottom corner, clear of the nudge in the middle
-   and of everything the block itself offers. */
-.page-next {
-  position: fixed;
-  right: 14px;
-  bottom: 12px;
-  z-index: 40;
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  padding: 12px 17px;
-  border: 1px solid var(--btn-border);
-  border-radius: 999px;
-  background: var(--card);
-  box-shadow: var(--card-shadow);
-  color: var(--text);
-  font-size: 0.9375rem;
-  font-weight: 500;
-  line-height: 1;
-  cursor: pointer;
-  transition: opacity 260ms ease, transform 160ms ease;
-}
-
-.page-next[hidden] {
-  display: none;
-}
-
-.page-next:active {
-  transform: scale(0.96);
-}
-
 .scroll-hint-text {
   font-size: 0.9375rem;
   line-height: 1;
@@ -1840,13 +1799,17 @@ button { font-family: inherit; }
   /* Обложка. Заголовок на телефоне упирался в нижнюю границу clamp и выходил
      56 пикселей — вдвое меньше, чем позволяет ширина, и страница про размер
      начиналась с мелкой строчки. Теперь он занимает ширину почти целиком, а
-     текст стоит в нижней половине экрана: сверху остается воздух с бликом,
-     снизу — подсказка. */
+     текст стоит чуть ниже середины экрана: сверху остается воздух с бликом,
+     снизу — подсказка и кнопка.
+
+     Сколько именно воздуха под текстом — min(24dvh, 190px): на телефоне это
+     почти четверть экрана, а на низком, где заголовок и так ужат до SE-шного
+     размера, отступ перестает расти, и обложка не выходит за свой экран. */
   .page-header {
     min-height: 100dvh;
     padding: 20px 16px 28px;
     align-items: flex-end;
-    padding-bottom: calc(var(--hint-room) + 15dvh);
+    padding-bottom: calc(var(--hint-room) + min(24dvh, 190px));
   }
 
   .page-header-inner {
@@ -1944,8 +1907,24 @@ button { font-family: inherit; }
     font-size: 0.875rem;
   }
 
-  /* Страница не прокручивается вовсе: читатель ведет ее тактами — кнопкой,
-     касанием, колесом или клавишами, — а каркас двигает ее сам и всегда до
+  /* Подзаголовок — это четыре-пять строк, и на телефоне они стоят между
+     заголовком и картинкой насовсем. Прочитаны они были на титульной карточке,
+     где в них весь смысл и где под них отдан целый экран; дальше они только
+     отнимают у визуализации треть высоты. Поэтому здесь подзаголовок живет
+     ровно столько, сколько держится карточка, и складывается вместе с ней — по
+     той же --intro-body. Высоту каркас меряет сам и кладет в --sub-h, иначе
+     складывать было бы нечего: у текста нет высоты, от которой можно отнять.
+
+     Только у секций с открытием: у блока без карточки подзаголовок негде было
+     бы прочитать, и он остается на месте. */
+  .viz-intro .viz-header p {
+    overflow: hidden;
+    height: calc(var(--sub-h, 0px) * (1 - var(--intro-body, 1)));
+    opacity: calc(1 - var(--intro-body, 1));
+  }
+
+  /* Страница не прокручивается вовсе: читатель ведет ее тактами — махом
+     пальца, колесом или клавишами, — а каркас двигает ее сам и всегда до
      границы кадра. Браузеру прокрутку не отдаем ни жестом, ни оттяжкой за
      край: см. «Страница не прокручивается» в lib/stepper.js.
 
@@ -1953,13 +1932,6 @@ button { font-family: inherit; }
   html {
     touch-action: none;
     overscroll-behavior: none;
-  }
-
-  /* Подсказка внизу говорила «листай» — листать больше нечем. Ее место у
-     нижнего края (--hint-room) занимает кнопка, и полоса эта по-прежнему
-     вычтена из высоты блока, так что ни один блок до нее не достает. */
-  .scroll-hint {
-    display: none;
   }
 
   .page-sheet,
@@ -2270,43 +2242,7 @@ button { font-family: inherit; }
   }
 }
 
-/* Подпись к кнопке на первом экране: страница не прокручивается, и один раз
-   нужно сказать, чем ее листают. Тонкая стрелка идет от слов к кнопке. */
-.page-next-tip {
-  position: fixed;
-  right: 104px;
-  bottom: 62px;
-  z-index: 39;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  color: var(--text-caption);
-  font-size: 0.875rem;
-  line-height: 1.2;
-  text-align: right;
-  pointer-events: none;
-  transition: opacity 420ms ease;
-}
-
-.page-next-tip svg {
-  width: 64px;
-  height: 34px;
-  flex: none;
-  /* Стрелка свешивается правее слов и дотягивается до кнопки. */
-  margin-right: -34px;
-}
-
-.page-next-tip.is-gone {
-  opacity: 0;
-}
-
 /* ---------- Чтение кадрами ---------- */
-/* Страница остановлена на блоке: он рассказывает историю кадрами, и внизу
-   вместо стрелки вниз — просто «Дальше», потому что вниз сейчас некуда. */
-.page-next.is-tap span {
-  display: none;
-}
-
 /* Пока страница держится, ничто не должно тянуться резинкой под пальцем. */
 html.is-holding,
 html.is-holding body {
@@ -2996,8 +2932,14 @@ function titleCard(section, zone = INTRO_SCREENS, K = () => CARD_K, fullHeight =
     // The zone the pinned heading lives in is one heading taller than the
     // intro itself: it settles at the top of the screen and waits there while
     // the block comes up to meet it.
+    // Высота эта — севшая, а не та, что у шапки прямо сейчас: пока карточка
+    // держит экран, шапка стоит в 1/k ширины, переносится чаще и выше себя
+    // настоящей раза в три. Считая по ней, зона парковки сжималась с каждым
+    // кадром посадки, и блок под ней ехал вверх вместе с ней — такт, который
+    // вел к верху блока, промахивался мимо на две с лишним сотни пикселей.
     if (narrow) {
-      const hold = window.innerHeight * zone * ZONE_NARROW + header.offsetHeight;
+      const settled = fullHeight ? fullHeight(1) : header.offsetHeight;
+      const hold = window.innerHeight * zone * ZONE_NARROW + settled;
       section.style.setProperty('--intro-hold', `${Math.round(hold)}px`);
     }
   };
@@ -3407,6 +3349,7 @@ function introRunner(section, stages = 1, scale = CARD_K) {
   const zone = leadScreens + INTRO_SCREENS + (stages - 1) * STAGE_SCREENS;
   const header = section.querySelector('.viz-header');
   const heading = header.querySelector('h2');
+  const sub = header.querySelector('p');
 
   // The card is the same heading, only bigger: it is laid out at 1/k of the
   // width and then scaled back up. So the larger the card, the fewer words fit
@@ -3474,6 +3417,18 @@ function introRunner(section, stages = 1, scale = CARD_K) {
     if (lead) lead.fit();
     // Measured at the size the card will actually come out at — the shared one.
     section.style.setProperty('--intro-k', String(K()));
+    // На телефоне подзаголовок уходит вместе с карточкой: прочитан он на ней,
+    // а дальше стоит между заголовком и картинкой и отнимает у нее треть
+    // экрана. Чтобы складываться, а не пропадать рывком, он должен знать свою
+    // высоту. Меряется она прямо здесь — на раскрытой карточке, где
+    // подзаголовок стоит в 1/k ширины, переносится чаще и выше всего. Не через
+    // scrollHeight: внешние отступы строк в него не входят, и у метро он
+    // недосчитывал полсотни пикселей — две строки с картинками обрезало.
+    if (sub) {
+      sub.style.height = 'auto';
+      section.style.setProperty('--sub-h', `${sub.offsetHeight}px`);
+      sub.style.height = '';
+    }
     tallOpen = header.offsetHeight;
     section.style.setProperty('--intro-k', '1');
     section.style.setProperty('--intro-body', '1');
@@ -3623,14 +3578,27 @@ function introRunner(section, stages = 1, scale = CARD_K) {
     // Где кончается каждый такт открытия — в пикселях от верха секции. На
     // телефоне открытие читается прокруткой, и вся его арифметика линейна:
     // такт, который на широком экране просят одним движением колеса, здесь
-    // лежит на своем отрезке пути. По этим точкам кнопка «Дальше» и ведет.
+    // лежит на своем отрезке пути. По этим точкам ход и ведет.
+    //
     // Ноль в начале — сам верх секции: раздел пришел, но ничего еще не
     // сыграло. На широком экране это отдельный такт, и на телефоне он тоже
-    // нужен — иначе первое же нажатие проносит открытие мимо до конца первого
+    // нужен — иначе первое же движение проносит открытие мимо до конца первого
     // такта, и то, что на нем менялось, читатель видит только уже измененным.
+    //
+    // А последний такт кончается не там, где кончается зона открытия. Карточка
+    // садится на свое место в шапке, и блок под ней начинается ниже экрана:
+    // чтобы увидеть его целиком, нужен был еще один ход, на котором только и
+    // происходило, что уезжала шапка. Поэтому последняя остановка — верх
+    // `.viz-body`: карточка садится по дороге, и блок приезжает собранным.
     stops() {
       const screen = ZONE_NARROW * window.innerHeight;
-      return [0, ...beats.map(([, to]) => Math.round(to * screen))];
+      const out = [0, ...beats.map(([, to]) => Math.round(to * screen))];
+      const body = section.querySelector('.viz-body');
+      if (body) {
+        const top = body.getBoundingClientRect().top - section.getBoundingClientRect().top;
+        out[out.length - 1] = Math.max(out[out.length - 1], Math.round(top));
+      }
+      return out;
     },
     // One stretch of it, p from 0 to 1 within that stretch.
     runBeat(i, p) {
@@ -4553,7 +4521,6 @@ function mountScrolled(entries, onProgress) {
     // very next frame. Going on, the page stays exactly where it was: the
     // block is still on the screen and has only just become the reader's.
     if (!ahead) window.scrollBy(0, -10);
-    says();
   };
 
   // Просьба, пришедшая, пока играет кадр, не теряется, а ждет своей очереди:
@@ -4570,9 +4537,6 @@ function mountScrolled(entries, onProgress) {
     frame = to;
     playing = true;
     tried('кадр', () => e.setStep(frame));
-    // While the page is held there are no scroll events, so what the button
-    // says is asked for by hand after every frame.
-    says();
     const span = Math.max(BEAT_MS, (e.span && e.span(frame)) || 0);
     setTimeout(() => {
       playing = false;
@@ -4624,7 +4588,6 @@ function mountScrolled(entries, onProgress) {
       tried('кадр', () => e.setStep(0));
       hold();
       settleTo(want);
-      says();
     });
   };
 
@@ -4703,36 +4666,7 @@ function mountScrolled(entries, onProgress) {
     play(frame + 1);
   });
 
-  // ---------- «Далее» ----------
-  // A story told by scrolling is told in stretches of a couple of hundred
-  // pixels, and a flick of the thumb is seven hundred: three or four states go
-  // past in one movement, each of them starting an animation the next one cuts
-  // off. So a block that has a story left to tell offers a button in the
-  // corner the thumb reaches, and a press moves the page by exactly one state.
-  // It does not take the scroll away — the reader can go on flicking — it only
-  // makes one state per touch possible for anyone who wants it.
-  const next = document.createElement('button');
-  next.type = 'button';
-  next.className = 'page-next';
-  next.hidden = true;
-  next.innerHTML = 'Дальше <span aria-hidden="true">↓</span>';
-  document.body.appendChild(next);
-
-  // Первый экран объясняет, чем теперь листают: страница не прокручивается,
-  // и читателю надо один раз показать, куда нажимать. Уходит сразу после
-  // первого же хода — дальше кнопка говорит за себя.
-  const tip = document.createElement('div');
-  tip.className = 'page-next-tip';
-  tip.setAttribute('aria-hidden', 'true');
-  tip.innerHTML = '<span>Навигация по кнопке</span>'
-    // Наконечник построен по касательной в конце дуги, а не нарисован на
-    // глаз: иначе он смотрит в свою сторону, и стрелка выглядит сломанной.
-    + '<svg viewBox="0 0 64 34" fill="none" aria-hidden="true">'
-    + '<path d="M3 4C14 6 30 12 52 28" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>'
-    + '<path d="M46.7 18.3 52 28 41.2 25.9" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/>'
-    + '</svg>';
-  document.body.appendChild(tip);
-  const dropTip = () => { tip.classList.add('is-gone'); };
+  // ---------- Ход ----------
   // The page is moved by hand rather than by `behavior: 'smooth'`, and moved
   // by asking the block again on every frame how much is left. A block changes
   // its own height when it hands itself over to the reader — the figures fold
@@ -4741,9 +4675,9 @@ function mountScrolled(entries, onProgress) {
   // pixels from here» is cancelled by that shift; one told «until the next
   // state» simply arrives.
   // Сколько пикселей до следующего такта — чем бы этот такт ни был. Такты
-  // лежат в трех местах, и кнопка знает все три: части открытия (экран с
-  // цифрой приходит по кускам, за ним садится титульная карточка), состояния
-  // истории внутри блока и начало открытия следующего раздела.
+  // лежат в трех местах, и ход знает все три: части открытия (экран с цифрой
+  // приходит по кускам, за ним садится титульная карточка), состояния истории
+  // внутри блока и начало открытия следующего раздела.
   const AT_MOST = 2.2;                 // дальше одного такта за раз не ходим, экранов
   const стопы = (dir = 1) => {
     const out = [];
@@ -4795,11 +4729,10 @@ function mountScrolled(entries, onProgress) {
     else gliding = 0;
   };
 
-  // Один ход на всех: кнопка, палец, колесо, клавиши. Пока ход играет,
-  // следующая просьба не копится и не теряется — она просто ждет, как и
-  // внутри блока, который держит страницу.
+  // Один ход на всех: палец, колесо, клавиши. Пока ход играет, следующая
+  // просьба не копится и не теряется — она просто ждет, как и внутри блока,
+  // который держит страницу.
   const шаг = (dir) => {
-    dropTip();
     if (caught) { play(frame + dir); return; }
     if (gliding) return;
     const [first] = стопы(dir);
@@ -4810,8 +4743,6 @@ function mountScrolled(entries, onProgress) {
     gliding = performance.now();
     requestAnimationFrame(glide);
   };
-
-  next.addEventListener('click', () => шаг(1));
 
   // ---------- Картинка, переданная предыдущим блоком ----------
   // Стадион отдает «Флагам» свою арену: вопрос про страны задается над ней —
@@ -4834,19 +4765,6 @@ function mountScrolled(entries, onProgress) {
     });
   };
 
-  const hint = document.querySelector('.scroll-hint');
-
-  // What the button offers, and whether the nudge at the foot of the screen
-  // has anything left to say. Asked on every scroll, and by hand while the
-  // page is held, where there are no scrolls to ask on.
-  const says = () => {
-    const show = caught ? frame < caught.steps - 1 : ведем() && стопы().length > 0;
-    next.hidden = !show;
-    // Held, the page has nowhere to go down to: the arrow would be a lie.
-    next.classList.toggle('is-tap', !!caught);
-    if (hint) hint.classList.toggle('is-covered', show);
-  };
-
   let queued = false;
   const paint = () => {
     queued = false;
@@ -4867,7 +4785,6 @@ function mountScrolled(entries, onProgress) {
     lay();
     const at = place();
     if (onProgress) onProgress(window.scrollY / height(), at);
-    says();
   };
 
   // Every card is painted once at the start, even the ones far below: until a
