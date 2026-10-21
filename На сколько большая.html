@@ -2812,7 +2812,15 @@ function mountProgress(titles = [], shorts = []) {
     ended = p > 0.999;              // the story is over, there is nothing to prompt
     hint.classList.remove('is-here');
     clearTimeout(timer);
-    if (!ended) timer = setTimeout(prompt, p > 0.001 ? IDLE_MS : FIRST_MS);
+    const cover = p <= 0.001;
+    // На телефоне подсказка живет только на титульном экране: там она и нужна,
+    // один раз сказать, чем листают. Дальше читатель уже листает сам, а она
+    // стоит у нижнего края и закрывает собой то, чем блок кончается, — кнопки,
+    // последний город, подпись под картинкой. На широком экране она
+    // по-прежнему возвращается всюду, где читатель замешкался: там внизу
+    // пусто, полоса --hint-room ее и ждет.
+    if (ended || (NARROW.matches && !cover)) return;
+    timer = setTimeout(prompt, cover ? FIRST_MS : IDLE_MS);
   };
 
   set(0);
@@ -8450,7 +8458,9 @@ const meta = {
                this keeps it in the page for that moment -->
           <img class="metro-brief-train" style="max-width: 100%"
                src="data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%204956%20173%22%20width%3D%224956%22%20height%3D%22173%22%3E%20%3Ctitle%3E%D0%9F%D0%BE%D0%B5%D0%B7%D0%B4%20%D0%BC%D0%B5%D1%82%D1%80%D0%BE%20%D0%B8%D0%B7%208%20%D0%B2%D0%B0%D0%B3%D0%BE%D0%BD%D0%BE%D0%B2%3C%2Ftitle%3E%20%3Cdefs%3E%3Cg%20id%3D%22head%22%3E%20%3CclipPath%20id%3D%22head-body%22%3E%3Cpath%20d%3D%22M4%200H616C628%204%20633%2030%20637%2085V135H0V11H4Z%22%2F%3E%3C%2FclipPath%3E%20%3Crect%20x%3D%22243%22%20y%3D%22135%22%20width%3D%22139%22%20height%3D%2223%22%20fill%3D%22%23353436%22%2F%3E%20%3Crect%20x%3D%2261.0%22%20y%3D%22135%22%20width%3D%22151%22%20height%3D%2231%22%20fill%3D%22%23353436%22%2F%3E%20%3Crect%20x%3D%2261.0%22%20y%3D%22139%22%20width%3D%22151%22%20height%3D%227%22%20fill%3D%22%234E4E50%22%2F%3E%20%3Ccircle%20cx%3D%2292.0%22%20cy%3D%22160%22%20r%3D%2212.5%22%20fill%3D%22%236B6F73%22%2F%3E%20%3Ccircle%20cx%3D%2292.0%22%20cy%3D%22160%22%20r%3D%225%22%20fill%3D%22%23585B5F%22%2F%3E%20%3Cpath%20d%3D%22M68.0%20152h14l4-4h12l4%204h14v15h-48z%22%20fill%3D%22%234A4A4C%22%2F%3E%20%3Ccircle%20cx%3D%22181.0%22%20cy%3D%22160%22%20r%3D%2212.5%22%20fill%3D%22%236B6F73%22%2F%3E%20%3Ccircle%20cx%3D%22181.0%22%20cy%3D%22160%22%20r%3D%225%22%20fill%3D%22%23585B5F%22%2F%3E%20%3Cpath%20d%3D%22M157.0%20152h14l4-4h12l4%204h14v15h-48z%22%20fill%3D%22%234A4A4C%22%2F%3E%20%3Crect%20x%3D%22415.0%22%20y%3D%22135%22%20width%3D%22151%22%20height%3D%2231%22%20fill%3D%22%23353436%22%2F%3E%20%3Crect%20x%3D%22415.0%22%20y%3D%22139%22%20width%3D%22151%22%20height%3D%227%22%20fill%3D%22%234E4E50%22%2F%3E%20%3Ccircle%20cx%3D%22446.0%22%20cy%3D%22160%22%20r%3D%2212.5%22%20fill%3D%22%236B6F73%22%2F%3E%20%3Ccircle%20cx%3D%22446.0%22%20cy%3D%22160%22%20r%3D%225%22%20fill%3D%22%23585B5F%22%2F%3E%20%3Cpath%20d%3D%22M422.0%20152h14l4-4h12l4%204h14v15h-48z%22%20fill%3D%22%234A4A4C%22%2F%3E%20%3Ccircle%20cx%3D%22535.0%22%20cy%3D%22160%22%20r%3D%2212.5%22%20fill%3D%22%236B6F73%22%2F%3E%20%3Ccircle%20cx%3D%22535.0%22%20cy%3D%22160%22%20r%3D%225%22%20fill%3D%22%23585B5F%22%2F%3E%20%3Cpath%20d%3D%22M511.0%20152h14l4-4h12l4%204h14v15h-48z%22%20fill%3D%22%234A4A4C%22%2F%3E%20%3Cpath%20d%3D%22M588%20135H637V157H597Z%22%20fill%3D%22%23D7D9DC%22%2F%3E%20%3Cpath%20d%3D%22M4%200H616C628%204%20633%2030%20637%2085V135H0V11H4Z%22%20fill%3D%22%23CCCDD1%22%2F%3E%20%3Cg%20clip-path%3D%22url%28%23head-body%29%22%3E%20%3Crect%20x%3D%220%22%20y%3D%220%22%20width%3D%22640%22%20height%3D%2211%22%20fill%3D%22%23B7BABF%22%2F%3E%20%3Crect%20x%3D%220%22%20y%3D%2211%22%20width%3D%22640%22%20height%3D%2214%22%20fill%3D%22%2352A3E9%22%2F%3E%20%3Cpath%20d%3D%22M611%200H618C629%204%20634%2028%20637%2070C631%2038%20625%2012%20611%200Z%22%20fill%3D%22%2352A3E9%22%2F%3E%20%3Cpath%20d%3D%22M600%20110H640V140H592Z%22%20fill%3D%22%23D7D9DC%22%2F%3E%20%3C%2Fg%3E%20%3Crect%20x%3D%225%22%20y%3D%2238%22%20width%3D%2219%22%20height%3D%2239%22%20rx%3D%222%22%20fill%3D%22%233F6E92%22%2F%3E%20%3Crect%20x%3D%22578%22%20y%3D%2231%22%20width%3D%2235%22%20height%3D%2289%22%20rx%3D%221.5%22%20fill%3D%22%23A9AAAD%22%2F%3E%20%3Crect%20x%3D%22586%22%20y%3D%2236%22%20width%3D%2219%22%20height%3D%2241%22%20rx%3D%222%22%20fill%3D%22%233F6E92%22%2F%3E%20%3Cpath%20d%3D%22M618%2039Q618%2036%20621%2036H626Q628%2036%20628.5%2039L630.5%2074Q630.7%2077%20628%2077H621Q618%2077%20618%2074Z%22%20fill%3D%22%233F6E92%22%2F%3E%20%3Cg%20clip-path%3D%22url%28%23head-body%29%22%3E%20%3Cpath%20d%3D%22M0%20122H578Q581%20122%20582.5%20119.5L592%20101.5Q593.5%2097%20597%2097H640V110H604Q601%20110%20599.5%20113L590.5%20131.5Q589%20135%20585%20135H0Z%22%20fill%3D%22%2352A3E9%22%2F%3E%20%3C%2Fg%3E%20%3Crect%20x%3D%2251%22%20y%3D%2232%22%20width%3D%2259%22%20height%3D%2298%22%20rx%3D%221.5%22%20fill%3D%22%23BDBFC2%22%2F%3E%20%3Crect%20x%3D%2280%22%20y%3D%2232%22%20width%3D%221%22%20height%3D%2269%22%20fill%3D%22%23A9AAAD%22%20opacity%3D%22.5%22%2F%3E%20%3Crect%20x%3D%2256%22%20y%3D%2239%22%20width%3D%2222%22%20height%3D%2238%22%20rx%3D%222%22%20fill%3D%22%233F6E92%22%2F%3E%20%3Crect%20x%3D%2283%22%20y%3D%2239%22%20width%3D%2222%22%20height%3D%2238%22%20rx%3D%222%22%20fill%3D%22%233F6E92%22%2F%3E%20%3Crect%20x%3D%2251%22%20y%3D%22101%22%20width%3D%2259%22%20height%3D%2222%22%20fill%3D%22%2352A3E9%22%2F%3E%20%3Crect%20x%3D%2251%22%20y%3D%22123%22%20width%3D%2259%22%20height%3D%227%22%20fill%3D%22%23393B3E%22%2F%3E%20%3Crect%20x%3D%22199%22%20y%3D%2232%22%20width%3D%2259%22%20height%3D%2298%22%20rx%3D%221.5%22%20fill%3D%22%23BDBFC2%22%2F%3E%20%3Crect%20x%3D%22228%22%20y%3D%2232%22%20width%3D%221%22%20height%3D%2269%22%20fill%3D%22%23A9AAAD%22%20opacity%3D%22.5%22%2F%3E%20%3Crect%20x%3D%22204%22%20y%3D%2239%22%20width%3D%2222%22%20height%3D%2238%22%20rx%3D%222%22%20fill%3D%22%233F6E92%22%2F%3E%20%3Crect%20x%3D%22231%22%20y%3D%2239%22%20width%3D%2222%22%20height%3D%2238%22%20rx%3D%222%22%20fill%3D%22%233F6E92%22%2F%3E%20%3Crect%20x%3D%22199%22%20y%3D%22101%22%20width%3D%2259%22%20height%3D%2222%22%20fill%3D%22%2352A3E9%22%2F%3E%20%3Crect%20x%3D%22199%22%20y%3D%22123%22%20width%3D%2259%22%20height%3D%227%22%20fill%3D%22%23393B3E%22%2F%3E%20%3Crect%20x%3D%22346%22%20y%3D%2232%22%20width%3D%2259%22%20height%3D%2298%22%20rx%3D%221.5%22%20fill%3D%22%23BDBFC2%22%2F%3E%20%3Crect%20x%3D%22375%22%20y%3D%2232%22%20width%3D%221%22%20height%3D%2269%22%20fill%3D%22%23A9AAAD%22%20opacity%3D%22.5%22%2F%3E%20%3Crect%20x%3D%22351%22%20y%3D%2239%22%20width%3D%2222%22%20height%3D%2238%22%20rx%3D%222%22%20fill%3D%22%233F6E92%22%2F%3E%20%3Crect%20x%3D%22378%22%20y%3D%2239%22%20width%3D%2222%22%20height%3D%2238%22%20rx%3D%222%22%20fill%3D%22%233F6E92%22%2F%3E%20%3Crect%20x%3D%22346%22%20y%3D%22101%22%20width%3D%2259%22%20height%3D%2222%22%20fill%3D%22%2352A3E9%22%2F%3E%20%3Crect%20x%3D%22346%22%20y%3D%22123%22%20width%3D%2259%22%20height%3D%227%22%20fill%3D%22%23393B3E%22%2F%3E%20%3Crect%20x%3D%22493%22%20y%3D%2232%22%20width%3D%2259%22%20height%3D%2298%22%20rx%3D%221.5%22%20fill%3D%22%23BDBFC2%22%2F%3E%20%3Crect%20x%3D%22522%22%20y%3D%2232%22%20width%3D%221%22%20height%3D%2269%22%20fill%3D%22%23A9AAAD%22%20opacity%3D%22.5%22%2F%3E%20%3Crect%20x%3D%22498%22%20y%3D%2239%22%20width%3D%2222%22%20height%3D%2238%22%20rx%3D%222%22%20fill%3D%22%233F6E92%22%2F%3E%20%3Crect%20x%3D%22525%22%20y%3D%2239%22%20width%3D%2222%22%20height%3D%2238%22%20rx%3D%222%22%20fill%3D%22%233F6E92%22%2F%3E%20%3Crect%20x%3D%22493%22%20y%3D%22101%22%20width%3D%2259%22%20height%3D%2222%22%20fill%3D%22%2352A3E9%22%2F%3E%20%3Crect%20x%3D%22493%22%20y%3D%22123%22%20width%3D%2259%22%20height%3D%227%22%20fill%3D%22%23393B3E%22%2F%3E%20%3Crect%20x%3D%22123%22%20y%3D%2238%22%20width%3D%2262%22%20height%3D%2239%22%20rx%3D%2211%22%20fill%3D%22%233F6E92%22%2F%3E%20%3Crect%20x%3D%22270%22%20y%3D%2238%22%20width%3D%2262%22%20height%3D%2239%22%20rx%3D%2211%22%20fill%3D%22%233F6E92%22%2F%3E%20%3Crect%20x%3D%22418%22%20y%3D%2238%22%20width%3D%2262%22%20height%3D%2239%22%20rx%3D%2211%22%20fill%3D%22%233F6E92%22%2F%3E%20%3C%2Fg%3E%3Cg%20id%3D%22middle%22%3E%20%3Crect%20x%3D%22231.0%22%20y%3D%22135%22%20width%3D%22140.0%22%20height%3D%2223%22%20fill%3D%22%23353436%22%2F%3E%20%3Crect%20x%3D%2261.0%22%20y%3D%22135%22%20width%3D%22151%22%20height%3D%2231%22%20fill%3D%22%23353436%22%2F%3E%20%3Crect%20x%3D%2261.0%22%20y%3D%22139%22%20width%3D%22151%22%20height%3D%227%22%20fill%3D%22%234E4E50%22%2F%3E%20%3Ccircle%20cx%3D%2292.0%22%20cy%3D%22160%22%20r%3D%2212.5%22%20fill%3D%22%236B6F73%22%2F%3E%20%3Ccircle%20cx%3D%2292.0%22%20cy%3D%22160%22%20r%3D%225%22%20fill%3D%22%23585B5F%22%2F%3E%20%3Cpath%20d%3D%22M68.0%20152h14l4-4h12l4%204h14v15h-48z%22%20fill%3D%22%234A4A4C%22%2F%3E%20%3Ccircle%20cx%3D%22181.0%22%20cy%3D%22160%22%20r%3D%2212.5%22%20fill%3D%22%236B6F73%22%2F%3E%20%3Ccircle%20cx%3D%22181.0%22%20cy%3D%22160%22%20r%3D%225%22%20fill%3D%22%23585B5F%22%2F%3E%20%3Cpath%20d%3D%22M157.0%20152h14l4-4h12l4%204h14v15h-48z%22%20fill%3D%22%234A4A4C%22%2F%3E%20%3Crect%20x%3D%22390.0%22%20y%3D%22135%22%20width%3D%22151%22%20height%3D%2231%22%20fill%3D%22%23353436%22%2F%3E%20%3Crect%20x%3D%22390.0%22%20y%3D%22139%22%20width%3D%22151%22%20height%3D%227%22%20fill%3D%22%234E4E50%22%2F%3E%20%3Ccircle%20cx%3D%22421.0%22%20cy%3D%22160%22%20r%3D%2212.5%22%20fill%3D%22%236B6F73%22%2F%3E%20%3Ccircle%20cx%3D%22421.0%22%20cy%3D%22160%22%20r%3D%225%22%20fill%3D%22%23585B5F%22%2F%3E%20%3Cpath%20d%3D%22M397.0%20152h14l4-4h12l4%204h14v15h-48z%22%20fill%3D%22%234A4A4C%22%2F%3E%20%3Ccircle%20cx%3D%22510.0%22%20cy%3D%22160%22%20r%3D%2212.5%22%20fill%3D%22%236B6F73%22%2F%3E%20%3Ccircle%20cx%3D%22510.0%22%20cy%3D%22160%22%20r%3D%225%22%20fill%3D%22%23585B5F%22%2F%3E%20%3Cpath%20d%3D%22M486.0%20152h14l4-4h12l4%204h14v15h-48z%22%20fill%3D%22%234A4A4C%22%2F%3E%20%3Cpath%20d%3D%22M4%200H598V11H602V135H0V11H4Z%22%20fill%3D%22%23CCCDD1%22%2F%3E%20%3Crect%20x%3D%224%22%20y%3D%220%22%20width%3D%22594%22%20height%3D%2211%22%20fill%3D%22%23B7BABF%22%2F%3E%20%3Crect%20x%3D%220%22%20y%3D%2211%22%20width%3D%22602%22%20height%3D%2214%22%20fill%3D%22%2352A3E9%22%2F%3E%20%3Crect%20x%3D%225%22%20y%3D%2238%22%20width%3D%2219%22%20height%3D%2239%22%20rx%3D%222%22%20fill%3D%22%233F6E92%22%2F%3E%20%3Crect%20x%3D%22578%22%20y%3D%2238%22%20width%3D%2219%22%20height%3D%2239%22%20rx%3D%222%22%20fill%3D%22%233F6E92%22%2F%3E%20%3Crect%20x%3D%220%22%20y%3D%22122%22%20width%3D%22602%22%20height%3D%2213%22%20fill%3D%22%2352A3E9%22%2F%3E%20%3Crect%20x%3D%2251%22%20y%3D%2232%22%20width%3D%2259%22%20height%3D%2298%22%20rx%3D%221.5%22%20fill%3D%22%23BDBFC2%22%2F%3E%20%3Crect%20x%3D%2280%22%20y%3D%2232%22%20width%3D%221%22%20height%3D%2269%22%20fill%3D%22%23A9AAAD%22%20opacity%3D%22.5%22%2F%3E%20%3Crect%20x%3D%2256%22%20y%3D%2239%22%20width%3D%2222%22%20height%3D%2238%22%20rx%3D%222%22%20fill%3D%22%233F6E92%22%2F%3E%20%3Crect%20x%3D%2283%22%20y%3D%2239%22%20width%3D%2222%22%20height%3D%2238%22%20rx%3D%222%22%20fill%3D%22%233F6E92%22%2F%3E%20%3Crect%20x%3D%2251%22%20y%3D%22101%22%20width%3D%2259%22%20height%3D%2222%22%20fill%3D%22%2352A3E9%22%2F%3E%20%3Crect%20x%3D%2251%22%20y%3D%22123%22%20width%3D%2259%22%20height%3D%227%22%20fill%3D%22%23393B3E%22%2F%3E%20%3Crect%20x%3D%22199%22%20y%3D%2232%22%20width%3D%2259%22%20height%3D%2298%22%20rx%3D%221.5%22%20fill%3D%22%23BDBFC2%22%2F%3E%20%3Crect%20x%3D%22228%22%20y%3D%2232%22%20width%3D%221%22%20height%3D%2269%22%20fill%3D%22%23A9AAAD%22%20opacity%3D%22.5%22%2F%3E%20%3Crect%20x%3D%22204%22%20y%3D%2239%22%20width%3D%2222%22%20height%3D%2238%22%20rx%3D%222%22%20fill%3D%22%233F6E92%22%2F%3E%20%3Crect%20x%3D%22231%22%20y%3D%2239%22%20width%3D%2222%22%20height%3D%2238%22%20rx%3D%222%22%20fill%3D%22%233F6E92%22%2F%3E%20%3Crect%20x%3D%22199%22%20y%3D%22101%22%20width%3D%2259%22%20height%3D%2222%22%20fill%3D%22%2352A3E9%22%2F%3E%20%3Crect%20x%3D%22199%22%20y%3D%22123%22%20width%3D%2259%22%20height%3D%227%22%20fill%3D%22%23393B3E%22%2F%3E%20%3Crect%20x%3D%22346%22%20y%3D%2232%22%20width%3D%2259%22%20height%3D%2298%22%20rx%3D%221.5%22%20fill%3D%22%23BDBFC2%22%2F%3E%20%3Crect%20x%3D%22375%22%20y%3D%2232%22%20width%3D%221%22%20height%3D%2269%22%20fill%3D%22%23A9AAAD%22%20opacity%3D%22.5%22%2F%3E%20%3Crect%20x%3D%22351%22%20y%3D%2239%22%20width%3D%2222%22%20height%3D%2238%22%20rx%3D%222%22%20fill%3D%22%233F6E92%22%2F%3E%20%3Crect%20x%3D%22378%22%20y%3D%2239%22%20width%3D%2222%22%20height%3D%2238%22%20rx%3D%222%22%20fill%3D%22%233F6E92%22%2F%3E%20%3Crect%20x%3D%22346%22%20y%3D%22101%22%20width%3D%2259%22%20height%3D%2222%22%20fill%3D%22%2352A3E9%22%2F%3E%20%3Crect%20x%3D%22346%22%20y%3D%22123%22%20width%3D%2259%22%20height%3D%227%22%20fill%3D%22%23393B3E%22%2F%3E%20%3Crect%20x%3D%22493%22%20y%3D%2232%22%20width%3D%2259%22%20height%3D%2298%22%20rx%3D%221.5%22%20fill%3D%22%23BDBFC2%22%2F%3E%20%3Crect%20x%3D%22522%22%20y%3D%2232%22%20width%3D%221%22%20height%3D%2269%22%20fill%3D%22%23A9AAAD%22%20opacity%3D%22.5%22%2F%3E%20%3Crect%20x%3D%22498%22%20y%3D%2239%22%20width%3D%2222%22%20height%3D%2238%22%20rx%3D%222%22%20fill%3D%22%233F6E92%22%2F%3E%20%3Crect%20x%3D%22525%22%20y%3D%2239%22%20width%3D%2222%22%20height%3D%2238%22%20rx%3D%222%22%20fill%3D%22%233F6E92%22%2F%3E%20%3Crect%20x%3D%22493%22%20y%3D%22101%22%20width%3D%2259%22%20height%3D%2222%22%20fill%3D%22%2352A3E9%22%2F%3E%20%3Crect%20x%3D%22493%22%20y%3D%22123%22%20width%3D%2259%22%20height%3D%227%22%20fill%3D%22%23393B3E%22%2F%3E%20%3Crect%20x%3D%22123%22%20y%3D%2238%22%20width%3D%2262%22%20height%3D%2239%22%20rx%3D%2211%22%20fill%3D%22%233F6E92%22%2F%3E%20%3Crect%20x%3D%22270%22%20y%3D%2238%22%20width%3D%2262%22%20height%3D%2239%22%20rx%3D%2211%22%20fill%3D%22%233F6E92%22%2F%3E%20%3Crect%20x%3D%22418%22%20y%3D%2238%22%20width%3D%2262%22%20height%3D%2239%22%20rx%3D%2211%22%20fill%3D%22%233F6E92%22%2F%3E%20%3C%2Fg%3E%3C%2Fdefs%3E%20%3Crect%20x%3D%22637%22%20y%3D%2216%22%20width%3D%2210%22%20height%3D%22104%22%20fill%3D%22%239A9FA6%22%2F%3E%20%3Crect%20x%3D%22640%22%20y%3D%2216%22%20width%3D%221.5%22%20height%3D%22104%22%20fill%3D%22%2380858C%22%2F%3E%20%3Crect%20x%3D%22643.5%22%20y%3D%2216%22%20width%3D%221.5%22%20height%3D%22104%22%20fill%3D%22%2380858C%22%2F%3E%20%3Crect%20x%3D%22635%22%20y%3D%22126%22%20width%3D%2214%22%20height%3D%226%22%20rx%3D%221%22%20fill%3D%22%23353436%22%2F%3E%20%3Crect%20x%3D%221249%22%20y%3D%2216%22%20width%3D%2210%22%20height%3D%22104%22%20fill%3D%22%239A9FA6%22%2F%3E%20%3Crect%20x%3D%221252%22%20y%3D%2216%22%20width%3D%221.5%22%20height%3D%22104%22%20fill%3D%22%2380858C%22%2F%3E%20%3Crect%20x%3D%221255.5%22%20y%3D%2216%22%20width%3D%221.5%22%20height%3D%22104%22%20fill%3D%22%2380858C%22%2F%3E%20%3Crect%20x%3D%221247%22%20y%3D%22126%22%20width%3D%2214%22%20height%3D%226%22%20rx%3D%221%22%20fill%3D%22%23353436%22%2F%3E%20%3Crect%20x%3D%221861%22%20y%3D%2216%22%20width%3D%2210%22%20height%3D%22104%22%20fill%3D%22%239A9FA6%22%2F%3E%20%3Crect%20x%3D%221864%22%20y%3D%2216%22%20width%3D%221.5%22%20height%3D%22104%22%20fill%3D%22%2380858C%22%2F%3E%20%3Crect%20x%3D%221867.5%22%20y%3D%2216%22%20width%3D%221.5%22%20height%3D%22104%22%20fill%3D%22%2380858C%22%2F%3E%20%3Crect%20x%3D%221859%22%20y%3D%22126%22%20width%3D%2214%22%20height%3D%226%22%20rx%3D%221%22%20fill%3D%22%23353436%22%2F%3E%20%3Crect%20x%3D%222473%22%20y%3D%2216%22%20width%3D%2210%22%20height%3D%22104%22%20fill%3D%22%239A9FA6%22%2F%3E%20%3Crect%20x%3D%222476%22%20y%3D%2216%22%20width%3D%221.5%22%20height%3D%22104%22%20fill%3D%22%2380858C%22%2F%3E%20%3Crect%20x%3D%222479.5%22%20y%3D%2216%22%20width%3D%221.5%22%20height%3D%22104%22%20fill%3D%22%2380858C%22%2F%3E%20%3Crect%20x%3D%222471%22%20y%3D%22126%22%20width%3D%2214%22%20height%3D%226%22%20rx%3D%221%22%20fill%3D%22%23353436%22%2F%3E%20%3Crect%20x%3D%223085%22%20y%3D%2216%22%20width%3D%2210%22%20height%3D%22104%22%20fill%3D%22%239A9FA6%22%2F%3E%20%3Crect%20x%3D%223088%22%20y%3D%2216%22%20width%3D%221.5%22%20height%3D%22104%22%20fill%3D%22%2380858C%22%2F%3E%20%3Crect%20x%3D%223091.5%22%20y%3D%2216%22%20width%3D%221.5%22%20height%3D%22104%22%20fill%3D%22%2380858C%22%2F%3E%20%3Crect%20x%3D%223083%22%20y%3D%22126%22%20width%3D%2214%22%20height%3D%226%22%20rx%3D%221%22%20fill%3D%22%23353436%22%2F%3E%20%3Crect%20x%3D%223697%22%20y%3D%2216%22%20width%3D%2210%22%20height%3D%22104%22%20fill%3D%22%239A9FA6%22%2F%3E%20%3Crect%20x%3D%223700%22%20y%3D%2216%22%20width%3D%221.5%22%20height%3D%22104%22%20fill%3D%22%2380858C%22%2F%3E%20%3Crect%20x%3D%223703.5%22%20y%3D%2216%22%20width%3D%221.5%22%20height%3D%22104%22%20fill%3D%22%2380858C%22%2F%3E%20%3Crect%20x%3D%223695%22%20y%3D%22126%22%20width%3D%2214%22%20height%3D%226%22%20rx%3D%221%22%20fill%3D%22%23353436%22%2F%3E%20%3Crect%20x%3D%224309%22%20y%3D%2216%22%20width%3D%2210%22%20height%3D%22104%22%20fill%3D%22%239A9FA6%22%2F%3E%20%3Crect%20x%3D%224312%22%20y%3D%2216%22%20width%3D%221.5%22%20height%3D%22104%22%20fill%3D%22%2380858C%22%2F%3E%20%3Crect%20x%3D%224315.5%22%20y%3D%2216%22%20width%3D%221.5%22%20height%3D%22104%22%20fill%3D%22%2380858C%22%2F%3E%20%3Crect%20x%3D%224307%22%20y%3D%22126%22%20width%3D%2214%22%20height%3D%226%22%20rx%3D%221%22%20fill%3D%22%23353436%22%2F%3E%20%3Cuse%20href%3D%22%23head%22%20transform%3D%22translate%28637%200%29%20scale%28-1%201%29%22%2F%3E%20%3Cuse%20href%3D%22%23middle%22%20x%3D%22647%22%2F%3E%20%3Cuse%20href%3D%22%23middle%22%20x%3D%221259%22%2F%3E%20%3Cuse%20href%3D%22%23middle%22%20x%3D%221871%22%2F%3E%20%3Cuse%20href%3D%22%23middle%22%20x%3D%222483%22%2F%3E%20%3Cuse%20href%3D%22%23middle%22%20x%3D%223095%22%2F%3E%20%3Cuse%20href%3D%22%23middle%22%20x%3D%223707%22%2F%3E%20%3Cuse%20href%3D%22%23head%22%20x%3D%224319%22%2F%3E%20%3C%2Fsvg%3E" alt="" aria-hidden="true">
-          <span class="metro-brief-times">&times;&nbsp;${TRAINS}</span>
+          <span class="metro-brief-times">&times;&nbsp;<span
+            class="metro-times-wide">${TRAINS}</span><span
+            class="metro-times-phone" style="display: none">${nf(CARS_TOTAL)}</span></span>
         </span>
       </span>
     </span>`
@@ -8458,6 +8468,11 @@ const meta = {
 
 function init(root) {
   'use strict';
+
+  // Узкий экран решает сразу несколько вещей — поля вокруг картинки, воздух
+  // под табличками городов, что показывает легенда, — поэтому спрашивается он
+  // один раз и здесь, до всего остального.
+  const phone = window.matchMedia('(max-width: 860px)').matches;
 
   // Canvas has no CSS variables, so the palette is read once from the tokens —
   // read and not copied: a value written out here goes on being the old one
@@ -8490,7 +8505,9 @@ function init(root) {
   const BEAM_FAR = clear(BEAM_NEAR);
   const HSE_BLUE = token('--hse-blue');
 
-  const M = 22;                 // margin around the track
+  // Поля вокруг картинки. На телефоне они вдвое меньше: там и самой картинки
+  // вдвое меньше, а поезда с электробусами считаются от того, что осталось.
+  const M = phone ? 10 : 22;
   const GAP = 0.26;             // coupling between cars, in car lengths
   const TRAIN_GAP = 4;          // gap between trains, same units
   // The track has as few turns as it can: a short snake is calmer to watch.
@@ -8644,13 +8661,41 @@ function init(root) {
         white-space: nowrap;
       }
 
-      /* On a phone the card is read on a screen it has to fit into whole, so
-         the pictures give up the height they can spare. */
+      /* On a phone the card is read on a screen it has to fit into whole — but
+         the pictures had given up so much height that the bus was a sticker
+         and the train a hairline. Both get it back; the room comes out of the
+         width, see below. */
       @media (max-width: 860px) {
-        .metro-brief-fig { gap: 10px; }
-        .metro-brief-fig-bus { --fig-h: 24px; }
-        .metro-brief-fig-train { --fig-h: 24px; }
+        .metro-brief-fig { gap: 8px; }
+        .metro-brief-fig-bus { --fig-h: 44px; }
+        .metro-brief-fig-train { --fig-h: 44px; }
         .metro-brief-times { font-size: 1.0625rem; }
+
+        /* Поезд в двадцать восемь длин к одной высоте на телефоне —
+           волосок: на всю ширину строки ему достается девять пикселей,
+           и вагонов в нем не разглядеть. Поэтому здесь из поезда показан
+           один головной вагон — ровно как у электробуса, одна машина и
+           счет рядом. Обрезает его сам рисунок: cover тянет картинку по
+           высоте коробки и отрезает все, что не влезло. Вагон взят средний, а
+           не головной: у головного кабина и скошенный нос, и он читается как
+           «вот поезд целиком», а счет рядом — вагонам. В файле вагоны стоят с
+           шагом 612 единиц при высоте 173, средний из восьми начинается на
+           2483-й, сам он шириной 602 — отсюда обе дроби. */
+        .metro-brief-fig-train .metro-brief-train {
+          flex: none;
+          width: calc(var(--fig-h) * 3.48);
+          height: 100%;
+          object-fit: cover;
+          object-position: calc(var(--fig-h) * -14.35) center;
+        }
+
+        /* И счет тогда не поездам, а вагонам: их число строка и называет
+           первым. Инлайновый display: none на телефонном числе стоит в самой
+           разметке — карточка играет до того, как приедут стили блока, и без
+           него на экране мелькнуло бы «16134». Перебить инлайн можно только
+           важностью. */
+        .metro-brief-times .metro-times-wide { display: none; }
+        .metro-brief-times .metro-times-phone { display: inline !important; }
       }
 
       /* The legend sample is a whole train, so it replaces the single bar of
@@ -8707,8 +8752,31 @@ function init(root) {
         width: auto;
       }
 
+      /* На телефоне большой электробус из легенды уходит. Он занимал треть
+         карточки, а дорогам под ним оставалось столько высоты, что ехавших
+         по ним электробусов было не разглядеть вовсе — а они тут и есть
+         ответ. Остается значок и подпись рядом, как у метро, а освободившееся
+         забирают дороги. */
       @media (max-width: 860px) {
-        .metro-bus-legend { height: 66px; }
+        .metro-legend-bus,
+        .metro-legend-arrow { display: none; }
+
+        .metro-bus-legend {
+          flex: none;
+          height: auto;
+          margin: 0;
+          display: flex;
+          align-items: center;
+        }
+
+        /* Значок уже не того размера, что электробусы на дорогах, — там они
+           в несколько пикселей. Размер здесь свой, читаемый. */
+        .metro-legend-sample {
+          position: static;
+          top: auto;
+          width: 30px;
+          height: auto;
+        }
       }
 
       /* The switch between the two modes stands above both columns, so the
@@ -9258,7 +9326,11 @@ function init(root) {
     // Every road carries its sign above it, so each one needs a strip of
     // ground of its own on top. The sign stands closer to its own road than
     // to the one above, so it is clear whose name it is.
-    const signH = font * 2, below = font * 0.35, above = font * 1.3;
+    // На телефоне воздуха над табличкой вчетверо меньше: эти полоски земли
+    // съедали треть картинки, а дороги под ними выходили такими тонкими, что
+    // электробусов на них было не разглядеть. Город при этом назван дважды —
+    // табличкой и переключателем под картинкой, так что путать их не с чем.
+    const signH = font * 2, below = font * 0.35, above = font * (phone ? 0.35 : 1.3);
     const strip = signH + below + above;
     const forSigns = strip * CITIES.length;
 
@@ -9583,6 +9655,10 @@ function init(root) {
 
   function syncLegendSample() {
     if (!flock) return;
+    // На телефоне большой картинки нет, и стрелке некуда вести: в легенде
+    // остается один значок, и размер ему дают стили — на дорогах электробус
+    // там в несколько пикселей длиной, значком такой не разглядеть.
+    if (phone) return;
     const box = busLegendEl.getBoundingClientRect();
     if (!box.width) return;
 
@@ -9718,8 +9794,12 @@ function init(root) {
     if (stopEl) stopEl.textContent = m.stop;
     scoreTitleEl.textContent = m.title;
     // In the bus mode the caption is written on the bus itself.
-    legendTextEl.textContent = state.mode === 'bus' ? '' : m.legend;
-    legendTextEl.style.display = state.mode === 'bus' ? 'none' : '';
+    // На широком экране подпись к электробусу написана на его же борту, и
+    // второй раз ее не повторяют. На телефоне борта нет — есть значок, и
+    // подпись к нему приходит словами, как у метро.
+    const painted = state.mode === 'bus' && !phone;
+    legendTextEl.textContent = painted ? '' : m.legend;
+    legendTextEl.style.display = painted ? 'none' : '';
     trainPicEl.style.display = state.mode === 'metro' ? '' : 'none';
     legendTrainEl.style.display = state.mode === 'metro' ? '' : 'none';
     busLegendEl.style.display = state.mode === 'bus' ? '' : 'none';
@@ -10020,7 +10100,24 @@ function init(root) {
            освободившееся достается арене. */
         .stadium-body .city-stats { display: none; }
 
-        .stadium-body .canvas-card { height: 40dvh; }
+        /* «Стадион твой: попробуй выключить город или категорию» на телефоне
+           уходит: управление тут же, под ареной, и что оно нажимается —
+           видно. А строка в две трети ширины экрана стояла между счетом и
+           картинкой и отнимала у арены сорок пять пикселей. */
+        .stadium-body .meter-note { display: none; }
+
+        /* Арена упирается в ширину, а не в высоту: чаша в полтора раза шире,
+           чем высока, а карточка на телефоне почти квадратная — под ареной
+           оставалось семьдесят пикселей белого, и расти ей было некуда.
+           Поэтому здесь карточка выходит в край экрана, а поля внутри нее
+           ужимаются: полтора сантиметра бортов — это восьмая часть арены. */
+        .stadium-body .canvas-card {
+          height: 40dvh;
+          margin-left: -16px;
+          margin-right: -16px;
+          padding-left: 6px;
+          padding-right: 6px;
+        }
 
         /* Картинка перестает быть прибитой: блок помещается на экран целиком,
            и прибивать ее не к чему — зато при прокрутке она наезжала на

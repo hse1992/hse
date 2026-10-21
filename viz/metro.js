@@ -151,7 +151,9 @@ export const meta = {
                this keeps it in the page for that moment -->
           <img class="metro-brief-train" style="max-width: 100%"
                src="assets/poezd.svg" alt="" aria-hidden="true">
-          <span class="metro-brief-times">&times;&nbsp;${TRAINS}</span>
+          <span class="metro-brief-times">&times;&nbsp;<span
+            class="metro-times-wide">${TRAINS}</span><span
+            class="metro-times-phone" style="display: none">${nf(CARS_TOTAL)}</span></span>
         </span>
       </span>
     </span>`
@@ -159,6 +161,11 @@ export const meta = {
 
 export function init(root) {
   'use strict';
+
+  // Узкий экран решает сразу несколько вещей — поля вокруг картинки, воздух
+  // под табличками городов, что показывает легенда, — поэтому спрашивается он
+  // один раз и здесь, до всего остального.
+  const phone = window.matchMedia('(max-width: 860px)').matches;
 
   // Canvas has no CSS variables, so the palette is read once from the tokens —
   // read and not copied: a value written out here goes on being the old one
@@ -191,7 +198,9 @@ export function init(root) {
   const BEAM_FAR = clear(BEAM_NEAR);
   const HSE_BLUE = token('--hse-blue');
 
-  const M = 22;                 // margin around the track
+  // Поля вокруг картинки. На телефоне они вдвое меньше: там и самой картинки
+  // вдвое меньше, а поезда с электробусами считаются от того, что осталось.
+  const M = phone ? 10 : 22;
   const GAP = 0.26;             // coupling between cars, in car lengths
   const TRAIN_GAP = 4;          // gap between trains, same units
   // The track has as few turns as it can: a short snake is calmer to watch.
@@ -345,13 +354,41 @@ export function init(root) {
         white-space: nowrap;
       }
 
-      /* On a phone the card is read on a screen it has to fit into whole, so
-         the pictures give up the height they can spare. */
+      /* On a phone the card is read on a screen it has to fit into whole — but
+         the pictures had given up so much height that the bus was a sticker
+         and the train a hairline. Both get it back; the room comes out of the
+         width, see below. */
       @media (max-width: 860px) {
-        .metro-brief-fig { gap: 10px; }
-        .metro-brief-fig-bus { --fig-h: 24px; }
-        .metro-brief-fig-train { --fig-h: 24px; }
+        .metro-brief-fig { gap: 8px; }
+        .metro-brief-fig-bus { --fig-h: 44px; }
+        .metro-brief-fig-train { --fig-h: 44px; }
         .metro-brief-times { font-size: 1.0625rem; }
+
+        /* Поезд в двадцать восемь длин к одной высоте на телефоне —
+           волосок: на всю ширину строки ему достается девять пикселей,
+           и вагонов в нем не разглядеть. Поэтому здесь из поезда показан
+           один головной вагон — ровно как у электробуса, одна машина и
+           счет рядом. Обрезает его сам рисунок: cover тянет картинку по
+           высоте коробки и отрезает все, что не влезло. Вагон взят средний, а
+           не головной: у головного кабина и скошенный нос, и он читается как
+           «вот поезд целиком», а счет рядом — вагонам. В файле вагоны стоят с
+           шагом 612 единиц при высоте 173, средний из восьми начинается на
+           2483-й, сам он шириной 602 — отсюда обе дроби. */
+        .metro-brief-fig-train .metro-brief-train {
+          flex: none;
+          width: calc(var(--fig-h) * 3.48);
+          height: 100%;
+          object-fit: cover;
+          object-position: calc(var(--fig-h) * -14.35) center;
+        }
+
+        /* И счет тогда не поездам, а вагонам: их число строка и называет
+           первым. Инлайновый display: none на телефонном числе стоит в самой
+           разметке — карточка играет до того, как приедут стили блока, и без
+           него на экране мелькнуло бы «16134». Перебить инлайн можно только
+           важностью. */
+        .metro-brief-times .metro-times-wide { display: none; }
+        .metro-brief-times .metro-times-phone { display: inline !important; }
       }
 
       /* The legend sample is a whole train, so it replaces the single bar of
@@ -408,8 +445,31 @@ export function init(root) {
         width: auto;
       }
 
+      /* На телефоне большой электробус из легенды уходит. Он занимал треть
+         карточки, а дорогам под ним оставалось столько высоты, что ехавших
+         по ним электробусов было не разглядеть вовсе — а они тут и есть
+         ответ. Остается значок и подпись рядом, как у метро, а освободившееся
+         забирают дороги. */
       @media (max-width: 860px) {
-        .metro-bus-legend { height: 66px; }
+        .metro-legend-bus,
+        .metro-legend-arrow { display: none; }
+
+        .metro-bus-legend {
+          flex: none;
+          height: auto;
+          margin: 0;
+          display: flex;
+          align-items: center;
+        }
+
+        /* Значок уже не того размера, что электробусы на дорогах, — там они
+           в несколько пикселей. Размер здесь свой, читаемый. */
+        .metro-legend-sample {
+          position: static;
+          top: auto;
+          width: 30px;
+          height: auto;
+        }
       }
 
       /* The switch between the two modes stands above both columns, so the
@@ -959,7 +1019,11 @@ export function init(root) {
     // Every road carries its sign above it, so each one needs a strip of
     // ground of its own on top. The sign stands closer to its own road than
     // to the one above, so it is clear whose name it is.
-    const signH = font * 2, below = font * 0.35, above = font * 1.3;
+    // На телефоне воздуха над табличкой вчетверо меньше: эти полоски земли
+    // съедали треть картинки, а дороги под ними выходили такими тонкими, что
+    // электробусов на них было не разглядеть. Город при этом назван дважды —
+    // табличкой и переключателем под картинкой, так что путать их не с чем.
+    const signH = font * 2, below = font * 0.35, above = font * (phone ? 0.35 : 1.3);
     const strip = signH + below + above;
     const forSigns = strip * CITIES.length;
 
@@ -1284,6 +1348,10 @@ export function init(root) {
 
   function syncLegendSample() {
     if (!flock) return;
+    // На телефоне большой картинки нет, и стрелке некуда вести: в легенде
+    // остается один значок, и размер ему дают стили — на дорогах электробус
+    // там в несколько пикселей длиной, значком такой не разглядеть.
+    if (phone) return;
     const box = busLegendEl.getBoundingClientRect();
     if (!box.width) return;
 
@@ -1419,8 +1487,12 @@ export function init(root) {
     if (stopEl) stopEl.textContent = m.stop;
     scoreTitleEl.textContent = m.title;
     // In the bus mode the caption is written on the bus itself.
-    legendTextEl.textContent = state.mode === 'bus' ? '' : m.legend;
-    legendTextEl.style.display = state.mode === 'bus' ? 'none' : '';
+    // На широком экране подпись к электробусу написана на его же борту, и
+    // второй раз ее не повторяют. На телефоне борта нет — есть значок, и
+    // подпись к нему приходит словами, как у метро.
+    const painted = state.mode === 'bus' && !phone;
+    legendTextEl.textContent = painted ? '' : m.legend;
+    legendTextEl.style.display = painted ? 'none' : '';
     trainPicEl.style.display = state.mode === 'metro' ? '' : 'none';
     legendTrainEl.style.display = state.mode === 'metro' ? '' : 'none';
     busLegendEl.style.display = state.mode === 'bus' ? '' : 'none';
