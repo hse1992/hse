@@ -534,8 +534,13 @@ export function init(root) {
            важно, какой это город и включен ли он. */
         .metro-inner .city-stats { display: none; }
 
-        /* И освободившееся отдается картинке. */
-        .metro-inner .canvas-card { height: 45dvh; }
+        /* И освободившееся отдается картинке. Высота у нее не доля экрана, а
+           остаток: все остальное в блоке — карточка с числом, переключатель,
+           два ряда городов и кнопки — занимает свои четыре сотни пикселей
+           независимо от того, какой высоты телефон, и доля от экрана то не
+           добирала до края, то вылезала за него. Нижняя граница — для
+           телефона, положенного на бок. */
+        .metro-inner .canvas-card { height: max(200px, calc(100dvh - 400px)); }
 
         /* Картинка перестает быть прибитой: блок помещается на экран целиком,
            и прибивать ее не к чему — зато при прокрутке она наезжала на
@@ -1391,7 +1396,7 @@ export function init(root) {
     card.className = 'city-card';
     card.innerHTML = `
       <div class="city-info">
-        <div class="city-name">${c.name}</div>
+        <div class="city-name">${phone ? c.short : c.name}</div>
         <div class="city-stats">
           <span class="city-stat"><span class="city-dot" style="background:${c.color}"></span><span class="city-stat-text"></span></span>
         </div>

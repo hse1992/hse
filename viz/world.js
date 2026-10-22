@@ -13,6 +13,10 @@ const WORLD = Object.values(REGION_WORLD).reduce((n, x) => n + x, 0);
 
 const countries = (n) => plural(n, 'страна', 'страны', 'стран');
 
+// Узкий экран решается один раз на загрузку: переходный экран собирается в
+// meta, до всякого init, и смена ширины через границу страницу перезагружает.
+const PHONE = window.matchMedia('(max-width: 860px)').matches;
+
 // After «из» the numeral goes into the genitive: из 21 страны, но из 44 стран.
 const countriesOf = (n) => plural(n, 'страны', 'стран', 'стран');
 
@@ -42,6 +46,17 @@ export const meta = {
   // The question is picked out in corporate blue, the way the page picks out
   // what a screen turns on. Painted inline: the shell draws the lead-in before
   // the styles of the module arrive.
+  //
+  // На телефоне заливки у вопроса нет. Там строка вдвое уже, фраза переносится
+  // на две строки, и синий прямоугольник разваливается на два куска поперек
+  // экрана — рядом с красным «5 600+ иностранцев» это уже не выделение, а
+  // пестрота. Вопрос там стоит отдельной строкой и выделен самим собой:
+  // корпоративный синий, жирнее и крупнее соседней строки.
+  //
+  // Перенос и выделение заданы инлайном, а не стилями блока: каркас рисует
+  // переходный экран до того, как приедет `init`, и строку, разбитую его
+  // стилями, он обмеряет как одну длинную — решает, что она не влезает, и
+  // уменьшает весь экран. См. «Что каркас рисует до сборки блока» в CLAUDE.md.
   lead: {
     exit: 'top',
     // The screen goes up and the scale comes up under it in the same beat:
@@ -53,8 +68,12 @@ export const meta = {
     // stadium the lead-in stands on.
     text: 'Из них <span class="world-ask" style="background: var(--foreign); color: var(--card)">'
       + `${nf(FOREIGN)}+ ${plural(FOREIGN, 'иностранец', 'иностранца', 'иностранцев')}</span>. `
-      + '<span class="world-ask" style="background: var(--hse-blue); color: var(--card)">'
-      + 'Как думаешь, из скольких стран?</span>'
+      + (PHONE
+        ? '<span style="display: block; margin-top: 0.5em; color: var(--hse-blue);'
+          + ' font-weight: 700; font-size: 1.12em">'
+          + 'Как думаешь, из скольких стран?</span>'
+        : '<span class="world-ask" style="background: var(--hse-blue); color: var(--card)">'
+          + 'Как думаешь, из скольких стран?</span>')
   },
   // Pushkin himself closes the line, the way the scarf closes it on the
   // stadium: a slot shorter than the line holds the width, and the portrait
@@ -845,7 +864,7 @@ export function init(root) {
     card.className = 'city-card world-city';
     card.innerHTML = `
       <div class="city-info">
-        <div class="city-name">${c.name}</div>
+        <div class="city-name">${phone.matches ? c.short : c.name}</div>
         <div class="city-stats">
           <span class="city-stat"><span class="city-dot" style="background:${c.color}"></span><span class="city-stat-text">${n} ${countries(n)}</span></span>
         </div>

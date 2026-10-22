@@ -17,8 +17,13 @@ const LIGHT = 0.52;
 // areaStudy — the part of it used for teaching and labs.
 // admitted — students enrolled in the current admission campaign.
 // foreign — students from abroad, rounded down to tens.
+// Короткое имя для узких строк: первое слово сворачивается в букву с точкой —
+// «С. Петербург», «Н. Новгород». Города из одного слова остаются собой.
+const shorten = (name) => name.replace(/^([А-Я])[а-я]+[ -](?=[А-Я])/, '$1. ');
+
 const city = (key, name, color, students, staff, area, areaStudy, admitted, foreign) => ({
   key, name, students, staff, area, areaStudy, admitted, foreign,
+  short: shorten(name),     // имя для строки, в которой полное не помещается
   color,                    // main colour of the city
   colorLight: tint(color, LIGHT)
 });

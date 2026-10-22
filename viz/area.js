@@ -84,6 +84,11 @@ const PER_FLAT = Math.round(PEOPLE / (HOUSES_TOTAL * FLATS));
 export function init(root) {
   'use strict';
 
+  // Узкий экран решает и раскладку, и то, какие имена у городов в карточках:
+  // разметка строится раньше, чем доходит до самой истории, поэтому
+  // спрашивается он здесь, до всего остального.
+  const phone = window.matchMedia('(max-width: 860px)');
+
   // Canvas has no CSS variables, so the palette is read once from the tokens —
   // read and not copied: a value written out here goes on being the old one
   // after the token beside it has changed, and nothing says so.
@@ -484,15 +489,38 @@ export function init(root) {
         /* Одна колонка: фигуры идут друг за другом, и каждой достается вся
            ширина. Та, что сейчас не показывается, не занимает и места —
            иначе обе делили бы высоту, и каждая осталась бы мелкой. */
+        /* На широком экране колонок две и они стоят по центру коробки. Здесь
+           колонка одна, и то, чего еще не показывали, из потока убрано — так
+           что центрировать нечего: единственная строка повисала посреди
+           пустого экрана, оторванная и от припаркованного заголовка над ней,
+           и от картинки, которая придет под ней. Прижата к верху, она читается
+           продолжением «Но есть 196 зданий. А это уже целый город». */
         .area-steps {
           grid-template-columns: 1fr;
           gap: 16px;
+          align-content: start;
         }
 
         .area-step:not(.on) { display: none; }
 
-        .area-step-title,
-        .area-step-question { font-size: 1.375rem; }
+        /* «Общая площадь этих зданий» с числом приходит на экран одна, без
+           поля и без пятиэтажки: до них еще два такта. Набранная в 22
+           пикселя, она терялась в пустом экране — это главная цифра блока, и
+           весит она столько же, сколько заголовок раздела. Здесь она идет от
+           ширины: на узком телефоне помельче, на широком подходит к своим
+           двум ремам с большого экрана. */
+        .area-step-title {
+          font-size: clamp(1.625rem, 7.2vw, 2rem);
+          text-wrap: balance;
+        }
+
+        /* Вопрос под обеими цифрами — длинное предложение, и в размер
+           заголовка он разворачивается в полэкрана. Он на ступеньку мельче. */
+        .area-step-question { font-size: 1.5rem; }
+
+        /* Плашке с числом при таком кегле нужно чуть больше воздуха по бокам,
+           иначе цифры упираются в края. */
+        .area-step-title .area-mark { padding: 0.1em 0.34em; }
 
         .area-step-line { font-size: 1rem; }
         .area-step-note { font-size: 0.9375rem; }
@@ -854,7 +882,7 @@ export function init(root) {
     card.className = 'city-card';
     card.innerHTML = `
       <div class="city-info">
-        <div class="city-name">${c.name}</div>
+        <div class="city-name">${phone.matches ? c.short : c.name}</div>
         <div class="city-stats">
           <span class="city-stat"><span class="city-dot" style="background:${c.color}"></span><span class="city-stat-text"></span></span>
         </div>
@@ -947,7 +975,6 @@ export function init(root) {
   const LAST = 7;
 
   // The same town as the town section draws — see lib/town-map.js.
-  const phone = window.matchMedia('(max-width: 860px)');
   // На телефоне тот же город показывается втрое уже, и дом в восемь пикселей
   // читается как точка: там он просит дома покрупнее.
   const townMap = mountTownMap($('townMap'), { fill: phone.matches, tall: phone.matches });
@@ -1066,9 +1093,26 @@ export function init(root) {
     window.addEventListener('resize', follow);
     follow();
 
-    // And how far the next step is, for the button the shell puts in the
-    // corner: the same travel, read the other way round.
-    ahead = () => stepAhead(-stage.getBoundingClientRect().top, run.offsetHeight, LAST, 0.8);
+    // And how far the next state is, for the shell that moves the page: the
+    // same travel, read the other way round.
+    //
+    // Последний отрезок истории кончается там, где блок отдает себя читателю:
+    // сцена пустеет, а калькулятор лежит ниже экрана — остановка ровно на этой
+    // границе была пустым экраном, и следующий ход, которому не на что
+    // опереться, пролетал мимо калькулятора на целый экран. Поэтому последний
+    // ход истории и приход калькулятора — одно движение: ход ведет не на
+    // границу отрезка, а на верх калькулятора.
+    ahead = () => {
+      const box = stage.getBoundingClientRect();
+      const walked = -box.top;
+      const told = stepAhead(walked, run.offsetHeight, LAST, 0.8);
+      // Калькулятор начинается там, где кончается сцена: собственной коробки
+      // у него нет — на телефоне обертка раскрыта в display: contents, и
+      // мерить у нее нечего.
+      const toCalc = box.bottom > 2 ? Math.round(box.bottom) : 0;
+      if (!told) return toCalc;
+      return walked + told >= run.offsetHeight * 0.8 ? (toCalc || told) : told;
+    };
   }
 
   return {

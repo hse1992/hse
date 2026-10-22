@@ -1883,6 +1883,17 @@ button { font-family: inherit; }
     font-size: 0.875rem;
   }
 
+  /* Экран сжимается целиком, когда не влезает по высоте, — и вместе с высотой
+     теряет ширину: строки съезжались к середине, и самый высокий экран на
+     странице («Все эти здания нужны для того…») читался узким столбиком с
+     широкими полями по бокам. Коробке выдается запас ровно на ту же долю, на
+     которую ее потом сожмут, — после сжатия она занимает ширину целиком.
+     Отрицательные поля, а не ширина с left: иначе пришлось бы спорить с
+     translate в том же transform. */
+  .viz-lead {
+    margin-inline: calc((1 - 1 / var(--lead-squeeze, 1)) * 50%);
+  }
+
   /* Подзаголовок — это четыре-пять строк, и на телефоне они стоят между
      заголовком и картинкой насовсем. Прочитаны они были на титульной карточке,
      где в них весь смысл и где под них отдан целый экран; дальше они только
@@ -1958,9 +1969,16 @@ button { font-family: inherit; }
     gap: 8px;
   }
 
+  /* Четыре города в столбик — это четыре строки и двести пикселей экрана, и
+     блоки упирались в его край: низ со списком и кнопками не влезал. По двое
+     в ряд они занимают вдвое меньше. Имена в такой ряд идут короткие —
+     «С. Петербург», «Н. Новгород»; их считает data/hse.js, а модуль берет
+     `c.short` вместо `c.name`, когда экран узкий. */
   .city-list {
     overflow: visible;
-    gap: 5px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
   }
 
   /* The cards of the cities are read under a picture pinned to the top of the
@@ -1973,8 +1991,8 @@ button { font-family: inherit; }
      nothing above it. So here a card is one line of type with its numbers
      under it, and the numbers stand in a row instead of a column. */
   .city-card {
-    padding: 8px 12px;
-    gap: 12px;
+    padding: 8px 10px;
+    gap: 8px;
   }
 
   /* Имя и числа — в строку, а не друг под другом: пока они помещаются, город
@@ -2797,7 +2815,12 @@ function mountProgress(titles = [], shorts = []) {
     ended = p > 0.999;              // the story is over, there is nothing to prompt
     hint.classList.remove('is-here');
     clearTimeout(timer);
-    const cover = p <= 0.001;
+    // Блок, который читается кадрами, держит страницу прибитым телом, и
+    // прокрутка в этот момент обнулена. Ноль тут значит не «читатель на
+    // обложке», а «страница в руках у блока» — и подсказка выходила посреди
+    // стадиона, закрывая собой арену.
+    const held = document.documentElement.classList.contains('is-holding');
+    const cover = !held && p <= 0.001;
     // На телефоне подсказка живет только на титульном экране: там она и нужна,
     // один раз сказать, чем листают. Дальше читатель уже листает сам, а она
     // стоит у нижнего края и закрывает собой то, чем блок кончается, — кнопки,
@@ -2980,6 +3003,10 @@ const LEAD_HOLD = 0.5;                 // the share of that spent holding
 // Air left above and below a lead-in screen on a phone, where it is fixed to
 // the window and has nothing else to stand off from.
 const LEAD_AIR = 20;
+// Припаркованному экрану на телефоне воздуха нужно побольше: в правом верхнем
+// углу стоит полоска «4 из 8 — Здания», и заголовок, поднятый вплотную к краю,
+// уезжает под нее.
+const LEAD_AIR_PARKED = 34;
 
 // How much of that scrolling a phone asks for. On a wide screen every part of
 // the opening is a beat — one movement of the wheel each — and the same count
@@ -3101,14 +3128,29 @@ function leadCard(section, K = () => CARD_K, cardHeight = null) {
     // the container was wrong twice over: it asked the screen to fit a section
     // seven thousand pixels tall, so nothing was ever squeezed and the tallest
     // screen on the page was cut off at both ends, head and question alike.
-    const kids = [...lead.children].map((el) => el.getBoundingClientRect());
-    const full = NARROW.matches && kids.length
-      ? Math.max(...kids.map((r) => r.bottom)) - Math.min(...kids.map((r) => r.top))
-      : lead.offsetHeight;
+    const spread = () => {
+      const kids = [...lead.children].map((el) => el.getBoundingClientRect());
+      return NARROW.matches && kids.length
+        ? Math.max(...kids.map((r) => r.bottom)) - Math.min(...kids.map((r) => r.top))
+        : lead.offsetHeight;
+    };
+    const full = spread();
     const room = NARROW.matches
       ? window.innerHeight - LEAD_AIR * 2
       : container.clientHeight;
-    const k = full > room && room > 0 ? room / full : 1;
+    let k = full > room && room > 0 ? room / full : 1;
+    // Сжатие забирает у экрана не только высоту, но и ширину: он уезжал в
+    // узкий столбик посреди экрана. Поэтому на телефоне коробке выдается
+    // запас ровно на эту долю (см. --lead-squeeze в layout.css), и после
+    // сжатия она занимает ширину целиком. Но в широкой коробке строки
+    // переносятся реже, и экран выходит ниже — значит, и сжимать его нужно
+    // меньше. Отсюда вторая мерка: первая узнает долю, вторая меряет уже в
+    // той ширине, которую эта доля дает.
+    if (NARROW.matches && k < 1) {
+      section.style.setProperty('--lead-squeeze', k.toFixed(4));
+      const shown = spread();                  // уже сжатая высота
+      if (shown > 0) k = Math.min(1, Math.max(k, (room * k) / shown));
+    }
     parts.forEach((el, i) => { [el.style.height, el.style.opacity] = kept[i]; });
     section.style.setProperty('--lead-squeeze', k.toFixed(4));
     // How tall the screen stands after all that, for parking it on a phone:
@@ -3202,7 +3244,16 @@ function leadCard(section, K = () => CARD_K, cardHeight = null) {
     // instead, as every other screen is slid aside, left the phrase gone a
     // screen before the picture it was about arrived.
     if (parks) {
-      const up = Math.max(0, (window.innerHeight - span) / 2 - LEAD_AIR);
+      // Высота берется живая, а не та, что осталась от последней мерки.
+      // Размах детей от сдвига не зависит — экран двигается целиком, — а вот
+      // мерка могла случиться, когда строки ложились иначе: у «Зданий»
+      // припаркованный экран резервировал под себя 308 пикселей при
+      // собственных 182, и треть экрана над городом стояла пустой.
+      const kids = [...lead.children].map((el) => el.getBoundingClientRect());
+      const tall = kids.length
+        ? Math.max(...kids.map((r) => r.bottom)) - Math.min(...kids.map((r) => r.top))
+        : span;
+      const up = Math.max(0, (window.innerHeight - tall) / 2 - LEAD_AIR_PARKED);
       // Экран, под которым лежит картинка из прошлого блока, стоит наверху с
       // самого начала, а не съезжает туда по дороге: иначе строки держат
       // середину окна, а арене достается полоса у нижнего края. На широком
@@ -3216,7 +3267,7 @@ function leadCard(section, K = () => CARD_K, cardHeight = null) {
       // instead of behind it — the same room the wide layout holds, measured
       // against the window rather than against the pinned container.
       section.style.setProperty('--lead-hold',
-        `${Math.round((held ? 1 : e) * (span + LEAD_AIR * 2))}px`);
+        `${Math.round((held ? 1 : e) * (tall + LEAD_AIR_PARKED * 2))}px`);
       return;
     }
 
@@ -3702,12 +3753,18 @@ function nameSwitches(root) {
 // the last of it for that. Nought means there is nothing ahead: the block has
 // not taken the screen yet, or its story is told.
 function stepAhead(gone, span, parts, share = 1) {
-  if (!(span > 0) || !(parts > 0) || gone < 0) return 0;
-  if (gone >= span * share) return 0;
+  // Доля пикселя назад — это все еще ноль, а не «блок еще не на экране». Ход
+  // приводит страницу ровно к верху блока, и getBoundingClientRect дает там
+  // то 0, то −0,09. На минусе ответ был «впереди ничего», каркас не видел ни
+  // одной остановки и уезжал на целый экран — вся история блока проносилась
+  // за одно движение. Отсюда допуск в пиксель и зажим.
+  if (!(span > 0) || !(parts > 0) || gone < -1) return 0;
+  const walked = Math.max(0, gone);
+  if (walked >= span * share) return 0;
   const stretch = (span * share) / parts;
   // A pixel past the line rather than onto it: landing exactly on a boundary
   // leaves which side of it the block is on to the rounding.
-  return Math.ceil((Math.floor(gone / stretch) + 1) * stretch - gone) + 1;
+  return Math.ceil((Math.floor(walked / stretch) + 1) * stretch - walked) + 1;
 }
 
 return { onResize, mountCanvas, nameSwitches, stepAhead };
@@ -3745,8 +3802,13 @@ const LIGHT = 0.52;
 // areaStudy — the part of it used for teaching and labs.
 // admitted — students enrolled in the current admission campaign.
 // foreign — students from abroad, rounded down to tens.
+// Короткое имя для узких строк: первое слово сворачивается в букву с точкой —
+// «С. Петербург», «Н. Новгород». Города из одного слова остаются собой.
+const shorten = (name) => name.replace(/^([А-Я])[а-я]+[ -](?=[А-Я])/, '$1. ');
+
 const city = (key, name, color, students, staff, area, areaStudy, admitted, foreign) => ({
   key, name, students, staff, area, areaStudy, admitted, foreign,
+  short: shorten(name),     // имя для строки, в которой полное не помещается
   color,                    // main colour of the city
   colorLight: tint(color, LIGHT)
 });
@@ -4672,6 +4734,7 @@ function mountScrolled(entries, onProgress) {
   // приходит по кускам, за ним садится титульная карточка), состояния истории
   // внутри блока и начало открытия следующего раздела.
   const AT_MOST = 2.2;                 // дальше одного такта за раз не ходим, экранов
+  const ОСТАТОК = 24;                  // ближе этого граница раздела — уже здесь, px
   const стопы = (dir = 1) => {
     const out = [];
     const y = window.scrollY;
@@ -4679,20 +4742,28 @@ function mountScrolled(entries, onProgress) {
     // Внутри блока — его собственное следующее состояние.
     const ahead = here && here.ahead ? here.ahead() : 0;
     if (ahead > 0 && dir > 0) out.push(ahead);
-    // Открытия: свои и соседние, те, что еще впереди.
+    // Границы разделов и открытий — это уже не состояния блока, а геометрия
+    // страницы, и держатся они отдельно: к ним другая мерка, см. ниже.
+    const межи = [];
     entries.forEach((e) => {
       if (!e.opening || !e.opening.stops) return;
       const top = y + e.section.getBoundingClientRect().top;
       tried('такты открытия', () => {
-        e.opening.stops().forEach((s) => out.push(top + s - y));
+        e.opening.stops().forEach((s) => межи.push(top + s - y));
       });
       // Начало блока: там, где открытие кончилось и картинка на экране.
       const body = e.section.querySelector('.viz-body');
-      if (body) out.push(y + body.getBoundingClientRect().top - y);
+      if (body) межи.push(y + body.getBoundingClientRect().top - y);
     });
-    const рядом = out
-      .map((d) => d * dir)
-      .filter((d) => d > 2)
+    const взять = (list) => list.map((d) => d * dir).filter((d) => d > 2);
+    // Несколько пикселей до границы раздела — это не такт, а остаток
+    // прошлого: ход уезжает ровно на столько, сколько попросил, а блок на
+    // приходе складывает свои цифры и меняет высоту, и страница под читателем
+    // чуть съезжает. Нажатие в такой остаток выглядит сломанной кнопкой.
+    // Состояний блока это не касается: там счет ведет сам блок, и маленькое
+    // число у него значит, что следующий кадр и правда близко.
+    const крупные = [...взять(out), ...взять(межи).filter((d) => d > ОСТАТОК)];
+    const рядом = (крупные.length ? крупные : [...взять(out), ...взять(межи)])
       .sort((a, b) => a - b);
     if (рядом.length) return рядом;
     // Хвост блока, где тактов больше нет: список профессий, лента лет,
@@ -4736,6 +4807,11 @@ function mountScrolled(entries, onProgress) {
     gliding = performance.now();
     requestAnimationFrame(glide);
   };
+
+  // Блок может попросить ход сам — кнопкой, которой читатель отправляет свою
+  // догадку. На широком экране это умеет машина тактов; здесь ход тот же, что
+  // от пальца.
+  document.addEventListener('story:next', () => шаг(1));
 
   // ---------- Картинка, переданная предыдущим блоком ----------
   // Стадион отдает «Флагам» свою арену: вопрос про страны задается над ней —
@@ -8065,6 +8141,7 @@ async function mountLogo(host, { label = 'Высшая школа не толь�
   `;
   const ring = host.querySelector('[data-el="ring"]');
   const orig = host.querySelector('.logo-orig');
+  const drawn = host.querySelector('svg');
 
   // ---------- type metrics ----------
   const ctx = document.createElement('canvas').getContext('2d');
@@ -8146,7 +8223,10 @@ async function mountLogo(host, { label = 'Высшая школа не толь�
   const SEED = CUT - 1;                 // the dot the new words grow out of
   const order = nodes.filter((n) => n.fresh && n.ch !== ' ');
 
+  let last = 0;                         // на каком кадре кольцо стоит сейчас
+
   function place(p) {
+    last = p;
     const seed = start[SEED] + (((open[SEED] - start[SEED] + 540) % 360) - 180) * p;
 
     for (const n of nodes) {
@@ -8166,12 +8246,22 @@ async function mountLogo(host, { label = 'Высшая школа не толь�
       n.pop.style.opacity = ease(t).toFixed(3);
     }
 
-    // The rebuilt ring is a hair away from the printed one, so the file itself
-    // is what the reader sees until the drawing starts moving.
-    orig.style.opacity = p > 0.001 ? '0' : '1';
+    // Перерисованное кольцо на волос отличается от печатного, поэтому в покое
+    // читатель видит сам файл. Рисунок при этом не просто лежит под ним, а
+    // гасится: лежащий под оригиналом, он держался только порядком наложения —
+    // а стоит файлу не нарисоваться вовремя, и сквозь него проступал набор.
+    // Гасится прозрачностью, а не visibility: имя у логотипа написано на
+    // рисунке, и экранный диктор должен читать его в любом из двух состояний.
+    const still = p <= 0.001;
+    const ready = orig.complete && orig.naturalWidth > 0;
+    orig.style.opacity = still ? '1' : '0';
+    drawn.style.opacity = still && ready ? '0' : '1';
   }
 
   place(0);
+  // Файл мог еще не дорисоваться к первому кадру — тогда рисунок не гасили, и
+  // в покое читатель видел бы его. Как только файл готов, кадр переставляется.
+  if (!orig.complete) orig.addEventListener('load', () => place(last), { once: true });
   return { place };
 }
 
@@ -8826,8 +8916,13 @@ function init(root) {
            важно, какой это город и включен ли он. */
         .metro-inner .city-stats { display: none; }
 
-        /* И освободившееся отдается картинке. */
-        .metro-inner .canvas-card { height: 45dvh; }
+        /* И освободившееся отдается картинке. Высота у нее не доля экрана, а
+           остаток: все остальное в блоке — карточка с числом, переключатель,
+           два ряда городов и кнопки — занимает свои четыре сотни пикселей
+           независимо от того, какой высоты телефон, и доля от экрана то не
+           добирала до края, то вылезала за него. Нижняя граница — для
+           телефона, положенного на бок. */
+        .metro-inner .canvas-card { height: max(200px, calc(100dvh - 400px)); }
 
         /* Картинка перестает быть прибитой: блок помещается на экран целиком,
            и прибивать ее не к чему — зато при прокрутке она наезжала на
@@ -9683,7 +9778,7 @@ function init(root) {
     card.className = 'city-card';
     card.innerHTML = `
       <div class="city-info">
-        <div class="city-name">${c.name}</div>
+        <div class="city-name">${phone ? c.short : c.name}</div>
         <div class="city-stats">
           <span class="city-stat"><span class="city-dot" style="background:${c.color}"></span><span class="city-stat-text"></span></span>
         </div>
@@ -9885,6 +9980,11 @@ const meta = {
 
 function init(root) {
   'use strict';
+
+  // Узкий экран решает и раскладку, и то, какие имена у городов в карточках,
+  // и кто ведет историю — поэтому спрашивается он один раз и здесь, до всего
+  // остального: разметка строится раньше, чем доходит до самой истории.
+  const phone = window.matchMedia('(max-width: 860px)');
 
   // ---------- Data ----------
   const STRIPES = 800;
@@ -10581,7 +10681,7 @@ function init(root) {
     card.className = 'city-card';
     card.innerHTML = `
       <div class="city-info">
-        <div class="city-name">${c.name}</div>
+        <div class="city-name">${phone.matches ? c.short : c.name}</div>
         <div class="city-stats">
           <span class="city-stat city-stat-students"><span class="city-dot" style="background:${c.color}"></span><span class="city-stat-text"></span></span>
           <span class="city-stat city-stat-staff"><span class="city-dot" style="background:${c.colorLight}"></span><span class="city-stat-text"></span></span>
@@ -10747,7 +10847,6 @@ function init(root) {
   // 620 ms the stands take to change colour, so the number and the picture
   // arrive together.
   const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const phone = window.matchMedia('(max-width: 860px)');
   // Кадрами ведет каркас; прокруточная история тогда не нужна и только мешала
   // бы ему — два хозяина у одного step().
   const tapped = phone.matches && meta.taps;
@@ -11005,6 +11104,10 @@ const WORLD = Object.values(REGION_WORLD).reduce((n, x) => n + x, 0);
 
 const countries = (n) => plural(n, 'страна', 'страны', 'стран');
 
+// Узкий экран решается один раз на загрузку: переходный экран собирается в
+// meta, до всякого init, и смена ширины через границу страницу перезагружает.
+const PHONE = window.matchMedia('(max-width: 860px)').matches;
+
 // After «из» the numeral goes into the genitive: из 21 страны, но из 44 стран.
 const countriesOf = (n) => plural(n, 'страны', 'стран', 'стран');
 
@@ -11034,6 +11137,17 @@ const meta = {
   // The question is picked out in corporate blue, the way the page picks out
   // what a screen turns on. Painted inline: the shell draws the lead-in before
   // the styles of the module arrive.
+  //
+  // На телефоне заливки у вопроса нет. Там строка вдвое уже, фраза переносится
+  // на две строки, и синий прямоугольник разваливается на два куска поперек
+  // экрана — рядом с красным «5 600+ иностранцев» это уже не выделение, а
+  // пестрота. Вопрос там стоит отдельной строкой и выделен самим собой:
+  // корпоративный синий, жирнее и крупнее соседней строки.
+  //
+  // Перенос и выделение заданы инлайном, а не стилями блока: каркас рисует
+  // переходный экран до того, как приедет `init`, и строку, разбитую его
+  // стилями, он обмеряет как одну длинную — решает, что она не влезает, и
+  // уменьшает весь экран. См. «Что каркас рисует до сборки блока» в CLAUDE.md.
   lead: {
     exit: 'top',
     // The screen goes up and the scale comes up under it in the same beat:
@@ -11045,8 +11159,12 @@ const meta = {
     // stadium the lead-in stands on.
     text: 'Из них <span class="world-ask" style="background: var(--foreign); color: var(--card)">'
       + `${nf(FOREIGN)}+ ${plural(FOREIGN, 'иностранец', 'иностранца', 'иностранцев')}</span>. `
-      + '<span class="world-ask" style="background: var(--hse-blue); color: var(--card)">'
-      + 'Как думаешь, из скольких стран?</span>'
+      + (PHONE
+        ? '<span style="display: block; margin-top: 0.5em; color: var(--hse-blue);'
+          + ' font-weight: 700; font-size: 1.12em">'
+          + 'Как думаешь, из скольких стран?</span>'
+        : '<span class="world-ask" style="background: var(--hse-blue); color: var(--card)">'
+          + 'Как думаешь, из скольких стран?</span>')
   },
   // Pushkin himself closes the line, the way the scarf closes it on the
   // stadium: a slot shorter than the line holds the width, and the portrait
@@ -11837,7 +11955,7 @@ function init(root) {
     card.className = 'city-card world-city';
     card.innerHTML = `
       <div class="city-info">
-        <div class="city-name">${c.name}</div>
+        <div class="city-name">${phone.matches ? c.short : c.name}</div>
         <div class="city-stats">
           <span class="city-stat"><span class="city-dot" style="background:${c.color}"></span><span class="city-stat-text">${n} ${countries(n)}</span></span>
         </div>
@@ -12230,6 +12348,11 @@ const PER_FLAT = Math.round(PEOPLE / (HOUSES_TOTAL * FLATS));
 
 function init(root) {
   'use strict';
+
+  // Узкий экран решает и раскладку, и то, какие имена у городов в карточках:
+  // разметка строится раньше, чем доходит до самой истории, поэтому
+  // спрашивается он здесь, до всего остального.
+  const phone = window.matchMedia('(max-width: 860px)');
 
   // Canvas has no CSS variables, so the palette is read once from the tokens —
   // read and not copied: a value written out here goes on being the old one
@@ -12631,15 +12754,38 @@ function init(root) {
         /* Одна колонка: фигуры идут друг за другом, и каждой достается вся
            ширина. Та, что сейчас не показывается, не занимает и места —
            иначе обе делили бы высоту, и каждая осталась бы мелкой. */
+        /* На широком экране колонок две и они стоят по центру коробки. Здесь
+           колонка одна, и то, чего еще не показывали, из потока убрано — так
+           что центрировать нечего: единственная строка повисала посреди
+           пустого экрана, оторванная и от припаркованного заголовка над ней,
+           и от картинки, которая придет под ней. Прижата к верху, она читается
+           продолжением «Но есть 196 зданий. А это уже целый город». */
         .area-steps {
           grid-template-columns: 1fr;
           gap: 16px;
+          align-content: start;
         }
 
         .area-step:not(.on) { display: none; }
 
-        .area-step-title,
-        .area-step-question { font-size: 1.375rem; }
+        /* «Общая площадь этих зданий» с числом приходит на экран одна, без
+           поля и без пятиэтажки: до них еще два такта. Набранная в 22
+           пикселя, она терялась в пустом экране — это главная цифра блока, и
+           весит она столько же, сколько заголовок раздела. Здесь она идет от
+           ширины: на узком телефоне помельче, на широком подходит к своим
+           двум ремам с большого экрана. */
+        .area-step-title {
+          font-size: clamp(1.625rem, 7.2vw, 2rem);
+          text-wrap: balance;
+        }
+
+        /* Вопрос под обеими цифрами — длинное предложение, и в размер
+           заголовка он разворачивается в полэкрана. Он на ступеньку мельче. */
+        .area-step-question { font-size: 1.5rem; }
+
+        /* Плашке с числом при таком кегле нужно чуть больше воздуха по бокам,
+           иначе цифры упираются в края. */
+        .area-step-title .area-mark { padding: 0.1em 0.34em; }
 
         .area-step-line { font-size: 1rem; }
         .area-step-note { font-size: 0.9375rem; }
@@ -13001,7 +13147,7 @@ function init(root) {
     card.className = 'city-card';
     card.innerHTML = `
       <div class="city-info">
-        <div class="city-name">${c.name}</div>
+        <div class="city-name">${phone.matches ? c.short : c.name}</div>
         <div class="city-stats">
           <span class="city-stat"><span class="city-dot" style="background:${c.color}"></span><span class="city-stat-text"></span></span>
         </div>
@@ -13094,7 +13240,6 @@ function init(root) {
   const LAST = 7;
 
   // The same town as the town section draws — see lib/town-map.js.
-  const phone = window.matchMedia('(max-width: 860px)');
   // На телефоне тот же город показывается втрое уже, и дом в восемь пикселей
   // читается как точка: там он просит дома покрупнее.
   const townMap = mountTownMap($('townMap'), { fill: phone.matches, tall: phone.matches });
@@ -13213,9 +13358,26 @@ function init(root) {
     window.addEventListener('resize', follow);
     follow();
 
-    // And how far the next step is, for the button the shell puts in the
-    // corner: the same travel, read the other way round.
-    ahead = () => stepAhead(-stage.getBoundingClientRect().top, run.offsetHeight, LAST, 0.8);
+    // And how far the next state is, for the shell that moves the page: the
+    // same travel, read the other way round.
+    //
+    // Последний отрезок истории кончается там, где блок отдает себя читателю:
+    // сцена пустеет, а калькулятор лежит ниже экрана — остановка ровно на этой
+    // границе была пустым экраном, и следующий ход, которому не на что
+    // опереться, пролетал мимо калькулятора на целый экран. Поэтому последний
+    // ход истории и приход калькулятора — одно движение: ход ведет не на
+    // границу отрезка, а на верх калькулятора.
+    ahead = () => {
+      const box = stage.getBoundingClientRect();
+      const walked = -box.top;
+      const told = stepAhead(walked, run.offsetHeight, LAST, 0.8);
+      // Калькулятор начинается там, где кончается сцена: собственной коробки
+      // у него нет — на телефоне обертка раскрыта в display: contents, и
+      // мерить у нее нечего.
+      const toCalc = box.bottom > 2 ? Math.round(box.bottom) : 0;
+      if (!told) return toCalc;
+      return walked + told >= run.offsetHeight * 0.8 ? (toCalc || told) : told;
+    };
   }
 
   return {
@@ -13860,10 +14022,27 @@ const LEAD_STYLE = `<style>
     .study-lead-say { font-size: 0.9375rem; }
     .study-lead-years { font-size: 3rem; }
     .study-lead-year { font-size: 1.875rem; }
-    .study-lead-card { gap: 14px; margin-top: 0.6em; padding: 22px 18px; }
-    .study-lead-card .study-art { width: 80px; height: 80px; }
-    .study-lead-card .study-since { font-size: 0.9375rem; }
-    .study-lead-card .study-event { font-size: 0.9375rem; }
+    /* Карточка с годом на телефоне ложится в столбик. В строку картинка и три
+       строки текста делят одну ширину, и тексту достается половина: «Тогда в
+       Ладоге заложили каменную крепость» рвется там, где не нужно, а крепость
+       выходит размером с иконку в списке. В столбик картинка становится
+       вдвое крупнее, а строки идут во всю ширину.
+
+       Место для этого есть и так: карточка стоит в коробке подмены, которая
+       держит высоту самого высокого своего состояния — вопроса со шкалой,
+       линейкой и кнопкой, — и до сих пор занимала меньше половины ее. Поэтому
+       экран от этого не становится выше и не сжимается сильнее. */
+    .study-lead-card {
+      flex-direction: column;
+      gap: 12px;
+      margin-top: 0.6em;
+      padding: 20px 18px 24px;
+      text-align: center;
+    }
+    .study-lead-card .study-art { width: 124px; height: 124px; }
+    .study-lead-card .study-lead-col { align-items: center; gap: 4px; }
+    .study-lead-card .study-since { font-size: 1rem; }
+    .study-lead-card .study-event { font-size: 1rem; }
     .study-lead-outro { font-size: 1.375rem; }
   }
 </style>`;
@@ -13938,6 +14117,11 @@ const meta = {
 
 function init(root) {
   'use strict';
+
+  // Узкий экран решает и раскладку, и то, какие имена у городов в карточках:
+  // разметка строится раньше, чем доходит до самой истории, поэтому
+  // спрашивается он здесь, до всего остального.
+  const stacked = window.matchMedia('(max-width: 860px)');
 
   // ---------- Markup ----------
   // The stage with the big number is specific to this visualisation, so its
@@ -14110,6 +14294,13 @@ function init(root) {
         /* The picture has no fixed height of its own, unlike the canvases in
            the other sections: a long event text must not be cut off. */
         #study .canvas-card { height: auto; min-height: 40dvh; }
+
+        /* Числа под именем города — «80 программ, бакалавриат и специалитет»,
+           «154 программы, магистратура» — на телефоне уходят: сверху уже
+           сказано, сколько программ выбрано и сколько их всего, а в карточке
+           важно, какой это город и включен ли он. Без них карточка садится на
+           высоту переключателя, и города встают по двое в ряд, как везде. */
+        #study .city-stats { display: none; }
       }
     </style>
 
@@ -14311,7 +14502,7 @@ function init(root) {
     card.className = 'city-card';
     card.innerHTML = `
       <div class="city-info">
-        <div class="city-name">${c.name}</div>
+        <div class="city-name">${stacked.matches ? c.short : c.name}</div>
         <div class="city-stats">
           ${LEVELS.map((l) => `
             <span class="city-stat" data-level="${l.key}">
@@ -14399,7 +14590,6 @@ function init(root) {
   // card sits higher than the first city card.
   const colLeft = root.querySelector('.col-left');
   const colRight = root.querySelector('.col-right');
-  const stacked = window.matchMedia('(max-width: 860px)');
 
   function alignColumns() {
     if (stacked.matches) {
@@ -14445,7 +14635,12 @@ function init(root) {
 
   // Beat by beat the page is read only on a wide screen. Elsewhere it simply
   // scrolls, there is no next beat to ask for, and the answer comes on its own.
-  const stepped = () => document.documentElement.classList.contains('is-stepped');
+  // Страницу ведет каркас, а не прокрутка: на широком экране это машина
+  // тактов (класс is-stepped), на телефоне — всегда, прокрутка там у читателя
+  // отобрана. Там, где страница ждет метки, кнопка ждет вместе с ней; раньше
+  // телефон в это условие не попадал, и отправить догадку было нечем.
+  const stepped = () => document.documentElement.classList.contains('is-stepped')
+    || stacked.matches;
 
   // What the mark turned out to be worth. A large miss is easier to feel as a
   // multiple than as a difference, so it is said that way — and nearly

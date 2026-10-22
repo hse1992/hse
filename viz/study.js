@@ -625,10 +625,27 @@ const LEAD_STYLE = `<style>
     .study-lead-say { font-size: 0.9375rem; }
     .study-lead-years { font-size: 3rem; }
     .study-lead-year { font-size: 1.875rem; }
-    .study-lead-card { gap: 14px; margin-top: 0.6em; padding: 22px 18px; }
-    .study-lead-card .study-art { width: 80px; height: 80px; }
-    .study-lead-card .study-since { font-size: 0.9375rem; }
-    .study-lead-card .study-event { font-size: 0.9375rem; }
+    /* Карточка с годом на телефоне ложится в столбик. В строку картинка и три
+       строки текста делят одну ширину, и тексту достается половина: «Тогда в
+       Ладоге заложили каменную крепость» рвется там, где не нужно, а крепость
+       выходит размером с иконку в списке. В столбик картинка становится
+       вдвое крупнее, а строки идут во всю ширину.
+
+       Место для этого есть и так: карточка стоит в коробке подмены, которая
+       держит высоту самого высокого своего состояния — вопроса со шкалой,
+       линейкой и кнопкой, — и до сих пор занимала меньше половины ее. Поэтому
+       экран от этого не становится выше и не сжимается сильнее. */
+    .study-lead-card {
+      flex-direction: column;
+      gap: 12px;
+      margin-top: 0.6em;
+      padding: 20px 18px 24px;
+      text-align: center;
+    }
+    .study-lead-card .study-art { width: 124px; height: 124px; }
+    .study-lead-card .study-lead-col { align-items: center; gap: 4px; }
+    .study-lead-card .study-since { font-size: 1rem; }
+    .study-lead-card .study-event { font-size: 1rem; }
     .study-lead-outro { font-size: 1.375rem; }
   }
 </style>`;
@@ -703,6 +720,11 @@ export const meta = {
 
 export function init(root) {
   'use strict';
+
+  // Узкий экран решает и раскладку, и то, какие имена у городов в карточках:
+  // разметка строится раньше, чем доходит до самой истории, поэтому
+  // спрашивается он здесь, до всего остального.
+  const stacked = window.matchMedia('(max-width: 860px)');
 
   // ---------- Markup ----------
   // The stage with the big number is specific to this visualisation, so its
@@ -875,6 +897,13 @@ export function init(root) {
         /* The picture has no fixed height of its own, unlike the canvases in
            the other sections: a long event text must not be cut off. */
         #study .canvas-card { height: auto; min-height: 40dvh; }
+
+        /* Числа под именем города — «80 программ, бакалавриат и специалитет»,
+           «154 программы, магистратура» — на телефоне уходят: сверху уже
+           сказано, сколько программ выбрано и сколько их всего, а в карточке
+           важно, какой это город и включен ли он. Без них карточка садится на
+           высоту переключателя, и города встают по двое в ряд, как везде. */
+        #study .city-stats { display: none; }
       }
     </style>
 
@@ -1076,7 +1105,7 @@ export function init(root) {
     card.className = 'city-card';
     card.innerHTML = `
       <div class="city-info">
-        <div class="city-name">${c.name}</div>
+        <div class="city-name">${stacked.matches ? c.short : c.name}</div>
         <div class="city-stats">
           ${LEVELS.map((l) => `
             <span class="city-stat" data-level="${l.key}">
@@ -1164,7 +1193,6 @@ export function init(root) {
   // card sits higher than the first city card.
   const colLeft = root.querySelector('.col-left');
   const colRight = root.querySelector('.col-right');
-  const stacked = window.matchMedia('(max-width: 860px)');
 
   function alignColumns() {
     if (stacked.matches) {
@@ -1210,7 +1238,12 @@ export function init(root) {
 
   // Beat by beat the page is read only on a wide screen. Elsewhere it simply
   // scrolls, there is no next beat to ask for, and the answer comes on its own.
-  const stepped = () => document.documentElement.classList.contains('is-stepped');
+  // Страницу ведет каркас, а не прокрутка: на широком экране это машина
+  // тактов (класс is-stepped), на телефоне — всегда, прокрутка там у читателя
+  // отобрана. Там, где страница ждет метки, кнопка ждет вместе с ней; раньше
+  // телефон в это условие не попадал, и отправить догадку было нечем.
+  const stepped = () => document.documentElement.classList.contains('is-stepped')
+    || stacked.matches;
 
   // What the mark turned out to be worth. A large miss is easier to feel as a
   // multiple than as a difference, so it is said that way — and nearly

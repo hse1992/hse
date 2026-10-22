@@ -64,6 +64,11 @@ export const meta = {
 export function init(root) {
   'use strict';
 
+  // Узкий экран решает и раскладку, и то, какие имена у городов в карточках,
+  // и кто ведет историю — поэтому спрашивается он один раз и здесь, до всего
+  // остального: разметка строится раньше, чем доходит до самой истории.
+  const phone = window.matchMedia('(max-width: 860px)');
+
   // ---------- Data ----------
   const STRIPES = 800;
   const PER = TOTAL / STRIPES;
@@ -759,7 +764,7 @@ export function init(root) {
     card.className = 'city-card';
     card.innerHTML = `
       <div class="city-info">
-        <div class="city-name">${c.name}</div>
+        <div class="city-name">${phone.matches ? c.short : c.name}</div>
         <div class="city-stats">
           <span class="city-stat city-stat-students"><span class="city-dot" style="background:${c.color}"></span><span class="city-stat-text"></span></span>
           <span class="city-stat city-stat-staff"><span class="city-dot" style="background:${c.colorLight}"></span><span class="city-stat-text"></span></span>
@@ -925,7 +930,6 @@ export function init(root) {
   // 620 ms the stands take to change colour, so the number and the picture
   // arrive together.
   const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const phone = window.matchMedia('(max-width: 860px)');
   // Кадрами ведет каркас; прокруточная история тогда не нужна и только мешала
   // бы ему — два хозяина у одного step().
   const tapped = phone.matches && meta.taps;
