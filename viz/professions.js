@@ -502,17 +502,32 @@ export function init(root) {
 
         .prof-body .col-right::after { display: none; }
 
-        .prof-body .canvas-card { height: auto; }
+        /* Стена листается сама, а не отщелкивается тактами. Сорок четыре
+           карточки — не кадры истории: это список, и палец должен вести по
+           нему, а не просить каркас сдвинуть страницу на экран. Поэтому у
+           карточки своя высота в экран, а у стены внутри нее — своя
+           прокрутка; класс page-scrolls говорит каркасу не отнимать ее.
+           Прокрутка остановится на своем краю и дальше страницу не потянет
+           (overscroll-behavior), так что ход к следующему разделу
+           по-прежнему просит отдельного движения. */
+        .prof-body .canvas-card {
+          height: calc(100dvh - var(--hint-room) - 16px);
+          min-height: 0;
+        }
 
         .prof-body .canvas-wrap {
-          flex: none;
+          flex: 1;
+          min-height: 0;
           height: auto;
         }
 
         .prof-grid {
           position: static;
-          overflow: visible;
           column-count: auto;
+          height: 100%;
+          overflow-y: auto;
+          overscroll-behavior: contain;
+          -webkit-overflow-scrolling: touch;
         }
 
         .prof-group {
@@ -694,6 +709,9 @@ export function init(root) {
   const kindsTitleEl = $('kindsTitle');
   const noteEl = $('note');
   const grid = $('grid');
+  // Каркас на телефоне отнимает прокрутку у всей страницы, кроме того, что
+  // помечено этим классом. Стена — как раз такое место: ее листают пальцем.
+  if (window.matchMedia('(max-width: 860px)').matches) grid.classList.add('page-scrolls');
 
   // ---------- The card ----------
   // The logo the section has just opened, standing still with «не только» in

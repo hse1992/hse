@@ -588,6 +588,25 @@ export function init(root) {
         .world-asking .world-left {
           display: none;
         }
+
+        /* Пока вопрос задан, карточка со шкалой — это весь блок: городов еще
+           нет, стена флагов не показана. Своей высоты у колонки от этого не
+           остается, липкой карточке не за что держаться, и она уезжала к
+           верхнему краю — под припаркованный экран, закрывая собой и
+           заголовок, и тот самый вопрос, на который в ней отвечают. Здесь
+           колонка занимает экран под парковкой, и карточке есть где стоять. */
+        .world-asking .world-right {
+          min-height: calc(100dvh - var(--hint-room) - var(--lead-hold, 0px));
+        }
+
+        /* Переехавший в экран заголовок перестает быть карточкой: каркас
+           держал ее липкой и отводил за правый край (--card-x), чтобы она не
+           приезжала вовсе. Внутри экрана ей и ехать некуда — она уже на
+           месте. */
+        .world-scene.world-answered .viz-lead .viz-header {
+          position: static;
+          transform: none;
+        }
       }
 
       /* Five captions and 128 flags do not fit into a screen-sized card on a
@@ -603,9 +622,16 @@ export function init(root) {
 
         .world-right::after { display: none; }
 
+        /* Переходный экран здесь паркуется наверху и остается заголовком
+           блока: сколько на стадионе студентов, сколько из них иностранцев и
+           вопрос, из скольких они стран. Значит, то, что блок прибивает к
+           верху, прибивается под ним, а не за ним — высоту парковки каркас
+           кладет в --lead-hold. Карточка вставала в самый верх и закрывала
+           собой и заголовок, и тот самый вопрос, на который читатель в ней же
+           и отвечает. */
         .world-right .meter-card {
           position: sticky;
-          top: 0;
+          top: var(--lead-hold, 0px);
           z-index: 2;
           box-shadow: var(--card-shadow), 0 10px 16px -14px rgba(16, 24, 40, 0.55);
         }
@@ -1065,6 +1091,26 @@ export function init(root) {
     subheadEl.innerHTML = on ? ASK_SUBTITLE : meta.subtitle;
   }
 
+  // На телефоне карточка с заголовком не приезжает справа — ее место наверху
+  // занял припаркованный экран с вопросом, и приезжать ей некуда. Поэтому с
+  // ответом заголовок переезжает в сам экран: вопрос уступает ему место, как
+  // и на широком. Переезжает именно узлом, а не копией текста, — все, что
+  // каркас умеет с этим экраном (парковка, высота под ним, исчезновение
+  // вместе с секцией), продолжает работать само, он меряет своих детей, а
+  // дети теперь заголовок.
+  const leadEl = section.querySelector('.viz-lead');
+  const headEl = section.querySelector('.viz-header');
+  let headMoved = false;
+  function headToLead() {
+    if (!phone.matches || headMoved || !leadEl || !headEl) return;
+    headMoved = true;
+    leadEl.replaceChildren(headEl);
+    // Экран стал вдвое ниже, а его место наверху каркас пересчитывает на
+    // движении страницы — которого сейчас нет: читатель нажал кнопку, а не
+    // листал. Без толчка под заголовком осталась бы полоса от вопроса.
+    window.dispatchEvent(new Event('scroll'));
+  }
+
   // The block stands under the lead-in while the question is asked and under
   // the heading once it is answered, and the two are not the same height. So
   // it is moved to its new place at once and then eased there from the old
@@ -1113,6 +1159,7 @@ export function init(root) {
       unveil(plays ? 620 : 0);
     }
     setHeading(on);
+    if (!on) headToLead();
     scale.setAttribute('aria-disabled', on ? 'false' : 'true');
     scale.tabIndex = on ? 0 : -1;
     check.tabIndex = on ? 0 : -1;

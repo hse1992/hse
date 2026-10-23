@@ -1927,11 +1927,18 @@ button { font-family: inherit; }
      складывать было бы нечего: у текста нет высоты, от которой можно отнять.
 
      Только у секций с открытием: у блока без карточки подзаголовок негде было
-     бы прочитать, и он остается на месте. */
+     бы прочитать, и он остается на месте.
+
+     Складывается он круто — впятеро быстрее, чем садится карточка. Посадка и
+     приход блока — один такт, и на ровной доле подзаголовок почти весь этот
+     такт висел полупрозрачный уже над самой картинкой: ровно то, от чего его
+     и убирали. На крутой он уходит в первой пятой движения, пока карточка
+     еще держит экран, и читатель видит либо его, либо блок — но не оба. */
   .viz-intro .viz-header p {
+    --sub-gone: clamp(0, 1 - var(--intro-body, 1) * 5, 1);
     overflow: hidden;
-    height: calc(var(--sub-h, 0px) * (1 - var(--intro-body, 1)));
-    opacity: calc(1 - var(--intro-body, 1));
+    height: calc(var(--sub-h, 0px) * var(--sub-gone));
+    opacity: var(--sub-gone);
   }
 
   /* Страница не прокручивается вовсе: читатель ведет ее тактами — махом
@@ -1945,8 +1952,14 @@ button { font-family: inherit; }
     overscroll-behavior: none;
   }
 
+  /* Свое остается тому, что само умеет прокручиваться: списку разделов и
+     всему, что блок пометил классом page-scrolls. Блок ставит его на коробку
+     с собственной прокруткой — стену профессий, например: сорок четыре
+     карточки не кадр истории, их листают, а не отщелкивают по одной. */
   .page-sheet,
-  .page-sheet * {
+  .page-sheet *,
+  .page-scrolls,
+  .page-scrolls * {
     touch-action: pan-y;
   }
 
@@ -4668,14 +4681,28 @@ function mountScrolled(entries, onProgress) {
   // колесо, и клавиши, — а вместо нее один ход: такт вперед, такт назад.
   // Страницу двигает только каркас, и всегда до ближайшей границы кадра.
   //
-  // Свое остается тому, что само умеет прокручиваться: список разделов,
-  // который открывается касанием полоски.
+  // Свое остается тому, что само умеет прокручиваться: списку разделов,
+  // который открывается касанием полоски, и всему, что блок пометил классом
+  // `page-scrolls` — стене профессий, например: сорок четыре карточки не
+  // кадр истории, их листают, а не отщелкивают.
   //
   // Все это — про телефон. Широкое окно попадает сюда только при «меньше
   // движения», и там отнимать прокрутку нельзя: читатель просил меньше
   // движения, а не меньше управления.
   const ведем = () => NARROW.matches;
-  const свое = (el) => !ведем() || (el && el.closest && el.closest('.page-sheet'));
+  const свое = (el, dir = 0) => {
+    if (!ведем()) return true;
+    const box = el && el.closest && el.closest('.page-sheet, .page-scrolls');
+    if (!box) return false;
+    if (!box.classList.contains('page-scrolls')) return true;
+    // Коробка со своей прокруткой держит движение, пока ей есть куда ехать.
+    // На своем краю она его отпускает, и дальше ведет каркас: иначе список
+    // в целый экран запирал бы читателя — выйти из него было бы нечем.
+    const край = dir > 0
+      ? box.scrollTop >= box.scrollHeight - box.clientHeight - 1
+      : box.scrollTop <= 1;
+    return !край;
+  };
 
   let pulled = null;
   let spent = false;                    // этот палец свой такт уже отыграл
@@ -4688,10 +4715,10 @@ function mountScrolled(entries, onProgress) {
   // пикселей движения, и одно движение на полэкрана отматывало три подряд,
   // обрывая анимацию каждого: со стороны это и есть «листается криво».
   window.addEventListener('touchmove', (ev) => {
-    if (свое(ev.target)) return;
+    const dy = pulled === null ? 0 : pulled - ev.touches[0].clientY;
+    if (свое(ev.target, dy)) return;
     ev.preventDefault();
     if (pulled === null || spent) return;
-    const dy = pulled - ev.touches[0].clientY;
     if (Math.abs(dy) < TAP_PULL) return;
     spent = true;
     шаг(dy > 0 ? 1 : -1);
@@ -4702,7 +4729,7 @@ function mountScrolled(entries, onProgress) {
   // The trackpad and the wheel, for a narrow window on a desktop.
   let крутил = 0;
   window.addEventListener('wheel', (ev) => {
-    if (свое(ev.target)) return;
+    if (свое(ev.target, ev.deltaY)) return;
     ev.preventDefault();
     if (Math.abs(ev.deltaY) < 4) return;
     // Инерция трекпада шлет сотню событий на одно движение руки: пока она не
@@ -4715,7 +4742,7 @@ function mountScrolled(entries, onProgress) {
 
   // Клавиши — то же самое: пробел и стрелки ведут по тактам, а не прокручивают.
   window.addEventListener('keydown', (ev) => {
-    if (свое(ev.target)) return;
+    if (свое(ev.target, 1)) return;
     const el = document.activeElement;
     if ((ev.key === ' ' || ev.key === 'Enter') && el
       && el.closest('button, a[href], input, select, textarea, [contenteditable=""], [contenteditable="true"]')) return;
@@ -11694,6 +11721,25 @@ function init(root) {
         .world-asking .world-left {
           display: none;
         }
+
+        /* Пока вопрос задан, карточка со шкалой — это весь блок: городов еще
+           нет, стена флагов не показана. Своей высоты у колонки от этого не
+           остается, липкой карточке не за что держаться, и она уезжала к
+           верхнему краю — под припаркованный экран, закрывая собой и
+           заголовок, и тот самый вопрос, на который в ней отвечают. Здесь
+           колонка занимает экран под парковкой, и карточке есть где стоять. */
+        .world-asking .world-right {
+          min-height: calc(100dvh - var(--hint-room) - var(--lead-hold, 0px));
+        }
+
+        /* Переехавший в экран заголовок перестает быть карточкой: каркас
+           держал ее липкой и отводил за правый край (--card-x), чтобы она не
+           приезжала вовсе. Внутри экрана ей и ехать некуда — она уже на
+           месте. */
+        .world-scene.world-answered .viz-lead .viz-header {
+          position: static;
+          transform: none;
+        }
       }
 
       /* Five captions and 128 flags do not fit into a screen-sized card on a
@@ -11709,9 +11755,16 @@ function init(root) {
 
         .world-right::after { display: none; }
 
+        /* Переходный экран здесь паркуется наверху и остается заголовком
+           блока: сколько на стадионе студентов, сколько из них иностранцев и
+           вопрос, из скольких они стран. Значит, то, что блок прибивает к
+           верху, прибивается под ним, а не за ним — высоту парковки каркас
+           кладет в --lead-hold. Карточка вставала в самый верх и закрывала
+           собой и заголовок, и тот самый вопрос, на который читатель в ней же
+           и отвечает. */
         .world-right .meter-card {
           position: sticky;
-          top: 0;
+          top: var(--lead-hold, 0px);
           z-index: 2;
           box-shadow: var(--card-shadow), 0 10px 16px -14px rgba(16, 24, 40, 0.55);
         }
@@ -12171,6 +12224,26 @@ function init(root) {
     subheadEl.innerHTML = on ? ASK_SUBTITLE : meta.subtitle;
   }
 
+  // На телефоне карточка с заголовком не приезжает справа — ее место наверху
+  // занял припаркованный экран с вопросом, и приезжать ей некуда. Поэтому с
+  // ответом заголовок переезжает в сам экран: вопрос уступает ему место, как
+  // и на широком. Переезжает именно узлом, а не копией текста, — все, что
+  // каркас умеет с этим экраном (парковка, высота под ним, исчезновение
+  // вместе с секцией), продолжает работать само, он меряет своих детей, а
+  // дети теперь заголовок.
+  const leadEl = section.querySelector('.viz-lead');
+  const headEl = section.querySelector('.viz-header');
+  let headMoved = false;
+  function headToLead() {
+    if (!phone.matches || headMoved || !leadEl || !headEl) return;
+    headMoved = true;
+    leadEl.replaceChildren(headEl);
+    // Экран стал вдвое ниже, а его место наверху каркас пересчитывает на
+    // движении страницы — которого сейчас нет: читатель нажал кнопку, а не
+    // листал. Без толчка под заголовком осталась бы полоса от вопроса.
+    window.dispatchEvent(new Event('scroll'));
+  }
+
   // The block stands under the lead-in while the question is asked and under
   // the heading once it is answered, and the two are not the same height. So
   // it is moved to its new place at once and then eased there from the old
@@ -12219,6 +12292,7 @@ function init(root) {
       unveil(plays ? 620 : 0);
     }
     setHeading(on);
+    if (!on) headToLead();
     scale.setAttribute('aria-disabled', on ? 'false' : 'true');
     scale.tabIndex = on ? 0 : -1;
     check.tabIndex = on ? 0 : -1;
@@ -13481,6 +13555,10 @@ for (let y = Math.ceil(START / TICK) * TICK; y < NOW; y += TICK) {
 const mark = (text) =>
   `<span class="study-lead-mark" style="background: var(--hse-blue); color: var(--card)">${text}</span>`;
 
+// Узкий экран решается один раз на загрузку: переходный экран собирается в
+// meta, до всякого init, и смена ширины через границу страницу перезагружает.
+const PHONE = window.matchMedia('(max-width: 860px)').matches;
+
 // Two colours of the brand book, one to a level: the cyan and the violet.
 // Neither is the corporate blue — that one is on the patch in the line above
 // the squares, and a field of it under the same line would read as one thing
@@ -14054,11 +14132,36 @@ const LEAD_STYLE = `<style>
       padding: 20px 18px 24px;
       text-align: center;
     }
-    .study-lead-card .study-art { width: 124px; height: 124px; }
-    .study-lead-card .study-lead-col { align-items: center; gap: 4px; }
-    .study-lead-card .study-since { font-size: 1rem; }
-    .study-lead-card .study-event { font-size: 1rem; }
+    /* Крупнее, чем просит сам текст: экран сжимается целиком, и набранное в
+       рем выходит на экране в тринадцать пикселей. Место под это есть —
+       карточка стоит в коробке подмены, которая держит высоту самого высокого
+       своего состояния (вопроса со шкалой и кнопкой), и сотня пикселей в ней
+       оставалась пустой. Поэтому экран от прибавки не становится выше и не
+       сжимается сильнее. */
+    .study-lead-card .study-art { width: 160px; height: 160px; }
+    .study-lead-card .study-lead-col { align-items: center; gap: 6px; }
+    .study-lead-card .study-since { font-size: 1.1875rem; }
+    .study-lead-card .study-event { font-size: 1.1875rem; }
+    .study-lead-card .study-lead-year { font-size: 2.125rem; }
     .study-lead-outro { font-size: 1.375rem; }
+
+    /* Строки экрана выравниваются по длине, а не набиваются до края. Обе его
+       половины — обычная и выделенная — делятся на строки сами по себе,
+       потому что между ними стоит перенос: сверху две ровные строки текста,
+       снизу две ровные строки плашки. Без этого верх разваливался на четыре
+       обрубка, а плашка — на три прямоугольника разной длины. */
+    #study .viz-lead-value { text-wrap: balance; }
+
+    /* И сама плашка — одним прямоугольником, а не тремя. Строчная, она
+       обрезается по каждой строке, и три куска разной длины читались как
+       рваный край; здесь это цельный блок, внутри которого строки ложатся
+       сами. Отступы те же, только сверху и снизу щедрее: у блока они не
+       наслаиваются на соседние строки, как у строчного. */
+    #study .viz-lead-value .study-lead-mark {
+      display: inline-block;
+      padding: 0.18em 0.34em;
+      text-wrap: balance;
+    }
   }
 </style>`;
 
@@ -14075,7 +14178,13 @@ const meta = {
     // The screen grows by a whole block at a time, so it holds the middle of
     // the screen rather than the top edge of the title card to come.
     fit: 'center',
-    value: `Все эти здания нужны для того, чтобы студенты могли обучаться ${mark(`по ${nf(PROGRAMS_TOTAL)} образовательным программам`)}`,
+    // На телефоне выделенная фраза начинается со своей строки. Иначе плашка
+    // цепляется хвостом за «обучаться», первый ее кусок выходит в два слова, а
+    // три прямоугольника разной длины читаются как брак верстки. Перенос
+    // инлайновый: каркас рисует экран до того, как приедут стили блока.
+    value: 'Все эти здания нужны для того, чтобы студенты могли обучаться'
+      + (PHONE ? '<br>' : ' ')
+      + mark(`по ${nf(PROGRAMS_TOTAL)} образовательным программам`),
     text: LEAD_STYLE
       + '<span class="study-lead-swap">'
       + '<span class="study-lead-beat"><span class="study-lead-gone">'
@@ -15307,17 +15416,32 @@ function init(root) {
 
         .prof-body .col-right::after { display: none; }
 
-        .prof-body .canvas-card { height: auto; }
+        /* Стена листается сама, а не отщелкивается тактами. Сорок четыре
+           карточки — не кадры истории: это список, и палец должен вести по
+           нему, а не просить каркас сдвинуть страницу на экран. Поэтому у
+           карточки своя высота в экран, а у стены внутри нее — своя
+           прокрутка; класс page-scrolls говорит каркасу не отнимать ее.
+           Прокрутка остановится на своем краю и дальше страницу не потянет
+           (overscroll-behavior), так что ход к следующему разделу
+           по-прежнему просит отдельного движения. */
+        .prof-body .canvas-card {
+          height: calc(100dvh - var(--hint-room) - 16px);
+          min-height: 0;
+        }
 
         .prof-body .canvas-wrap {
-          flex: none;
+          flex: 1;
+          min-height: 0;
           height: auto;
         }
 
         .prof-grid {
           position: static;
-          overflow: visible;
           column-count: auto;
+          height: 100%;
+          overflow-y: auto;
+          overscroll-behavior: contain;
+          -webkit-overflow-scrolling: touch;
         }
 
         .prof-group {
@@ -15499,6 +15623,9 @@ function init(root) {
   const kindsTitleEl = $('kindsTitle');
   const noteEl = $('note');
   const grid = $('grid');
+  // Каркас на телефоне отнимает прокрутку у всей страницы, кроме того, что
+  // помечено этим классом. Стена — как раз такое место: ее листают пальцем.
+  if (window.matchMedia('(max-width: 860px)').matches) grid.classList.add('page-scrolls');
 
   // ---------- The card ----------
   // The logo the section has just opened, standing still with «не только» in

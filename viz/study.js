@@ -69,6 +69,10 @@ for (let y = Math.ceil(START / TICK) * TICK; y < NOW; y += TICK) {
 const mark = (text) =>
   `<span class="study-lead-mark" style="background: var(--hse-blue); color: var(--card)">${text}</span>`;
 
+// Узкий экран решается один раз на загрузку: переходный экран собирается в
+// meta, до всякого init, и смена ширины через границу страницу перезагружает.
+const PHONE = window.matchMedia('(max-width: 860px)').matches;
+
 // Two colours of the brand book, one to a level: the cyan and the violet.
 // Neither is the corporate blue — that one is on the patch in the line above
 // the squares, and a field of it under the same line would read as one thing
@@ -642,11 +646,36 @@ const LEAD_STYLE = `<style>
       padding: 20px 18px 24px;
       text-align: center;
     }
-    .study-lead-card .study-art { width: 124px; height: 124px; }
-    .study-lead-card .study-lead-col { align-items: center; gap: 4px; }
-    .study-lead-card .study-since { font-size: 1rem; }
-    .study-lead-card .study-event { font-size: 1rem; }
+    /* Крупнее, чем просит сам текст: экран сжимается целиком, и набранное в
+       рем выходит на экране в тринадцать пикселей. Место под это есть —
+       карточка стоит в коробке подмены, которая держит высоту самого высокого
+       своего состояния (вопроса со шкалой и кнопкой), и сотня пикселей в ней
+       оставалась пустой. Поэтому экран от прибавки не становится выше и не
+       сжимается сильнее. */
+    .study-lead-card .study-art { width: 160px; height: 160px; }
+    .study-lead-card .study-lead-col { align-items: center; gap: 6px; }
+    .study-lead-card .study-since { font-size: 1.1875rem; }
+    .study-lead-card .study-event { font-size: 1.1875rem; }
+    .study-lead-card .study-lead-year { font-size: 2.125rem; }
     .study-lead-outro { font-size: 1.375rem; }
+
+    /* Строки экрана выравниваются по длине, а не набиваются до края. Обе его
+       половины — обычная и выделенная — делятся на строки сами по себе,
+       потому что между ними стоит перенос: сверху две ровные строки текста,
+       снизу две ровные строки плашки. Без этого верх разваливался на четыре
+       обрубка, а плашка — на три прямоугольника разной длины. */
+    #study .viz-lead-value { text-wrap: balance; }
+
+    /* И сама плашка — одним прямоугольником, а не тремя. Строчная, она
+       обрезается по каждой строке, и три куска разной длины читались как
+       рваный край; здесь это цельный блок, внутри которого строки ложатся
+       сами. Отступы те же, только сверху и снизу щедрее: у блока они не
+       наслаиваются на соседние строки, как у строчного. */
+    #study .viz-lead-value .study-lead-mark {
+      display: inline-block;
+      padding: 0.18em 0.34em;
+      text-wrap: balance;
+    }
   }
 </style>`;
 
@@ -663,7 +692,13 @@ export const meta = {
     // The screen grows by a whole block at a time, so it holds the middle of
     // the screen rather than the top edge of the title card to come.
     fit: 'center',
-    value: `Все эти здания нужны для того, чтобы студенты могли обучаться ${mark(`по ${nf(PROGRAMS_TOTAL)} образовательным программам`)}`,
+    // На телефоне выделенная фраза начинается со своей строки. Иначе плашка
+    // цепляется хвостом за «обучаться», первый ее кусок выходит в два слова, а
+    // три прямоугольника разной длины читаются как брак верстки. Перенос
+    // инлайновый: каркас рисует экран до того, как приедут стили блока.
+    value: 'Все эти здания нужны для того, чтобы студенты могли обучаться'
+      + (PHONE ? '<br>' : ' ')
+      + mark(`по ${nf(PROGRAMS_TOTAL)} образовательным программам`),
     text: LEAD_STYLE
       + '<span class="study-lead-swap">'
       + '<span class="study-lead-beat"><span class="study-lead-gone">'
