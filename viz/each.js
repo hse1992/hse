@@ -392,10 +392,20 @@ export function init(root) {
         .each-you { font-size: 1.375rem; }
         .each-why { font-size: 0.9375rem; }
 
-        /* A phone gets the board and its answer as one still picture; a frame
-           and a caption in each corner of a card this small would only crowd
-           it. */
-        .each-hud { display: none; }
+        /* The shot stays a shot on a phone too: the corners of the viewfinder
+           and the satellite's caption along the edges, only smaller — the card
+           is narrower, and at the wide sizes the two top captions would run
+           into each other. They go where they go on a wide screen: once the
+           figures start adding up, the frame is no longer a picture. */
+        .each-corner { width: 20px; height: 20px; }
+        .each-corner.tl { border-left-width: 2px; border-top-width: 2px; }
+        .each-corner.tr { border-right-width: 2px; border-top-width: 2px; }
+        .each-corner.bl { border-left-width: 2px; border-bottom-width: 2px; }
+        .each-corner.br { border-right-width: 2px; border-bottom-width: 2px; }
+
+        .each-meta { font-size: 0.75rem; letter-spacing: 0; }
+        .each-meta.tl, .each-meta.bl { left: 26px; }
+        .each-meta.tr, .each-meta.br { right: 26px; }
 
         /* The figures on a phone come out small, and a word at a third of a
            small number cannot be read — here it is set relatively larger. At
@@ -595,6 +605,7 @@ export function init(root) {
     // the way a photograph is given a margin.
     const capTop = $('metaTop').offsetHeight + 14;
     const capBottom = $('metaBottom').offsetHeight + 12;
+    const airPoster = Math.round(airY * 0.4);
     const shot = {
       x: airX,
       y: capTop + airY,
@@ -611,9 +622,13 @@ export function init(root) {
       // to arrives in its place, on the next turn of the finger, rather than
       // standing under it from the start. The sizes are drawn closer together
       // than on the wide board: at a phone's width the smallest of them would
-      // otherwise be unreadable.
+      // otherwise be unreadable. It stands inside the same frame, and there the
+      // captions along the edges already hold the board clear of them, so it
+      // does not add the full margin of the wide board on top of that.
       poster: pack(tiles.map((t) => ({ m: t.m, w: 0.6 + 0.4 * t.w })),
-        { x: airX, y: airY, w: Math.max(120, w - airX * 2), h: Math.max(60, h - airY * 2) }, 90)
+        { x: airX, y: capTop + airPoster,
+          w: Math.max(120, w - airX * 2),
+          h: Math.max(60, h - capTop - capBottom - airPoster * 2) }, 90)
     };
   }
 
@@ -853,6 +868,9 @@ export function init(root) {
     if (want === phoneStage && !force) return;
     phoneStage = want;
     PHONE_STATE[want]();
+    // The frame belongs to the photograph: the board and the question over it.
+    // With the one left alone on the card there is nothing left to frame.
+    $('hud').classList.toggle('is-gone', want >= 2);
   }
 
   // The closing beat, put back as it ended instead of played again. A window

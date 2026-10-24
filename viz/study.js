@@ -619,16 +619,22 @@ const LEAD_STYLE = `<style>
     .study-lead-ask,
     .study-lead-answer,
     .study-lead-then { margin-top: 0.7em; }
-    .study-scale { padding: 10px 0 2px; }
-    .study-scale-bar { height: 8px; }
-    .study-scale-mark { width: 4px; height: 26px; }
-    .study-guess-ruler { height: 1.6em; margin-top: 12px; }
-    .study-guess-tick span { font-size: 0.75rem; top: 10px; }
-    .study-lead-verdict { font-size: 0.9375rem; }
-    .study-lead-check { font-size: 0.875rem; padding: 0.6em 1.6em; }
-    .study-lead-say { font-size: 0.9375rem; }
-    .study-lead-years { font-size: 3rem; }
-    .study-lead-year { font-size: 1.875rem; }
+    /* Все, что не заголовок, набрано крупнее, чем просит экран. Экран
+       сжимается целиком, и набранное в рем выходит на нем в двенадцать
+       пикселей — вопрос, шкала и кнопка читались мельче подписи под
+       картинкой. Прибавка стоит доли сжатия: экран от нее чуть ниже, и
+       заголовок садится на пару процентов — но вопрос, на который читателю
+       отвечать, того стоит. */
+    .study-scale { padding: 14px 0 4px; }
+    .study-scale-bar { height: 11px; }
+    .study-scale-mark { width: 5px; height: 32px; }
+    .study-guess-ruler { height: 1.7em; margin-top: 14px; }
+    .study-guess-tick span { font-size: 0.8125rem; top: 11px; }
+    .study-lead-verdict { font-size: 1.0625rem; }
+    .study-lead-check { font-size: 1rem; padding: 0.7em 2em; }
+    .study-lead-say { font-size: 1.125rem; }
+    .study-lead-years { font-size: 3.5rem; }
+    .study-lead-year { font-size: 2.125rem; }
     /* Карточка с годом на телефоне ложится в столбик. В строку картинка и три
        строки текста делят одну ширину, и тексту достается половина: «Тогда в
        Ладоге заложили каменную крепость» рвется там, где не нужно, а крепость

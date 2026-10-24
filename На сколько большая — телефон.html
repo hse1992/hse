@@ -1785,7 +1785,9 @@ button { font-family: inherit; }
     min-height: 100dvh;
     padding: 20px 16px 28px;
     align-items: flex-end;
-    padding-bottom: calc(var(--hint-room) + min(24dvh, 190px));
+    /* 56px — та самая полоса под подсказку: на обложке она стоит, и только
+       здесь. Числом, а не переменной: переменную блоки себе забрали. */
+    padding-bottom: calc(56px + min(24dvh, 190px));
   }
 
   .page-header-inner {
@@ -1802,6 +1804,24 @@ button { font-family: inherit; }
   /* One number scales the whole ladder: the paragraphs are sized off it. */
   .page-header-text {
     font-size: 1.375rem;
+  }
+
+  /* Полоса внизу принадлежала подсказке, а подсказка на телефоне живет только
+     на титульном экране — на блоках ее нет, и полоса эта пятьдесят шесть
+     пикселей пустоты у каждого из них. Здесь блокам возвращается почти вся:
+     двенадцать остается воздухом у нижнего края, чтобы картинка не упиралась
+     в самый край экрана. Обложка свою полосу считает отдельно (см. ниже) и
+     этой правкой не задета — на ней подсказка как раз и стоит. */
+  :root {
+    --hint-room: 12px;
+  }
+
+  /* «Откуда цифры» на телефоне уходит: ссылка у нее та же, что у подписи
+     строкой ниже — «© Дирекция по аналитике и управлению данными НИУ ВШЭ», —
+     и две кнопки в ряд на узком экране едва помещаются. Остается «Прочитать
+     сначала»: единственное, что читателю тут и правда может понадобиться. */
+  .page-end-source {
+    display: none;
   }
 
   /* The bar only reports here. A slot is four pixels tall and the page scrolls
@@ -2316,7 +2336,7 @@ html.is-holding body {
     <div class="page-end">
       <button type="button" class="btn page-end-act" data-el="again">Прочитать сначала</button>
       <button type="button" class="btn page-end-act" data-el="share" hidden>Поделиться</button>
-      <a class="btn page-end-act" href="https://data.hse.ru" target="_blank" rel="noopener">Откуда цифры</a>
+      <a class="btn page-end-act page-end-source" href="https://data.hse.ru" target="_blank" rel="noopener">Откуда цифры</a>
     </div>
     <span data-el="year">Показатели за 2025 год</span>
     <a href="https://data.hse.ru" target="_blank" rel="noopener">© Дирекция по аналитике и управлению данными НИУ ВШЭ</a>
@@ -3163,6 +3183,13 @@ function leadCard(section, K = () => CARD_K, cardHeight = null) {
       section.style.setProperty('--lead-squeeze', k.toFixed(4));
       const shown = spread();                  // уже сжатая высота
       if (shown > 0) k = Math.min(1, Math.max(k, (room * k) / shown));
+      // И третья, проверочная. Вторая мерка отпускает долю, считая, что
+      // высота идет за ней ровно; на деле в коробке пошире строки ложатся
+      // иначе, и экран выходил выше комнаты — у «Годов учебы» на три десятка
+      // пикселей, прямо в край окна. Если не влез — долю возвращаем назад.
+      section.style.setProperty('--lead-squeeze', k.toFixed(4));
+      const again = spread();
+      if (again > room && again > 0) k *= room / again;
     }
     parts.forEach((el, i) => { [el.style.height, el.style.opacity] = kept[i]; });
     section.style.setProperty('--lead-squeeze', k.toFixed(4));
@@ -4495,7 +4522,7 @@ function mountScrolled(entries, onProgress) {
           // says so itself by taking the last step. A block read by taps keeps
           // its story: there the screen does hold still, and the story is told
           // frame by frame from the first one.
-          if (entry.steps) entry.setStep(byTaps(entry) ? 0 : entry.steps - 1);
+          if (entry.steps) entry.setStep(byTaps(entry) && !entry.told ? 0 : entry.steps - 1);
           if (entry.opening) entry.opening.follow();
         });
       }
@@ -4760,7 +4787,12 @@ function mountScrolled(entries, onProgress) {
   // лежат в трех местах, и ход знает все три: части открытия (экран с цифрой
   // приходит по кускам, за ним садится титульная карточка), состояния истории
   // внутри блока и начало открытия следующего раздела.
-  const AT_MOST = 2.2;                 // дальше одного такта за раз не ходим, экранов
+  // Предохранитель: столько экранов — потолок одного хода. Он нужен не для
+  // обычного чтения (самый длинный настоящий такт на странице — меньше
+  // экрана), а на случай, когда блок почему-то не сказал, где его следующее
+  // состояние: без потолка один свайп уносил бы мимо всей его истории. Чем
+  // ниже потолок, тем меньше можно проскочить по ошибке.
+  const AT_MOST = 1.5;                 // дальше одного такта за раз не ходим, экранов
   const ОСТАТОК = 24;                  // ближе этого граница раздела — уже здесь, px
   const стопы = (dir = 1) => {
     const out = [];
@@ -4773,14 +4805,22 @@ function mountScrolled(entries, onProgress) {
     // страницы, и держатся они отдельно: к ним другая мерка, см. ниже.
     const межи = [];
     entries.forEach((e) => {
-      if (!e.opening || !e.opening.stops) return;
       const top = y + e.section.getBoundingClientRect().top;
-      tried('такты открытия', () => {
-        e.opening.stops().forEach((s) => межи.push(top + s - y));
-      });
-      // Начало блока: там, где открытие кончилось и картинка на экране.
-      const body = e.section.querySelector('.viz-body');
-      if (body) межи.push(y + body.getBoundingClientRect().top - y);
+      if (e.opening && e.opening.stops) {
+        tried('такты открытия', () => {
+          e.opening.stops().forEach((s) => межи.push(top + s - y));
+        });
+        // Начало блока: там, где открытие кончилось и картинка на экране.
+        const body = e.section.querySelector('.viz-body');
+        if (body) межи.push(y + body.getBoundingClientRect().top - y);
+        return;
+      }
+      // А у раздела без открытия начало — он сам: заголовок ему не карточка,
+      // он приходит вместе с картинкой и над ней же читается. Раньше такой
+      // раздел не давал каркасу ни одной границы, и ход к финалу уходил
+      // хвостовым шагом «ровно экран» — финал приезжал наполовину, заголовком
+      // из-под предыдущего блока.
+      межи.push(top - y);
     });
     const взять = (list) => list.map((d) => d * dir).filter((d) => d > 2);
     // Несколько пикселей до границы раздела — это не такт, а остаток
@@ -4816,16 +4856,26 @@ function mountScrolled(entries, onProgress) {
     // в три.
     window.scrollBy(0, want - asked);
     asked = want;
-    if (t < 1) requestAnimationFrame(glide);
-    else gliding = 0;
+    if (t < 1) { requestAnimationFrame(glide); return; }
+    gliding = 0;
+    // Просьба, пришедшая, пока ход играл, ждала здесь — играем ее теперь.
+    const next = ждет;
+    ждет = 0;
+    if (next) шаг(next);
   };
 
   // Один ход на всех: палец, колесо, клавиши. Пока ход играет, следующая
   // просьба не копится и не теряется — она просто ждет, как и внутри блока,
   // который держит страницу.
+  //
+  // Ждет, а не пропадает: ход идет до семисот миллисекунд, а палец на
+  // телефоне ходит чаще — и каждое второе-третье движение уходило в никуда.
+  // Со стороны это и есть «половина свайпов холостые». Копим ровно одну: две
+  // подряд — это «дальше», а не «через одну».
+  let ждет = 0;
   const шаг = (dir) => {
     if (caught) { play(frame + dir); return; }
-    if (gliding) return;
+    if (gliding) { ждет = dir; return; }
     const [first] = стопы(dir);
     if (first === undefined) return;
     total = dir * Math.min(first, Math.round(window.innerHeight * AT_MOST));
@@ -4900,7 +4950,37 @@ function mountScrolled(entries, onProgress) {
   // scroll to the top of that block.
   const toBlock = (i) => {
     const entry = entries[i];
-    if (entry) window.scrollTo({ top: entry.section.offsetTop, behavior: 'smooth' });
+    if (!entry) return;
+    // A block read by frames catches the page as it comes down to its top edge
+    // — and a jump from the bar rides past it smoothly, frame of scroll by
+    // frame of scroll, which looks to it exactly like a reader walking up. So
+    // everything left behind the target counts as read: without this a jump to
+    // the last section stopped at the stadium and stayed there.
+    entries.forEach((e, k) => {
+      if (k >= i || e.told) return;
+      e.told = true;
+      if (e.built && e.steps) tried('кадр', () => e.setStep(e.steps - 1));
+    });
+    // And the place the jump is aimed at moves while it is in the air: the
+    // blocks it rides past are built on the way and grow as they are, so the
+    // top of the target section is no longer where it was when the reader
+    // picked it. A jump to the last section landed two sections short. So the
+    // page is aimed again whenever it stops short of the mark.
+    let rounds = 0;
+    let still = 0;
+    let was = NaN;
+    const ride = () => {
+      still = window.scrollY === was ? still + 1 : 0;
+      was = window.scrollY;
+      if (still < 3) { requestAnimationFrame(ride); return; }
+      const want = entry.section.offsetTop;
+      if (Math.abs(window.scrollY - want) < 5 || ++rounds > 5) return;
+      still = 0;
+      window.scrollTo({ top: want, behavior: 'smooth' });
+      requestAnimationFrame(ride);
+    };
+    window.scrollTo({ top: entry.section.offsetTop, behavior: 'smooth' });
+    requestAnimationFrame(ride);
   };
 
   // And back to the title screen, the way the bar offers everywhere else.
@@ -10188,10 +10268,17 @@ function init(root) {
          full, and the five lines that fill it — «Первыми пропустим лицеистов»
          and the rest — were never shown at all. */
       @media (max-width: 860px) {
+        /* Путь истории меряется в svh, а не в dvh. dvh ходит вместе с
+           панелью браузера: она прячется и показывается на ходу, путь от
+           этого то растягивается, то укорачивается — а блок считает по нему,
+           сколько состояний уже позади. Стоило пути укоротиться, и пройденное
+           оказывалось за последней границей: блок отвечал «история
+           рассказана», и один свайп проносил мимо все, что в ней оставалось.
+           svh — это тот же экран, но с панелью: он не меняется. */
         .stadium-run {
           display: block;
           flex: none;
-          height: 240dvh;
+          height: 240svh;
         }
 
         /* Кадрами страница не едет, и ход под историю не нужен: блок держит
@@ -11712,9 +11799,15 @@ function init(root) {
            остается, липкой карточке не за что держаться, и она уезжала к
            верхнему краю — под припаркованный экран, закрывая собой и
            заголовок, и тот самый вопрос, на который в ней отвечают. Здесь
-           колонка занимает экран под парковкой, и карточке есть где стоять. */
+           колонка занимает экран целиком, и карточке есть где стоять.
+
+           Экран целиком, а не то, что ниже парковки: колонка начинается у
+           верха секции, экран лежит над ней, а не перед ней. Вычтя парковку,
+           я укоротил колонку ровно на ту высоту, на которой карточка должна
+           стоять, — на низком телефоне ей уже не хватало места, и липкость
+           отжимала ее обратно наверх, под заголовок. */
         .world-asking .world-right {
-          min-height: calc(100dvh - var(--hint-room) - var(--lead-hold, 0px));
+          min-height: calc(100dvh - var(--hint-room));
         }
 
         /* Переехавший в экран заголовок перестает быть карточкой: каркас
@@ -12788,9 +12881,16 @@ function init(root) {
           height: calc(100dvh - var(--hint-room) - var(--lead-hold, 0px));
         }
 
+        /* Путь истории меряется в svh, а не в dvh. dvh ходит вместе с
+           панелью браузера: она прячется и показывается на ходу, путь от
+           этого то растягивается, то укорачивается — а блок считает по нему,
+           сколько состояний уже позади. Стоило пути укоротиться, и пройденное
+           оказывалось за последней границей: блок отвечал «история
+           рассказана», и один свайп проносил мимо все, что в ней оставалось.
+           svh — это тот же экран, но с панелью: он не меняется. */
         .area-run {
           display: block;
-          height: 245dvh;
+          height: 245svh;
         }
 
         /* The calculator is read in the strip under a picture pinned to the
@@ -14090,16 +14190,22 @@ const LEAD_STYLE = `<style>
     .study-lead-ask,
     .study-lead-answer,
     .study-lead-then { margin-top: 0.7em; }
-    .study-scale { padding: 10px 0 2px; }
-    .study-scale-bar { height: 8px; }
-    .study-scale-mark { width: 4px; height: 26px; }
-    .study-guess-ruler { height: 1.6em; margin-top: 12px; }
-    .study-guess-tick span { font-size: 0.75rem; top: 10px; }
-    .study-lead-verdict { font-size: 0.9375rem; }
-    .study-lead-check { font-size: 0.875rem; padding: 0.6em 1.6em; }
-    .study-lead-say { font-size: 0.9375rem; }
-    .study-lead-years { font-size: 3rem; }
-    .study-lead-year { font-size: 1.875rem; }
+    /* Все, что не заголовок, набрано крупнее, чем просит экран. Экран
+       сжимается целиком, и набранное в рем выходит на нем в двенадцать
+       пикселей — вопрос, шкала и кнопка читались мельче подписи под
+       картинкой. Прибавка стоит доли сжатия: экран от нее чуть ниже, и
+       заголовок садится на пару процентов — но вопрос, на который читателю
+       отвечать, того стоит. */
+    .study-scale { padding: 14px 0 4px; }
+    .study-scale-bar { height: 11px; }
+    .study-scale-mark { width: 5px; height: 32px; }
+    .study-guess-ruler { height: 1.7em; margin-top: 14px; }
+    .study-guess-tick span { font-size: 0.8125rem; top: 11px; }
+    .study-lead-verdict { font-size: 1.0625rem; }
+    .study-lead-check { font-size: 1rem; padding: 0.7em 2em; }
+    .study-lead-say { font-size: 1.125rem; }
+    .study-lead-years { font-size: 3.5rem; }
+    .study-lead-year { font-size: 2.125rem; }
     /* Карточка с годом на телефоне ложится в столбик. В строку картинка и три
        строки текста делят одну ширину, и тексту достается половина: «Тогда в
        Ладоге заложили каменную крепость» рвется там, где не нужно, а крепость
@@ -16167,10 +16273,24 @@ function init(root) {
            turning its camera on the campuses, one for the picture. Without it
            the phone was handed all three at once and none of those lines was
            ever read. */
+        /* Путь истории меряется в svh, а не в dvh. dvh ходит вместе с
+           панелью браузера: она прячется и показывается на ходу, путь от
+           этого то растягивается, то укорачивается — а блок считает по нему,
+           сколько состояний уже позади. Стоило пути укоротиться, и пройденное
+           оказывалось за последней границей: блок отвечал «история
+           рассказана», и один свайп проносил мимо все, что в ней оставалось.
+           svh — это тот же экран, но с панелью: он не меняется. */
+        /* И немного пути после истории — уже не ее, а ничей. Прибитая к верху
+           колонка занимает чуть больше половины экрана, и на последнем кадре
+           снизу выглядывал следующий раздел: шар на орбите, а под ним
+           заголовок финала и первые строчки доски. Финал приходит целиком,
+           одним ходом, — значит до того его не должно быть видно вовсе.
+           Считается это в svh по той же причине, что и путь истории. */
         .space-run {
           display: block;
           flex: none;
-          height: 280dvh;
+          height: 280svh;
+          margin-bottom: 36svh;
         }
       }
     </style>
@@ -17474,10 +17594,20 @@ function init(root) {
         .each-you { font-size: 1.375rem; }
         .each-why { font-size: 0.9375rem; }
 
-        /* A phone gets the board and its answer as one still picture; a frame
-           and a caption in each corner of a card this small would only crowd
-           it. */
-        .each-hud { display: none; }
+        /* The shot stays a shot on a phone too: the corners of the viewfinder
+           and the satellite's caption along the edges, only smaller — the card
+           is narrower, and at the wide sizes the two top captions would run
+           into each other. They go where they go on a wide screen: once the
+           figures start adding up, the frame is no longer a picture. */
+        .each-corner { width: 20px; height: 20px; }
+        .each-corner.tl { border-left-width: 2px; border-top-width: 2px; }
+        .each-corner.tr { border-right-width: 2px; border-top-width: 2px; }
+        .each-corner.bl { border-left-width: 2px; border-bottom-width: 2px; }
+        .each-corner.br { border-right-width: 2px; border-bottom-width: 2px; }
+
+        .each-meta { font-size: 0.75rem; letter-spacing: 0; }
+        .each-meta.tl, .each-meta.bl { left: 26px; }
+        .each-meta.tr, .each-meta.br { right: 26px; }
 
         /* The figures on a phone come out small, and a word at a third of a
            small number cannot be read — here it is set relatively larger. At
@@ -17677,6 +17807,7 @@ function init(root) {
     // the way a photograph is given a margin.
     const capTop = $('metaTop').offsetHeight + 14;
     const capBottom = $('metaBottom').offsetHeight + 12;
+    const airPoster = Math.round(airY * 0.4);
     const shot = {
       x: airX,
       y: capTop + airY,
@@ -17693,9 +17824,13 @@ function init(root) {
       // to arrives in its place, on the next turn of the finger, rather than
       // standing under it from the start. The sizes are drawn closer together
       // than on the wide board: at a phone's width the smallest of them would
-      // otherwise be unreadable.
+      // otherwise be unreadable. It stands inside the same frame, and there the
+      // captions along the edges already hold the board clear of them, so it
+      // does not add the full margin of the wide board on top of that.
       poster: pack(tiles.map((t) => ({ m: t.m, w: 0.6 + 0.4 * t.w })),
-        { x: airX, y: airY, w: Math.max(120, w - airX * 2), h: Math.max(60, h - airY * 2) }, 90)
+        { x: airX, y: capTop + airPoster,
+          w: Math.max(120, w - airX * 2),
+          h: Math.max(60, h - capTop - capBottom - airPoster * 2) }, 90)
     };
   }
 
@@ -17935,6 +18070,9 @@ function init(root) {
     if (want === phoneStage && !force) return;
     phoneStage = want;
     PHONE_STATE[want]();
+    // The frame belongs to the photograph: the board and the question over it.
+    // With the one left alone on the card there is nothing left to frame.
+    $('hud').classList.toggle('is-gone', want >= 2);
   }
 
   // The closing beat, put back as it ended instead of played again. A window
