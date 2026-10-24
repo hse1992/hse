@@ -261,11 +261,19 @@ export function init(root) {
            ровно экран, а управление открывается, когда история рассказана. */
         .stadium-body.is-tapped .stadium-run { display: none; }
 
+        /* Высота окна — через --win, а не через dvh: на айфоне dvh не
+           пересчитывается, когда панель браузера уезжает, и блок оставался
+           на сотню пикселей ниже экрана. См. mountWindowSize() в lib/page.js. */
         .stadium-body.is-tapped {
-          min-height: calc(100dvh - var(--hint-room));
+          min-height: calc(var(--win, 100dvh) - var(--hint-room));
         }
 
         .stadium-body.is-tapped.is-telling .col-left { display: none; }
+
+        /* Заголовок уступает место блоку, когда блок занял экран — см.
+           headAside(). Прозрачностью, а не высотой: высота тут общая с
+           каркасом, и смена ее сдвинула бы страницу под читателем. */
+        .viz-section.stadium-topped .viz-header { opacity: 0; }
 
         /* Числа под именем города — сколько в нем студентов и сколько
            сотрудников — на телефоне уходят: сверху уже сказано, сколько
@@ -294,6 +302,22 @@ export function init(root) {
           padding-right: 6px;
         }
 
+        /* А когда блок читается кадрами, карточка берет всю высоту, которая
+           осталась от экрана: раньше ей было отдано ровно 40% его, и под
+           кнопками стояло двести пикселей пустоты, а арена в них не росла.
+           Арена при этом остается повернутой поперек экрана — так в высокую
+           коробку она встает в полтора раза крупнее, чем лежа. */
+        .stadium-body.is-tapped .col-right {
+          flex: 1;
+          min-height: 0;
+        }
+
+        .stadium-body.is-tapped .canvas-card {
+          height: auto;
+          flex: 1;
+          min-height: 220px;
+        }
+
         /* Картинка перестает быть прибитой: блок помещается на экран целиком,
            и прибивать ее не к чему — зато при прокрутке она наезжала на
            переключатели, и те уходили под нее. На низком экране все наоборот:
@@ -311,12 +335,10 @@ export function init(root) {
            арену. Когда блок отдан читателю, картинка возвращается к своему
            размеру — под ней появляются виды, города и кнопки. */
         .stadium-body.is-tapped.is-telling .col-right {
-          height: calc(100dvh - var(--hint-room));
+          height: calc(var(--win, 100dvh) - var(--hint-room));
         }
 
         .stadium-body.is-tapped.is-telling .canvas-card {
-          height: auto;
-          flex: 1;
           min-height: 0;
         }
 
@@ -889,6 +911,24 @@ export function init(root) {
     colRight.style.paddingTop = `${Math.max(0, Math.round(delta))}px`;
   }
 
+  // ---------- Шапка над блоком ----------
+  // Заголовок с шарфом стоит над блоком и на телефоне паркуется у верхнего
+  // края. Пока блок держит экран, заголовок за его верхним краем — но окно у
+  // телефона растет под читателем (уезжает панель браузера), и над блоком
+  // открывается полоска, в которой стоит хвост заголовка: «…все свои» и шарф.
+  // Читать там нечего, а место это принадлежит счету на трибунах. Поэтому,
+  // пока блок сам занимает экран, заголовок уступает — и возвращается, как
+  // только читатель поднимается к титульной карточке.
+  const section = root.closest('.viz-section');
+  const headAside = () => {
+    if (!section || !stacked.matches) return;
+    const box = root.getBoundingClientRect();
+    section.classList.toggle('stadium-topped', box.top <= 8 && box.bottom > 40);
+  };
+  window.addEventListener('scroll', headAside, { passive: true });
+  window.addEventListener('resize', headAside);
+  headAside();
+
   onResize(kindRow, alignColumns);
   stacked.addEventListener('change', alignColumns);
   // The left column arrives with a transition; measure once it has settled.
@@ -1000,10 +1040,11 @@ export function init(root) {
       noteEl.textContent = 'Стадион твой: попробуй выключить город или категорию';
     }
 
-    // Пока идет история, арена лежит поперек экрана и оттого крупнее; когда
-    // блок отдан читателю, она поворачивается обратно — внизу нужно место
-    // видам, городам и кнопкам. См. faceTo().
-    faceTo(tapped && telling ? 1 : 0, firstFrame);
+    // На телефоне арена все время стоит поперек экрана: коробка под нее
+    // высокая и узкая в обоих состояниях — и пока идет история, и когда под
+    // картинкой встали виды, города и кнопки, — а лежа чаша упирается в
+    // ширину и остается вдвое мельче. См. faceTo().
+    faceTo(tapped ? 1 : 0, firstFrame);
     render(firstFrame);
     countTo(filledCount());
     firstFrame = false;

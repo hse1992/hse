@@ -127,8 +127,15 @@ export const meta = {
   // module has said a word.
   // The name of the station is the station board itself — the same one in
   // both modes.
+  // Размер табло повторен инлайном: стили модуля приезжают вместе с блоком, а
+  // шапку каркас рисует раньше — и до их приезда файл вставал в свои
+  // 1108 пикселей и распирал секцию втрое шире экрана. Карточка при этом
+  // меряется по распертому заголовку, и на телефоне она выходила в экран
+  // высотой с подзаголовок в пятнадцать строк.
   title: 'Следующая <span data-el="stop">станция</span> '
-    + '<img class="metro-tablo" src="assets/tablo-vyshkinskaya.svg" alt="Вышкинская">',
+    + '<img class="metro-tablo" src="assets/tablo-vyshkinskaya.svg" alt="Вышкинская"'
+    + ' style="display: inline-block; width: min(100%, 8.46em); height: auto;'
+    + ' vertical-align: -0.4em">',
   // Everything below the first line belongs to the title card: the pictures
   // and the multipliers fold away as the card settles, and what is left reads
   // as the plain subtitle of the section. All of it is phrasing content — the
