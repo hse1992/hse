@@ -1005,4 +1005,20 @@ export function init(root) {
   // section is built now and laid out when the page has a moment — the beat
   // that brings it in, and the one that carries the page to it, stay smooth.
   idle(measure, { timeout: 500 });
+
+  // На телефоне стену листают пальцем, и то, где она остановилась, — такое же
+  // положение картинки, как поворот планеты или место поезда на кольце.
+  // Поэтому читатель, вернувшийся в раздел, застает стену с первой строки, а
+  // не там, где бросил ее в прошлый раз. Раскрытая плитка закрывается вместе
+  // с этим: открытой осталась бы та, до которой отсюда уже не видно.
+  return {
+    open() {
+      grid.scrollTop = 0;
+      if (current && stacked.matches) {
+        current.classList.remove('on');
+        current.setAttribute('aria-expanded', 'false');
+        current = null;
+      }
+    }
+  };
 }
