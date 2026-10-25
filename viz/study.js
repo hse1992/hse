@@ -624,16 +624,24 @@ const LEAD_STYLE = `<style>
        пикселей — вопрос, шкала и кнопка читались мельче подписи под
        картинкой. Прибавка стоит доли сжатия: экран от нее чуть ниже, и
        заголовок садится на пару процентов — но вопрос, на который читателю
-       отвечать, того стоит. */
-    .study-scale { padding: 14px 0 4px; }
-    .study-scale-bar { height: 11px; }
-    .study-scale-mark { width: 5px; height: 32px; }
-    .study-guess-ruler { height: 1.7em; margin-top: 14px; }
-    .study-guess-tick span { font-size: 0.8125rem; top: 11px; }
-    .study-lead-verdict { font-size: 1.0625rem; }
-    .study-lead-check { font-size: 1rem; padding: 0.7em 2em; }
-    .study-lead-say { font-size: 1.125rem; }
-    .study-lead-years { font-size: 3.5rem; }
+       отвечать, того стоит.
+
+       Вопросу прибавка достается даром. Он стоит в коробке подмены, прижатый
+       к ее низу, а высоту коробке задают квадраты программ — втрое выше его.
+       Над вопросом на этом такте пустая треть экрана, и цифра с подписью
+       растут в нее, ничего не отнимая. Платит за себя только шкала с кнопкой:
+       они стоят под коробкой, и каждый их пиксель — пиксель общей высоты. */
+    .study-scale { padding: 18px 0 4px; }
+    .study-scale-bar { height: 16px; }
+    .study-scale-mark { width: 6px; height: 42px; }
+    .study-guess-ruler { height: 1.9em; margin-top: 18px; }
+    .study-guess-tick { height: 6px; }
+    .study-guess-tick.is-big { height: 12px; }
+    .study-guess-tick span { font-size: 1rem; top: 15px; }
+    .study-lead-verdict { font-size: 1.25rem; }
+    .study-lead-check { font-size: 1.3125rem; padding: 0.86em 2.6em; }
+    .study-lead-say { font-size: 1.5rem; }
+    .study-lead-years { font-size: 5rem; }
     .study-lead-year { font-size: 2.125rem; }
     /* Карточка с годом на телефоне ложится в столбик. В строку картинка и три
        строки текста делят одну ширину, и тексту достается половина: «Тогда в
@@ -928,16 +936,44 @@ export function init(root) {
       }
 
       @media (max-width: 860px) {
-        .study-years { font-size: clamp(2.5rem, 15vw, 4.5rem); }
+        /* Блок целиком — одна картинка и управление под ней, и на телефоне он
+           должен уместиться в экран: карточка с числом залипает наверху, а
+           переключатели городов читаются под ней. На коротком экране
+           («увеличенный» экран айфона — это 320 на 634) он не умещался:
+           картинка занимала столько же, сколько на высоком, и кнопки «Снять
+           все» уезжали под нижний край.
+
+           Поэтому все, что в карточке меряется в пикселях, меряется еще и
+           долей экрана. На высоком телефоне доля больше предела, и числа
+           остаются прежними; на коротком блок садится ровно настолько, чтобы
+           управление осталось на экране. */
+        .study-years { font-size: clamp(2.25rem, min(15vw, 6.4svh), 4.5rem); }
         .study-caption { font-size: 0.875rem; }
-        .study-history { gap: 12px; margin-top: 14px; padding: 12px 16px; }
-        .study-timeline { margin-top: 14px; padding: 0 20px; }
-        .study-track { height: 34px; }
-        .study-note { font-size: 0.875rem; }
+        .study-history {
+          gap: clamp(8px, 1.6svh, 12px);
+          margin-top: clamp(8px, 1.7svh, 14px);
+          padding: clamp(8px, 1.5svh, 12px) 16px;
+        }
+        .study-art { width: clamp(40px, 7.4svh, 64px); height: clamp(40px, 7.4svh, 64px); }
+        .study-timeline { margin-top: clamp(8px, 1.7svh, 14px); padding: 0 20px; }
+        .study-track { height: clamp(24px, 4.4svh, 34px); }
+        .study-note { font-size: 0.875rem; padding: clamp(2px, 0.8svh, 6px) 12px clamp(0px, 0.6svh, 4px); }
 
         /* The picture has no fixed height of its own, unlike the canvases in
            the other sections: a long event text must not be cut off. */
-        #study .canvas-card { height: auto; min-height: 40dvh; }
+        #study .canvas-card { height: auto; min-height: 40dvh; padding: clamp(10px, 2svh, 16px); }
+        #study .meter-card { padding: clamp(10px, 2svh, 16px); }
+        #study .col-left { gap: clamp(6px, 1.2svh, 8px); }
+
+        /* Картинка блока не залипает наверху. Общее правило держит правую
+           колонку на месте, пока под ней листается левая, — но левая здесь не
+           список, а само управление, и залипшая карточка накрывала бы его
+           собой. На телефоне, где блок все-таки не уместился, он читается
+           двумя кадрами: сначала счет и число, следующим ходом — число,
+           год и переключатели под ним. Там, где блок умещается целиком,
+           правило ничего не меняет: прилипать не к чему. */
+        #study .col-right { position: static; }
+        #study .actions .btn { padding: clamp(7px, 1.4svh, 11px) 14px; }
 
         /* Числа под именем города — «80 программ, бакалавриат и специалитет»,
            «154 программы, магистратура» — на телефоне уходят: сверху уже
