@@ -1838,9 +1838,15 @@ button { font-family: inherit; }
      пикселей пустоты у каждого из них. Здесь блокам возвращается почти вся:
      двенадцать остается воздухом у нижнего края, чтобы картинка не упиралась
      в самый край экрана. Обложка свою полосу считает отдельно (см. ниже) и
-     этой правкой не задета — на ней подсказка как раз и стоит. */
+     этой правкой не задета — на ней подсказка как раз и стоит.
+
+     И безопасная зона снизу. У айфона со свернутой панелью страница идет под
+     ней: окно считается до самого низа экрана, а последние полсотни пикселей
+     накрыты плавающей строкой адреса. Ровно эту полосу браузер и называет
+     безопасной зоной — блок до нее не достает, и нижние кнопки больше не
+     уезжают под панель. */
   :root {
-    --hint-room: 12px;
+    --hint-room: max(12px, env(safe-area-inset-bottom, 0px));
   }
 
   /* «Откуда цифры» на телефоне уходит: ссылка у нее та же, что у подписи
@@ -1879,6 +1885,13 @@ button { font-family: inherit; }
     height: auto;
     max-width: none;
     padding: 0;
+    /* Коробка блока не шире экрана. У шапки ширина записана долей
+       (100% / --intro-k), а доля эта считается от коробки, которую сама
+       шапка и растягивает: круг замыкается, и браузер берет ширину по
+       самому длинному, что в шапке есть, — подзаголовку в одну строку.
+       На экране в 320 точек («увеличенный» экран айфона) коробка выходила
+       на 356, и карточки блока обрезало с обеих сторон. */
+    min-width: 0;
   }
 
   .viz-intro .viz-intro-hold {
@@ -2037,8 +2050,21 @@ button { font-family: inherit; }
   .city-list {
     overflow: visible;
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    /* Два в ряд — пока два в ряд помещаются. Карточка это имя и переключатель
+       в пятьдесят один пиксель, и на экране в 320 точек («увеличенный» экран
+       айфона) две таких в ряд не вставали: колонки держались по содержимому и
+       уезжали за правый край вместе с переключателями. Там, где на две не
+       хватает, города идут по одному. */
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
     gap: 6px;
+  }
+
+  /* Имя города переносится, а не обрезается. В колонке на 360 «С. Петербург»
+     становился «С. Петербур…», а город, который нельзя прочесть, — это уже не
+     переключатель. Карточка от переноса выше на строку, и только у длинных
+     имен. */
+  .city-name {
+    white-space: normal;
   }
 
   /* The cards of the cities are read under a picture pinned to the top of the
@@ -4016,6 +4042,23 @@ const REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)');
 // width at which the layout folds into one column. See mountScrolled.
 const NARROW = window.matchMedia('(max-width: 860px)');
 
+// Полоса внизу экрана, которая блоку не принадлежит. В стилях она записана
+// через max() и env(): у айфона со свернутой панелью безопасная зона снизу —
+// это как раз та полоса, которой браузер накрывает страницу. Прочитать такую
+// запись у документа нельзя, она так и лежит текстом, поэтому меряем ее
+// телом: пустая коробка высотой в эту полосу отвечает числом.
+let проба = null;
+function комната() {
+  if (!проба) {
+    проба = document.createElement('div');
+    проба.setAttribute('aria-hidden', 'true');
+    проба.style.cssText = 'position:absolute;left:-9999px;top:0;width:0;'
+      + 'height:var(--hint-room,0px);pointer-events:none';
+  }
+  if (!проба.isConnected) document.body.appendChild(проба);
+  return проба.offsetHeight;
+}
+
 // A folding phone is opened in the middle of reading, and the width crosses
 // that line. The two ways of reading cannot be swapped under the reader's feet
 // — the page is read again in the other one — but it has to start where they
@@ -4231,7 +4274,7 @@ function backdropOf(section, picture) {
   const room = afloat
     ? { top: 0, width: window.innerWidth, height: window.innerHeight }
     : section.getBoundingClientRect();
-  const hint = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--hint-room')) || 0;
+  const hint = комната();
   // Где кончается сам экран. На телефоне его коробка — все окно, а строки
   // стоят по центру: мерить нужно по ним, иначе картинка окажется под нижним
   // краем экрана и схлопнется в ничто.
@@ -4925,15 +4968,39 @@ function mountScrolled(entries, onProgress) {
       // из-под предыдущего блока.
       межи.push(top - y);
     });
+    // И низ того блока, который читатель смотрит сейчас. Блок, который не
+    // уместился в экран — переключатели под картинкой на тесном телефоне, —
+    // иначе терял свой хвост: ближайшей границей оказывалось начало
+    // следующего раздела, ход уходил туда через голову кнопок, и до них было
+    // не добраться вовсе. Полоса подсказки внизу блоку не принадлежит, и
+    // доводим мы его до ее верхнего края.
+    //
+    // Спрашивают об этом только у блока, который в экран и правда не влез. У
+    // того, что влезает, низ приезжает раньше верха — и между этими двумя
+    // остановками оставался такт на три десятка пикселей, на котором ничего
+    // не происходило: блок уже был на экране целиком.
+    if (here) {
+      const тело = here.section.querySelector('.viz-body');
+      const комн = window.innerHeight - комната();
+      const box = тело && тело.getBoundingClientRect();
+      if (box && box.height > комн) межи.push(box.bottom - комн);
+    }
     const взять = (list) => list.map((d) => d * dir).filter((d) => d > 2);
+    // Две границы в двух десятках пикселей друг от друга — это одно и то же
+    // место: низ длинного блока и начало следующего раздела расходятся ровно
+    // на поля секции. Берем дальнюю — ближнюю ход по дороге и так пройдет, а
+    // врозь они давали такт, который двигал страницу на три десятка пикселей.
+    const слить = (list) => list.sort((a, b) => a - b)
+      .filter((d, i, all) => i === all.length - 1 || all[i + 1] - d > ОСТАТОК);
+    const вехи = слить(взять(межи));
     // Несколько пикселей до границы раздела — это не такт, а остаток
     // прошлого: ход уезжает ровно на столько, сколько попросил, а блок на
     // приходе складывает свои цифры и меняет высоту, и страница под читателем
     // чуть съезжает. Нажатие в такой остаток выглядит сломанной кнопкой.
     // Состояний блока это не касается: там счет ведет сам блок, и маленькое
     // число у него значит, что следующий кадр и правда близко.
-    const крупные = [...взять(out), ...взять(межи).filter((d) => d > ОСТАТОК)];
-    const рядом = (крупные.length ? крупные : [...взять(out), ...взять(межи)])
+    const крупные = [...взять(out), ...вехи.filter((d) => d > ОСТАТОК)];
+    const рядом = (крупные.length ? крупные : [...взять(out), ...вехи])
       .sort((a, b) => a - b);
     if (рядом.length) return рядом;
     // Хвост блока, где тактов больше нет: список профессий, лента лет,
@@ -5035,11 +5102,24 @@ function mountScrolled(entries, onProgress) {
     maybeCatch();
     lay();
     const at = place();
+    // Пока страницу держит блок, читаемый кадрами, спрашивать о положении
+    // некого: тело прибито к окну, прокрутка обнулена, и по ней выходит, что
+    // читатель в самом начале страницы.
+    const стою = caught ? стоит : at.index;
+    // Читатель перешел в другой раздел — значит, блок вышел на экран, и то,
+    // что в нем идет само, начинается сначала. Одного наблюдателя за въездом
+    // секции для этого мало: вернувшись шагом назад из следующего раздела,
+    // читатель застает блок там, где его бросил, — секция все это время с
+    // экрана не уходила, и въезжать ей было неоткуда.
+    if (стою >= 0 && стою !== стоит) {
+      const e = entries[стою];
+      if (e && e.open) tried('открытие блока', e.open);
+    }
     // Where the reader stands, kept from one painting to the next. Asked for it
     // at the moment the phone unfolds, the page would answer by the geometry it
     // has just taken on — the wide one, where the whole story is eight screens
     // — and a reader halfway through would be read as being at the end.
-    if (at.index >= 0) { стоит = at.index; доля = at.part; }
+    if (стою >= 0) { стоит = стою; доля = caught ? доля : at.part; }
     if (onProgress) onProgress(window.scrollY / height(), at);
   };
 
@@ -11477,8 +11557,8 @@ const meta = {
     text: 'Из них <span class="world-ask" style="background: var(--foreign); color: var(--card)">'
       + `${nf(FOREIGN)}+ ${plural(FOREIGN, 'иностранец', 'иностранца', 'иностранцев')}</span>. `
       + (PHONE
-        ? '<span style="display: block; margin-top: 0.5em; color: var(--hse-blue);'
-          + ' font-weight: 700; font-size: 1.12em">'
+        ? '<span class="world-ask-line" style="display: block; margin-top: 0.5em;'
+          + ' color: var(--hse-blue); font-weight: 700; font-size: 1.12em">'
           + 'Как думаешь, из скольких стран?</span>'
         : '<span class="world-ask" style="background: var(--hse-blue); color: var(--card)">'
           + 'Как думаешь, из скольких стран?</span>')
@@ -11997,69 +12077,89 @@ function init(root) {
           display: none;
         }
 
-        /* Пока вопрос задан, карточка со шкалой — это весь блок: городов еще
-           нет, стена флагов не показана. Своей высоты у колонки от этого не
-           остается, липкой карточке не за что держаться, и она уезжала к
-           верхнему краю — под припаркованный экран, закрывая собой и
-           заголовок, и тот самый вопрос, на который в ней отвечают. Здесь
-           колонка занимает экран целиком, и карточке есть где стоять.
-
-           Экран целиком, а не то, что ниже парковки: колонка начинается у
-           верха секции, экран лежит над ней, а не перед ней. Вычтя парковку,
-           я укоротил колонку ровно на ту высоту, на которой карточка должна
-           стоять, — на низком телефоне ей уже не хватало места, и липкость
-           отжимала ее обратно наверх, под заголовок. */
-        .world-asking .world-right {
-          min-height: calc(100dvh - var(--hint-room));
-        }
-
         /* Переехавший в экран заголовок перестает быть карточкой: каркас
            держал ее липкой и отводил за правый край (--card-x), чтобы она не
            приезжала вовсе. Внутри экрана ей и ехать некуда — она уже на
            месте. */
-        .world-scene.world-answered .viz-lead .viz-header {
+        .world-scene .viz-lead .viz-header {
           position: static;
           transform: none;
         }
+
+        /* Заголовок стоит в припаркованном экране, то есть отнимает верх у
+           каждого экрана блока. Подзаголовок там лишний: «У нас в гостях уже
+           128 флагов» — это ровно то, что крупно написано в карточке счета
+           строкой ниже. */
+        .world-scene .viz-lead .viz-header > p {
+          display: none;
+        }
       }
 
-      /* Five captions and 128 flags do not fit into a screen-sized card on a
-         phone: squeezed into 40dvh a flag is 16px wide and unrecognisable. So
-         here the wall grows to its full height and scrolls with the page, and
-         the counter sticks to the top instead of the picture. */
+      /* Пять заголовков и 128 флагов не влезают в экран ни при каком размере
+         плитки: ужатый до 40dvh флаг — это шестнадцать пикселей, и узнать его
+         нельзя. Раньше стена росла во всю высоту, а страница прокручивалась
+         под ней. Теперь на телефоне страница не прокручивается, а читается
+         тактами — и низ стены вместе с переключателями кампусов, которые ее
+         меняют, просто обрезало краем экрана: ни Европы, ни городов.
+         Поэтому блок укладывается ровно в экран, а стена листается внутри
+         своей карточки, как стена профессий: класс page-scrolls говорит
+         каркасу не отнимать у нее прокрутку, а overscroll-behavior — не
+         тянуть за собой страницу. */
       @media (max-width: 860px) {
+        /* Блок начинается с экрана: карточка счета, стена и переключатели
+           кампусов стоят на нем вместе. На тесном телефоне — 320 точек
+           «увеличенного» айфона — им там и вместе не поместиться, и блок
+           честно вырастает выше экрана: низ у него каркас достает отдельным
+           тактом. Что он не ужимается силой — важно: колонка, которой
+           разрешили сжаться ниже своего содержимого, налезала на
+           переключатели под собой. */
+        .world-body {
+          flex: none;
+          min-height: calc(var(--win, 100dvh) - var(--hint-room));
+        }
+
+        /* Верх каждого экрана занят припаркованным переходным экраном —
+           значит, колонка начинается под ним, а не за ним. Высоту парковки
+           каркас кладет в --lead-hold. Сжиматься ей нельзя: ужатая ниже
+           своего содержимого, она налезает на переключатели под собой. */
         .world-right {
           position: static;
-          padding: 0;
+          padding: var(--lead-hold, 0px) 0 0;
           background: none;
+          flex: none;
         }
 
         .world-right::after { display: none; }
 
-        /* Переходный экран здесь паркуется наверху и остается заголовком
-           блока: сколько на стадионе студентов, сколько из них иностранцев и
-           вопрос, из скольких они стран. Значит, то, что блок прибивает к
-           верху, прибивается под ним, а не за ним — высоту парковки каркас
-           кладет в --lead-hold. Карточка вставала в самый верх и закрывала
-           собой и заголовок, и тот самый вопрос, на который читатель в ней же
-           и отвечает. */
+        /* Липнуть не к чему: страница под карточкой не едет. А липкой она
+           вставала поверх первых рядов стены — те сто тридцать пикселей
+           флагов читатель не видел вовсе. */
         .world-right .meter-card {
-          position: sticky;
-          top: var(--lead-hold, 0px);
-          z-index: 2;
-          box-shadow: var(--card-shadow), 0 10px 16px -14px rgba(16, 24, 40, 0.55);
+          position: static;
         }
 
-        .canvas-card.world-flags-card { height: auto; }
-
-        .world-wrap {
+        .canvas-card.world-flags-card {
           flex: none;
+          min-height: 0;
           height: auto;
         }
 
+        .world-wrap {
+          flex: none;
+          min-height: 0;
+          height: auto;
+        }
+
+        /* Высоту стене отмеряет сам блок — столько, сколько осталось от
+           экрана (grow ниже). Отдать это флексу нельзя: колонка, ужатая ниже
+           своего содержимого, не прокручивается, а налезает на то, что под
+           ней. */
         .world-grid {
           position: static;
-          overflow: visible;
+          height: auto;
+          overflow-y: auto;
+          overscroll-behavior: contain;
+          -webkit-overflow-scrolling: touch;
         }
 
         .world-score-value { font-size: 2.5rem; }
@@ -12123,6 +12223,9 @@ function init(root) {
 
   // ---------- Flags ----------
   const grid = $('grid');
+  // Каркас на телефоне отнимает прокрутку у всей страницы, кроме того, что
+  // помечено этим классом. Стена — как раз такое место: ее листают пальцем.
+  if (phone.matches) grid.classList.add('page-scrolls');
   const tiles = new Map();
   let index = 0;
 
@@ -12168,11 +12271,35 @@ function init(root) {
     grid.appendChild(group);
   });
 
+  // Сколько экрана осталось стене. Блок на телефоне встает в один экран:
+  // карточка счета, стена и переключатели кампусов, которые ее меняют. Стена
+  // берет то, что осталось от экрана после них, и листается внутри себя —
+  // 128 флагов не влезут туда ни при каком размере плитки, а резать их краем
+  // экрана нельзя: это и есть ответ блока. Где не осталось ничего — на
+  // тесном телефоне — стене отдается полоса в четыре ряда, а блок честно
+  // вырастает выше экрана: низ у него каркас достает отдельным тактом.
+  const WALL_MIN = 140;              // меньше четырех рядов флагов не оставляем
+  function grow() {
+    if (!phone.matches) return;
+    // Экран, который блоку отведен: min-height тела каркас считает по окну,
+    // и это ровно то место, куда блок должен встать.
+    const room = parseFloat(getComputedStyle(root).minHeight) || root.clientHeight;
+    // И высота всего остального — стену убираем, а заодно и сам этот экран:
+    // иначе тело меряется по нему и «остального» всегда ровно на экран.
+    const kept = root.style.minHeight;
+    root.style.minHeight = '0px';
+    grid.style.maxHeight = '0px';
+    const without = root.scrollHeight;
+    root.style.minHeight = kept;
+    grid.style.maxHeight = `${Math.max(WALL_MIN, Math.round(room - without))}px`;
+  }
+
   // Flags are laid out to fill the card: take the largest size at which every
   // group, caption and flag still fits without scrolling.
   function layout() {
     if (phone.matches) {
       grid.style.setProperty('--tile', `${TILE_PHONE}px`);
+      grow();
       return;
     }
     const style = getComputedStyle(grid);
@@ -12213,6 +12340,16 @@ function init(root) {
   }
 
   onResize(grid, layout);
+  // Стена берет то, что осталось от экрана, — значит, следить надо за тем,
+  // что его занимает: карточка счета подрастает с ответом, кампусы
+  // приходят вместе с ним, и оба становятся другой высоты на повороте. И за
+  // самим экраном: он вырастает на полсотни пикселей, когда уезжает панель
+  // браузера, — эти пикселы стене и достаются.
+  if (phone.matches) {
+    onResize(root, layout);
+    onResize(root.querySelector('.meter-card'), layout);
+    onResize(root.querySelector('.world-left'), layout);
+  }
 
   // ---------- The name under the cursor ----------
   // One tip for the whole wall, and one listener: 128 flags with a listener
@@ -12506,24 +12643,70 @@ function init(root) {
   }
 
   // На телефоне карточка с заголовком не приезжает справа — ее место наверху
-  // занял припаркованный экран с вопросом, и приезжать ей некуда. Поэтому с
-  // ответом заголовок переезжает в сам экран: вопрос уступает ему место, как
-  // и на широком. Переезжает именно узлом, а не копией текста, — все, что
-  // каркас умеет с этим экраном (парковка, высота под ним, исчезновение
-  // вместе с секцией), продолжает работать само, он меряет своих детей, а
-  // дети теперь заголовок.
+  // занял припаркованный экран с вопросом, и приезжать ей некуда. Поэтому
+  // заголовок переезжает в сам экран: вопрос уступает ему место, как и на
+  // широком. Переезжает именно узлом, а не копией текста, — все, что каркас
+  // умеет с этим экраном (парковка, высота под ним, исчезновение вместе с
+  // секцией), продолжает работать само, он меряет своих детей, а дети теперь
+  // заголовок.
+  //
+  // И уезжает обратно. Экран этот живет не только над блоком: он же стоит над
+  // ареной, которую отдал стадион, — а это такт до блока. Оставшись там
+  // заголовком, он читался как чужой: арена предыдущего раздела под надписью
+  // «Все флаги в гости будут к нам». Так что наверху стоит то, про что сейчас
+  // картинка: над ареной — строки про нее, над стеной флагов — заголовок
+  // блока. Меняются они разом, без полупрозрачной середины: это не переход, а
+  // два разных экрана (см. «Кроссфейд» в CLAUDE.md).
   const leadEl = section.querySelector('.viz-lead');
   const headEl = section.querySelector('.viz-header');
-  let headMoved = false;
-  function headToLead() {
-    if (!phone.matches || headMoved || !leadEl || !headEl) return;
-    headMoved = true;
-    leadEl.replaceChildren(headEl);
-    // Экран стал вдвое ниже, а его место наверху каркас пересчитывает на
-    // движении страницы — которого сейчас нет: читатель нажал кнопку, а не
-    // листал. Без толчка под заголовком осталась бы полоса от вопроса.
+  const headHome = headEl ? headEl.parentNode : null;
+  const askKids = leadEl ? [...leadEl.childNodes] : [];
+  // Вопрос уходит из экрана вместе с ответом: читатель возвращается сюда
+  // шагом назад, и спрашивать его второй раз не о чем — над ареной остается
+  // то, что она показывает. Прячется он руками, а не стилями блока: перенос
+  // строки у него записан инлайном (иначе каркас обмерит экран до того, как
+  // приедут стили, — см. CLAUDE.md), а инлайн стилям блока не перебить.
+  const askLine = leadEl ? leadEl.querySelector('.world-ask-line') : null;
+  let leadIs = 'ask';
+  function leadShow(what) {
+    if (!phone.matches || !leadEl || !headEl || leadIs === what) return;
+    leadIs = what;
+    if (what === 'head') leadEl.replaceChildren(headEl);
+    else {
+      leadEl.replaceChildren(...askKids);
+      if (headHome) headHome.appendChild(headEl);
+    }
+    // Экран стал другой высоты, а его место наверху каркас пересчитывает на
+    // движении страницы — которого в этот момент может и не быть: читатель
+    // нажал кнопку, а не листал. Без толчка под заголовком осталась бы
+    // полоса от вопроса.
     window.dispatchEvent(new Event('scroll'));
   }
+
+  // Сколько места занял наверху припаркованный экран, каркас считает сам и
+  // не сразу: высота его меняется вместе с тем, что в нем стоит, — вопрос
+  // выше заголовка. Ловить этот момент тактами бесполезно, он приходит то
+  // раньше, то позже отрисовки; поэтому стена просто пересчитывает себя,
+  // когда парковка стала другой. Случается это за чтение считаные разы.
+  let held = -1;
+  function growSoon() {
+    const now = parseFloat(getComputedStyle(section).getPropertyValue('--lead-hold')) || 0;
+    if (now === held) return;
+    held = now;
+    grow();
+  }
+
+  // Блок занял экран — значит, читают его, а не открытие над ним. Ровно в
+  // ноль верх блока при этом не встает: на тесном телефоне он не влезает в
+  // экран целиком, и каркас доводит его до своей границы кадра, а не до
+  // пикселя. Поэтому четверть экрана — это все еще «блок наверху».
+  function follow() {
+    const top = root.getBoundingClientRect().top;
+    leadShow(!asking && top <= window.innerHeight * 0.25 ? 'head' : 'ask');
+    if (askLine) askLine.style.display = asking ? 'block' : 'none';
+    growSoon();
+  }
+  if (PHONE) window.addEventListener('scroll', follow, { passive: true });
 
   // The block stands under the lead-in while the question is asked and under
   // the heading once it is answered, and the two are not the same height. So
@@ -12573,7 +12756,7 @@ function init(root) {
       unveil(plays ? 620 : 0);
     }
     setHeading(on);
-    if (!on) headToLead();
+    follow();
     scale.setAttribute('aria-disabled', on ? 'false' : 'true');
     scale.tabIndex = on ? 0 : -1;
     check.tabIndex = on ? 0 : -1;
@@ -12581,6 +12764,10 @@ function init(root) {
     // left standing round the answer.
     if (!on && [scale, check].includes(document.activeElement)) document.activeElement.blur();
     paintMeter();
+    // С ответом в блоке прибавилось: пришли кампусы, и стене осталось
+    // меньше. Меряем сразу — иначе до первого движения она стоит во всю
+    // высоту и выталкивает переключатели за край экрана.
+    if (!on) grow();
 
     if (plays) glide(from);
   }
@@ -12628,7 +12815,10 @@ function init(root) {
   setAsking(true);
   render();
   layout();
-  return { step, hold };
+  // Стена листается пальцем, и место, на котором ее бросили, — такое же
+  // положение картинки, как поворот планеты: вернувшись в раздел, читатель
+  // застает ее с первой строки, а не с середины Африки.
+  return { step, hold, open: () => { grid.scrollTop = 0; } };
 }
 
 return { meta, init };
@@ -14398,16 +14588,24 @@ const LEAD_STYLE = `<style>
        пикселей — вопрос, шкала и кнопка читались мельче подписи под
        картинкой. Прибавка стоит доли сжатия: экран от нее чуть ниже, и
        заголовок садится на пару процентов — но вопрос, на который читателю
-       отвечать, того стоит. */
-    .study-scale { padding: 14px 0 4px; }
-    .study-scale-bar { height: 11px; }
-    .study-scale-mark { width: 5px; height: 32px; }
-    .study-guess-ruler { height: 1.7em; margin-top: 14px; }
-    .study-guess-tick span { font-size: 0.8125rem; top: 11px; }
-    .study-lead-verdict { font-size: 1.0625rem; }
-    .study-lead-check { font-size: 1rem; padding: 0.7em 2em; }
-    .study-lead-say { font-size: 1.125rem; }
-    .study-lead-years { font-size: 3.5rem; }
+       отвечать, того стоит.
+
+       Вопросу прибавка достается даром. Он стоит в коробке подмены, прижатый
+       к ее низу, а высоту коробке задают квадраты программ — втрое выше его.
+       Над вопросом на этом такте пустая треть экрана, и цифра с подписью
+       растут в нее, ничего не отнимая. Платит за себя только шкала с кнопкой:
+       они стоят под коробкой, и каждый их пиксель — пиксель общей высоты. */
+    .study-scale { padding: 18px 0 4px; }
+    .study-scale-bar { height: 16px; }
+    .study-scale-mark { width: 6px; height: 42px; }
+    .study-guess-ruler { height: 1.9em; margin-top: 18px; }
+    .study-guess-tick { height: 6px; }
+    .study-guess-tick.is-big { height: 12px; }
+    .study-guess-tick span { font-size: 1rem; top: 15px; }
+    .study-lead-verdict { font-size: 1.25rem; }
+    .study-lead-check { font-size: 1.3125rem; padding: 0.86em 2.6em; }
+    .study-lead-say { font-size: 1.5rem; }
+    .study-lead-years { font-size: 5rem; }
     .study-lead-year { font-size: 2.125rem; }
     /* Карточка с годом на телефоне ложится в столбик. В строку картинка и три
        строки текста делят одну ширину, и тексту достается половина: «Тогда в
@@ -14702,16 +14900,44 @@ function init(root) {
       }
 
       @media (max-width: 860px) {
-        .study-years { font-size: clamp(2.5rem, 15vw, 4.5rem); }
+        /* Блок целиком — одна картинка и управление под ней, и на телефоне он
+           должен уместиться в экран: карточка с числом залипает наверху, а
+           переключатели городов читаются под ней. На коротком экране
+           («увеличенный» экран айфона — это 320 на 634) он не умещался:
+           картинка занимала столько же, сколько на высоком, и кнопки «Снять
+           все» уезжали под нижний край.
+
+           Поэтому все, что в карточке меряется в пикселях, меряется еще и
+           долей экрана. На высоком телефоне доля больше предела, и числа
+           остаются прежними; на коротком блок садится ровно настолько, чтобы
+           управление осталось на экране. */
+        .study-years { font-size: clamp(2.25rem, min(15vw, 6.4svh), 4.5rem); }
         .study-caption { font-size: 0.875rem; }
-        .study-history { gap: 12px; margin-top: 14px; padding: 12px 16px; }
-        .study-timeline { margin-top: 14px; padding: 0 20px; }
-        .study-track { height: 34px; }
-        .study-note { font-size: 0.875rem; }
+        .study-history {
+          gap: clamp(8px, 1.6svh, 12px);
+          margin-top: clamp(8px, 1.7svh, 14px);
+          padding: clamp(8px, 1.5svh, 12px) 16px;
+        }
+        .study-art { width: clamp(40px, 7.4svh, 64px); height: clamp(40px, 7.4svh, 64px); }
+        .study-timeline { margin-top: clamp(8px, 1.7svh, 14px); padding: 0 20px; }
+        .study-track { height: clamp(24px, 4.4svh, 34px); }
+        .study-note { font-size: 0.875rem; padding: clamp(2px, 0.8svh, 6px) 12px clamp(0px, 0.6svh, 4px); }
 
         /* The picture has no fixed height of its own, unlike the canvases in
            the other sections: a long event text must not be cut off. */
-        #study .canvas-card { height: auto; min-height: 40dvh; }
+        #study .canvas-card { height: auto; min-height: 40dvh; padding: clamp(10px, 2svh, 16px); }
+        #study .meter-card { padding: clamp(10px, 2svh, 16px); }
+        #study .col-left { gap: clamp(6px, 1.2svh, 8px); }
+
+        /* Картинка блока не залипает наверху. Общее правило держит правую
+           колонку на месте, пока под ней листается левая, — но левая здесь не
+           список, а само управление, и залипшая карточка накрывала бы его
+           собой. На телефоне, где блок все-таки не уместился, он читается
+           двумя кадрами: сначала счет и число, следующим ходом — число,
+           год и переключатели под ним. Там, где блок умещается целиком,
+           правило ничего не меняет: прилипать не к чему. */
+        #study .col-right { position: static; }
+        #study .actions .btn { padding: clamp(7px, 1.4svh, 11px) 14px; }
 
         /* Числа под именем города — «80 программ, бакалавриат и специалитет»,
            «154 программы, магистратура» — на телефоне уходят: сверху уже
@@ -16213,6 +16439,22 @@ function init(root) {
   // section is built now and laid out when the page has a moment — the beat
   // that brings it in, and the one that carries the page to it, stay smooth.
   idle(measure, { timeout: 500 });
+
+  // На телефоне стену листают пальцем, и то, где она остановилась, — такое же
+  // положение картинки, как поворот планеты или место поезда на кольце.
+  // Поэтому читатель, вернувшийся в раздел, застает стену с первой строки, а
+  // не там, где бросил ее в прошлый раз. Раскрытая плитка закрывается вместе
+  // с этим: открытой осталась бы та, до которой отсюда уже не видно.
+  return {
+    open() {
+      grid.scrollTop = 0;
+      if (current && stacked.matches) {
+        current.classList.remove('on');
+        current.setAttribute('aria-expanded', 'false');
+        current = null;
+      }
+    }
+  };
 }
 
 return { meta, init };
