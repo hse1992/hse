@@ -4001,6 +4001,25 @@ const REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)');
 // width at which the layout folds into one column. See mountScrolled.
 const NARROW = window.matchMedia('(max-width: 860px)');
 
+// A folding phone is opened in the middle of reading, and the width crosses
+// that line. The two ways of reading cannot be swapped under the reader's feet
+// — the page is read again in the other one — but it has to start where they
+// were, not at the title screen. The block they stood in outlives the reload
+// here; the machine that comes up next goes to it.
+const KEPT = 'нсб-раздел';
+const keep = (i) => {
+  // Private mode refuses the storage altogether: losing the place is the
+  // smaller harm, and it must not take the reload down with it.
+  try { sessionStorage.setItem(KEPT, String(i)); } catch (err) { /* не беда */ }
+};
+const kept = () => {
+  try {
+    const was = sessionStorage.getItem(KEPT);
+    sessionStorage.removeItem(KEPT);
+    return was === null ? -1 : Number(was);
+  } catch (err) { return -1; }
+};
+
 // Runs fn(p) from 0 to 1 over ms, then done(). Time is counted frame to frame,
 // and a gap longer than a stutter is dropped — a tab nobody is looking at gets
 // Nothing a block does may stop the page from being read.
@@ -4981,6 +5000,8 @@ function mountScrolled(entries, onProgress) {
   };
 
   let queued = false;
+  let стоит = -1;                       // the block the reader is in right now
+  let доля = 0;                         // and how far through it they are
   const paint = () => {
     queued = false;
     // A block is only painted while it is anywhere near the screen — but the
@@ -4999,6 +5020,11 @@ function mountScrolled(entries, onProgress) {
     maybeCatch();
     lay();
     const at = place();
+    // Where the reader stands, kept from one painting to the next. Asked for it
+    // at the moment the phone unfolds, the page would answer by the geometry it
+    // has just taken on — the wide one, where the whole story is eight screens
+    // — and a reader halfway through would be read as being at the end.
+    if (at.index >= 0) { стоит = at.index; доля = at.part; }
     if (onProgress) onProgress(window.scrollY / height(), at);
   };
 
@@ -5010,14 +5036,35 @@ function mountScrolled(entries, onProgress) {
 
   const onScroll = () => { if (!queued) { queued = true; requestAnimationFrame(paint); } };
   window.addEventListener('scroll', onScroll, { passive: true });
+  let ширина = window.innerWidth;
   window.addEventListener('resize', () => {
     entries.forEach((e) => { if (e.opening) e.opening.follow(); });
     onScroll();
+    // A folding phone opened without crossing the line where the two ways of
+    // reading meet, or a phone turned on its side: the blocks are a different
+    // height now, and the page is still at the same number of pixels — which is
+    // the middle of somebody else's screen. The city of buildings came back as
+    // an empty canvas that way, a screen before it is drawn.
+    //
+    // Only the width. The height changes every time the browser's own bar
+    // slides away, and moving the page under a reader for that would be worse
+    // than anything it could fix.
+    if (window.innerWidth === ширина) return;
+    ширина = window.innerWidth;
+    const e = entries[стоит];
+    if (!e) return;
+    // The story inside a block is told by how far through it the page is, so
+    // the same share of the new height is the same place in the story — the
+    // reader goes on from where they were rather than from the top of the
+    // block. A block read by frames is not told by scrolling at all: it is
+    // caught at its top edge, and that is where the page is put.
+    if (byTaps(e)) { toBlock(стоит, { jump: true }); return; }
+    window.scrollTo(0, Math.round(e.section.offsetTop + доля * e.section.offsetHeight));
   });
 
   // The blocks of the progress bar still lead somewhere: here it is simply a
   // scroll to the top of that block.
-  const toBlock = (i) => {
+  const toBlock = (i, { jump = false } = {}) => {
     const entry = entries[i];
     if (!entry) return;
     // A block read by frames catches the page as it comes down to its top edge
@@ -5045,15 +5092,26 @@ function mountScrolled(entries, onProgress) {
       const want = entry.section.offsetTop;
       if (Math.abs(window.scrollY - want) < 5 || ++rounds > 5) return;
       still = 0;
-      window.scrollTo({ top: want, behavior: 'smooth' });
+      window.scrollTo({ top: want, behavior: jump ? 'auto' : 'smooth' });
       requestAnimationFrame(ride);
     };
-    window.scrollTo({ top: entry.section.offsetTop, behavior: 'smooth' });
+    window.scrollTo({ top: entry.section.offsetTop, behavior: jump ? 'auto' : 'smooth' });
     requestAnimationFrame(ride);
   };
 
   // And back to the title screen, the way the bar offers everywhere else.
   const rewind = () => window.scrollTo({ top: 0, behavior: 'smooth' });
+
+  // The phone was unfolded: from here on the page is read beat by beat, and
+  // that machine is set up at the start. So the page is read again — standing
+  // on the block it stood on.
+  NARROW.addEventListener('change', () => { keep(стоит); location.reload(); });
+
+  // And the other way round, a moment ago: the page came up here after a fold.
+  // Not a journey the reader asked for — a place they were put back in, so it
+  // happens at once rather than scrolling past everything in between.
+  const раздел = kept();
+  if (раздел > 0) requestAnimationFrame(() => toBlock(раздел, { jump: true }));
 
   return { free: true, toBlock, rewind };
 }
@@ -5192,10 +5250,11 @@ function mountStepper(entries, { onProgress, finale, signal } = {}) {
   // it stays dark and the styles take it off the screen altogether.
   if (NARROW.matches) return mountScrolled(entries, onProgress);
 
-  // A tablet turned on its side crosses that width, and the two ways of reading
-  // cannot be swapped under the reader's feet: the page starts over in the
-  // other one. Rare enough to be worth the simplicity.
-  NARROW.addEventListener('change', () => location.reload());
+  // A tablet turned on its side crosses that width, and so does a folding
+  // phone opened in the middle of reading. The two ways of reading cannot be
+  // swapped under the reader's feet: the page is read again in the other one —
+  // from the block they were standing in, not from the title screen.
+  NARROW.addEventListener('change', () => { keep(blockOf(at)); location.reload(); });
 
   document.documentElement.classList.add('is-stepped');
 
@@ -5608,6 +5667,18 @@ function mountStepper(entries, { onProgress, finale, signal } = {}) {
   // The title screen is the longest pause the page ever gets — the reader is
   // reading it. The first block is made ready in it.
   warm();
+  // Unless the reader is not on it: the phone was folded a moment ago, the page
+  // came up in the other way of reading, and it owes them the block they were
+  // standing in.
+  const раздел = kept();
+  if (раздел > 0) requestAnimationFrame(() => {
+    toBlock(раздел);
+    // Прицел берется, пока страница еще собирается: шрифты и картинки
+    // приезжают следом и двигают разделы под ходом. Доиграв, страница
+    // переспрашивает, где ее раздел, — иначе она встает в трех сотнях
+    // пикселей от него.
+    setTimeout(() => { if (!busy) window.scrollTo(0, hereTop()); }, SETTLE_MS + 160);
+  });
   return { forward, back, toBlock, rewind };
 }
 
