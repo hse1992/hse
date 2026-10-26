@@ -424,6 +424,32 @@ export function init(root) {
         .area-inner,
         .area-cols { display: contents; }
 
+        /* Припаркованный экран — заголовок блока, и фразе про стадион в этом
+           заголовке не место. Прочитана она на самом переходном экране, где
+           ей отдан целый экран и где она договаривает шутку предыдущего
+           раздела; наверху каждого экрана блока нужна только строка, про
+           которую нарисован город под ней — «Но есть 196 зданий. А это уже
+           целый город». Три-четыре строки заголовка сверху отнимали у города
+           треть экрана, и он сжимался в полосу посередине.
+
+           Складывается она вместе с уходом экрана (--lead-away), а не
+           пропадает рывком: такт на телефоне отыгрывается плавно, и в любой
+           его точке картинка верная — сколько заголовка осталось, столько и
+           видно. Своей высоты у текста нет, отнимать не от чего, поэтому
+           блок меряет ее сам и кладет в --val-h (measureLead ниже). */
+        #area .viz-lead-value {
+          overflow: hidden;
+          height: calc(var(--val-h, 0px) * (1 - var(--lead-away, 0)));
+          opacity: calc(1 - var(--lead-away, 0) * 1.6);
+        }
+
+        /* Зазор между строками экрана уходит вместе с заголовком: иначе
+           припаркованная строка резервировала бы под себя лишние 16 пикселей
+           пустоты — каркас меряет парковку по размаху детей экрана. */
+        #area .viz-lead {
+          gap: calc(16px * (1 - var(--lead-away, 0)));
+        }
+
         .area-score-value { font-size: 2.5rem; }
         .area-score-note { font-size: 0.875rem; }
 
@@ -463,12 +489,15 @@ export function init(root) {
 
         /* The calculator is read in the strip under a picture pinned to the
            top of the screen, and everything it is steered by has to stand in
-           that strip: both switches, every city, both buttons. The picture
-           gives up the few dozen pixels they are short of — otherwise the
-           switch of what is counted sits behind its lower edge, and the list
-           of cities begins with nothing above it to say what the numbers in
-           it are. */
-        .area-body .canvas-card { height: 39dvh; }
+           that strip: both switches and every city. The picture gives up the
+           few dozen pixels they are short of — otherwise the switch of what is
+           counted sits behind its lower edge, and the list of cities begins
+           with nothing above it to say what the numbers in it are.
+
+           Было 39: в полосе стояла еще строка кнопок «Снять все» и «Вернуть
+           все». Кнопок на телефоне больше нет, и поля забирают их пикселы
+           обратно себе. */
+        .area-body .canvas-card { height: 43dvh; }
 
         /* Картинка перестает быть прибитой: блок помещается на экран целиком,
            и прибивать ее не к чему — зато при прокрутке она наезжала на
@@ -618,6 +647,28 @@ export function init(root) {
   `;
 
   const $ = (name) => root.querySelector(`[data-el="${name}"]`);
+
+  // ---------- Высота заголовка переходного экрана ----------
+  // На телефоне заголовок складывается вместе с уходом экрана — см. стили
+  // выше. У текста нет высоты, от которой можно отнять долю, поэтому она
+  // меряется тут: строка временно распускается в свою настоящую высоту, и то,
+  // что получилось, кладется в --val-h. Заново — на каждом изменении размера:
+  // кегль заголовка идет от --intro-k и --lead-fit, а переносы — от ширины
+  // окна, так что вчерашняя мерка тут не годится.
+  const section = root.closest('.viz-section');
+  const leadValue = section && section.querySelector('.viz-lead-value');
+  function measureLead() {
+    if (!section || !leadValue) return;
+    if (!phone.matches) { section.style.removeProperty('--val-h'); return; }
+    leadValue.style.height = 'auto';
+    const tall = leadValue.offsetHeight;
+    leadValue.style.height = '';
+    section.style.setProperty('--val-h', `${tall}px`);
+  }
+  measureLead();
+  // Следим за телом блока, а не за самой строкой: мерка меняет ее высоту, и
+  // наблюдатель на ней звал бы сам себя по кругу.
+  onResize(root, measureLead);
 
   // ---------- State ----------
   const state = {
@@ -1131,6 +1182,9 @@ export function init(root) {
     // The page opens this block — first time, or the reader has come back to
     // it. The town starts its traffic over, so the map is the same picture it
     // was when they first saw it.
-    open: () => townMap.open()
+    // Заодно перемеряется заголовок переходного экрана: мерка при сборке
+    // блока могла случиться до того, как встали шрифты, и высота у нее тогда
+    // от другого начертания.
+    open: () => { measureLead(); townMap.open(); }
   };
 }
