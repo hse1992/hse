@@ -1823,6 +1823,16 @@ button { font-family: inherit; }
     white-space: normal;
   }
 
+  /* «Снять все» и «Вернуть все» на телефоне не нужны. Четыре города в два
+     ряда — это два движения пальцем, а кнопки занимали строку у самого низа
+     блока, там, где места меньше всего: на тесном экране из-за них не влезала
+     картинка. Снять город можно его же переключателем, вернуть — им же.
+     Выключены стилями, а не разметкой: на широком экране они на месте, и
+     модулю не нужно знать, какой сейчас экран. */
+  .actions {
+    display: none;
+  }
+
   /* The cards of the cities are read under a picture pinned to the top of the
      screen, so what is left for them is the strip between that picture and the
      bottom edge — about a third of the screen. At the height they have on a
@@ -1863,8 +1873,8 @@ button { font-family: inherit; }
   /* The picture is pinned to the top and the controls are read in the strip
      under it, so every pixel it takes is a pixel they lose. Thirty-five
      hundredths of the screen is the most it can have and still leave the whole
-     column of switches — the kinds, every city and the two buttons — standing
-     under it at the end of the block, where the reader comes to rest. */
+     column of switches — the kinds and every city — standing under it at the
+     end of the block, where the reader comes to rest. */
   .canvas-card {
     flex: none;
     height: 35dvh;
