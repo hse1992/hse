@@ -655,22 +655,27 @@ const LEAD_STYLE = `<style>
        экран от этого не становится выше и не сжимается сильнее. */
     .study-lead-card {
       flex-direction: column;
-      gap: 12px;
+      gap: 14px;
       margin-top: 0.6em;
       padding: 20px 18px 24px;
       text-align: center;
     }
     /* Крупнее, чем просит сам текст: экран сжимается целиком, и набранное в
-       рем выходит на экране в тринадцать пикселей. Место под это есть —
-       карточка стоит в коробке подмены, которая держит высоту самого высокого
-       своего состояния (вопроса со шкалой и кнопкой), и сотня пикселей в ней
-       оставалась пустой. Поэтому экран от прибавки не становится выше и не
-       сжимается сильнее. */
-    .study-lead-card .study-art { width: 160px; height: 160px; }
-    .study-lead-card .study-lead-col { align-items: center; gap: 6px; }
-    .study-lead-card .study-since { font-size: 1.1875rem; }
-    .study-lead-card .study-event { font-size: 1.1875rem; }
-    .study-lead-card .study-lead-year { font-size: 2.125rem; }
+       рем выходит на экране в тринадцать пикселей.
+
+       Сколько именно можно взять, говорит коробка подмены: она держит высоту
+       самого высокого своего состояния — поля из 329 квадратов, — и карточка
+       занимала в ней меньше трех четвертей. Этот запас ей и отдан: картинка
+       выросла со 160 до 250 точек, строки — на ступеньку кегля. Расти дальше
+       карточке некуда: за высотой поля квадратов она тянет за собой весь
+       экран, тот сжимается сильнее, и прибавка съедает сама себя. Размер
+       картинки — еще и доля ширины: на тесном телефоне 250 точек встали бы
+       впритык к краям карточки. */
+    .study-lead-card .study-art { width: min(250px, 62%); height: auto; aspect-ratio: 1; }
+    .study-lead-card .study-lead-col { align-items: center; gap: 8px; }
+    .study-lead-card .study-since { font-size: 1.375rem; }
+    .study-lead-card .study-event { font-size: 1.3125rem; }
+    .study-lead-card .study-lead-year { font-size: 2.5rem; }
     .study-lead-outro { font-size: 1.375rem; }
 
     /* Строки экрана выравниваются по длине, а не набиваются до края. Обе его
@@ -680,15 +685,18 @@ const LEAD_STYLE = `<style>
        обрубка, а плашка — на три прямоугольника разной длины. */
     #study .viz-lead-value { text-wrap: balance; }
 
-    /* И сама плашка — одним прямоугольником, а не тремя. Строчная, она
-       обрезается по каждой строке, и три куска разной длины читались как
-       рваный край; здесь это цельный блок, внутри которого строки ложатся
-       сами. Отступы те же, только сверху и снизу щедрее: у блока они не
-       наслаиваются на соседние строки, как у строчного. */
+    /* Плашка обнимает текст, а не коробку. Целым блоком (inline-block) она
+       растягивалась во всю ширину экрана: своя ширина у такого блока — его
+       самая длинная строка, а строка тут длиннее экрана, то есть во весь
+       экран, — и под «программам» оставалось полплашки пустой синевы.
+       Строчная плашка режется по каждой строке (box-decoration-break: clone),
+       и каждый кусок выходит ровно по словам, которые на нем стоят. Рваными
+       кусками это было до того, как выделение начали переносить на свою
+       строку: кусков тогда было три, теперь два. Отступы сверху и снизу
+       скромнее блочных: у строчной они наслаиваются на соседние строки —
+       воздух под это дает line-height экрана. */
     #study .viz-lead-value .study-lead-mark {
-      display: inline-block;
-      padding: 0.18em 0.34em;
-      text-wrap: balance;
+      padding: 0.1em 0.3em;
     }
   }
 </style>`;
@@ -946,24 +954,29 @@ export function init(root) {
            Поэтому все, что в карточке меряется в пикселях, меряется еще и
            долей экрана. На высоком телефоне доля больше предела, и числа
            остаются прежними; на коротком блок садится ровно настолько, чтобы
-           управление осталось на экране. */
-        .study-years { font-size: clamp(2.25rem, min(15vw, 6.4svh), 4.5rem); }
+           управление осталось на экране.
+
+           Доли с тех пор подросли: кнопок на телефоне больше нет, и под
+           городами оставалась полоса пустого экрана высотой с них. Она ушла
+           году, замку и ленте лет — тому, ради чего блок и читают. На
+           коротком экране их по-прежнему держат нижние границы. */
+        .study-years { font-size: clamp(2.25rem, min(15vw, 7.6svh), 4.5rem); }
         .study-caption { font-size: 0.875rem; }
         .study-history {
-          gap: clamp(8px, 1.6svh, 12px);
-          margin-top: clamp(8px, 1.7svh, 14px);
-          padding: clamp(8px, 1.5svh, 12px) 16px;
+          gap: clamp(8px, 2.4svh, 16px);
+          margin-top: clamp(8px, 2.6svh, 20px);
+          padding: clamp(8px, 2.4svh, 18px) 16px;
         }
-        .study-art { width: clamp(40px, 7.4svh, 64px); height: clamp(40px, 7.4svh, 64px); }
-        .study-timeline { margin-top: clamp(8px, 1.7svh, 14px); padding: 0 20px; }
-        .study-track { height: clamp(24px, 4.4svh, 34px); }
-        .study-note { font-size: 0.875rem; padding: clamp(2px, 0.8svh, 6px) 12px clamp(0px, 0.6svh, 4px); }
+        .study-art { width: clamp(40px, 8.8svh, 72px); height: clamp(40px, 8.8svh, 72px); }
+        .study-timeline { margin-top: clamp(8px, 2.6svh, 20px); padding: 0 20px; }
+        .study-track { height: clamp(24px, 6svh, 44px); }
+        .study-note { font-size: 0.875rem; padding: clamp(2px, 1svh, 8px) 12px clamp(0px, 0.8svh, 6px); }
 
         /* The picture has no fixed height of its own, unlike the canvases in
            the other sections: a long event text must not be cut off. */
-        #study .canvas-card { height: auto; min-height: 40dvh; padding: clamp(10px, 2svh, 16px); }
+        #study .canvas-card { height: auto; min-height: 40dvh; padding: clamp(10px, 2.6svh, 20px); }
         #study .meter-card { padding: clamp(10px, 2svh, 16px); }
-        #study .col-left { gap: clamp(6px, 1.2svh, 8px); }
+        #study .col-left { gap: clamp(6px, 1.6svh, 12px); }
 
         /* Картинка блока не залипает наверху. Общее правило держит правую
            колонку на месте, пока под ней листается левая, — но левая здесь не
@@ -973,7 +986,6 @@ export function init(root) {
            год и переключатели под ним. Там, где блок умещается целиком,
            правило ничего не меняет: прилипать не к чему. */
         #study .col-right { position: static; }
-        #study .actions .btn { padding: clamp(7px, 1.4svh, 11px) 14px; }
 
         /* Числа под именем города — «80 программ, бакалавриат и специалитет»,
            «154 программы, магистратура» — на телефоне уходят: сверху уже
