@@ -453,6 +453,13 @@ export function init(root) {
         .area-score-value { font-size: 2.5rem; }
         .area-score-note { font-size: 0.875rem; }
 
+        /* Площадь каждого города в его карточке уходит: сколько метров
+           набралось, крупно сказано в карточке над списком, а от самой
+           карточки на телефоне нужно только имя города и включен ли он.
+           Строка цифр добавляла каждой карточке высоты там, где два ряда
+           городов и без того стоят у нижнего края. */
+        #area .city-stats { display: none; }
+
         /* On a phone the page is scrolled and no one plays the eight steps:
            the shell calls the last of them once, and the town, the pitches,
            the blocks of flats and the question the two raise were never shown
@@ -665,10 +672,55 @@ export function init(root) {
     leadValue.style.height = '';
     section.style.setProperty('--val-h', `${tall}px`);
   }
+  // ---------- Хвост блока под сценой ----------
+  // На телефоне за сценой идет калькулятор: карточка с числом, картинка,
+  // переключатели и города. Ровно в этом месте блок отдает себя читателю, и
+  // ход приводит страницу так, чтобы калькулятор встал под верхний край.
+  //
+  // Но каркас знает и другую границу — низ блока, — и если хвост ниже экрана,
+  // она оказывается ближе: страница останавливалась, не довезя сотню пикселей,
+  // и калькулятор приходил с белой полосой над собой. Полоса эта и есть то,
+  // чего хвосту не хватает до экрана: обе границы — одно место, когда хвост
+  // ровно в экран. Недостающее отдается картинке, ей всегда мало.
+  //
+  // Меряется это живьем, а не задается долей экрана: высота карточки с числом,
+  // переключателей и городов — фиксированные пикселы, и доля то не добирала,
+  // то вылезала.
+  const stageEl = root.querySelector('.area-stage');
+  // Именно карточка калькулятора: у карты города в сцене класс тот же.
+  const canvasCard = root.querySelector('.col-right .canvas-card');
+
+  // Полоса подсказки внизу: блоку она не принадлежит. Величина лежит в
+  // --hint-room, а у переменной нет вычисленного значения — ее меряют.
+  function hintRoom() {
+    const probe = document.createElement('div');
+    probe.setAttribute('aria-hidden', 'true');
+    probe.style.cssText = 'position:absolute;left:-9999px;top:0;width:0;'
+      + 'height:var(--hint-room,0px);pointer-events:none';
+    root.appendChild(probe);
+    const tall = probe.offsetHeight;
+    probe.remove();
+    return tall;
+  }
+
+  function fitTail() {
+    if (!stageEl || !canvasCard) return;
+    canvasCard.style.removeProperty('height');
+    if (!phone.matches) return;
+    const room = window.innerHeight - hintRoom();
+    const tail = root.getBoundingClientRect().bottom
+      - stageEl.getBoundingClientRect().bottom;
+    const grow = Math.round(room - tail);
+    // Хвост выше экрана — все как было: низ блока лежит дальше калькулятора,
+    // ход приводит сначала к нему, а остаток хвоста читается следующим.
+    if (grow > 2) canvasCard.style.height = `${canvasCard.offsetHeight + grow}px`;
+  }
+
   measureLead();
+  fitTail();
   // Следим за телом блока, а не за самой строкой: мерка меняет ее высоту, и
   // наблюдатель на ней звал бы сам себя по кругу.
-  onResize(root, measureLead);
+  onResize(root, () => { measureLead(); fitTail(); });
 
   // ---------- State ----------
   const state = {
@@ -1124,25 +1176,31 @@ export function init(root) {
 
   if (phone.matches) {
     const stage = root.querySelector('.area-stage');
-    const run = $('run');
     let told = -1;
+
+    // Сколько пути сцена стоит на экране целиком: от ее верха до того места,
+    // где из-под нее начинает выезжать калькулятор. Ровно на этом отрезке и
+    // рассказывается история — дальше смотреть уже не на что.
+    //
+    // Меряется он по самой сцене, а не долей от .area-run, и панель браузера
+    // ему не страшна: сцена — это прибитая картинка высотой в экран плюс
+    // путь под ней, так что ее рост минус экран — это и есть путь, в svh, как
+    // он и написан в разметке. Высота окна, которая ходит вместе с панелью,
+    // сокращается.
+    const пройти = () => Math.max(0, stage.offsetHeight - window.innerHeight);
+
     const follow = () => {
-      // Measured against the stage and not the travel under it: the stage is
-      // pinned for exactly the length of that travel, so this is 0 when it
-      // takes the screen and 1 when it lets go — and the calculator comes up
-      // in the same movement, with no blank screen in between.
-      const h = run.offsetHeight;
-      if (!h) return;
+      const span = пройти();
+      if (!span) return;
       const gone = -stage.getBoundingClientRect().top;
-      const p = Math.min(1, Math.max(0, gone / h));
-      // The story takes four fifths of the travel and the calculator the rest.
-      // Opening it exactly where the travel ran out put the change of state
-      // right where the reader comes to rest at the end of the block: the
-      // calculator is taller than the story it replaces, so the page lurched
-      // under the finger, and the switches at the head of it had already gone
-      // up behind the pinned picture. A screen earlier, and it is open and
-      // still by the time the reader gets there.
-      const i = p >= 0.8 ? LAST : Math.min(LAST - 1, Math.floor((p / 0.8) * LAST));
+      // Семь отрезков на семь состояний, а калькулятор приходит восьмым — там,
+      // где сцена кончилась. Открывается он на экран раньше, чем читатель до
+      // него доедет: открытый ровно в точке приезда, он дергал страницу под
+      // пальцем — он выше истории, которую собой заменяет, — а переключатели в
+      // его голове успевали уйти за верх экрана.
+      const i = gone >= span
+        ? LAST
+        : Math.min(LAST - 1, Math.max(0, Math.floor((gone / span) * LAST)));
       if (i === told) return;
       told = i;
       step(i);
@@ -1160,16 +1218,24 @@ export function init(root) {
     // опереться, пролетал мимо калькулятора на целый экран. Поэтому последний
     // ход истории и приход калькулятора — одно движение: ход ведет не на
     // границу отрезка, а на верх калькулятора.
+    //
+    // И поэтому же история меряется прибитым отрезком, а не долей от пути под
+    // сценой: из последней остановки ход должен дотянуться до верха
+    // калькулятора за один раз. Каркас дальше полутора экранов за такт не
+    // ходит, и когда история кончалась раньше, чем сцена уезжала, этот
+    // последний ход упирался в потолок — страница вставала, не довезя сотню
+    // пикселей, и калькулятор приходил с белой полосой над собой.
     ahead = () => {
       const box = stage.getBoundingClientRect();
       const walked = -box.top;
-      const told = stepAhead(walked, run.offsetHeight, LAST, 0.8);
+      const span = пройти();
+      const told = stepAhead(walked, span, LAST);
       // Калькулятор начинается там, где кончается сцена: собственной коробки
       // у него нет — на телефоне обертка раскрыта в display: contents, и
       // мерить у нее нечего.
       const toCalc = box.bottom > 2 ? Math.round(box.bottom) : 0;
       if (!told) return toCalc;
-      return walked + told >= run.offsetHeight * 0.8 ? (toCalc || told) : told;
+      return walked + told >= span ? (toCalc || told) : told;
     };
   }
 
@@ -1185,6 +1251,6 @@ export function init(root) {
     // Заодно перемеряется заголовок переходного экрана: мерка при сборке
     // блока могла случиться до того, как встали шрифты, и высота у нее тогда
     // от другого начертания.
-    open: () => { measureLead(); townMap.open(); }
+    open: () => { measureLead(); fitTail(); townMap.open(); }
   };
 }
