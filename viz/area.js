@@ -12,7 +12,7 @@ const BUILDINGS = 196;
 // Two metrics the first switch flips between; `field` is the key in data/hse.js.
 const METRICS = [
   { key: 'total', label: 'Общая площадь', field: 'area' },
-  { key: 'study', label: 'Учебно-лабораторная площадь', field: 'areaStudy' }
+  { key: 'study', label: 'Учебные площади', field: 'areaStudy' }
 ];
 
 // Two objects we compare to. A FIFA-size pitch is 105 × 68 m; the flats of one
