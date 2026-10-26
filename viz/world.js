@@ -106,7 +106,11 @@ export function init(root) {
   const GROUP_GAP = 20;
   const TILE_MAX = 68;            // a flag never grows past this
   const TILE_MIN = 20;            // ...and never shrinks below it: the wall scrolls instead
-  const TILE_PHONE = 26;          // on a phone the wall is as tall as it needs to be
+  // На телефоне флаг — цель для пальца: по нему называют страну. Высота у
+  // плитки 3/4 ширины, так что 34 дает 25 с половиной точек — выше того
+  // порога в 24, ниже которого палец мимо цели не попадает. Место на это
+  // освободилось от переключателей кампусов, которых на телефоне больше нет.
+  const TILE_PHONE = 34;
   const phone = window.matchMedia('(max-width: 860px)');
 
   // ---------- Markup ----------
@@ -218,8 +222,17 @@ export function init(root) {
         filter: grayscale(1);
       }
 
-      .world-tile:hover {
+      /* Под курсором флаг подрастает, под пальцем — тот, который назвали. */
+      .world-tile:hover,
+      .world-tile.is-named {
         transform: scale(1.14);
+      }
+
+      /* Названный флаг стоит поверх соседей: подросший, он иначе уходит под
+         тот, что нарисован после него. */
+      .world-tile.is-named {
+        position: relative;
+        z-index: 2;
       }
 
       /* The name of the country under the cursor. The browser draws one of
@@ -582,10 +595,14 @@ export function init(root) {
         .world-left { transition: none; }
       }
 
-      /* On a phone the columns are stacked, so there is nothing to draw aside:
-         the campuses are simply out of the way until the answer. */
+      /* Кампусов на телефоне нет вовсе. Четыре переключателя внизу отнимали
+         у стены треть экрана, а меняли в ней немного: убрав Пермь, читатель
+         видел, что флагов стало на десяток меньше, — но какие это флаги,
+         на стене в четыре ряда все равно было не разглядеть. Место стене
+         нужнее: блок про то, из скольких стран приехали студенты, и ответ на
+         это — сами флаги. На широком экране кампусы на месте. */
       @media (max-width: 860px) {
-        .world-asking .world-left {
+        .world-left {
           display: none;
         }
 
@@ -611,20 +628,19 @@ export function init(root) {
          плитки: ужатый до 40dvh флаг — это шестнадцать пикселей, и узнать его
          нельзя. Раньше стена росла во всю высоту, а страница прокручивалась
          под ней. Теперь на телефоне страница не прокручивается, а читается
-         тактами — и низ стены вместе с переключателями кампусов, которые ее
-         меняют, просто обрезало краем экрана: ни Европы, ни городов.
+         тактами — и низ стены просто обрезало краем экрана: ни Европы, ни
+         последних групп.
          Поэтому блок укладывается ровно в экран, а стена листается внутри
          своей карточки, как стена профессий: класс page-scrolls говорит
          каркасу не отнимать у нее прокрутку, а overscroll-behavior — не
          тянуть за собой страницу. */
       @media (max-width: 860px) {
-        /* Блок начинается с экрана: карточка счета, стена и переключатели
-           кампусов стоят на нем вместе. На тесном телефоне — 320 точек
-           «увеличенного» айфона — им там и вместе не поместиться, и блок
-           честно вырастает выше экрана: низ у него каркас достает отдельным
-           тактом. Что он не ужимается силой — важно: колонка, которой
-           разрешили сжаться ниже своего содержимого, налезала на
-           переключатели под собой. */
+        /* Блок начинается с экрана: карточка счета и стена стоят на нем
+           вместе. На тесном телефоне — 320 точек «увеличенного» айфона — им
+           там и вместе не поместиться, и блок честно вырастает выше экрана:
+           низ у него каркас достает отдельным тактом. Что он не ужимается
+           силой — важно: колонка, которой разрешили сжаться ниже своего
+           содержимого, налезала на то, что под ней. */
         .world-body {
           flex: none;
           min-height: calc(var(--win, 100dvh) - var(--hint-room));
@@ -784,8 +800,8 @@ export function init(root) {
   });
 
   // Сколько экрана осталось стене. Блок на телефоне встает в один экран:
-  // карточка счета, стена и переключатели кампусов, которые ее меняют. Стена
-  // берет то, что осталось от экрана после них, и листается внутри себя —
+  // карточка счета и стена под ней. Стена
+  // берет то, что осталось от экрана после нее, и листается внутри себя —
   // 128 флагов не влезут туда ни при каком размере плитки, а резать их краем
   // экрана нельзя: это и есть ответ блока. Где не осталось ничего — на
   // тесном телефоне — стене отдается полоса в четыре ряда, а блок честно
@@ -853,24 +869,22 @@ export function init(root) {
 
   onResize(grid, layout);
   // Стена берет то, что осталось от экрана, — значит, следить надо за тем,
-  // что его занимает: карточка счета подрастает с ответом, кампусы
-  // приходят вместе с ним, и оба становятся другой высоты на повороте. И за
-  // самим экраном: он вырастает на полсотни пикселей, когда уезжает панель
-  // браузера, — эти пикселы стене и достаются.
+  // что его занимает: карточка счета подрастает с ответом и становится другой
+  // высоты на повороте. И за самим экраном: он вырастает на полсотни
+  // пикселей, когда уезжает панель браузера, — эти пикселы стене и достаются.
   if (phone.matches) {
     onResize(root, layout);
     onResize(root.querySelector('.meter-card'), layout);
-    onResize(root.querySelector('.world-left'), layout);
   }
 
   // ---------- The name under the cursor ----------
   // One tip for the whole wall, and one listener: 128 flags with a listener
-  // each would cost more to build than the wall itself. Only where there is a
-  // cursor to follow — a tap on a phone would leave the name standing there.
+  // each would cost more to build than the wall itself. Под курсором имя
+  // приходит само; на телефоне курсора нет, и его зовут касанием — см. ниже.
   const tip = $('tip');
   const wrap = tip.parentElement;
 
-  if (window.matchMedia('(hover: hover)').matches) {
+  {
     let shown = null;
 
     const place = (tile) => {
@@ -892,24 +906,43 @@ export function init(root) {
 
     const show = (tile) => {
       if (tile === shown) return;
+      if (shown) shown.classList.remove('is-named');
       shown = tile;
       tip.textContent = tile.dataset.name;
       // Placed before it is shown: the width is known only once the name is in.
       place(tile);
       tip.classList.add('is-here');
+      tile.classList.add('is-named');
     };
 
     const hide = () => {
+      if (shown) shown.classList.remove('is-named');
       shown = null;
       tip.classList.remove('is-here');
     };
 
-    grid.addEventListener('pointerover', (e) => {
-      const tile = e.target.closest('.world-tile');
-      if (tile) show(tile);
-      else hide();
-    });
-    grid.addEventListener('pointerleave', hide);
+    if (window.matchMedia('(hover: hover)').matches) {
+      grid.addEventListener('pointerover', (e) => {
+        const tile = e.target.closest('.world-tile');
+        if (tile) show(tile);
+        else hide();
+      });
+      grid.addEventListener('pointerleave', hide);
+    } else {
+      // Пальцем. Курсора нет, и имя страны зовут касанием: флаг под пальцем
+      // подрастает, над ним встает название. Второе касание по нему же имя
+      // убирает, касание по соседнему — переносит туда. Само оно уходит через
+      // пару секунд: имя, оставленное стоять, закрывает собой соседние флаги,
+      // а стена — это они и есть.
+      let пора = 0;
+      grid.addEventListener('click', (e) => {
+        const tile = e.target.closest('.world-tile');
+        clearTimeout(пора);
+        if (!tile || tile === shown) { hide(); return; }
+        show(tile);
+        пора = setTimeout(hide, 2600);
+      });
+    }
     // The wall scrolls only when it does not fit; the tip is placed against
     // the card, so a scroll would leave it beside the wrong flag.
     grid.addEventListener('scroll', hide, { passive: true });
@@ -1276,9 +1309,9 @@ export function init(root) {
     // left standing round the answer.
     if (!on && [scale, check].includes(document.activeElement)) document.activeElement.blur();
     paintMeter();
-    // С ответом в блоке прибавилось: пришли кампусы, и стене осталось
-    // меньше. Меряем сразу — иначе до первого движения она стоит во всю
-    // высоту и выталкивает переключатели за край экрана.
+    // С ответом в блоке прибавилось: карточка счета подросла, а на широком
+    // экране пришли еще и кампусы — стене осталось меньше. Меряем сразу,
+    // иначе до первого движения она стоит во всю высоту и вылезает за край.
     if (!on) grow();
 
     if (plays) glide(from);
