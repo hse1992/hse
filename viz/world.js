@@ -231,10 +231,17 @@ export function init(root) {
         filter: grayscale(1);
       }
 
-      /* Под курсором флаг подрастает, под пальцем — тот, который назвали. */
-      .world-tile:hover,
+      /* Под курсором флаг подрастает, под пальцем — тот, который назвали.
+         Наведение при этом спрашивают: палец с флага его не уносит, и
+         тронутый флаг оставался подросшим вместе с названным. */
       .world-tile.is-named {
         transform: scale(1.14);
+      }
+
+      @media (hover: hover) {
+        .world-tile:hover {
+          transform: scale(1.14);
+        }
       }
 
       /* Названный флаг стоит поверх соседей: подросший, он иначе уходит под
@@ -495,10 +502,12 @@ export function init(root) {
         border-color: var(--hse-blue);
       }
 
-      .world-check:hover {
-        color: var(--card);
-        background: var(--link-hover);
-        border-color: var(--link-hover);
+      @media (hover: hover) {
+        .world-check:hover {
+          color: var(--card);
+          background: var(--link-hover);
+          border-color: var(--link-hover);
+        }
       }
 
       .world-check:disabled {

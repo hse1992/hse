@@ -419,10 +419,12 @@ const LEAD_STYLE = `<style>
     border-color: var(--hse-blue);
   }
 
-  .study-lead-check:hover {
-    color: var(--card);
-    background: var(--link-hover);
-    border-color: var(--link-hover);
+  @media (hover: hover) {
+    .study-lead-check:hover {
+      color: var(--card);
+      background: var(--link-hover);
+      border-color: var(--link-hover);
+    }
   }
 
   .study-lead-check:disabled {

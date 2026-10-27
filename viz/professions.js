@@ -425,10 +425,17 @@ export function init(root) {
         transition: background 140ms ease;
       }
 
-      .prof-item:hover,
       .prof-item:focus-visible,
       .prof-item.on {
         background: var(--card);
+      }
+
+      /* Наведение — только мыши: палец его с карточки не уносит, и
+         тронутая строка оставалась подсвеченной как выбранная. */
+      @media (hover: hover) {
+        .prof-item:hover {
+          background: var(--card);
+        }
       }
 
       .prof-item-art {

@@ -267,7 +267,18 @@ body {
 }
 
 a { color: var(--link); text-decoration: none; }
-a:hover { color: var(--link-hover); }
+
+/* Наведение — только там, где есть чем наводить. Курсор уходит с элемента
+   сам, палец — нет: на тач-экране обе системы оставляют последнее касание
+   наведенным, пока читатель не тронет что-то другое. Полоска разделов от
+   этого стояла раздутой до конца чтения, нажатый раздел — подсвеченным, а
+   счет внизу так и не возвращался. Поэтому каждое правило наведения на
+   странице стоит под этим вопросом; нажатие на телефоне показывает себя
+   через :active (см. «Отклик на нажатие» ниже). Фокуса это не касается — им
+   ходят с клавиатуры, и он нужен всем. */
+@media (hover: hover) {
+  a:hover { color: var(--link-hover); }
+}
 
 button { font-family: inherit; }
 
@@ -290,8 +301,10 @@ button { font-family: inherit; }
   transition: height 160ms ease;
 }
 
-.page-progress:hover {
-  height: 9px;
+@media (hover: hover) {
+  .page-progress:hover {
+    height: 9px;
+  }
 }
 
 /* The empty slots have to be readable against the page, or the bar says
@@ -352,8 +365,10 @@ button { font-family: inherit; }
   cursor: default;
 }
 
-.page-progress-slot:enabled:hover {
-  background: var(--toggle-off);
+@media (hover: hover) {
+  .page-progress-slot:enabled:hover {
+    background: var(--toggle-off);
+  }
 }
 
 /* The figure a block ends on, on its way into the next block's lead-in — see
@@ -669,28 +684,32 @@ button { font-family: inherit; }
   pointer-events: none;
 }
 
-.page-progress:hover .page-progress-slot:enabled .page-progress-name {
-  opacity: 1;
-}
+/* Имена разделов на тач-экране не показываются вовсе (см. hover: none ниже),
+   так что наводить тут не на что в прямом смысле. */
+@media (hover: hover) {
+  .page-progress:hover .page-progress-slot:enabled .page-progress-name {
+    opacity: 1;
+  }
 
-.page-progress-slot:enabled:hover .page-progress-name {
-  z-index: 2;
-  max-width: none;
-  overflow: visible;
-  background: var(--hint-veil);
-  -webkit-backdrop-filter: blur(8px);
-  backdrop-filter: blur(8px);
-  color: var(--text);
-}
+  .page-progress-slot:enabled:hover .page-progress-name {
+    z-index: 2;
+    max-width: none;
+    overflow: visible;
+    background: var(--hint-veil);
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+    color: var(--text);
+  }
 
-/* The title screen speaks only when pointed at: its name is wider than the
-   slot it belongs to, and would show as a stray letter otherwise. */
-.page-progress:hover .page-progress-home:enabled .page-progress-name {
-  opacity: 0;
-}
+  /* The title screen speaks only when pointed at: its name is wider than the
+     slot it belongs to, and would show as a stray letter otherwise. */
+  .page-progress:hover .page-progress-home:enabled .page-progress-name {
+    opacity: 0;
+  }
 
-.page-progress .page-progress-home:enabled:hover .page-progress-name {
-  opacity: 1;
+  .page-progress .page-progress-home:enabled:hover .page-progress-name {
+    opacity: 1;
+  }
 }
 
 /* Where the reader is, in words. Comes up as a block starts, goes once they
@@ -727,8 +746,12 @@ button { font-family: inherit; }
 
 /* Pointing at the bar brings up the names, which stand in the same row and say
    more than the count does — so the count steps aside for them. */
-.page-progress:hover ~ .page-progress-count {
-  opacity: 0;
+/* Счет уступает место именам, а не касанию: на телефоне имен нет, и
+   засчитанное за наведение касание полоски просто уносило счет насовсем. */
+@media (hover: hover) {
+  .page-progress:hover ~ .page-progress-count {
+    opacity: 0;
+  }
 }
 
 /* Nothing to point at on a touch screen. */
@@ -881,9 +904,15 @@ button { font-family: inherit; }
   transition: fill 160ms ease;
 }
 
-.hse-o-link:hover .hse-o-disc,
+/* Фокус остается всем — им ходят с клавиатуры; наведение только мыши. */
 .hse-o-link:focus-visible .hse-o-disc {
   fill: var(--brand-blue);
+}
+
+@media (hover: hover) {
+  .hse-o-link:hover .hse-o-disc {
+    fill: var(--brand-blue);
+  }
 }
 
 .hse-o-mark { fill: #FFFFFF; }
@@ -1612,9 +1641,28 @@ button { font-family: inherit; }
   transition: all 140ms ease;
 }
 
-.btn:hover {
-  border-color: var(--btn-border-hover);
-  color: var(--text);
+@media (hover: hover) {
+  .btn:hover {
+    border-color: var(--btn-border-hover);
+    color: var(--text);
+  }
+}
+
+/* Нажатие пальцем выглядит одинаково на обеих системах. Своего отклика у
+   контролов не было вовсе, и за него отвечал браузер: андроид подсвечивал
+   нажатое серым прямоугольником поверх кнопки, айфон не показывал ничего —
+   одна и та же кнопка на двух телефонах нажималась по-разному. Серый
+   прямоугольник убираем и пишем отклик сами: он достается обеим системам
+   и мыши заодно. Наведение этого не делает — его на телефоне нет. */
+html {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.btn:active,
+.toggle:active,
+.kind-item:active,
+.page-progress-slot:enabled:active {
+  opacity: 0.55;
 }
 
 /* ---------- Page footer ---------- */
@@ -1662,12 +1710,14 @@ button { font-family: inherit; }
   color: var(--text-secondary);
 }
 
-.page-footer a.page-end-act:hover {
-  color: var(--text);
-}
+@media (hover: hover) {
+  .page-footer a.page-end-act:hover {
+    color: var(--text);
+  }
 
-.page-footer a:hover {
-  color: var(--text-secondary);
+  .page-footer a:hover {
+    color: var(--text-secondary);
+  }
 }
 
 /* ---------- Meter card (segmented progress bar) ---------- */
@@ -1959,10 +2009,18 @@ button { font-family: inherit; }
      такт висел полупрозрачный уже над самой картинкой: ровно то, от чего его
      и убирали. На крутой он уходит в первой пятой движения, пока карточка
      еще держит экран, и читатель видит либо его, либо блок — но не оба. */
+     Места под неприехавшие части карточка не держит: высота у подзаголовка
+     своя, а --sub-h только обрезает ее сверху. Прибитый к полной высоте, он
+     держал на карточке метро триста пикселей пустоты под единственной
+     строкой — карточка выходила в целый экран, и заголовок вставал у верхнего
+     края вместо середины. На складывание это не влияет: складываться
+     подзаголовок начинает, когда все части уже пришли, и в этот момент его
+     своя высота и есть --sub-h. */
   .viz-intro .viz-header p {
     --sub-gone: clamp(0, 1 - var(--intro-body, 1) * 5, 1);
     overflow: hidden;
-    height: calc(var(--sub-h, 0px) * var(--sub-gone));
+    height: auto;
+    max-height: calc(var(--sub-h, 0px) * var(--sub-gone));
     opacity: var(--sub-gone);
   }
 
@@ -1993,6 +2051,20 @@ button { font-family: inherit; }
   html {
     touch-action: none;
     overscroll-behavior: none;
+  }
+
+  /* Палец на этой странице листает, а не выделяет. Задержанный на тексте, он
+     на обеих системах зовет выделение — на айфоне всплывает лупа и ручки, на
+     андроиде синие ручки и «Копировать», — и такт под этим пальцем уже не
+     играет: читатель хотел перелистнуть, а получил меню. Страница не
+     документ, копировать с нее нечего: все числа и так на картинке.
+
+     Выделение снимаем вместе с длинным нажатием (`touch-callout`): без
+     второго айфон все равно показывает свое меню по ссылке и картинке. */
+  body {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
   }
 
   /* Свое остается тому, что само умеет прокручиваться: списку разделов и
@@ -2063,6 +2135,10 @@ button { font-family: inherit; }
        уезжали за правый край вместе с переключателями. Там, где на две не
        хватает, города идут по одному. */
     grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    /* Карточки внутри ряда равны по высоте сами, а ряды между собой — нет:
+       имя, перенесенное на вторую строку, поднимало весь свой ряд, и четыре
+       города стояли лесенкой. 1fr равняет ряды по самому высокому из них. */
+    grid-auto-rows: 1fr;
     gap: 6px;
   }
 
@@ -2095,7 +2171,12 @@ button { font-family: inherit; }
      under it, and the numbers stand in a row instead of a column. */
   .city-card {
     padding: 8px 10px;
-    gap: 8px;
+    /* Шесть пикселей, а не восемь: между именем и переключателем это
+       незаметно, а имени достается ровно столько, сколько ему не хватало.
+       «С. Петербург» на айфоне мерился в 95 точек при 95 свободных и
+       переносился на вторую строку — из-за одного города весь ряд стоял выше
+       соседнего. */
+    gap: 6px;
   }
 
   /* Имя и числа — в строку, а не друг под другом: пока они помещаются, город
@@ -2163,9 +2244,11 @@ button { font-family: inherit; }
   }
 
   /* Узкий телефон: карточка и так села на высоту переключателя, лишние
-     четыре пикселя сверху и снизу ей не нужны — они нужны картинке. */
+     четыре пикселя сверху и снизу ей не нужны — они нужны картинке. По бокам
+     тоже не нужны: двенадцать точек отсюда отнимались у имени города, а
+     именно там его и не хватало. */
   .city-card {
-    padding: 8px 12px;
+    padding: 8px 10px;
   }
 }
 
@@ -3067,7 +3150,15 @@ function titleCard(section, zone = INTRO_SCREENS, K = () => CARD_K, fullHeight =
     // Measured with every part of the card open: parts arrive one after
     // another, and centring on the height of the moment would nudge the
     // heading down each time one of them does.
-    const h = (fullHeight ? fullHeight(k) : header.offsetHeight) * k;
+    //
+    // На телефоне — наоборот, по тому, что на карточке сейчас. Места под
+    // неприехавшие части подзаголовок там больше не держит (см. --sub-h
+    // в layout.css), и мерка наперед означала бы ровно то, от чего эта
+    // правка: карточка метро считалась в полный экран, центрировать ее было
+    // нечем, и заголовок с единственной строкой под ним стоял у верхнего
+    // края, а под ним была треть экрана пустоты. Считанная живьем, карточка
+    // растет от середины — каждая новая строка раздвигает ее в обе стороны.
+    const h = (narrow || !fullHeight ? header.offsetHeight : fullHeight(k)) * k;
     // Where the heading ends up differs between the two layouts: on a wide
     // screen the whole container is pinned and the heading settles at its top;
     // on a narrow one the heading is pinned by itself to the top of the screen.
@@ -3240,17 +3331,54 @@ function leadCard(section, K = () => CARD_K, cardHeight = null) {
   const fitLine = () => {
     if (!value) return;
     section.style.setProperty('--lead-fit', '1');
+    // Мерить нужно в несжатой коробке — в той, что уже никогда. Сжатый экран
+    // каркас расширяет ровно на свою долю (--lead-squeeze в layout.css) и
+    // возвращает назад масштабом, так что коробка у него шире окна: на
+    // телефоне бывает и 580 точек при экране в 393. Померенная там, строка
+    // почти влезает — и каркас запрещает ей переноситься. А следом идет
+    // fitHeight: строка в одну вместо двух ниже, сжимать стало нечего, доля
+    // возвращается в единицу — и коробка схлопывается до 361. Заголовок
+    // «На стадионе 63 000+ студентов» при этом уезжал за правый край экрана.
+    //
+    // Доля всегда не больше единицы, то есть коробка от нее только шире.
+    // Значит, строка, влезшая в несжатую, влезет в любую — а запас,
+    // который сжатие могло бы дать, не стоит заголовка за краем.
+    // Единицу ставим без возврата: fitHeight идет следом и начинает ровно
+    // с нее, пересчитывая долю заново.
+    section.style.setProperty('--lead-squeeze', '1');
+    // И в том кегле, в котором экран встанет. Набран он от --intro-k (а если
+    // паркуется — от --intro-k-big), и оба к этому моменту держат что
+    // попало: --intro-k только что перебирала cardScale(), подбирая размер
+    // карточки, а --intro-k-big остался с последнего нарисованного кадра.
+    // Померенная в кегле 1,05 строка влезала в одну, ей запрещали
+    // переноситься — а вставал экран в 1,55, и та же строка оказывалась в
+    // полтора раза длиннее экрана. Карточка к этому моменту уже знает свой
+    // размер (см. measure() в introRunner, fit() зовут сразу за cardScale),
+    // и K() — это он и есть; дальше кегль только уменьшается, садясь в
+    // единицу, так что мерка идет по самому широкому состоянию строки.
+    // На широком экране у припаркованного экрана кегль записан числом
+    // (1,55 в layout.css) — карточки у него нет, и следовать ему не за чем.
+    const kAt = parks && !NARROW.matches ? CARD_K : K();
+    const keptK = section.style.getPropertyValue('--intro-k');
+    const keptBig = section.style.getPropertyValue('--intro-k-big');
+    section.style.setProperty('--intro-k', String(kAt));
+    section.style.setProperty('--intro-k-big', String(kAt));
     lead.dataset.line = 'one';                 // measured as it would be set
     const room = lead.clientWidth;
     const line = value.scrollWidth;
-    if (!room || !line) return;
+    const back = () => {
+      if (keptK) section.style.setProperty('--intro-k', keptK);
+      else section.style.removeProperty('--intro-k');
+      if (keptBig) section.style.setProperty('--intro-k-big', keptBig);
+      else section.style.removeProperty('--intro-k-big');
+    };
+    if (!room || !line) { back(); return; }
     if (line > room * NEARLY) {
       delete lead.dataset.line;                // a sentence: let it wrap
-      return;
-    }
-    if (line > room) {
+    } else if (line > room) {
       section.style.setProperty('--lead-fit', (room / line - 0.004).toFixed(4));
     }
+    back();
   };
 
   // And the same for its height. A screen that has grown part by part can come
@@ -11894,10 +12022,17 @@ function init(root) {
         filter: grayscale(1);
       }
 
-      /* Под курсором флаг подрастает, под пальцем — тот, который назвали. */
-      .world-tile:hover,
+      /* Под курсором флаг подрастает, под пальцем — тот, который назвали.
+         Наведение при этом спрашивают: палец с флага его не уносит, и
+         тронутый флаг оставался подросшим вместе с названным. */
       .world-tile.is-named {
         transform: scale(1.14);
+      }
+
+      @media (hover: hover) {
+        .world-tile:hover {
+          transform: scale(1.14);
+        }
       }
 
       /* Названный флаг стоит поверх соседей: подросший, он иначе уходит под
@@ -12158,10 +12293,12 @@ function init(root) {
         border-color: var(--hse-blue);
       }
 
-      .world-check:hover {
-        color: var(--card);
-        background: var(--link-hover);
-        border-color: var(--link-hover);
+      @media (hover: hover) {
+        .world-check:hover {
+          color: var(--card);
+          background: var(--link-hover);
+          border-color: var(--link-hover);
+        }
       }
 
       .world-check:disabled {
@@ -14728,10 +14865,12 @@ const LEAD_STYLE = `<style>
     border-color: var(--hse-blue);
   }
 
-  .study-lead-check:hover {
-    color: var(--card);
-    background: var(--link-hover);
-    border-color: var(--link-hover);
+  @media (hover: hover) {
+    .study-lead-check:hover {
+      color: var(--card);
+      background: var(--link-hover);
+      border-color: var(--link-hover);
+    }
   }
 
   .study-lead-check:disabled {
@@ -16228,10 +16367,17 @@ function init(root) {
         transition: background 140ms ease;
       }
 
-      .prof-item:hover,
       .prof-item:focus-visible,
       .prof-item.on {
         background: var(--card);
+      }
+
+      /* Наведение — только мыши: палец его с карточки не уносит, и
+         тронутая строка оставалась подсвеченной как выбранная. */
+      @media (hover: hover) {
+        .prof-item:hover {
+          background: var(--card);
+        }
       }
 
       .prof-item-art {
