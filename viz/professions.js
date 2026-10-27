@@ -4,6 +4,7 @@
 import { PROFESSIONS } from '../data/professions.js';
 import { nf, plural } from '../lib/format.js';
 import { mountLogo } from '../lib/logo.js';
+import { toTop } from '../lib/ui.js';
 
 // Every specialization the table lists under a profession. The lead-in of the
 // section speaks of them, so the figure is counted rather than written down.
@@ -527,7 +528,6 @@ export function init(root) {
           height: 100%;
           overflow-y: auto;
           overscroll-behavior: contain;
-          -webkit-overflow-scrolling: touch;
         }
 
         .prof-group {
@@ -1011,9 +1011,12 @@ export function init(root) {
   // Поэтому читатель, вернувшийся в раздел, застает стену с первой строки, а
   // не там, где бросил ее в прошлый раз. Раскрытая плитка закрывается вместе
   // с этим: открытой осталась бы та, до которой отсюда уже не видно.
+  //
+  // Возвращает стену toTop(), а не простое обнуление: на айфоне мах оставляет
+  // после себя инерцию, и ноль, записанный ей поперек, она перетирает обратно.
   return {
     open() {
-      grid.scrollTop = 0;
+      toTop(grid);
       if (current && stacked.matches) {
         current.classList.remove('on');
         current.setAttribute('aria-expanded', 'false');

@@ -113,11 +113,18 @@ export const meta = {
     // are measured as one long one, judged not to fit, and the whole screen
     // is set a quarter smaller than every other lead-in on the page.
     // The second line is picked out the way the page picks out what a screen
-    // turns on: corporate blue behind it, the card colour on top. It hugs its
-    // own words rather than running the width of the screen, hence fit-content.
-    value: '<span style="display: block; white-space: normal">Вышка настолько большая,'
-      + '<span style="display: block; width: fit-content; margin-top: 0.12em;'
-      + ' padding: 0.06em 0.26em; border-radius: 0.22em;'
+    // turns on: corporate blue behind it, the card colour on top. Выделение
+    // идет по тексту, а не коробкой: на телефоне фраза сама переносится на две
+    // строки, и коробке в fit-content доставалась ширина самой длинной из них —
+    // под коротким «орбиты» синее поле тянулось до правого края. Строчное с
+    // box-decoration-break: clone дает каждой строке свою плашку по словам.
+    // Перенос перед выделением — тегом, а не стилем: строчное выделение иначе
+    // встало бы сразу за запятой.
+    // Строки идут просторнее обычного: плашка строчная, ее поля сверху и снизу
+    // наслаиваются на соседние строки — воздух под них дает межстрочие.
+    value: '<span style="display: block; white-space: normal; line-height: 1.45">Вышка настолько большая,<br>'
+      + '<span style="padding: 0.1em 0.26em; border-radius: 0.22em;'
+      + ' -webkit-box-decoration-break: clone; box-decoration-break: clone;'
       + ' background: var(--hse-blue); color: var(--card)">что достает даже до орбиты</span>'
       + '</span>',
     text: ''

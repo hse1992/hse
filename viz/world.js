@@ -3,7 +3,7 @@
 import { CITIES, STUDENTS, FOREIGN } from '../data/hse.js';
 import { COUNTRIES, REGIONS, BY_CITY } from '../data/countries.js';
 import { nf, pct, plural } from '../lib/format.js';
-import { onResize } from '../lib/ui.js';
+import { onResize, toTop } from '../lib/ui.js';
 
 // The world to compare against: 193 UN members plus 2 observer states, split
 // by part of the world the same way the countries above are (UN M49, so the
@@ -37,6 +37,15 @@ export const meta = {
   id: 'world',
   // Short enough for the strip at the top of a phone — see meta.short in CLAUDE.md.
   short: 'Страны',
+  // На телефоне этот блок читается кадрами, а не прокруткой — как стадион,
+  // см. «Чтение кадрами» в lib/stepper.js. История тут в два кадра: вопрос и
+  // стена флагов, — и прокруткой она не рассказывалась вовсе. Своих остановок
+  // блок каркасу не давал, так что один мах пальцем уводил с карточки с
+  // догадкой прямо в следующий раздел, через голову всей стены: ответ блока
+  // читатель не видел, если не догадался нажать кнопку. Кадрами же страница
+  // останавливается на блоке, вопрос придерживает ход (`hold`), а с ответом
+  // блок отдает себя читателю, и стена листается обычной прокруткой.
+  taps: true,
   // Hands the reader over from the stadium: the whole student body first, and
   // then the part of it that brings the quotation on.
   // The question comes straight after the figure it is about, and it stays:
@@ -687,7 +696,6 @@ export function init(root) {
           height: auto;
           overflow-y: auto;
           overscroll-behavior: contain;
-          -webkit-overflow-scrolling: touch;
         }
 
         .world-score-value { font-size: 2.5rem; }
@@ -1054,6 +1062,13 @@ export function init(root) {
   // scrolls, there is no next beat to wait at, and the answer is behind a
   // button instead.
   const stepped = () => document.documentElement.classList.contains('is-stepped');
+  // Кроме телефона: там блок читается кадрами, и кадры ведет каркас — те же
+  // два состояния, только вместо колеса палец. При «меньше движения» режим
+  // выключен (`byTaps` в lib/stepper.js), и там остается прокрутка с кнопкой.
+  const tapped = phone.matches && !!meta.taps
+    && !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // Историю ведет каркас — здесь или там.
+  const walks = () => stepped() || tapped;
 
   // What to say once the answer is out. Judged by how far off the guess was
   // against the answer, not by the bare difference: forty away from 128 is
@@ -1092,7 +1107,7 @@ export function init(root) {
       }
       // Where the page waits for a mark the button waits with it. Where the
       // page scrolls on regardless, the answer can be had without one.
-      if (stepped()) {
+      if (walks()) {
         check.textContent = 'Ответить';
         check.disabled = guess === null;
       } else {
@@ -1152,7 +1167,7 @@ export function init(root) {
   // next beat, and that beat brings the answer; where the page scrolls there
   // is no beat to ask for, and the answer is shown right here.
   check.addEventListener('click', () => {
-    if (stepped()) {
+    if (walks()) {
       root.dispatchEvent(new CustomEvent('story:next', { bubbles: true }));
       return;
     }
@@ -1288,7 +1303,7 @@ export function init(root) {
     asking = on;
     // Only a change the reader watches is played; the first state is simply
     // set, and so is everything on a page that scrolls.
-    const plays = !first && stepped();
+    const plays = !first && walks();
     const from = root.getBoundingClientRect().top;
     if (plays) section.classList.add('world-turning');
 
@@ -1344,8 +1359,8 @@ export function init(root) {
   // shown at all unless they found the scale and answered it.
   const still = window.matchMedia('(prefers-reduced-motion: reduce)');
   function step(i) {
-    if (!stepped() && still.matches) { setAsking(false); return; }
-    setAsking(stepped() ? i < 1 : !checked);
+    if (!walks() && still.matches) { setAsking(false); return; }
+    setAsking(walks() ? i < 1 : !checked);
   }
 
   // The answer does not come before the reader has put a mark down. Asked
@@ -1362,6 +1377,8 @@ export function init(root) {
   layout();
   // Стена листается пальцем, и место, на котором ее бросили, — такое же
   // положение картинки, как поворот планеты: вернувшись в раздел, читатель
-  // застает ее с первой строки, а не с середины Африки.
-  return { step, hold, open: () => { grid.scrollTop = 0; } };
+  // застает ее с первой строки, а не с середины Африки. Возвращает ее toTop(),
+  // а не простое обнуление: на айфоне мах оставляет после себя инерцию, и
+  // ноль, записанный ей поперек, она перетирает обратно.
+  return { step, hold, open: () => { toTop(grid); } };
 }

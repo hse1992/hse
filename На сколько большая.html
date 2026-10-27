@@ -3869,7 +3869,7 @@ function introRunner(section, stages = 1, scale = CARD_K) {
 return { mountProgress, mountWindowSize, mountTitleMark, introRunner };
 })();
 
-const { onResize, mountCanvas, nameSwitches, stepAhead } = (() => {
+const { onResize, mountCanvas, nameSwitches, toTop, stepAhead } = (() => {
 // Small markup helpers for pieces that repeat across visualisations.
 
 // Watches an element for a change of size and answers on the next frame.
@@ -3957,6 +3957,53 @@ function nameSwitches(root) {
   switches.forEach((el) => watch.observe(el, { attributes: true, attributeFilter: ['class'] }));
 }
 
+// Вернуть коробку с собственной прокруткой — стену профессий, стену флагов —
+// в начало, так, чтобы это пережило палец.
+//
+// Простого `scrollTop = 0` на айфоне мало. Мах пальцем оставляет после себя
+// инерцию: коробка едет еще полсекунды после того, как палец отпущен, и
+// записанный в эту секунду ноль инерция перетирает обратно — читатель
+// возвращается в раздел и застает стену там, где ее бросил. На столе этого не
+// видно вовсе: там прокрутка кончается вместе с движением.
+//
+// Оборвать инерцию можно одним способом — на мгновение отобрать у коробки
+// прокрутку: `overflow: hidden` заставляет браузер снять ее со своего слоя, и
+// ноль после этого держится. Снимается он тут же, в том же кадре, так что
+// читатель ничего не замечает.
+//
+// А дальше ноль держится, пока едет такт. Инерция переживает один кадр, да и
+// зовут нас в начале движения, а страница идет к блоку еще семьсот
+// миллисекунд: за это время мах, отпущенный в прошлом разделе, успевает
+// доехать уже в новом. Отпускаем раньше, если читатель тронул коробку сам:
+// повел список пальцем — значит, ведет его он, а не мы.
+const ДЕРЖИМ = 800;                   // мс: чуть дольше такта
+const ТРОНУЛИ = ['touchstart', 'pointerdown', 'wheel'];
+
+function toTop(box) {
+  if (!box) return;
+  const было = box.style.overflow;
+  box.style.overflow = 'hidden';
+  box.scrollTop = 0;
+  void box.offsetHeight;              // перерисовка: здесь инерция и обрывается
+  box.style.overflow = было;
+  box.scrollTop = 0;
+
+  let держим = true;
+  const пусти = () => {
+    держим = false;
+    ТРОНУЛИ.forEach((t) => box.removeEventListener(t, пусти));
+  };
+  ТРОНУЛИ.forEach((t) => box.addEventListener(t, пусти, { passive: true }));
+  const до = performance.now() + ДЕРЖИМ;
+  const кадр = () => {
+    if (!держим) return;
+    box.scrollTop = 0;
+    if (performance.now() < до) requestAnimationFrame(кадр);
+    else пусти();
+  };
+  requestAnimationFrame(кадр);
+}
+
 // How far away the next stretch of a scroll-told story is, in pixels — the
 // answer a block gives the «Далее» button of the shell (see lib/stepper.js).
 //
@@ -3981,7 +4028,7 @@ function stepAhead(gone, span, parts, share = 1) {
   return Math.ceil((Math.floor(walked / stretch) + 1) * stretch - walked) + 1;
 }
 
-return { onResize, mountCanvas, nameSwitches, stepAhead };
+return { onResize, mountCanvas, nameSwitches, toTop, stepAhead };
 })();
 
 const { tint } = (() => {
@@ -4838,7 +4885,11 @@ function mountScrolled(entries, onProgress) {
     if (playing) { pending = to > frame ? 1 : -1; return; }
     if (to < 0 || to > e.steps - 1) { letGo(to > 0); return; }
     // A frame that waits for an answer is not passed by a touch either.
-    if (to > frame && e.hold && e.hold(frame)) return;
+    // Спрашивают о кадре, который собираются играть, а не о том, на котором
+    // стоят: `hold(i)` у модуля — это «шаг i ждет читателя», и так его зовет
+    // машина тактов на широком экране. Со старым номером вопрос про страны
+    // пропускался: придерживает он шаг 1, а спрашивали про 0.
+    if (to > frame && e.hold && tried('ожидание ответа', () => e.hold(to))) return;
     frame = to;
     playing = true;
     tried('кадр', () => e.setStep(frame));
@@ -11664,6 +11715,15 @@ const meta = {
   id: 'world',
   // Short enough for the strip at the top of a phone — see meta.short in CLAUDE.md.
   short: 'Страны',
+  // На телефоне этот блок читается кадрами, а не прокруткой — как стадион,
+  // см. «Чтение кадрами» в lib/stepper.js. История тут в два кадра: вопрос и
+  // стена флагов, — и прокруткой она не рассказывалась вовсе. Своих остановок
+  // блок каркасу не давал, так что один мах пальцем уводил с карточки с
+  // догадкой прямо в следующий раздел, через голову всей стены: ответ блока
+  // читатель не видел, если не догадался нажать кнопку. Кадрами же страница
+  // останавливается на блоке, вопрос придерживает ход (`hold`), а с ответом
+  // блок отдает себя читателю, и стена листается обычной прокруткой.
+  taps: true,
   // Hands the reader over from the stadium: the whole student body first, and
   // then the part of it that brings the quotation on.
   // The question comes straight after the figure it is about, and it stays:
@@ -12314,7 +12374,6 @@ function init(root) {
           height: auto;
           overflow-y: auto;
           overscroll-behavior: contain;
-          -webkit-overflow-scrolling: touch;
         }
 
         .world-score-value { font-size: 2.5rem; }
@@ -12681,6 +12740,13 @@ function init(root) {
   // scrolls, there is no next beat to wait at, and the answer is behind a
   // button instead.
   const stepped = () => document.documentElement.classList.contains('is-stepped');
+  // Кроме телефона: там блок читается кадрами, и кадры ведет каркас — те же
+  // два состояния, только вместо колеса палец. При «меньше движения» режим
+  // выключен (`byTaps` в lib/stepper.js), и там остается прокрутка с кнопкой.
+  const tapped = phone.matches && !!meta.taps
+    && !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // Историю ведет каркас — здесь или там.
+  const walks = () => stepped() || tapped;
 
   // What to say once the answer is out. Judged by how far off the guess was
   // against the answer, not by the bare difference: forty away from 128 is
@@ -12719,7 +12785,7 @@ function init(root) {
       }
       // Where the page waits for a mark the button waits with it. Where the
       // page scrolls on regardless, the answer can be had without one.
-      if (stepped()) {
+      if (walks()) {
         check.textContent = 'Ответить';
         check.disabled = guess === null;
       } else {
@@ -12779,7 +12845,7 @@ function init(root) {
   // next beat, and that beat brings the answer; where the page scrolls there
   // is no beat to ask for, and the answer is shown right here.
   check.addEventListener('click', () => {
-    if (stepped()) {
+    if (walks()) {
       root.dispatchEvent(new CustomEvent('story:next', { bubbles: true }));
       return;
     }
@@ -12915,7 +12981,7 @@ function init(root) {
     asking = on;
     // Only a change the reader watches is played; the first state is simply
     // set, and so is everything on a page that scrolls.
-    const plays = !first && stepped();
+    const plays = !first && walks();
     const from = root.getBoundingClientRect().top;
     if (plays) section.classList.add('world-turning');
 
@@ -12971,8 +13037,8 @@ function init(root) {
   // shown at all unless they found the scale and answered it.
   const still = window.matchMedia('(prefers-reduced-motion: reduce)');
   function step(i) {
-    if (!stepped() && still.matches) { setAsking(false); return; }
-    setAsking(stepped() ? i < 1 : !checked);
+    if (!walks() && still.matches) { setAsking(false); return; }
+    setAsking(walks() ? i < 1 : !checked);
   }
 
   // The answer does not come before the reader has put a mark down. Asked
@@ -12989,8 +13055,10 @@ function init(root) {
   layout();
   // Стена листается пальцем, и место, на котором ее бросили, — такое же
   // положение картинки, как поворот планеты: вернувшись в раздел, читатель
-  // застает ее с первой строки, а не с середины Африки.
-  return { step, hold, open: () => { grid.scrollTop = 0; } };
+  // застает ее с первой строки, а не с середины Африки. Возвращает ее toTop(),
+  // а не простое обнуление: на айфоне мах оставляет после себя инерцию, и
+  // ноль, записанный ей поперек, она перетирает обратно.
+  return { step, hold, open: () => { toTop(grid); } };
 }
 
 return { meta, init };
@@ -14919,19 +14987,21 @@ const LEAD_STYLE = `<style>
     /* Крупнее, чем просит сам текст: экран сжимается целиком, и набранное в
        рем выходит на экране в тринадцать пикселей.
 
-       Сколько именно можно взять, говорит коробка подмены: она держит высоту
-       самого высокого своего состояния — поля из 329 квадратов, — и карточка
-       занимала в ней меньше трех четвертей. Этот запас ей и отдан: картинка
-       выросла со 160 до 250 точек, строки — на ступеньку кегля. Расти дальше
-       карточке некуда: за высотой поля квадратов она тянет за собой весь
-       экран, тот сжимается сильнее, и прибавка съедает сама себя. Размер
-       картинки — еще и доля ширины: на тесном телефоне 250 точек встали бы
-       впритык к краям карточки. */
-    .study-lead-card .study-art { width: min(250px, 62%); height: auto; aspect-ratio: 1; }
-    .study-lead-card .study-lead-col { align-items: center; gap: 8px; }
-    .study-lead-card .study-since { font-size: 1.375rem; }
-    .study-lead-card .study-event { font-size: 1.3125rem; }
-    .study-lead-card .study-lead-year { font-size: 2.5rem; }
+       Расти карточке целиком некуда: она и есть самое высокое состояние
+       коробки подмены, и каждый лишний пиксель она тянет за собой на весь
+       экран — тот сжимается сильнее, и прибавка съедает сама себя. Поэтому
+       кегль прибавлен не из воздуха, а из картинки: крепость отдала полсотни
+       точек ширины, и они ушли в строки. Высота карточки от этого прежняя, а
+       читается она лучше — картинка и так узнается, а «Тогда в Ладоге
+       заложили каменную крепость» набиралось вдвое мельче заголовка экрана.
+
+       Размер картинки — еще и доля ширины: на тесном телефоне фиксированные
+       точки встали бы впритык к краям карточки. */
+    .study-lead-card .study-art { width: min(220px, 56%); height: auto; aspect-ratio: 1; }
+    .study-lead-card .study-lead-col { align-items: center; gap: 10px; }
+    .study-lead-card .study-since { font-size: 1.75rem; }
+    .study-lead-card .study-event { font-size: 1.6875rem; }
+    .study-lead-card .study-lead-year { font-size: 3rem; }
     .study-lead-outro { font-size: 1.375rem; }
 
     /* Строки экрана выравниваются по длине, а не набиваются до края. Обе его
@@ -15226,7 +15296,17 @@ function init(root) {
         .study-art { width: clamp(40px, 8.8svh, 72px); height: clamp(40px, 8.8svh, 72px); }
         .study-timeline { margin-top: clamp(8px, 2.6svh, 20px); padding: 0 20px; }
         .study-track { height: clamp(24px, 6svh, 44px); }
-        .study-note { font-size: 0.875rem; padding: clamp(2px, 1svh, 8px) 12px clamp(0px, 0.8svh, 6px); }
+        /* Строки «До создания Вышки еще 878 лет» на телефоне нет. Под лентой
+           лет она была третьим подряд пересказом одного и того же: год уже
+           назван крупно в карточке с замком, а лента под ним показывает, где
+           этот год стоит между 1114 и сегодняшним. Места же строка занимала
+           столько, что второй ряд городов уходил под нижний край экрана. */
+        .study-note { display: none; }
+
+        /* Своих полей у сцены на телефоне нет: карточка вокруг нее уже отбила
+           их, и вторые двенадцать пикселей сверху и снизу — это полоса в
+           городскую карточку высотой, отнятая у того же второго ряда городов. */
+        .study-stage { gap: 6px; padding: 0; }
 
         /* The picture has no fixed height of its own, unlike the canvases in
            the other sections: a long event text must not be cut off. */
@@ -15740,6 +15820,7 @@ return { meta, init };
 const MOD_professions = (() => {
 // Кем можно стать, отучившись в Вышке: все 44 укрупненные профессии сразу,
 // по направлениям подготовки, с иконкой и с тем, что в каждую из них входит.
+
 
 
 
@@ -16265,7 +16346,6 @@ function init(root) {
           height: 100%;
           overflow-y: auto;
           overscroll-behavior: contain;
-          -webkit-overflow-scrolling: touch;
         }
 
         .prof-group {
@@ -16749,9 +16829,12 @@ function init(root) {
   // Поэтому читатель, вернувшийся в раздел, застает стену с первой строки, а
   // не там, где бросил ее в прошлый раз. Раскрытая плитка закрывается вместе
   // с этим: открытой осталась бы та, до которой отсюда уже не видно.
+  //
+  // Возвращает стену toTop(), а не простое обнуление: на айфоне мах оставляет
+  // после себя инерцию, и ноль, записанный ей поперек, она перетирает обратно.
   return {
     open() {
-      grid.scrollTop = 0;
+      toTop(grid);
       if (current && stacked.matches) {
         current.classList.remove('on');
         current.setAttribute('aria-expanded', 'false');
@@ -16878,11 +16961,18 @@ const meta = {
     // are measured as one long one, judged not to fit, and the whole screen
     // is set a quarter smaller than every other lead-in on the page.
     // The second line is picked out the way the page picks out what a screen
-    // turns on: corporate blue behind it, the card colour on top. It hugs its
-    // own words rather than running the width of the screen, hence fit-content.
-    value: '<span style="display: block; white-space: normal">Вышка настолько большая,'
-      + '<span style="display: block; width: fit-content; margin-top: 0.12em;'
-      + ' padding: 0.06em 0.26em; border-radius: 0.22em;'
+    // turns on: corporate blue behind it, the card colour on top. Выделение
+    // идет по тексту, а не коробкой: на телефоне фраза сама переносится на две
+    // строки, и коробке в fit-content доставалась ширина самой длинной из них —
+    // под коротким «орбиты» синее поле тянулось до правого края. Строчное с
+    // box-decoration-break: clone дает каждой строке свою плашку по словам.
+    // Перенос перед выделением — тегом, а не стилем: строчное выделение иначе
+    // встало бы сразу за запятой.
+    // Строки идут просторнее обычного: плашка строчная, ее поля сверху и снизу
+    // наслаиваются на соседние строки — воздух под них дает межстрочие.
+    value: '<span style="display: block; white-space: normal; line-height: 1.45">Вышка настолько большая,<br>'
+      + '<span style="padding: 0.1em 0.26em; border-radius: 0.22em;'
+      + ' -webkit-box-decoration-break: clone; box-decoration-break: clone;'
       + ' background: var(--hse-blue); color: var(--card)">что достает даже до орбиты</span>'
       + '</span>',
     text: ''
