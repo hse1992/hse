@@ -2045,7 +2045,8 @@ html {
      приход блока — один такт, и на ровной доле подзаголовок почти весь этот
      такт висел полупрозрачный уже над самой картинкой: ровно то, от чего его
      и убирали. На крутой он уходит в первой пятой движения, пока карточка
-     еще держит экран, и читатель видит либо его, либо блок — но не оба. */
+     еще держит экран, и читатель видит либо его, либо блок — но не оба.
+
      Места под неприехавшие части карточка не держит: высота у подзаголовка
      своя, а --sub-h только обрезает ее сверху. Прибитый к полной высоте, он
      держал на карточке метро триста пикселей пустоты под единственной
@@ -2703,7 +2704,7 @@ const PROFS = {
   'writer': 'data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2264%22%20height%3D%2264%22%20viewBox%3D%220%200%2064%2064%22%20fill%3D%22none%22%20aria-hidden%3D%22true%22%20focusable%3D%22false%22%3E%20%3C%21--%20%D0%9F%D0%B8%D1%81%D0%B0%D1%82%D0%B5%D0%BB%D1%8C%20--%3E%20%3Cpath%20d%3D%22M58%206C42%209%2029%2019%2023%2033l8%208C45%2035%2055%2021%2058%206z%22%20fill%3D%22var%28--brand-grey-mid%2C%20%23C6C6C6%29%22%2F%3E%20%3Cpath%20d%3D%22M54%2011%2027%2038%22%20fill%3D%22none%22%20stroke%3D%22var%28--brand-yellow%2C%20%23FAB900%29%22%20stroke-width%3D%223%22%20stroke-linecap%3D%22round%22%2F%3E%20%3Cpath%20d%3D%22M23%2033l8%208-13%205z%22%20fill%3D%22var%28--brand-grey%2C%20%23929292%29%22%2F%3E%20%3Crect%20x%3D%229%22%20y%3D%2242%22%20width%3D%2215%22%20height%3D%225%22%20rx%3D%222%22%20fill%3D%22var%28--brand-grey%2C%20%23929292%29%22%2F%3E%20%3Crect%20x%3D%226%22%20y%3D%2246%22%20width%3D%2221%22%20height%3D%2212%22%20rx%3D%223%22%20fill%3D%22var%28--brand-navy%2C%20%230F2D69%29%22%2F%3E%20%3C%2Fsvg%3E'
 };
 
-const { mountProgress, mountWindowSize, mountTitleMark, introRunner } = (() => {
+const { ДОПУСК, mountProgress, mountWindowSize, mountTitleMark, introRunner } = (() => {
 // Page-level behaviour shared by every section: the reading progress bar,
 // starting a section when the reader gets to it, and sticky scenes.
 
@@ -2711,6 +2712,22 @@ const { mountProgress, mountWindowSize, mountTitleMark, introRunner } = (() => {
 // each, and the bar at the top is eight targets in one and a single one in
 // the other — both have to know.
 const NARROW = window.matchMedia('(max-width: 860px)');
+
+// Насколько секция может не доехать до верха окна и все еще считаться
+// пришедшей. То, что прибито к окну, — переходный экран и картинка под ним —
+// видно, только пока видна его секция; раньше это спрашивалось с точностью до
+// пикселя, и на айфоне такта не хватало.
+//
+// Прокрутка там дробная: у секции и в спокойном состоянии верх стоит на 0,35
+// пикселя ниже окна, а ход, доехав, попадает в эту долю как придется.
+// Промахнулся на пиксель вниз — и экран пропадал целиком: такт кончался
+// пустотой, каркас доигрывал его сам (видно() в lib/stepper.js), и читатель
+// получал заголовок открытия вместе с первой его частью — «Все эти здания
+// нужны…» и 127 квадратов бакалавриата приходили одним движением.
+//
+// Столько же, сколько ОСТАТОК в lib/stepper.js: то, что разошлось меньше чем
+// на это, страница считает одним и тем же местом.
+const ДОПУСК = 24;
 
 // Thin bar along the top edge showing how far down the page the reader is —
 // divided into the blocks of the story, one slot each, so it also says how many
@@ -3502,7 +3519,7 @@ function leadCard(section, K = () => CARD_K, cardHeight = null) {
     // turn has not come, and above them, where a screen left half faded would
     // otherwise hang over every block that follows.
     const own = section.getBoundingClientRect();
-    lead.style.visibility = narrow && (own.top > 1 || own.bottom < 1)
+    lead.style.visibility = narrow && (own.top > ДОПУСК || own.bottom < ДОПУСК)
       ? 'hidden'
       : '';
     // Centred against the same screen height as the heading — in pixels, not
@@ -4007,7 +4024,7 @@ function introRunner(section, stages = 1, scale = CARD_K) {
   };
 }
 
-return { mountProgress, mountWindowSize, mountTitleMark, introRunner };
+return { ДОПУСК, mountProgress, mountWindowSize, mountTitleMark, introRunner };
 })();
 
 const { onResize, mountCanvas, nameSwitches, toTop, stepAhead } = (() => {
@@ -4274,6 +4291,7 @@ const { mountStepper } = (() => {
 // is playing, input is ignored; when it lands, the page waits for the reader
 // again. Sections are settled onto the screen the same way: a beat of their
 // own carries the page from one to the next.
+
 
 const BEAT_MS = 700;         // how long one beat plays
 // A step can ask for longer than that — a turn in the story worth dwelling on,
@@ -5404,9 +5422,13 @@ function mountScrolled(entries, onProgress) {
       tried('картинка из прошлого блока', () => backdropOf(e.section, given));
       // Прибитая к окну, она видна только пока видна своя секция — иначе
       // висела бы поверх всех следующих блоков, как висел бы и сам экран.
+      // С тем же допуском, что и экран: ход доезжает до верха секции с
+      // точностью до доли пикселя (см. ДОПУСК в lib/page.js).
       const frame = e.section.querySelector(':scope > .viz-backdrop');
       const own = e.section.getBoundingClientRect();
-      if (frame) frame.style.visibility = own.top > 1 || own.bottom < 1 ? 'hidden' : '';
+      if (frame) {
+        frame.style.visibility = own.top > ДОПУСК || own.bottom < ДОПУСК ? 'hidden' : '';
+      }
     });
   };
 
@@ -11918,7 +11940,13 @@ const meta = {
   subtitle: `У нас в гостях уже ${COUNTRIES.length} ${plural(COUNTRIES.length, 'флаг', 'флага', 'флагов')}`,
   // Opens with the lead-in screen and the title card, like the stadium does.
   intro: true,
-  steps: 2,
+  // Вопрос, ответ, стена. На телефоне кадров три: шкала с ответом остается на
+  // том же экране, где читатель ставил метку, — там она и нужна, — а стене
+  // достается свой кадр, с заголовком, счетом и флагами. Так стене прибавилось
+  // полторы сотни пикселей: ни шкалы с линейкой, ни строки про догадку над
+  // флагами больше нет. На широком экране это все помещается разом, и кадров
+  // по-прежнему два.
+  steps: PHONE ? 3 : 2,
   opensOnStep: true
 };
 
@@ -12526,6 +12554,16 @@ function init(root) {
           overscroll-behavior: contain;
         }
 
+        /* Кадр со стеной: наверху заголовок, в карточке счет, под ними флаги.
+           Шкала сказала свое кадром раньше — на том экране, где читатель
+           ставил метку и где ответ пришел прямо под его догадку; здесь ее
+           место нужнее стене, и линейка с меткой и строка про догадку уходят
+           вместе с ней. */
+        .world-walled .world-scale,
+        .world-walled .world-verdict {
+          display: none;
+        }
+
         .world-score-value { font-size: 2.5rem; }
         .world-score-note { font-size: 0.875rem; }
       }
@@ -12885,6 +12923,7 @@ function init(root) {
   let guess = null;       // the reader's mark, or null while there is none
   let asking = null;      // the question is on the screen, not the answer
   let checked = false;    // on a page that scrolls: the answer has been asked for
+  let walled = null;      // стена флагов в блоке, а не за его краем
 
   // Beat by beat the page is read only on a wide screen. Elsewhere it simply
   // scrolls, there is no next beat to wait at, and the answer is behind a
@@ -12897,6 +12936,10 @@ function init(root) {
     && !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   // Историю ведет каркас — здесь или там.
   const walks = () => stepped() || tapped;
+  // Ответ и стена — два кадра, а не один: см. meta.steps. Только там, где
+  // кадры и есть, — при «меньше движения» на телефоне страница прокручивается
+  // и показывает итоговое состояние целиком, одним экраном.
+  const SPLIT = tapped;
 
   // What to say once the answer is out. Judged by how far off the guess was
   // against the answer, not by the bare difference: forty away from 128 is
@@ -13090,8 +13133,12 @@ function init(root) {
   // пикселя. Поэтому четверть экрана — это все еще «блок наверху».
   function follow() {
     const top = root.getBoundingClientRect().top;
-    leadShow(!asking && top <= window.innerHeight * 0.25 ? 'head' : 'ask');
-    if (askLine) askLine.style.display = asking ? 'block' : 'none';
+    // Где кадров три, заголовок приходит со стеной, а не с ответом: кадр с
+    // ответом — это все еще тот экран, где спрашивали, и вопрос стоит над
+    // своим ответом, пока его не сменят флаги.
+    const done = SPLIT ? !!walled : !asking;
+    leadShow(done && top <= window.innerHeight * 0.25 ? 'head' : 'ask');
+    if (askLine) askLine.style.display = done ? 'none' : 'block';
     growSoon();
   }
   if (PHONE) window.addEventListener('scroll', follow, { passive: true });
@@ -13120,9 +13167,29 @@ function init(root) {
     clearTimeout(unveiling);
     unveiling = setTimeout(() => {
       root.classList.remove('world-shut');
+      // Стена вернулась в раскладку — теперь ее можно мерить вместе с
+      // карточкой, которая над ней стоит.
+      grow();
       void grid.offsetWidth;
       root.classList.remove('world-dim');
     }, after);
+  }
+
+  // Стена приходит и уходит: на широком экране — вместе с ответом, на
+  // телефоне — своим кадром, следующим за ним. С ней приходит заголовок
+  // (follow выше) и уходит шкала.
+  function setWall(on, after) {
+    if (on === walled) return;
+    walled = on;
+    root.classList.toggle('world-walled', on);
+    if (on) {
+      unveil(after);
+    } else {
+      clearTimeout(unveiling);
+      root.classList.add('world-shut', 'world-dim');
+    }
+    follow();
+    grow();
   }
 
   function setAsking(on) {
@@ -13137,12 +13204,9 @@ function init(root) {
 
     root.classList.toggle('world-asking', on);
     section.classList.toggle('world-answered', !on);
-    if (on) {
-      clearTimeout(unveiling);
-      root.classList.add('world-shut', 'world-dim');
-    } else {
-      unveil(plays ? 620 : 0);
-    }
+    // Где ответ и стена — один кадр, стена идет за ответом; где два, ею
+    // распоряжается свой кадр.
+    if (!SPLIT) setWall(!on, plays ? 620 : 0);
     setHeading(on);
     follow();
     scale.setAttribute('aria-disabled', on ? 'false' : 'true');
@@ -13189,6 +13253,9 @@ function init(root) {
   function step(i) {
     if (!walks() && still.matches) { setAsking(false); return; }
     setAsking(walks() ? i < 1 : !checked);
+    // Третий кадр — стена. Ответ на шкале к этому моменту уже прочитан, и
+    // шкала уходит, освобождая флагам свои полторы сотни пикселей.
+    if (SPLIT) setWall(i >= 2, 0);
   }
 
   // The answer does not come before the reader has put a mark down. Asked
@@ -13201,6 +13268,7 @@ function init(root) {
   }
 
   setAsking(true);
+  setWall(false, 0);
   render();
   layout();
   // Стена листается пальцем, и место, на котором ее бросили, — такое же
