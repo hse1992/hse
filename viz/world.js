@@ -99,7 +99,13 @@ export const meta = {
   subtitle: `У нас в гостях уже ${COUNTRIES.length} ${plural(COUNTRIES.length, 'флаг', 'флага', 'флагов')}`,
   // Opens with the lead-in screen and the title card, like the stadium does.
   intro: true,
-  steps: 2,
+  // Вопрос, ответ, стена. На телефоне кадров три: шкала с ответом остается на
+  // том же экране, где читатель ставил метку, — там она и нужна, — а стене
+  // достается свой кадр, с заголовком, счетом и флагами. Так стене прибавилось
+  // полторы сотни пикселей: ни шкалы с линейкой, ни строки про догадку над
+  // флагами больше нет. На широком экране это все помещается разом, и кадров
+  // по-прежнему два.
+  steps: PHONE ? 3 : 2,
   opensOnStep: true
 };
 
@@ -707,6 +713,16 @@ export function init(root) {
           overscroll-behavior: contain;
         }
 
+        /* Кадр со стеной: наверху заголовок, в карточке счет, под ними флаги.
+           Шкала сказала свое кадром раньше — на том экране, где читатель
+           ставил метку и где ответ пришел прямо под его догадку; здесь ее
+           место нужнее стене, и линейка с меткой и строка про догадку уходят
+           вместе с ней. */
+        .world-walled .world-scale,
+        .world-walled .world-verdict {
+          display: none;
+        }
+
         .world-score-value { font-size: 2.5rem; }
         .world-score-note { font-size: 0.875rem; }
       }
@@ -1066,6 +1082,7 @@ export function init(root) {
   let guess = null;       // the reader's mark, or null while there is none
   let asking = null;      // the question is on the screen, not the answer
   let checked = false;    // on a page that scrolls: the answer has been asked for
+  let walled = null;      // стена флагов в блоке, а не за его краем
 
   // Beat by beat the page is read only on a wide screen. Elsewhere it simply
   // scrolls, there is no next beat to wait at, and the answer is behind a
@@ -1078,6 +1095,10 @@ export function init(root) {
     && !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   // Историю ведет каркас — здесь или там.
   const walks = () => stepped() || tapped;
+  // Ответ и стена — два кадра, а не один: см. meta.steps. Только там, где
+  // кадры и есть, — при «меньше движения» на телефоне страница прокручивается
+  // и показывает итоговое состояние целиком, одним экраном.
+  const SPLIT = tapped;
 
   // What to say once the answer is out. Judged by how far off the guess was
   // against the answer, not by the bare difference: forty away from 128 is
@@ -1271,8 +1292,12 @@ export function init(root) {
   // пикселя. Поэтому четверть экрана — это все еще «блок наверху».
   function follow() {
     const top = root.getBoundingClientRect().top;
-    leadShow(!asking && top <= window.innerHeight * 0.25 ? 'head' : 'ask');
-    if (askLine) askLine.style.display = asking ? 'block' : 'none';
+    // Где кадров три, заголовок приходит со стеной, а не с ответом: кадр с
+    // ответом — это все еще тот экран, где спрашивали, и вопрос стоит над
+    // своим ответом, пока его не сменят флаги.
+    const done = SPLIT ? !!walled : !asking;
+    leadShow(done && top <= window.innerHeight * 0.25 ? 'head' : 'ask');
+    if (askLine) askLine.style.display = done ? 'none' : 'block';
     growSoon();
   }
   if (PHONE) window.addEventListener('scroll', follow, { passive: true });
@@ -1301,9 +1326,29 @@ export function init(root) {
     clearTimeout(unveiling);
     unveiling = setTimeout(() => {
       root.classList.remove('world-shut');
+      // Стена вернулась в раскладку — теперь ее можно мерить вместе с
+      // карточкой, которая над ней стоит.
+      grow();
       void grid.offsetWidth;
       root.classList.remove('world-dim');
     }, after);
+  }
+
+  // Стена приходит и уходит: на широком экране — вместе с ответом, на
+  // телефоне — своим кадром, следующим за ним. С ней приходит заголовок
+  // (follow выше) и уходит шкала.
+  function setWall(on, after) {
+    if (on === walled) return;
+    walled = on;
+    root.classList.toggle('world-walled', on);
+    if (on) {
+      unveil(after);
+    } else {
+      clearTimeout(unveiling);
+      root.classList.add('world-shut', 'world-dim');
+    }
+    follow();
+    grow();
   }
 
   function setAsking(on) {
@@ -1318,12 +1363,9 @@ export function init(root) {
 
     root.classList.toggle('world-asking', on);
     section.classList.toggle('world-answered', !on);
-    if (on) {
-      clearTimeout(unveiling);
-      root.classList.add('world-shut', 'world-dim');
-    } else {
-      unveil(plays ? 620 : 0);
-    }
+    // Где ответ и стена — один кадр, стена идет за ответом; где два, ею
+    // распоряжается свой кадр.
+    if (!SPLIT) setWall(!on, plays ? 620 : 0);
     setHeading(on);
     follow();
     scale.setAttribute('aria-disabled', on ? 'false' : 'true');
@@ -1370,6 +1412,9 @@ export function init(root) {
   function step(i) {
     if (!walks() && still.matches) { setAsking(false); return; }
     setAsking(walks() ? i < 1 : !checked);
+    // Третий кадр — стена. Ответ на шкале к этому моменту уже прочитан, и
+    // шкала уходит, освобождая флагам свои полторы сотни пикселей.
+    if (SPLIT) setWall(i >= 2, 0);
   }
 
   // The answer does not come before the reader has put a mark down. Asked
@@ -1382,6 +1427,7 @@ export function init(root) {
   }
 
   setAsking(true);
+  setWall(false, 0);
   render();
   layout();
   // Стена листается пальцем, и место, на котором ее бросили, — такое же

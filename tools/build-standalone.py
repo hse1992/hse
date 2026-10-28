@@ -75,8 +75,13 @@ def strip_module(src: str) -> str:
 
 
 IMPORT_RE = re.compile(r"^\s*import\s[^;]*?from\s+'([^']+)'", re.M)
+# Имя может быть и кириллицей: у машины тактов половина внутренних имен
+# русские (ОСТАТОК, РУЧКИ), и экспортированное мимо этого правила имя тихо не
+# попадало бы в выгрузку — файл собрался бы, а страница упала на «ДОПУСК is
+# not defined». \w в Python знает буквы любого алфавита, нужно только не дать
+# имени начаться с цифры.
 EXPORT_RE = re.compile(r"^export\s+(?:async\s+)?(?:const|let|var|function|class)\s+"
-                       r"([A-Za-z_$][\w$]*)", re.M)
+                       r"([^\W\d][\w$]*)", re.M)
 
 
 def imports_of(rel: str) -> list:
