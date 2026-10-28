@@ -10,6 +10,13 @@
   вы           к читателю обращаемся на «ты»
   число        длинное число прямо в тексте — скорее всего, мимо nf()
   toLocale     форматирование чисел мимо lib/format.js
+  комментарий  непарные /* и */ в стилях
+
+Последнее — не про текст, но ловится тем же проходом и иначе не ловится
+вовсе. Лишний */ в CSS не ошибка для браузера: он читает текст после него как
+начало правила и доедает следующее настоящее правило целиком, молча. Так на
+телефоне вернулся подзаголовок, убранный полгода назад, — правило, которое
+его складывает, просто перестало существовать, одинаково во всех браузерах.
 
 Проверяется то, что видит читатель: строковые литералы и текст в разметке.
 Код и комментарии не в счет — там и константа в 81000, и цитата в комментарии
@@ -74,6 +81,28 @@ def visible(src: str, html: bool):
             yield m.start(1), m.group(1)
 
 
+def stray_comments(text: str):
+    """Непарные /* и */ — со смещением каждого.
+
+    Внутри комментария вложенный /* — обычный текст, поэтому открывающий
+    считается только там, где комментарий закрыт.
+    """
+    i, opened = 0, -1
+    while i < len(text) - 1:
+        pair = text[i:i + 2]
+        if pair == "/*" and opened < 0:
+            opened, i = i, i + 2
+            continue
+        if pair == "*/":
+            if opened < 0:
+                yield i, "лишний */"
+            opened, i = -1, i + 2
+            continue
+        i += 1
+    if opened >= 0:
+        yield opened, "/* не закрыт"
+
+
 def check(path: pathlib.Path):
     rel = path.relative_to(ROOT)
     src = path.read_text(encoding="utf-8")
@@ -88,6 +117,14 @@ def check(path: pathlib.Path):
             found.append((rel, n, "·"))
         if "toLocaleString" in line and rel.as_posix() != "lib/format.js":
             found.append((rel, n, "toLocale"))
+
+    # Стили блоков лежат в шаблонных строках модулей, и лишний */ там стоит
+    # ровно столько же, сколько в самом layout.css.
+    for pos, piece in ([(0, src)] if path.suffix == ".css"
+                       else [(p, s) for p, s in visible(src, False)
+                             if s.startswith("`") and "/*" in s]):
+        for off, why in stray_comments(piece):
+            found.append((rel, at(pos + off), f"комментарий: {why}"))
 
     for pos, piece in visible(src, path.suffix == '.html'):
         if not CYRILLIC.search(piece):
