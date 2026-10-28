@@ -621,6 +621,59 @@ const LEAD_STYLE = `<style>
     .study-lead-ask,
     .study-lead-answer,
     .study-lead-then { margin-top: 0.7em; }
+
+    /* Ответ не уступает места году: из этих лет год и получился, и порознь
+       их читать незачем. На пятом такте ответ поднимается наверх, а карточка
+       года разворачивается под ним.
+
+       Стоят они в одной ячейке коробки подмены, друг на друге, — поэтому
+       место разводится руками: карточка отступает сверху на высоту ответа, а
+       ответ поднимается на высоту карточки. Высоты меряет модуль
+       (measureSwap в init): в ячейке они наложены, и вычесть одну из другой
+       средствами стилей нечем.
+
+       Столкнуться они не могут: и подъем, и рост идут по одному и тому же
+       --lead-stage-5, а он у каркаса уже сглаженный, — на любой точке такта
+       между ними остается зазор в свою долю от --swap-gap. */
+    #study .viz-lead { --swap-gap: 16px; }
+
+    .study-lead-answer { opacity: calc(var(--lead-stage-4, 1) * 2 - 1); }
+
+    /* Поднимается коробка такта, а не сам ответ внутри нее: каждую часть
+       каркас режет по своему краю (overflow: hidden), и уехавший вверх ответ
+       она срезала бы целиком — на экране оставалась бы пустота. */
+    .study-lead-beat-answer {
+      transform: translateY(calc(-1 * var(--lead-stage-5, 0)
+        * (var(--then-h, 0px) + var(--swap-gap))));
+    }
+
+    .study-lead-beat-then {
+      margin-top: calc(var(--lead-stage-5, 0) * (var(--ans-h, 0px) + var(--swap-gap)));
+    }
+
+    /* Место под ответ берется у шкалы: к этому такту она уже сказала все, что
+       могла, и уходит (--lead-stage-5 гасит ее и так). Берется ровно столько,
+       на сколько подросла коробка подмены, и в ту же долю такта — высота
+       экрана не меняется ни на кадр.
+
+       Так и нужно: сжатие экрана (--lead-squeeze) каркас считает в состоянии,
+       в котором экран выше всего, — а экран, который на последнем такте еще
+       выше, он уменьшает целиком, и мельче становятся все пять тактов.
+       Пока коробка растет внутри высоты квадратов, которую она держит и так,
+       у шкалы не берется ничего: --swap-took до этого момента ноль.
+
+       Саму высоту ставит reserve() в init — инлайном: место шкала держит с
+       первого такта экрана, а перебить этим сжатие части каркасом можно
+       только через min-height. Отступ шкалы уехал внутрь коробки: снаружи он
+       остался бы стоять, когда от самой шкалы уже ничего не осталось. */
+    .study-lead-guess {
+      --swap-took: max(0px, calc(var(--lead-stage-5, 0)
+        * (var(--then-h, 0px) + var(--ans-h, 0px) + var(--swap-gap))
+        - var(--dots-h, 0px)));
+      margin-top: 0;
+    }
+
+    .study-lead-guess-in { margin-top: 1.1em; }
     /* Все, что не заголовок, набрано крупнее, чем просит экран. Экран
        сжимается целиком, и набранное в рем выходит на нем в двенадцать
        пикселей — вопрос, шкала и кнопка читались мельче подписи под
@@ -742,15 +795,17 @@ export const meta = {
       + '</span></span>'
       // The answer, in the place the question held: the figure first — it is
       // what the screen turns on — and the sentence it answers under it.
-      + '<span class="study-lead-beat intro-stage" data-stage="4"><span class="study-lead-answer">'
+      + '<span class="study-lead-beat study-lead-beat-answer intro-stage" data-stage="4"><span class="study-lead-answer">'
       +   `<span class="study-lead-years">${nf(YEARS_TOTAL)}`
       +     `<span class="study-lead-years-unit">${plural(YEARS_TOTAL, 'год', 'года', 'лет')}</span>`
       +   '</span>'
       +   '<span class="study-lead-say">потребуется, чтобы последовательно обучиться на каждой из них</span>'
       + '</span></span>'
       // The figure gives way to the year it lands on, in the same place: one
-      // thought turning into the next, not two standing side by side.
-      + '<span class="study-lead-beat intro-stage" data-stage="5"><span class="study-lead-then">'
+      // thought turning into the next, not two standing side by side. На
+      // телефоне — не уступает: ответ остается наверху, а год встает под ним,
+      // см. .study-lead-beat-then ниже.
+      + '<span class="study-lead-beat study-lead-beat-then intro-stage" data-stage="5"><span class="study-lead-then">'
       +   `<span class="study-lead-card">${LEAD_CARD}</span>`
       + '</span></span></span>'
       // The scale stands under the screen rather than inside the swap: the
@@ -1333,6 +1388,38 @@ export function init(root) {
   // is nothing to ask and nothing to wait for.
   if (!scaleEl) return {};
 
+  // ---------- Ответ и год на одном экране ----------
+  // На телефоне ответ остается, когда приходит карточка года, и они стоят
+  // друг под другом — а в раскладке лежат в одной ячейке коробки подмены,
+  // наложенные. Чтобы развести их, стилям нужны две высоты, и спросить их
+  // можно только здесь: коробка, чей такт не пришел, закрыта каркасом, и
+  // своей высоты у нее нет — есть высота содержимого.
+  const ansBeat = section.querySelector('.study-lead-beat-answer');
+  const thenBeat = section.querySelector('.study-lead-beat-then');
+  const dotsEl = section.querySelector('.study-lead-gone');
+  let мерки = '';
+  let dotsH = 0;        // квадраты раскрываются такт за такт — берем высшее
+  let ширина = 0;
+  function measureSwap() {
+    if (!ansBeat || !thenBeat) return;
+    if (window.innerWidth !== ширина) {   // другая ширина — другие переносы
+      ширина = window.innerWidth;
+      dotsH = 0;
+    }
+    if (dotsEl) dotsH = Math.max(dotsH, dotsEl.offsetHeight);
+    const теперь = [ansBeat.scrollHeight, thenBeat.scrollHeight, dotsH].join(':');
+    if (теперь === мерки) return;       // высоты от такта не зависят
+    мерки = теперь;
+    section.style.setProperty('--ans-h', `${ansBeat.scrollHeight}px`);
+    section.style.setProperty('--then-h', `${thenBeat.scrollHeight}px`);
+    section.style.setProperty('--dots-h', `${dotsH}px`);
+  }
+  measureSwap();
+  // Строки переносятся по-другому — меняются и высоты. Следим за квадратами:
+  // они меряются живьем, пока раскрываются, и меняются от ширины окна и от
+  // приехавшего шрифта вместе со всем экраном.
+  if (dotsEl) onResize(dotsEl, measureSwap);
+
   const years = (n) => plural(n, 'год', 'года', 'лет');
   const along = (v) => `${(v / GUESS_MAX) * 100}%`;
 
@@ -1387,6 +1474,12 @@ export function init(root) {
     // scrolls on regardless, there is no beat to ask for and no button.
     checkEl.disabled = guess === null;
     checkEl.hidden = told || !stepped();
+    // Строка под шкалой то спрашивает, то отвечает, а кнопка уходит совсем —
+    // и коробка от этого то выше, то ниже. На телефоне она прибита к числу
+    // (reserve), так что мерить нужно заново: по старому числу коробка
+    // обрезала бы ответ, переехавший на вторую строку. Ниже число не станет —
+    // reserve держит самое высокое из виденного.
+    if (PHONE) reserve(guessBoxEl);
   }
 
   function setGuess(v) {
@@ -1459,13 +1552,49 @@ export function init(root) {
   // read would move under their eyes. min-height beats the height the shell
   // squeezes the part with, so the part still fades in, it just no longer
   // grows. Measured, because how tall it comes out depends on the window.
+  // На телефоне коробка шкалы не только держит свое место, но и отдает его
+  // ответу на последнем такте экрана — см. --swap-took выше. Держит и отдает
+  // она одним и тем же числом: инлайновый calc идет за тактом сам. Высота
+  // здесь и верхняя, и нижняя — иначе коробка осталась бы стоять во весь свой
+  // рост, место бы взялось, а шкала никуда не ушла. На широком экране
+  // --swap-took не объявлен вовсе, и остается ровно прежнее: место под шкалу.
+  const ROOM = (h) => `max(0px, calc(${h}px - var(--swap-took, 0px)))`;
   const outroEl = section.querySelector('.study-lead-outro');
+  // Самое высокое из виденного: строка под шкалой то спрашивает, то отвечает,
+  // и кнопка уходит совсем. Держать место по сегодняшнему росту значило бы
+  // двигать экран под читателем — а он стоит по центру окна, и уехало бы все,
+  // что над шкалой.
+  let guessRoom = 0;
   const reserve = (el) => {
     if (!el) return;
+    // Только на телефоне: на широком экране кегль экрана едет от --intro-k,
+    // пока экран уходит, и своей высоты у коробки нет вовсе — число,
+    // отмеренное в одном кегле, в другом срезало бы шкалу.
+    if (PHONE && el === guessBoxEl) {
+      // Край ставится до мерки, а не после: коробка без него отдает наружу
+      // нижний отступ кнопки, и содержимое оказывается ниже померенного —
+      // ровно на него потом и срезало. По той же причине меряется своя
+      // высота, а не scrollHeight: отступ последнего ребенка в нее входит, а
+      // в прокручиваемую высоту — нет. Высоту, которой каркас сжимает часть,
+      // на время мерки снимаем: иначе померили бы ее.
+      el.style.overflow = 'hidden';
+      const сжато = el.style.height;
+      el.style.height = '';
+      el.style.minHeight = '';
+      el.style.maxHeight = '';
+      // offsetHeight, а не прямоугольник: экран сжат масштабом, и в
+      // прямоугольнике высота уже умножена на --lead-squeeze.
+      guessRoom = Math.max(guessRoom, el.offsetHeight);
+      const room = ROOM(guessRoom);
+      el.style.height = сжато;
+      el.style.minHeight = room;
+      el.style.maxHeight = room;
+      return;
+    }
     el.style.minHeight = '';
     el.style.minHeight = `${el.scrollHeight}px`;
   };
-  const reserveParts = () => { reserve(guessBoxEl); reserve(outroEl); };
+  const reserveParts = () => { guessRoom = 0; reserve(guessBoxEl); reserve(outroEl); };
   reserveParts();
   window.addEventListener('resize', reserveParts);
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(reserveParts);
