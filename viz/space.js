@@ -940,26 +940,55 @@ export function init(root) {
   // Held with the left button, the globe turns about its own axis with the
   // mouse, and about nothing else: it is the Earth, not a ball, and it keeps
   // the lean it has in every picture of it. The orbits are not part of the
-  // planet and stay where they are. The mouse only: on a touch screen the
-  // same gesture scrolls the page, and taking it away would strand the
-  // reader on this block.
+  // planet and stay where they are.
+  //
+  // Пальцем — тоже, но только поперек экрана: вдоль него ведут страницу, и
+  // отнять это у читателя нельзя — шар занимает полэкрана, листать было бы
+  // нечем. Поэтому палец шару не отдается сразу: он лег, и пока не стало
+  // видно, куда ведет, не делает ничего. Повел поперек — шар его забирает
+  // (каркас это видит по классу page-turns и такта не играет, см. вертят()
+  // в lib/stepper.js); повел вдоль или стукнул на месте — шар отпускает, и
+  // страница читается как обычно.
   let drag = null;
   let steer = null;             // a turn the story asks for, see step()
   let frozen = false;           // ... and the stop it asks for after that
   let fling = 0;                // change of the turn per ms a flick leaves behind
+  const TURN_PULL = 8;          // px: столько палец идет, прежде чем решить
 
-  canvas.addEventListener('pointerdown', (e) => {
-    if (e.pointerType !== 'mouse' || e.button !== 0) return;
-    e.preventDefault();
-    drag = { x: e.clientX, t: performance.now(), v: 0 };
+  // За шар берется и курсор, и палец — каркасу это видно отсюда.
+  canvas.classList.add('page-turns');
+
+  // Рука взяла шар: история больше им не распоряжается.
+  const take = (e) => {
+    drag.x = e.clientX;
+    drag.t = performance.now();
+    drag.v = 0;
+    drag.ждет = false;
     fling = 0;
     steer = null;               // the hand wins over the story
     canvas.setPointerCapture(e.pointerId);
     canvas.classList.add('is-dragging');
+  };
+
+  canvas.addEventListener('pointerdown', (e) => {
+    const палец = e.pointerType !== 'mouse';
+    if (!палец && e.button !== 0) return;
+    if (!палец) e.preventDefault();
+    drag = { x: e.clientX, y: e.clientY, t: performance.now(), v: 0, ждет: палец };
+    if (!палец) take(e);
   });
 
   canvas.addEventListener('pointermove', (e) => {
     if (!drag) return;
+    if (drag.ждет) {
+      const пошел = e.clientX - drag.x;
+      const вниз = e.clientY - drag.y;
+      if (Math.abs(пошел) < TURN_PULL && Math.abs(вниз) < TURN_PULL) return;
+      // Вдоль экрана — это страница, и шар отходит в сторону на весь жест.
+      if (Math.abs(пошел) <= Math.abs(вниз)) { drag = null; return; }
+      take(e);
+      return;
+    }
     // A point under the cursor moves with it: one radius of the globe
     // dragged is one radian of turn.
     const perPx = 180 / Math.PI / Math.max(1, R);
@@ -975,6 +1004,9 @@ export function init(root) {
 
   const letGo = (e) => {
     if (!drag) return;
+    // Палец лег и ушел, так и не повернув ничего: это стук по картинке, и
+    // шару с него взять нечего — ни поворота, ни разгона.
+    if (drag.ждет) { drag = null; return; }
     // A hand held still before letting go leaves nothing behind.
     const idle = performance.now() - drag.t;
     // Capped, so that even a hard flick carries the globe on by a sixth of a
@@ -1159,11 +1191,41 @@ export function init(root) {
     follow(true);
   }
 
-  // How far the next step is, for the button the shell puts in the corner of a
-  // phone: the same travel as follow() walks, read the other way round.
-  const ahead = () => (narrow.matches
-    ? stepAhead(-runEl.getBoundingClientRect().top, runEl.offsetHeight - colEl.offsetHeight, LAST + 1)
-    : 0);
+  // How far the next step is: the same travel as follow() walks, read the
+  // other way round.
+  //
+  // Путь начинается не у верха экрана, а под прибитой колонкой — и пока он до
+  // нее не дошел, пройденного еще нет. «Впереди ничего» в этом месте значит
+  // другое: блок уже на экране, шар на нем стоит, и следующее состояние —
+  // первый спутник — лежит за началом пути. Без этой остановки каркасу некуда
+  // было вести, и такт уходил на полтора экрана: планета, а следом сразу два
+  // спутника, через голову первого.
+  const ahead = () => {
+    if (!narrow.matches) return 0;
+    const span = runEl.offsetHeight - colEl.offsetHeight;
+    if (!(span > 0)) return 0;
+    const gone = -runEl.getBoundingClientRect().top;
+    const first = stepAhead(0, span, LAST + 1);
+    return gone < 0 ? Math.ceil(-gone) + first : stepAhead(gone, span, LAST + 1);
+  };
+
+  // И назад — до предыдущего состояния, по тем же отрезкам. Без своего числа
+  // назад оставались одни границы разделов, и шаг назад из снимка уносил через
+  // всю историю: спутники, вспышки и приход на орбиту проносились за одно
+  // движение. До начала пути отвечать нечего — там дорогу назад знает открытие.
+  const behind = () => {
+    if (!narrow.matches) return 0;
+    const span = runEl.offsetHeight - colEl.offsetHeight;
+    if (!(span > 0)) return 0;
+    const walked = -runEl.getBoundingClientRect().top;
+    const stretch = span / (LAST + 1);
+    const i = Math.min(LAST, Math.floor(walked / stretch));
+    // С первого спутника назад — к приходу блока, а не к началу пути: шар на
+    // экране и там и там, и такт между ними не менял бы ничего. Туда дорогу
+    // знает открытие, его последняя остановка — верх блока.
+    if (i <= 1) return 0;
+    return Math.max(0, Math.round(walked - ((i - 1) * stretch + 1)));
+  };
 
   paint();
 
@@ -1173,6 +1235,7 @@ export function init(root) {
     step: narrow.matches ? () => {} : step,
     open,
     ahead,
+    behind,
     // A satellite drawing its own orbit takes longer than a beat, the two that
     // come down take their time burning up, and the last one takes its time
     // turning to the ground.

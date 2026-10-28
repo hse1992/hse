@@ -531,20 +531,62 @@ export function init(root) {
 
         /* Одна колонка: фигуры идут друг за другом, и каждой достается вся
            ширина. Та, что сейчас не показывается, не занимает и места —
-           иначе обе делили бы высоту, и каждая осталась бы мелкой. */
-        /* На широком экране колонок две и они стоят по центру коробки. Здесь
-           колонка одна, и то, чего еще не показывали, из потока убрано — так
-           что центрировать нечего: единственная строка повисала посреди
-           пустого экрана, оторванная и от припаркованного заголовка над ней,
-           и от картинки, которая придет под ней. Прижата к верху, она читается
-           продолжением «Но есть 196 зданий. А это уже целый город». */
+           иначе обе делили бы высоту, и каждая осталась бы мелкой.
+
+           Заголовок стоит наверху, продолжением припаркованной строки «Но
+           есть 196 зданий», а фигура берет себе все, что осталось, и стоит в
+           нем по центру. Прижатая к верху, она оставляла под собой треть
+           пустого экрана: поле на узком телефоне шире стать не может, и место
+           под ним ничем не занять — значит, его нужно разделить поровну. */
         .area-steps {
           grid-template-columns: 1fr;
+          grid-template-rows: auto 1fr;
           gap: 16px;
-          align-content: start;
+          align-content: stretch;
+          align-items: stretch;
+        }
+
+        .area-step {
+          justify-content: center;
+          min-height: 0;
         }
 
         .area-step:not(.on) { display: none; }
+
+        /* Вопрос не держит себе места заранее, а разворачивается на своем
+           такте — по мерке (--q-h) и плавно, вместе с тактом. Три строки,
+           оставленные под него с самого начала, и были той пустотой под
+           полем; а появись он рывком, фигура прыгала бы вверх. Теперь она
+           уезжает ровно настолько, насколько вырос вопрос. */
+        .area-step-question {
+          overflow: hidden;
+          max-height: 0;
+          transition: max-height 620ms ease, opacity 300ms ease,
+                      transform 300ms ease;
+        }
+
+        .area-step-question.on { max-height: var(--q-h, 50vh); }
+
+        /* Карта города остается и под заголовком: «Общая площадь этих
+           зданий» — про те же 196 зданий, которые на ней нарисованы. Такт, на
+           котором она уходила, был экраном с одной строкой и пустотой под
+           ней. Карта подвигается под заголовок, а своя подпись ему уступает:
+           две подписи над одной картинкой читаются как брак верстки. */
+        .area-tell.titled .area-town-note { display: none; }
+
+        .area-tell.titled .area-town {
+          padding-top: var(--title-room, 0px);
+        }
+
+        /* Подвигается она плавно, вместе с тактом: заголовок проявляется не
+           мгновенно, и карта под ним не должна прыгать. */
+        .area-town {
+          transition: opacity 300ms ease, visibility 300ms, padding-top 420ms ease;
+        }
+
+        .area-town.on {
+          transition: opacity 620ms ease, visibility 0s, padding-top 420ms ease;
+        }
 
         /* «Общая площадь этих зданий» с числом приходит на экран одна, без
            поля и без пятиэтажки: до них еще два такта. Набранная в 22
@@ -1081,6 +1123,7 @@ export function init(root) {
   const pitchNoteEl = $('pitchNote');
   const houseNoteEl = $('houseNote');
   const innerEl = root.querySelector('.area-inner');
+  const tellEl = root.querySelector('.area-tell');
   const host = root.closest('.viz-section') || root.parentElement;
   const LAST = 7;
 
@@ -1096,8 +1139,12 @@ export function init(root) {
     // понятной. Порядок тот же, просто каждая получает экран целиком, и свое
     // пояснение она приносит с собой.
     if (phone.matches) {
-      townEl.classList.toggle('on', told && i === 0);
+      // Город держится и на такте заголовка: площадь, которую тот называет, —
+      // это площадь зданий, нарисованных на карте под ним. Уходит он вместе с
+      // первым полем, которое встает на его место.
+      townEl.classList.toggle('on', told && i <= 1);
       titleEl.classList.toggle('on', told && i >= 1);
+      tellEl.classList.toggle('titled', told && i >= 1);
       fieldsStepEl.classList.toggle('on', told && i >= 2 && i <= 3);
       pitchNoteEl.classList.toggle('on', told && i === 3);
       housesStepEl.classList.toggle('on', told && i >= 4);
@@ -1138,7 +1185,42 @@ export function init(root) {
   // An icon smaller than this stops reading as a picture. A phone column is
   // narrower than a wide-screen one to begin with, so the floor is lower there.
   const LEAST = phone.matches ? 104 : 160;
+
+  // Две мерки для телефона. Первая — сколько места занял заголовок: под ним
+  // стоит карта города, и подвинуть ее можно только на известное число. Вторая
+  // — какой высоты вопрос: он разворачивается на своем такте, а у текста своей
+  // высоты нет, отнимать не от чего. Обе снимаются на свободной высоте, в том
+  // состоянии, в котором элемент встанет.
+  function measureParts() {
+    if (!phone.matches) {
+      host.style.removeProperty('--title-room');
+      host.style.removeProperty('--q-h');
+      return;
+    }
+    host.style.setProperty('--title-room', `${titleEl.offsetHeight + 16}px`);
+    // Своя высота вопроса — та, что под обрезанием: сама коробка растянута на
+    // строку сетки и о содержимом ничего не говорит.
+    host.style.setProperty('--q-h', `${questionEl.scrollHeight}px`);
+  }
+
   function fitFigures() {
+    measureParts();
+    // На телефоне фигура стоит в своей строке сетки и центруется в ней, так
+    // что считать нужно одно: влезло ли в эту строку то, что в ней лежит.
+    // Строка сжимается, когда снизу разворачивается вопрос, — и фигура
+    // уступает ему ровно столько, сколько он забрал.
+    if (phone.matches) {
+      const step = root.querySelector('.area-step.on');
+      iconEls.forEach((el) => { el.style.maxWidth = ''; });
+      if (!step) return;
+      const over = step.scrollHeight - step.clientHeight;
+      if (over <= 0) return;
+      const icon = iconEls[0];
+      const width = Math.max(LEAST,
+        (icon.offsetHeight - over) * (icon.offsetWidth / icon.offsetHeight));
+      iconEls.forEach((el) => { el.style.maxWidth = `${Math.floor(width)}px`; });
+      return;
+    }
     const room = stepsEl.clientHeight - BREATHE * 2;
     if (room <= 0) return;
     iconEls.forEach((el) => { el.style.maxWidth = ''; });
@@ -1154,6 +1236,10 @@ export function init(root) {
     }
   }
   onResize(stepsEl, fitFigures);
+  // Следим и за самими фигурами: их строка сжимается, пока разворачивается
+  // вопрос, — и подгонять картинку нужно каждый такой кадр, иначе она
+  // уступила бы ему место рывком в конце такта.
+  [fieldsStepEl, housesStepEl].forEach((el) => onResize(el, fitFigures));
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitFigures);
 
   render('instant');
@@ -1173,6 +1259,7 @@ export function init(root) {
   // Answered by the phone story below; on a wide screen there is no travel to
   // walk and the shell asks for nothing.
   let ahead = () => 0;
+  let behind = () => 0;
 
   if (phone.matches) {
     const stage = root.querySelector('.area-stage');
@@ -1237,6 +1324,25 @@ export function init(root) {
       if (!told) return toCalc;
       return walked + told >= span ? (toCalc || told) : told;
     };
+
+    // И столько же — назад: шаг назад возвращает предыдущий кадр истории, а
+    // не уносит через всю ее. Из калькулятора он приводит к последнему кадру;
+    // с первого — ноль, дальше назад лежит уже не история, а открытие, и там
+    // свои остановки.
+    behind = () => {
+      const span = пройти();
+      if (!span) return 0;
+      const walked = -stage.getBoundingClientRect().top;
+      const stretch = span / LAST;
+      // Калькулятор идет следующим за последним кадром, и шаг назад из него
+      // возвращает к этому кадру — поэтому счет доходит до LAST, а не до
+      // последнего отрезка.
+      const i = Math.min(LAST, Math.floor(walked / stretch));
+      if (i <= 0) return 0;
+      // На пиксель за границу, а не ровно на нее: ровно на границе сторона
+      // остается за округлением.
+      return Math.max(0, Math.round(walked - ((i - 1) * stretch + 1)));
+    };
   }
 
   return {
@@ -1245,6 +1351,7 @@ export function init(root) {
     // the reader the calculator while the travel still says step one.
     step: phone.matches ? () => {} : step,
     ahead: () => ahead(),
+    behind: () => behind(),
     // The page opens this block — first time, or the reader has come back to
     // it. The town starts its traffic over, so the map is the same picture it
     // was when they first saw it.
