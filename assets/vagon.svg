@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 637 173" width="637" height="173">
+  <title>Головной вагон метро</title>
+  <defs><g id="head">
+      <clipPath id="head-body"><path d="M4 0H616C628 4 633 30 637 85V135H0V11H4Z"/></clipPath>
+      <rect x="243" y="135" width="139" height="23" fill="#353436"/>
+    <rect x="61.0" y="135" width="151" height="31" fill="#353436"/>
+    <rect x="61.0" y="139" width="151" height="7" fill="#4E4E50"/>
+    <circle cx="92.0" cy="160" r="12.5" fill="#6B6F73"/>
+    <circle cx="92.0" cy="160" r="5" fill="#585B5F"/>
+    <path d="M68.0 152h14l4-4h12l4 4h14v15h-48z" fill="#4A4A4C"/>
+    <circle cx="181.0" cy="160" r="12.5" fill="#6B6F73"/>
+    <circle cx="181.0" cy="160" r="5" fill="#585B5F"/>
+    <path d="M157.0 152h14l4-4h12l4 4h14v15h-48z" fill="#4A4A4C"/>
+    <rect x="415.0" y="135" width="151" height="31" fill="#353436"/>
+    <rect x="415.0" y="139" width="151" height="7" fill="#4E4E50"/>
+    <circle cx="446.0" cy="160" r="12.5" fill="#6B6F73"/>
+    <circle cx="446.0" cy="160" r="5" fill="#585B5F"/>
+    <path d="M422.0 152h14l4-4h12l4 4h14v15h-48z" fill="#4A4A4C"/>
+    <circle cx="535.0" cy="160" r="12.5" fill="#6B6F73"/>
+    <circle cx="535.0" cy="160" r="5" fill="#585B5F"/>
+    <path d="M511.0 152h14l4-4h12l4 4h14v15h-48z" fill="#4A4A4C"/>
+      <path d="M588 135H637V157H597Z" fill="#D7D9DC"/>
+      <path d="M4 0H616C628 4 633 30 637 85V135H0V11H4Z" fill="#CCCDD1"/>
+      <g clip-path="url(#head-body)">
+        <rect x="0" y="0" width="640" height="11" fill="#B7BABF"/>
+        <rect x="0" y="11" width="640" height="14" fill="#52A3E9"/>
+        <path d="M611 0H618C629 4 634 28 637 70C631 38 625 12 611 0Z" fill="#52A3E9"/>
+        <path d="M600 110H640V140H592Z" fill="#D7D9DC"/>
+      </g>
+      <rect x="5" y="38" width="19" height="39" rx="2" fill="#FFFFFF"/>
+      <rect x="578" y="31" width="35" height="89" rx="1.5" fill="#A9AAAD"/>
+      <rect x="586" y="36" width="19" height="41" rx="2" fill="#FFFFFF"/>
+      <path d="M618 39Q618 36 621 36H626Q628 36 628.5 39L630.5 74Q630.7 77 628 77H621Q618 77 618 74Z" fill="#FFFFFF"/>
+      <g clip-path="url(#head-body)">
+        <path d="M0 122H578Q581 122 582.5 119.5L592 101.5Q593.5 97 597 97H640V110H604Q601 110 599.5 113L590.5 131.5Q589 135 585 135H0Z" fill="#52A3E9"/>
+      </g>
+      <rect x="51" y="32" width="59" height="98" rx="1.5" fill="#BDBFC2"/>
+    <rect x="80" y="32" width="1" height="69" fill="#A9AAAD" opacity=".5"/>
+    <rect x="56" y="39" width="22" height="38" rx="2" fill="#FFFFFF"/>
+    <rect x="83" y="39" width="22" height="38" rx="2" fill="#FFFFFF"/>
+    <rect x="51" y="101" width="59" height="22" fill="#52A3E9"/>
+    <rect x="51" y="123" width="59" height="7" fill="#393B3E"/>
+    <rect x="199" y="32" width="59" height="98" rx="1.5" fill="#BDBFC2"/>
+    <rect x="228" y="32" width="1" height="69" fill="#A9AAAD" opacity=".5"/>
+    <rect x="204" y="39" width="22" height="38" rx="2" fill="#FFFFFF"/>
+    <rect x="231" y="39" width="22" height="38" rx="2" fill="#FFFFFF"/>
+    <rect x="199" y="101" width="59" height="22" fill="#52A3E9"/>
+    <rect x="199" y="123" width="59" height="7" fill="#393B3E"/>
+    <rect x="346" y="32" width="59" height="98" rx="1.5" fill="#BDBFC2"/>
+    <rect x="375" y="32" width="1" height="69" fill="#A9AAAD" opacity=".5"/>
+    <rect x="351" y="39" width="22" height="38" rx="2" fill="#FFFFFF"/>
+    <rect x="378" y="39" width="22" height="38" rx="2" fill="#FFFFFF"/>
+    <rect x="346" y="101" width="59" height="22" fill="#52A3E9"/>
+    <rect x="346" y="123" width="59" height="7" fill="#393B3E"/>
+    <rect x="493" y="32" width="59" height="98" rx="1.5" fill="#BDBFC2"/>
+    <rect x="522" y="32" width="1" height="69" fill="#A9AAAD" opacity=".5"/>
+    <rect x="498" y="39" width="22" height="38" rx="2" fill="#FFFFFF"/>
+    <rect x="525" y="39" width="22" height="38" rx="2" fill="#FFFFFF"/>
+    <rect x="493" y="101" width="59" height="22" fill="#52A3E9"/>
+    <rect x="493" y="123" width="59" height="7" fill="#393B3E"/>
+      <rect x="123" y="38" width="62" height="39" rx="11" fill="#FFFFFF"/>
+    <rect x="270" y="38" width="62" height="39" rx="11" fill="#FFFFFF"/>
+    <rect x="418" y="38" width="62" height="39" rx="11" fill="#FFFFFF"/>
+    </g></defs>
+  <use href="#head"/>
+</svg>

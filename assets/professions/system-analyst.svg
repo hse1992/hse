@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" fill="none" aria-hidden="true" focusable="false">
+  <!-- Системный аналитик -->
+  <path d="M32 20v10M14 44V30h36v14" fill="none" stroke="var(--brand-grey-mid, #C6C6C6)" stroke-width="4" stroke-linejoin="round"/>
+  <rect x="22" y="4" width="20" height="16" rx="4" fill="var(--brand-navy, #0F2D69)"/>
+  <rect x="4" y="42" width="20" height="16" rx="4" fill="var(--brand-blue, #234B9B)"/>
+  <rect x="40" y="42" width="20" height="16" rx="4" fill="var(--brand-green, #009B64)"/>
+</svg>

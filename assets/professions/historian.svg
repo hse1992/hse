@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" fill="none" aria-hidden="true" focusable="false">
+  <!-- Историк -->
+  <rect x="12" y="8" width="40" height="48" fill="var(--brand-grey-light, #E6E6E6)"/>
+  <rect x="8" y="4" width="48" height="9" rx="4.5" fill="var(--brand-grey, #929292)"/>
+  <rect x="8" y="51" width="48" height="9" rx="4.5" fill="var(--brand-grey, #929292)"/>
+  <rect x="19" y="20" width="26" height="3.5" rx="1.75" fill="var(--brand-navy, #0F2D69)"/>
+  <rect x="19" y="28" width="26" height="3.5" rx="1.75" fill="var(--brand-navy, #0F2D69)"/>
+  <rect x="19" y="36" width="16" height="3.5" rx="1.75" fill="var(--brand-navy, #0F2D69)"/>
+  <circle cx="43" cy="43" r="5.5" fill="var(--brand-red, #E61E3C)"/>
+</svg>

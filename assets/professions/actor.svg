@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" fill="none" aria-hidden="true" focusable="false">
+  <!-- Актёр -->
+  <path d="M4 8h26v20c0 9-5.8 16-13 16S4 37 4 28z" fill="var(--brand-yellow, #FAB900)"/>
+  <ellipse cx="12" cy="22" rx="2.6" ry="3.4" fill="var(--brand-navy, #0F2D69)"/>
+  <ellipse cx="22" cy="22" rx="2.6" ry="3.4" fill="var(--brand-navy, #0F2D69)"/>
+  <path d="M11 31c2 2.6 4 3.8 6 3.8s4-1.2 6-3.8" fill="none" stroke="var(--brand-navy, #0F2D69)" stroke-width="3" stroke-linecap="round"/>
+  <path d="M34 18h26v20c0 9-5.8 16-13 16s-13-7-13-16z" fill="var(--brand-navy, #0F2D69)"/>
+  <ellipse cx="42" cy="32" rx="2.6" ry="3.4" fill="var(--brand-grey-light, #E6E6E6)"/>
+  <ellipse cx="52" cy="32" rx="2.6" ry="3.4" fill="var(--brand-grey-light, #E6E6E6)"/>
+  <path d="M41 45c2-2.6 4-3.8 6-3.8s4 1.2 6 3.8" fill="none" stroke="var(--brand-grey-light, #E6E6E6)" stroke-width="3" stroke-linecap="round"/>
+</svg>

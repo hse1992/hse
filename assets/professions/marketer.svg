@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" fill="none" aria-hidden="true" focusable="false">
+  <!-- Маркетолог -->
+  <path d="M46 30a13 13 0 0 1 0 12" fill="none" stroke="var(--brand-yellow, #FAB900)" stroke-width="3.5" stroke-linecap="round"/>
+  <path d="M52 24a22 22 0 0 1 0 24" fill="none" stroke="var(--brand-yellow, #FAB900)" stroke-width="3.5" stroke-linecap="round"/>
+  <rect x="16" y="40" width="9" height="16" rx="4.5" fill="var(--brand-navy, #0F2D69)"/>
+  <path d="M6 26a4 4 0 0 1 4-4h9l22-12v44L19 42h-9a4 4 0 0 1-4-4z" fill="var(--brand-red, #E61E3C)"/>
+</svg>

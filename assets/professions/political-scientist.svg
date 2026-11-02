@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" fill="none" aria-hidden="true" focusable="false">
+  <!-- Политолог -->
+  <rect x="19" y="4" width="26" height="28" rx="2" fill="var(--brand-grey, #929292)"/>
+  <path d="M26 17l5 5 9-10" fill="none" stroke="var(--brand-red, #E61E3C)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="7" y="28" width="50" height="28" rx="4" fill="var(--brand-navy, #0F2D69)"/>
+  <rect x="18" y="34" width="28" height="5" rx="2.5" fill="var(--brand-grey-light, #E6E6E6)"/>
+</svg>

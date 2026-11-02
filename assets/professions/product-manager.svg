@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" fill="none" aria-hidden="true" focusable="false">
+  <!-- Продакт-менеджер -->
+  <rect x="5" y="8" width="54" height="48" rx="5" fill="var(--brand-grey-mid, #C6C6C6)"/>
+  <rect x="10" y="14" width="13" height="11" rx="2.5" fill="var(--brand-navy, #0F2D69)"/>
+  <rect x="25.5" y="14" width="13" height="17" rx="2.5" fill="var(--brand-cyan, #0FA0D7)"/>
+  <rect x="41" y="14" width="13" height="9" rx="2.5" fill="var(--brand-green, #009B64)"/>
+  <rect x="10" y="29" width="13" height="9" rx="2.5" fill="var(--brand-grey-light, #E6E6E6)"/>
+  <rect x="25.5" y="35" width="13" height="9" rx="2.5" fill="var(--brand-yellow, #FAB900)"/>
+  <rect x="41" y="27" width="13" height="13" rx="2.5" fill="var(--brand-violet, #7D50B9)"/>
+</svg>

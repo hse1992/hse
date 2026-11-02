@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" fill="none" aria-hidden="true" focusable="false">
+  <!-- Психолог -->
+  <path d="M6 58c0-9 8-15 18-15h16c10 0 18 6 18 15z" fill="var(--brand-navy, #0F2D69)"/>
+  <path d="M32 4c-11 0-20 8-20 19 0 6 2.6 11.3 7 14.8V46h26v-8.2c4.4-3.5 7-8.8 7-14.8 0-11-9-19-20-19z" fill="var(--brand-grey-mid, #C6C6C6)"/>
+  <path d="M32 38l-9.5-9.5a6.2 6.2 0 0 1 9.5-7.8 6.2 6.2 0 0 1 9.5 7.8z" fill="var(--brand-red, #E61E3C)"/>
+</svg>

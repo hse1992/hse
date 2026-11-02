@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" fill="none" aria-hidden="true" focusable="false">
+  <!-- Бизнес-консультант -->
+  <path d="M32 4a19 19 0 0 1 11 34.5V44H21v-5.5A19 19 0 0 1 32 4z" fill="var(--brand-yellow, #FAB900)"/>
+  <path d="M32 40V24" fill="none" stroke="var(--brand-grey-light, #E6E6E6)" stroke-width="3" stroke-linecap="round"/>
+  <rect x="21" y="46" width="22" height="6" rx="2" fill="var(--brand-grey-mid, #C6C6C6)"/>
+  <rect x="25" y="54" width="14" height="5" rx="2.5" fill="var(--brand-grey-mid, #C6C6C6)"/>
+</svg>

@@ -1,0 +1,101 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="20 62 600 164" width="600" height="164" role="img" aria-label="Фанатский шарф ВЫШКА">
+  <!-- Fan scarf: white knit, HSE blue rgb(15,45,105), znak on both ends. -->
+  <defs>
+    <clipPath id="scarf-body">
+      <path d="M46,74 C210,124 430,124 594,74 L594,178 C430,228 210,228 46,178 Z"/>
+    </clipPath>
+    <!-- knit stitches, barely there -->
+    <pattern id="scarf-knit" width="9" height="7" patternUnits="userSpaceOnUse">
+      <path d="M0,7 L4.5,2 L9,7" fill="none" stroke="#000000" stroke-opacity="0.05" stroke-width="1.1"/>
+    </pattern>
+  </defs>
+
+  <!-- fringe -->
+  <g fill="none" stroke="#0F2D69" stroke-width="5" stroke-linecap="round">
+    <path d="M46,78 L30,80"/>
+    <path d="M46,89 L33,88"/>
+    <path d="M46,99 L29,102"/>
+    <path d="M46,110 L32,110"/>
+    <path d="M46,120 L28,122"/>
+    <path d="M46,131 L33,129"/>
+    <path d="M46,142 L30,143"/>
+    <path d="M46,152 L31,155"/>
+    <path d="M46,163 L29,162"/>
+    <path d="M46,174 L32,176"/>
+    <path d="M594,78 L610,80"/>
+    <path d="M594,89 L607,88"/>
+    <path d="M594,99 L611,102"/>
+    <path d="M594,110 L608,110"/>
+    <path d="M594,120 L612,122"/>
+    <path d="M594,131 L607,129"/>
+    <path d="M594,142 L610,143"/>
+    <path d="M594,152 L609,155"/>
+    <path d="M594,163 L611,162"/>
+    <path d="M594,174 L608,176"/>
+  </g>
+
+  <!-- white cloth -->
+  <path d="M46,74 C210,124 430,124 594,74 L594,178 C430,228 210,228 46,178 Z" fill="#FFFFFF"/>
+
+  <g clip-path="url(#scarf-body)">
+    <!-- blue bands, ends and centre -->
+    <g fill="#0F2D69">
+      <rect x="46" y="60" width="16" height="176"/>
+      <rect x="71" y="60" width="8" height="176"/>
+      <rect x="88" y="60" width="8" height="176"/>
+      <rect x="186" y="60" width="268" height="176"/>
+      <rect x="544" y="60" width="8" height="176"/>
+      <rect x="561" y="60" width="8" height="176"/>
+      <rect x="578" y="60" width="16" height="176"/>
+    </g>
+
+    <!-- znak, left and right -->
+    <g transform="translate(141,148.6) scale(0.2329) translate(-141.73,-141.73)">
+      <circle cx="141.73" cy="141.74" r="141.73" fill="#0F2D69"/>
+      <path fill="#FFFFFF" d="M135.6,133.32c32.26,0,44.81,21.45,44.81,60.69v29.51h-20.69v-63.35h-23.9v63.42h-18.28V53.65h18.78c7.03,0,17.71,1.58,25.25,10.95c3.93,4.73,6.34,11.04,7.19,17.38h-32.94v9.35h33.23c-0.27,6.04-1.49,12.8-7.42,19.97c-5.2,6.51-13.76,12.56-25.83,12.56c-0.06,0-0.13,0-0.2,0V133.32 M206.41,197.55c0-34.86-11.26-58.29-40.45-68.6c9.21-3.77,14.82-9.58,18.49-13.99c7.01-8.06,9.88-17.96,9.88-27.31c0-7.56-2.08-22.65-15.35-33.04c-9.1-7.04-17.16-10.43-36.43-10.43h-9.75c-0.3-0.01-0.6-0.01-0.96-0.01H91.65v189.79h114.76V197.55z"/>
+    </g>
+    <g transform="translate(499,148.6) scale(0.2329) translate(-141.73,-141.73)">
+      <circle cx="141.73" cy="141.74" r="141.73" fill="#0F2D69"/>
+      <path fill="#FFFFFF" d="M135.6,133.32c32.26,0,44.81,21.45,44.81,60.69v29.51h-20.69v-63.35h-23.9v63.42h-18.28V53.65h18.78c7.03,0,17.71,1.58,25.25,10.95c3.93,4.73,6.34,11.04,7.19,17.38h-32.94v9.35h33.23c-0.27,6.04-1.49,12.8-7.42,19.97c-5.2,6.51-13.76,12.56-25.83,12.56c-0.06,0-0.13,0-0.2,0V133.32 M206.41,197.55c0-34.86-11.26-58.29-40.45-68.6c9.21-3.77,14.82-9.58,18.49-13.99c7.01-8.06,9.88-17.96,9.88-27.31c0-7.56-2.08-22.65-15.35-33.04c-9.1-7.04-17.16-10.43-36.43-10.43h-9.75c-0.3-0.01-0.6-0.01-0.96-0.01H91.65v189.79h114.76V197.55z"/>
+    </g>
+
+    <!-- ВЫШКА, letters follow the sag -->
+    <g fill="#FFFFFF">
+      <g transform="translate(200.0,133.3) scale(0.531)">
+        <rect x="0" y="0" width="20" height="96"/>
+        <rect x="0" y="0" width="58" height="20"/>
+        <rect x="38" y="0" width="20" height="58"/>
+        <rect x="0" y="38" width="62" height="20"/>
+        <rect x="48" y="38" width="20" height="58"/>
+        <rect x="0" y="76" width="68" height="20"/>
+      </g>
+      <g transform="translate(244.1,136.8) scale(0.531)">
+        <rect x="0" y="0" width="20" height="96"/>
+        <rect x="20" y="36" width="38" height="20"/>
+        <rect x="38" y="36" width="20" height="60"/>
+        <rect x="20" y="76" width="38" height="20"/>
+        <rect x="70" y="0" width="20" height="96"/>
+      </g>
+      <g transform="translate(299.8,138.0) scale(0.531)">
+        <rect x="0" y="0" width="20" height="96"/>
+        <rect x="38" y="0" width="20" height="96"/>
+        <rect x="76" y="0" width="20" height="96"/>
+        <rect x="0" y="76" width="96" height="20"/>
+      </g>
+      <g transform="translate(358.8,136.5) scale(0.531)">
+        <rect x="0" y="0" width="20" height="96"/>
+        <path d="M24,52 L61,7" stroke="#FFFFFF" stroke-width="20"/>
+        <path d="M26,50 L62,90" stroke="#FFFFFF" stroke-width="20"/>
+      </g>
+      <g transform="translate(399.6,133.5) scale(0.531)">
+        <path fill-rule="evenodd" d="M0,96 L28,0 L48,0 L76,96 L56,96 L51.3,80 L24.7,80 L20,96 Z M29.4,64 L46.6,64 L38,34.4 Z"/>
+      </g>
+    </g>
+
+    <!-- knit -->
+    <rect x="40" y="60" width="560" height="176" fill="url(#scarf-knit)"/>
+  </g>
+
+  <!-- selvedge -->
+  <path d="M46,74 C210,124 430,124 594,74 L594,178 C430,228 210,228 46,178 Z" fill="none" stroke="#0F2D69" stroke-width="2.5" stroke-linejoin="round"/>
+</svg>

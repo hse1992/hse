@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" fill="none" aria-hidden="true" focusable="false">
+  <!-- Специалист по рекламе и связям с общественностью -->
+  <path d="M19 8a17 17 0 0 0 0 20" fill="none" stroke="var(--brand-yellow, #FAB900)" stroke-width="3.5" stroke-linecap="round"/>
+  <path d="M45 8a17 17 0 0 1 0 20" fill="none" stroke="var(--brand-yellow, #FAB900)" stroke-width="3.5" stroke-linecap="round"/>
+  <path d="M17 54 32 16l15 38" fill="none" stroke="var(--brand-grey-mid, #C6C6C6)" stroke-width="4.5" stroke-linejoin="round"/>
+  <path d="M23 38h18M20 46h24" stroke="var(--brand-grey-mid, #C6C6C6)" stroke-width="3.5" stroke-linecap="round"/>
+  <circle cx="32" cy="14" r="6" fill="var(--brand-red, #E61E3C)"/>
+</svg>

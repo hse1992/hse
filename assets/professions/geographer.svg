@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" fill="none" aria-hidden="true" focusable="false">
+  <!-- Географ -->
+  <circle cx="32" cy="32" r="27" fill="var(--brand-cyan, #0FA0D7)"/>
+  <path d="M11 20c5-4 11-2 15 1s2 8-3 9-11-2-13-5z" fill="var(--brand-green, #009B64)"/>
+  <path d="M36 12c7-1 13 3 14 8s-3 8-7 7-4-4-8-6-3-8 1-9z" fill="var(--brand-green, #009B64)"/>
+  <path d="M22 38c7-4 16-2 19 4s-4 12-11 11-10-5-10-9z" fill="var(--brand-green, #009B64)"/>
+  <path d="M5 32h54" stroke="var(--brand-grey-light, #E6E6E6)" stroke-width="2.5"/>
+</svg>
