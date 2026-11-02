@@ -1,0 +1,2224 @@
+/* Shared page shell and UI components.
+   Everything here is used by more than one visualisation — keep it generic.
+   Anything specific to a single visualisation belongs in its own module. */
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+}
+
+/* Text scale for the whole page. Every font-size is in rem, so this single
+   number resizes all type at once — HSE Sans has a smaller x-height than the
+   previous font and needed a nudge up. 100% = 16px. */
+html {
+  font-size: 108%;
+  /* Кегль на странице назначаем мы, а не айфон. Safari на телефоне умеет
+     раздувать текст сам: он смотрит на ширину коробки, в которой текст стоит,
+     и если она заметно шире окна, прибавляет кегля — помощь страницам,
+     которые про телефон не знают.
+
+     Эта знает, и помощь ей во вред. Коробок шире окна здесь две, и обе
+     нарочно: карточка следующего раздела ждет за правым краем, а у сжатого
+     переходного экрана коробка расширена ровно на долю сжатия. Прибавка в
+     такой коробке — это прибавка, которой не было, когда каркас мерил
+     строку: он меряет в одной ширине, а рисует в другой, и ровно из-за
+     такого расхождения заголовок уезжал за край. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'HSE Sans', -apple-system, Helvetica, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: var(--link); text-decoration: none; }
+
+/* Наведение — только там, где есть чем наводить. Курсор уходит с элемента
+   сам, палец — нет: на тач-экране обе системы оставляют последнее касание
+   наведенным, пока читатель не тронет что-то другое. Полоска разделов от
+   этого стояла раздутой до конца чтения, нажатый раздел — подсвеченным, а
+   счет внизу так и не возвращался. Поэтому каждое правило наведения на
+   странице стоит под этим вопросом; нажатие на телефоне показывает себя
+   через :active (см. «Отклик на нажатие» ниже). Фокуса это не касается — им
+   ходят с клавиатуры, и он нужен всем. */
+@media (hover: hover) {
+  a:hover { color: var(--link-hover); }
+}
+
+button { font-family: inherit; }
+
+/* ---------- Reading progress ---------- */
+
+/* One slot per block of the story: the reader sees how many there are, which
+   one they are in and how far through it — a single line would only say
+   «somewhere in the middle». The empty slots are barely there. */
+.page-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 4px;
+  display: flex;
+  gap: 3px;
+  z-index: 50;
+  /* It grows a little under the cursor: four pixels is enough to read but not
+     to aim at, and the slots are what the reader goes back through. */
+  transition: height 160ms ease;
+}
+
+@media (hover: hover) {
+  .page-progress:hover {
+    height: 9px;
+  }
+}
+
+/* The empty slots have to be readable against the page, or the bar says
+   nothing until the first block is behind the reader. */
+.page-progress-slot {
+  position: relative;
+  flex: 1;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: var(--empty);
+  cursor: pointer;
+  /* The bar is four pixels tall; the place to click is twenty. */
+  outline-offset: 3px;
+}
+
+.page-progress-slot::after {
+  content: "";
+  position: absolute;
+  top: -8px;
+  right: 0;
+  bottom: -8px;
+  left: 0;
+}
+
+/* The beats of the block being read, cut into the slot as narrow gaps: the
+   fill then arrives one step at a time and says how many are left. Only the
+   slot the reader is in has them — see mountProgress in lib/page.js, which
+   sets --steps and --steps-on. Two pixels wider than the slot on the right, so
+   the last gap falls into the space between slots instead of trimming the
+   edge. Over the fill, hence the z-index. */
+.page-progress-slot::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: -2px;
+  bottom: 0;
+  left: 0;
+  z-index: 1;
+  opacity: var(--steps-on, 0);
+  background-image: repeating-linear-gradient(to right,
+    transparent 0 calc(100% / var(--steps, 1) - 2px),
+    var(--bg) calc(100% / var(--steps, 1) - 2px) calc(100% / var(--steps, 1)));
+  transition: opacity 200ms ease;
+  pointer-events: none;
+}
+
+/* The title screen at the head of the bar: a slot of its own, narrow because
+   it is one screen rather than a block of the story. */
+.page-progress-home {
+  flex: none;
+  width: 22px;
+}
+
+/* Only the slot of the title screen is ever switched off, and only while the
+   reader is standing on it: every block can be gone to from the start. */
+.page-progress-slot:disabled {
+  cursor: default;
+}
+
+@media (hover: hover) {
+  .page-progress-slot:enabled:hover {
+    background: var(--toggle-off);
+  }
+}
+
+/* The figure a block ends on, on its way into the next block's lead-in — see
+   handoff() in lib/stepper.js. Pinned to the corner and moved by transform
+   only, so it never takes part in the layout of the page it flies over. */
+.page-handoff {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 40;
+  line-height: normal;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  transform-origin: 0 0;
+  will-change: transform;
+  pointer-events: none;
+}
+
+/* The picture a block hands over, on its way to the whole screen of the next
+   one — see carry() in lib/stepper.js. Placed and sized from JS and moved by
+   transform only; under the lead-in it is heading for and under the figure
+   flying with it, over everything else. */
+.page-carry {
+  position: fixed;
+  z-index: 38;
+  transform-origin: 0 0;
+  will-change: transform, opacity;
+  pointer-events: none;
+}
+
+/* The signal of a closing door, over the title screen — where such a lamp
+   hangs in a carriage, above the doors rather than by the floor. It is there
+   from the first moment, dark and silent: part of the car the reader is
+   standing in. The first beat of the page lights it and puts the warning
+   under it, and the doors shut on the beat after. It belongs to the title
+   screen and scrolls away with it. Clear of the bar of blocks at the very
+   top, which is 4px and grows to 9px under the cursor. */
+.page-signal {
+  position: absolute;
+  left: 50%;
+  top: 52px;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  transform: translateX(-50%);
+  pointer-events: none;
+  /* It arrives last, after the title and both lines of text: the lamp drops
+     into its bracket and settles there, the way a fitted thing does. */
+  animation: lamp-in 620ms cubic-bezier(0.215, 0.61, 0.355, 1) 980ms backwards;
+}
+
+@keyframes lamp-in {
+  0%   { opacity: 0; transform: translate(-50%, -18px); }
+  62%  { opacity: 1; transform: translate(-50%, 3px); }
+  100% { opacity: 1; transform: translateX(-50%); }
+}
+
+/* The lamp over the doors of every car of this kind: a housing of dark metal
+   with a screw at each end, and a red lens set into it. The housing stays put
+   and only the lens blinks — a whole lamp flashing would read as a banner. */
+.page-signal-lamp {
+  position: relative;
+  width: 148px;
+  height: 40px;
+  border-radius: 8px;
+  background: linear-gradient(180deg, var(--door-lamp-light), var(--door-lamp));
+  box-shadow: 0 3px 10px rgba(16, 24, 40, 0.28),
+              inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+
+/* The lens, sunk into the housing. Unlit it is grey glass with nothing behind
+   it; on the first beat the red comes on and the glow with it. */
+.page-signal-lamp::before {
+  content: "";
+  position: absolute;
+  top: 7px;
+  right: 19px;
+  bottom: 7px;
+  left: 19px;
+  border-radius: 3px;
+  background: var(--door-signal-off);
+  box-shadow: inset 0 2px 5px rgba(255, 255, 255, 0.22),
+              inset 0 -3px 6px rgba(0, 0, 0, 0.35);
+  transition: background 320ms ease, box-shadow 320ms ease;
+}
+
+/* The two screws that hold it. */
+.page-signal-lamp::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  border-radius: 8px;
+  /* Two seven-pixel spots and nothing else: a gradient given the whole box
+     would lie over the lens and put it out. */
+  background-repeat: no-repeat;
+  background-size: 7px 7px, 7px 7px;
+  background-position: 6px 50%, calc(100% - 6px) 50%;
+  background-image:
+    radial-gradient(circle,
+      rgba(255, 255, 255, 0.55) 0 45%, rgba(0, 0, 0, 0.45) 55% 100%),
+    radial-gradient(circle,
+      rgba(255, 255, 255, 0.55) 0 45%, rgba(0, 0, 0, 0.45) 55% 100%);
+}
+
+.page-signal.is-here .page-signal-lamp::before {
+  background: var(--door-signal);
+  box-shadow: 0 0 20px var(--door-signal),
+              inset 0 2px 5px rgba(255, 255, 255, 0.4),
+              inset 0 -3px 6px rgba(0, 0, 0, 0.3);
+  animation: signal-blink 900ms steps(1, end) infinite;
+}
+
+@keyframes signal-blink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0.18; }
+}
+
+/* The warning arrives with the light and not before: a dark lamp says nothing.
+   It keeps its place in the layout all the same, so the lamp does not jump
+   when the words appear under it. */
+.page-signal-text {
+  color: var(--text-lead);
+  font-size: 1.0625rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 320ms ease, transform 320ms ease;
+}
+
+.page-signal.is-here .page-signal-text {
+  opacity: 1;
+  transform: none;
+}
+
+/* A light that flashes is the one thing a reader who asked for less movement
+   should not get: it stays lit instead. */
+@media (prefers-reduced-motion: reduce) {
+  .page-signal.is-here .page-signal-lamp::before { animation: none; }
+  .page-signal-lamp::before,
+  .page-signal-text { transition: none; }
+}
+
+/* The flash of the camera on the satellite, between the last picture from orbit
+   and the block after it — see flashCurtain() in lib/stepper.js. Plain light
+   over everything, the bar included; its strength is set from JS. */
+.page-flash {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 60;
+  background: var(--flash);
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* The doors of a metro car, closing over the title screen and opening on the
+   first block — see doorsCurtain() in lib/stepper.js. Two leaves that cover
+   everything, the bar included: for a moment the page is not a page but a
+   train. Drawn rather than photographed, after assets/doors.jpg. */
+.page-doors {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 60;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* Half a pixel over half the screen each, so no seam of the page shows
+   between them when they meet. */
+.page-door {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 50.2%;
+  /* Ribs of the car body over the rounded shading of its side. A rib is not a
+     line but a fold: the light catches the top of it and it shades what is
+     right under it, which is the whole of why the side of a carriage reads as
+     metal. Every 72px, after the photograph — see the tokens. */
+  background-image:
+    repeating-linear-gradient(to bottom,
+      transparent 0 56px,
+      var(--door-rib) 56px 60px,
+      var(--door-rib-shade) 60px 66px,
+      transparent 66px 72px),
+    linear-gradient(to right,
+      var(--door-body-dark), var(--door-body) 30%,
+      var(--door-body) 68%, var(--door-body-dark));
+  will-change: transform;
+}
+
+.page-door-left {
+  left: 0;
+}
+
+.page-door-right {
+  right: 0;
+}
+
+/* The rubber where the two leaves meet, and the threshold under them. */
+.page-door::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 9px;
+  background: var(--door-edge);
+}
+
+.page-door-left::before { right: 0; }
+.page-door-right::before { left: 0; }
+
+.page-door::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 3%;
+  background: var(--door-edge);
+}
+
+/* The window: a tall rounded pane in a dark frame, with the warm reflection
+   the glass of these cars always has. */
+.page-door-window {
+  position: absolute;
+  top: 9%;
+  left: 21%;
+  right: 21%;
+  height: 44%;
+  box-sizing: border-box;
+  border: 7px solid var(--door-frame);
+  border-radius: 18px;
+  background: linear-gradient(155deg,
+    var(--door-glass) 0 46%, var(--door-glass-light) 46% 80%, var(--door-glass) 80%);
+}
+
+/* The warning printed on the glass of every such door, white and small, near
+   the top of the pane. */
+.page-door-sign {
+  position: absolute;
+  top: 21%;
+  right: 6%;
+  left: 6%;
+  color: var(--card);
+  font-size: clamp(15px, 2.6vh, 32px);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  line-height: 1.2;
+  text-align: center;
+  /* One line, as it is printed on the glass. */
+  white-space: nowrap;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+
+/* The white chevron: two bands meeting at the middle of the train, so the two
+   leaves together read as one arrow. Mirrored on the right leaf. */
+.page-door-stripe {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  background: var(--door-stripe);
+}
+
+.page-door-stripe-up {
+  clip-path: polygon(0% 54%, 100% 78%, 100% 88%, 0% 64%);
+}
+
+.page-door-stripe-down {
+  clip-path: polygon(0% 120%, 100% 88%, 100% 78%, 0% 110%);
+}
+
+.page-door-right .page-door-stripe {
+  transform: scaleX(-1);
+}
+
+/* What each block is called, written under its own slot. They come up together
+   while the pointer is anywhere over the bar — one look instead of seven — and
+   the one under the cursor darkens and shows its whole name over its
+   neighbours. Blocks nobody has opened keep quiet: the page does not say what
+   is coming. */
+.page-progress-name {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  max-width: 94%;
+  padding: 4px 9px;
+  border-radius: 999px;
+  /* Centred under the slot; the one pointed at is moved along to stay on the
+     screen — see fit() in mountProgress. */
+  transform: translateX(calc(-50% + var(--name-shift, 0px)));
+  color: var(--text-caption);
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0;
+  transition: opacity 160ms ease, color 160ms ease;
+  pointer-events: none;
+}
+
+/* Имена разделов на тач-экране не показываются вовсе (см. hover: none ниже),
+   так что наводить тут не на что в прямом смысле. */
+@media (hover: hover) {
+  .page-progress:hover .page-progress-slot:enabled .page-progress-name {
+    opacity: 1;
+  }
+
+  .page-progress-slot:enabled:hover .page-progress-name {
+    z-index: 2;
+    max-width: none;
+    overflow: visible;
+    background: var(--hint-veil);
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+    color: var(--text);
+  }
+
+  /* The title screen speaks only when pointed at: its name is wider than the
+     slot it belongs to, and would show as a stray letter otherwise. */
+  .page-progress:hover .page-progress-home:enabled .page-progress-name {
+    opacity: 0;
+  }
+
+  .page-progress .page-progress-home:enabled:hover .page-progress-name {
+    opacity: 1;
+  }
+}
+
+/* Where the reader is, in words. Comes up as a block starts, goes once they
+   are into it, and comes back whenever the bar is pointed at. */
+/* Where the reader is, in words — set under the slot it is about, not off in
+   the corner: the number and the place it names should be one thing to look
+   at. It stands in the same row as the names, because everything below that
+   belongs to the block, and a lead-in screen that parks at the top of the
+   section comes right up to it. --count-x is the middle of the current slot,
+   put there from JS. */
+.page-progress-count {
+  position: fixed;
+  top: 12px;
+  left: var(--count-x, 50%);
+  transform: translateX(-50%);
+  z-index: 50;
+  padding: 5px 11px;
+  border-radius: 999px;
+  background: var(--hint-veil);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  line-height: 1;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 260ms ease, left 260ms ease;
+  pointer-events: none;
+}
+
+.page-progress-count.is-here {
+  opacity: 1;
+}
+
+/* Pointing at the bar brings up the names, which stand in the same row and say
+   more than the count does — so the count steps aside for them. */
+/* Счет уступает место именам, а не касанию: на телефоне имен нет, и
+   засчитанное за наведение касание полоски просто уносило счет насовсем. */
+@media (hover: hover) {
+  .page-progress:hover ~ .page-progress-count {
+    opacity: 0;
+  }
+}
+
+/* Nothing to point at on a touch screen. */
+@media (hover: none) {
+  .page-progress-name { display: none; }
+}
+
+/* On a phone the strip carries the name of the block as well as its number,
+   and a name can be longer than the screen. It keeps to one line and gives up
+   its tail rather than pushing itself off the edge. */
+@media (max-width: 860px) {
+  .page-progress-count {
+    /* On a wide screen it stands under the slot of the bar it is about. Here
+       there is no room to move: it goes to the right corner, where the top
+       line of a block runs out, instead of across the middle of that line. */
+    left: auto;
+    right: 12px;
+    transform: none;
+    max-width: calc(100vw - 32px);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    /* Over the page it is a veil; here it stands over the top line of the
+       pinned picture, and a veil over type is two things read at once. */
+    background: var(--card);
+    box-shadow: var(--card-shadow);
+    color: var(--text);
+  }
+}
+
+/* Pinned to the slot rather than given height: 100% — inside a stretched flex
+   item WebKit reads a percentage height as nothing, and the fill disappears. */
+.page-progress-slot i {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  background: var(--hse-blue);
+  transform: scaleX(0);
+  transform-origin: 0 50%;
+  transition: transform 620ms cubic-bezier(0.215, 0.61, 0.355, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-progress-slot i { transition: none; }
+}
+
+/* ---------- Page header ---------- */
+
+/* The opening screen belongs to the title alone — the first section starts
+   only once the reader scrolls past it. */
+.page-header {
+  position: relative;
+  min-height: 100dvh;
+  padding: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Light behind the title: a bloom up where the heading is and a fainter one in
+   the far corner, both fading out well before the edges — the screen has depth,
+   and the story below still starts on the plain page background. */
+.page-header::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  /* The last layer is listed first, so it lies on top: the page background
+     itself, coming up from nothing to solid at the foot of the screen. Without
+     it the blooms are cut off by the edge of the header and the join with the
+     first section reads as a seam. */
+  background:
+    linear-gradient(to bottom, transparent 48%, var(--bg) 97%),
+    radial-gradient(110% 85% at 16% 24%, var(--header-glow), transparent 62%),
+    radial-gradient(85% 70% at 88% 62%, var(--header-glow-soft), transparent 66%);
+  pointer-events: none;
+}
+
+.page-header-inner {
+  position: relative;
+  flex: 1;
+  max-width: 1320px;
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+}
+
+.page-header h1 {
+  margin: 0;
+  font-size: clamp(3.25rem, 9.6vw, 8.5rem);
+  font-weight: 700;
+  line-height: 0.98;
+  letter-spacing: -0.04em;
+  text-wrap: balance;
+}
+
+/* The title puts itself together when the page opens: the words rise one after
+   another, and the mark drops into the slot of the «о» once they have landed —
+   the slot is held open for it, so nothing shifts. */
+.page-header h1 .title-word {
+  display: inline-block;
+  animation: rise-in 620ms cubic-bezier(0.215, 0.61, 0.355, 1) backwards;
+}
+
+.page-header h1 .title-word:nth-of-type(1) { animation-delay: 120ms; }
+.page-header h1 .title-word:nth-of-type(2) { animation-delay: 240ms; }
+.page-header h1 .title-word:nth-of-type(3) { animation-delay: 360ms; }
+
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(0.26em); }
+}
+
+/* HSE mark standing in for the "о" in «большая».
+   Sized from the real glyph: 0.479em wide, sitting 0.014em below the
+   baseline, with the same side bearings — so it occupies the letter's slot. */
+.hse-o {
+  width: 0.479em;
+  height: 0.479em;
+  margin: 0 0.031em;
+  vertical-align: -0.014em;
+  transform-origin: 50% 50%;
+  animation: hse-o-land 620ms cubic-bezier(0.215, 0.61, 0.355, 1) 620ms backwards;
+  /* Following the cursor, the mark trails it slightly instead of snapping. */
+  transition: transform 160ms ease-out;
+}
+
+@keyframes hse-o-land {
+  from { opacity: 0; transform: scale(0.3) rotate(-140deg); }
+}
+
+/* The mark is also the way to the university itself. A logo that leads to the
+   home page needs no caption, and the letter is already the one thing on the
+   screen that answers the cursor — this is what that movement was promising.
+   Inline, with no width of its own, so the letter keeps its place in the word;
+   the padding is vertical only, which makes the mark easier to hit with a
+   finger without moving anything. */
+.hse-o-link {
+  padding: 0.08em 0;
+  cursor: pointer;
+}
+
+.hse-o-link:focus-visible {
+  outline: 2px solid var(--link);
+  outline-offset: 4px;
+  border-radius: 0.1em;
+}
+
+.hse-o-disc {
+  fill: var(--hse-blue);
+  transition: fill 160ms ease;
+}
+
+/* Фокус остается всем — им ходят с клавиатуры; наведение только мыши. */
+.hse-o-link:focus-visible .hse-o-disc {
+  fill: var(--brand-blue);
+}
+
+@media (hover: hover) {
+  .hse-o-link:hover .hse-o-disc {
+    fill: var(--brand-blue);
+  }
+}
+
+.hse-o-mark { fill: #FFFFFF; }
+
+/* Stress mark. HSE Sans has no combining acute, so a combining character makes
+   the browser render the whole cluster — the letter included — in a fallback
+   font, and the letter changes shape. Instead the letter stays untouched and
+   the stroke is drawn above it. */
+.stressed {
+  position: relative;
+  display: inline-block;
+  line-height: 1;
+}
+
+.stressed i {
+  position: absolute;
+  left: 50%;
+  bottom: 0.62em;
+  width: 0.075em;
+  height: 0.2em;
+  border-radius: 0.04em;
+  background: currentColor;
+  transform: translateX(-50%) rotate(20deg);
+  /* Falls in last, once the word it belongs to and the mark have landed. */
+  animation: stress-drop 480ms cubic-bezier(0.55, 0, 0.35, 1) 1180ms backwards;
+}
+
+@keyframes stress-drop {
+  from { opacity: 0; transform: translate(-50%, -1.1em) rotate(20deg); }
+  70%  { opacity: 1; transform: translate(-50%, 0.035em) rotate(20deg); }
+  to   { opacity: 1; transform: translateX(-50%) rotate(20deg); }
+}
+
+/* The letter the mark replaces: invisible, but still copied and read aloud. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Two paragraphs with a blank line between them — the gap is one line of the
+   text itself, so it stays a blank line at any size.
+   Line length is held to something readable: across the full width of the page
+   the lines would run past a hundred characters. */
+.page-header-text {
+  display: flex;
+  flex-direction: column;
+  max-width: 46rem;
+  font-size: 1.625rem;
+  gap: 1.3em;
+}
+
+.page-header p {
+  margin: 0;
+  font-weight: 400;
+  line-height: 1.45;
+  text-wrap: pretty;
+  /* The text arrives after the title has put itself together. */
+  animation: rise-in 620ms cubic-bezier(0.215, 0.61, 0.355, 1) backwards;
+}
+
+/* Three steps down from the title: what the university is, then the invitation.
+   Sizes are relative to the block, so a narrow screen scales the whole ladder
+   by changing one number. */
+.page-header p:first-child {
+  font-size: 1.08em;
+  color: var(--text-lead);
+  animation-delay: 700ms;
+}
+
+.page-header p + p {
+  font-size: 0.86em;
+  color: var(--text-secondary);
+  animation-delay: 840ms;
+}
+
+/* ---------- Scroll hint ---------- */
+
+/* The strip at the foot of the screen the hint stands in, and that the blocks
+   keep out of: how low it sits plus how tall it is plus a little air. Measured
+   rather than guessed — the pill is one line of 0.9375rem with 6px of padding
+   above and below, 29px in all. */
+:root {
+  --hint-room: 56px;
+}
+
+/* A line and a thin arrow at the foot of the opening screen. The page is read
+   beat by beat, which no scrollbar tells the reader — so the hint says how to
+   move, and the arrow under it drifts down and back. Both leave for good the
+   moment the reader starts. */
+/* One line and no more. The hint stands over whatever the reader is looking at
+   — and on the dark card of the satellites that is the caption under the globe
+   — so it takes as little of the screen as it can: the arrow is set beside the
+   words rather than under them, and only one of the two lines is ever shown. */
+.scroll-hint {
+  position: fixed;
+  /* Centred by margins rather than by half its own width: pinned at left: 50%
+     it could only ever be as wide as the half of the screen to the right of
+     that, and the longer line broke in two against a limit nobody set. */
+  left: 0;
+  right: 0;
+  width: fit-content;
+  max-width: calc(100% - 32px);
+  margin: 0 auto;
+  /* As low as it will go: the strip it stands in is taken away from every
+     block (see --hint-room), so every pixel it climbs is a pixel off each
+     drawing on the page. */
+  bottom: 16px;
+  z-index: 5;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  /* It can come back over a drawing, not only over the empty opening screen,
+     so it carries its own light backing. */
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--hint-veil);
+  -webkit-backdrop-filter: blur(8px);   /* Safari reads the prefixed one */
+  backdrop-filter: blur(8px);
+  /* A step darker than a caption: the hint is small now, and it has to be
+     read over the dark card of the satellites as well as over the page. */
+  color: var(--text-secondary);
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 420ms ease, transform 420ms ease;
+  pointer-events: none;
+}
+
+/* Put there by lib/page.js when the reader has been still long enough. */
+.scroll-hint.is-here {
+  opacity: 0.85;
+  transform: none;
+}
+
+.scroll-hint-text {
+  font-size: 0.9375rem;
+  line-height: 1;
+}
+
+/* Said only once there is a block behind the reader — and instead of the first
+   line, not under it: by then «листай» has been answered by the reader
+   themselves, and two lines of hint over a drawing are one too many. */
+.scroll-hint-back {
+  display: none;
+  font-size: 0.875rem;
+  line-height: 1;
+}
+
+/* Both of these name keys, and the second one names the bar at the top as a
+   way to the sections. Neither is true everywhere.
+   Where the page scrolls — a phone, a narrow window, «less movement» — the
+   arrows and the space bar do what they do on any page, and the bar at the
+   top is only a bar: below 860px it takes no clicks at all. So the page would
+   have been telling a reader on a phone about keys that are not there and
+   about navigation it had itself turned off.
+   And a tablet wide enough to be read in beats has no keys either.
+   So the words wait for both: a page read beat by beat, and something to
+   press on. */
+@media (hover: hover) {
+  .is-stepped .scroll-hint-text .on-keys {
+    display: inline;
+  }
+
+  .is-stepped .scroll-hint.has-way-back .scroll-hint-back {
+    display: block;
+  }
+
+  .is-stepped .scroll-hint.has-way-back .scroll-hint-text {
+    display: none;
+  }
+}
+
+.scroll-hint-text .on-keys {
+  display: none;
+}
+
+/* Beside the words, and the size of them: it says which way to go, it is not
+   the point of the hint. Once the reader has a block behind them they know
+   which way, and the arrow goes with the line it belonged to. */
+.scroll-hint svg {
+  display: block;
+  width: 17px;
+  height: 17px;
+  animation: scroll-hint 2.8s ease-in-out infinite;
+}
+
+/* The arrow goes with the line it belonged to — and only where that line has
+   something to replace it with, see above. */
+@media (hover: hover) {
+  .is-stepped .scroll-hint.has-way-back svg {
+    display: none;
+  }
+}
+
+@keyframes scroll-hint {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(4px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scroll-hint svg { animation: none; }
+  .page-header h1 .title-word,
+  .page-header p,
+  .stressed i,
+  .page-signal,
+  .hse-o { animation: none; }
+}
+
+/* ---------- Interlude ---------- */
+
+/* The screen a section opens with: one figure and one line, holding the middle
+   of the pinned container until the reader scrolls on. Then it slides out to
+   the left while the title card of the section comes in from the right — the
+   two live in the same container, so the swap is one movement, not a jump
+   between screens. Driven by leadCard() in lib/page.js. */
+/* `top` is set from JS to the top edge of the title card, so the two swap
+   places without shifting vertically. */
+/* Placed against the container, which is already inside the padding of the
+   section — so it takes its edges, and the lead-in lines up with the heading
+   that follows it. */
+.viz-lead {
+  position: absolute;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  /* The card is scaled up as a whole, so its 14px gap reads as 14 × k. The
+     lead-in is not scaled, so it takes that gap already multiplied — and the
+     two subtitles end up on the same line. */
+  gap: calc(14px * var(--intro-k, 1.55));
+  /* --lead-squeeze is set by lib/page.js: a screen taller than the room it has
+     is scaled down by what does not fit. About its own middle, so a screen
+     placed by its centre stays centred and one placed by its top barely
+     moves. */
+  transform: translate(var(--lead-x, 0), var(--lead-y, 0))
+             scale(var(--lead-squeeze, 1));
+  will-change: transform;
+  pointer-events: none;
+}
+
+/* The screen itself takes no clicks: it flies over the page and would swallow
+   whatever is under it. But a screen can ask the reader something — a mark to
+   put down, a button to send it — and those have to be usable. */
+.viz-lead button,
+.viz-lead input,
+.viz-lead [role="slider"] {
+  pointer-events: auto;
+}
+
+/* Set in the same type as the heading of the card it hands over to: the same
+   size, weight and tracking, so one reads as a continuation of the other. */
+/* --lead-fit is set by lib/page.js: a headline of one line that very nearly
+   fits is squeezed a little rather than broken in two. It is 1 for everything
+   that fits as it is, and for the lead-ins that are whole sentences. */
+.viz-lead[data-line="one"] .viz-lead-value {
+  white-space: nowrap;
+}
+
+.viz-lead-value {
+  font-size: calc(2rem * var(--intro-k, 1.55) * var(--lead-fit, 1));
+  font-weight: 700;
+  line-height: 1.06;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Exactly the subtitle of the card it hands over to. At that size the line is
+   longer than a narrow window, so it is allowed to wrap there; from about
+   1330px across it holds one line. */
+.viz-lead-text {
+  margin: 0;
+  font-size: calc(0.9375rem * var(--intro-k, 1.55));
+  line-height: 1.4;
+  color: var(--text-secondary);
+  text-wrap: pretty;
+}
+
+/* A picture handed over by the block before — the stadium under the question
+   of the flags — takes the screen under the lead-in, which stands at the top
+   for it, and goes as the lead-in leaves. Its top and height are set from JS:
+   it starts under the last line of the lead-in. Only where the page is read
+   beat by beat — nowhere else is a picture laid. */
+.is-stepped .viz-section.has-backdrop {
+  position: relative;
+}
+
+/* It stands on the same white card as in the block it came from. */
+.viz-backdrop {
+  position: absolute;
+  box-sizing: border-box;
+  padding: 12px;
+  background: var(--card);
+  border-radius: var(--r-canvas-card);
+  box-shadow: var(--card-shadow);
+  opacity: calc(1 - var(--lead-away, 0) * 1.4);
+  pointer-events: none;
+}
+
+/* На телефоне картинка под переходным экраном прибита к окну, как и сам
+   экран: секция там в тысячи пикселей высотой, и картинка, привязанная к ней,
+   уехала бы, пока экран стоит. Видна она только пока видна своя секция — это
+   ставит lib/stepper.js, тем же правилом, что и для самого экрана. */
+.viz-backdrop.is-afloat {
+  position: fixed;
+  z-index: 3;
+}
+
+.viz-backdrop canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* The card on its way, under the picture flying with it. */
+.page-carry-card {
+  background: var(--card);
+  border-radius: var(--r-canvas-card);
+  box-shadow: var(--card-shadow);
+}
+
+/* Over the picture on its way in, too. */
+.is-stepped .has-backdrop .viz-lead {
+  z-index: 39;
+}
+
+/* A lead-in that stays: it goes up to the top and reads as the heading of the
+   section from then on. It keeps the size it held at, whatever the card behind
+   it is doing, and the block starts below it rather than under it. */
+@media (min-width: 861px) {
+  .viz-lead[data-exit="top"] {
+    gap: calc(14px * 1.55);
+  }
+
+  .viz-lead[data-exit="top"] .viz-lead-value {
+    font-size: calc(2rem * 1.55 * var(--lead-fit, 1));
+  }
+
+  .viz-lead[data-exit="top"] .viz-lead-text {
+    font-size: calc(0.9375rem * 1.55);
+  }
+
+  /* Margin, not padding: the block is a flex item, and a margin is taken off
+     its height instead of being added to it — so it still ends where the
+     pinned container does. */
+  .viz-intro .viz-body {
+    margin-top: var(--lead-hold, 0px);
+  }
+}
+
+@media (max-width: 860px) {
+  /* The lamp over the doors of a carriage, and the warning under it, belong to
+     the beat that shuts those doors. On a phone that beat does not exist — the
+     page scrolls into the first block instead — so the warning promised
+     something nothing was going to answer, blinked for as long as the reader
+     stayed, and pushed the headline a hundred and fifty pixels down the first
+     screen they ever see. */
+  .page-signal { display: none; }
+
+  /* Nothing is pinned as a whole here, so the lead-in holds the screen itself:
+     it is fixed to the middle of the window while its part of the zone lasts,
+     and the heading waits off to the right, already pinned by its own hold.
+     JS hides it while the section is still below the fold. */
+  .viz-lead {
+    position: fixed;
+    top: 0;
+    left: 16px;
+    right: 16px;
+    height: var(--lead-screen, 100dvh);
+    justify-content: center;
+    gap: 16px;
+  }
+
+  /* Scaled against the heading of this screen size, so the lead-in and the
+     card it hands over to are set in the same type here too. */
+  .viz-lead-value {
+    font-size: calc(1.5625rem * var(--intro-k, 1.55) * var(--lead-fit, 1));
+  }
+
+  .viz-lead-text {
+    font-size: 1.0625rem;
+  }
+
+  /* Экран, который паркуется, остается заголовком блока — и кегль у него тот,
+     в котором его прочитали. Правило выше ведет кегль за --intro-k: экран
+     набран как заголовок карточки, которая придет ему на смену, и садится
+     вместе с ней. Но смены у припаркованного экрана нет — карточка так и
+     ждет за краем и не приезжает вовсе, — а кегль все равно уезжал с 1,55 до
+     единицы, и «На стадионе 63 000+ студентов» на глазах становилось в
+     полтора раза мельче. На широком экране это правило есть давно, см.
+     data-exit="top" выше; --intro-k-big и есть тот кегль, в котором карточка
+     держит экран. */
+  .viz-lead[data-exit="top"] .viz-lead-value {
+    font-size: calc(1.5625rem * var(--intro-k-big, 1.55) * var(--lead-fit, 1));
+  }
+}
+
+/* ---------- Stepped reading ---------- */
+
+/* The page is read beat by beat, so no part of it scrolls on its own: a swipe
+   that lands on a list with its own scrollbar has to move the story, not the
+   list. Without this the browser claims the gesture before the page hears
+   about it, and the first swipe over such a block does nothing — the reason a
+   tap «unsticks» it. */
+.is-stepped,
+.is-stepped body {
+  touch-action: none;
+  overscroll-behavior: none;
+}
+
+.is-stepped .city-list,
+.is-stepped .viz-body,
+.is-stepped .viz-container {
+  overflow: visible;
+  touch-action: none;
+}
+
+/* A section is exactly one screen and keeps to it: a lead-in screen placed
+   against the middle of its own section would otherwise hang below it and be
+   read while the section before is still being told. */
+.is-stepped .viz-section {
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* The bar is the only cue to how far along the reader is, so the scrollbar
+   itself is out of the way. */
+.is-stepped {
+  scrollbar-width: none;
+}
+
+.is-stepped::-webkit-scrollbar {
+  display: none;
+}
+
+/* ---------- Section shell ---------- */
+
+.viz-section {
+  min-height: 100vh;
+  /* The foot of the screen belongs to the reading hint, on every block and not
+     only on the opening one: it comes back whenever the reader has been still
+     for a while, wherever they are, and a block that filled the screen to the
+     bottom edge would have its last line read through it. So the strip is
+     taken off the block instead — see --hint-room. In every way of reading the
+     page: the hint stands over the one that scrolls just as it does over the
+     one that steps. */
+  padding: 24px 24px var(--hint-room);
+  display: flex;
+  justify-content: center;
+}
+
+.viz-container {
+  flex: 1;
+  max-width: 1320px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 0;
+}
+
+/* A section that opens with its heading alone in the middle of the screen and
+   then settles into place. Driven by mountIntro() in lib/page.js, which keeps
+   --intro-k (size), --intro-dy (shift) and --intro-body (how far the body has
+   faded in) up to date while scrolling. */
+.viz-intro > .viz-container {
+  /* The lead-in screen is placed against this box. */
+  position: relative;
+}
+
+.viz-intro .viz-header {
+  width: calc(100% / var(--intro-k, 1));
+  /* --card-x waits the card off to the right while the lead-in screen has the
+     stage, or --card-y waits it below when that screen leaves upwards; the
+     rest is the card settling into place. */
+  transform: translate(var(--card-x, 0), var(--card-y, 0))
+             translateY(var(--intro-dy, 0px))
+             scale(var(--intro-k, 1));
+  transform-origin: left top;
+  will-change: transform;
+}
+
+.viz-intro .viz-body {
+  opacity: var(--intro-body, 1);
+}
+
+/* Where the whole section is pinned, the block does not turn up behind the
+   heading on its way out: it waits below the fold and comes up from there as
+   the heading goes to the top. On a narrow screen the block already scrolls up
+   from under the pinned heading on its own, so it is left alone. */
+@media (min-width: 861px) {
+  .viz-intro .viz-body {
+    transform: translateY(calc((1 - var(--intro-body, 1)) * 100vh));
+    will-change: transform;
+  }
+}
+
+/* Wraps the heading so that on a narrow screen it can be pinned on its own for
+   exactly the length of the intro zone. Invisible on a wide screen. */
+.viz-intro-hold {
+  display: contents;
+}
+
+.viz-header {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-bottom: 10px;
+}
+
+.viz-header h2 {
+  margin: 0;
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1.06;
+  letter-spacing: -0.02em;
+  text-wrap: pretty;
+}
+
+.viz-header p {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 400;
+  line-height: 1.4;
+  color: var(--text-secondary);
+  text-wrap: pretty;
+}
+
+.viz-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: 16px;
+  align-items: stretch;
+  /* A block is hundreds of elements, and the card above it is measured by
+     reading heights — which makes the browser lay the page out again, block
+     and all. Nothing inside a block changes anything outside it, and saying so
+     lets that work be skipped: a measurement costs a third to a half less. */
+  contain: layout style;
+}
+
+/* Not built yet — hold the space so the page keeps its height and the
+   progress bar does not jump as sections come to life. */
+.viz-body:empty {
+  min-height: 72vh;
+}
+
+.col-left {
+  width: 340px;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+}
+
+.col-right {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+}
+
+/* ---------- Category checkboxes ---------- */
+
+.kind-row {
+  display: flex;
+  gap: 14px 18px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.kind-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+  user-select: none;
+  background: none;
+  border: none;
+  padding: 0;
+}
+
+.kind-box {
+  width: 15px;
+  height: 15px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid var(--check-inactive-border);
+  background: #FFFFFF;
+  transition: all 160ms ease;
+}
+
+.kind-check {
+  width: 7px;
+  height: 4px;
+  border-left: 1.5px solid #fff;
+  border-bottom: 1.5px solid #fff;
+  transform: rotate(-45deg) translate(1px, -1px);
+  opacity: 0;
+  transition: opacity 160ms ease;
+}
+
+.kind-label {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--check-inactive-label);
+}
+
+.kind-item.active .kind-box {
+  border-color: var(--check-active);
+  background: var(--check-active);
+}
+
+.kind-item.active .kind-check {
+  opacity: 1;
+}
+
+.kind-item.active .kind-label {
+  color: var(--text-secondary);
+}
+
+.kind-item.lyceum.active .kind-box {
+  border-color: var(--lyceum);
+  background: var(--lyceum);
+}
+
+/* ---------- City cards ---------- */
+
+/* Sized by its content so .actions sits right under the last card;
+   shrinks and scrolls only when the column runs out of room. */
+.city-list {
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.city-card {
+  flex: none;
+  background: var(--card);
+  border-radius: var(--r-card);
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  box-shadow: var(--card-shadow);
+}
+
+.city-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.city-name {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.city-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 36px;
+  justify-content: center;
+  font-size: 0.7812rem;
+  color: var(--text-secondary);
+  line-height: 1.35;
+}
+
+.city-stat {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.city-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+}
+
+/* ---------- Toggle ---------- */
+
+.toggle {
+  width: 51px;
+  height: 31px;
+  border-radius: 16px;
+  flex: none;
+  cursor: pointer;
+  padding: 2px;
+  border: none;
+  box-sizing: border-box;
+  background: var(--toggle-off);
+  transition: background 200ms ease;
+}
+
+.toggle-knob {
+  display: block;
+  width: 27px;
+  height: 27px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: var(--knob-shadow);
+  transform: translateX(0);
+  transition: transform 200ms cubic-bezier(.4, .1, .2, 1);
+}
+
+.toggle.on .toggle-knob {
+  transform: translateX(20px);
+}
+
+/* ---------- Buttons ---------- */
+
+.actions {
+  flex: none;
+  display: flex;
+  gap: 8px;
+  padding-top: 2px;
+}
+
+.btn {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: var(--card);
+  border: 1px solid var(--btn-border);
+  border-radius: var(--r-btn);
+  padding: 7px 13px;
+  cursor: pointer;
+  transition: all 140ms ease;
+}
+
+@media (hover: hover) {
+  .btn:hover {
+    border-color: var(--btn-border-hover);
+    color: var(--text);
+  }
+}
+
+/* Нажатие пальцем выглядит одинаково на обеих системах. Своего отклика у
+   контролов не было вовсе, и за него отвечал браузер: андроид подсвечивал
+   нажатое серым прямоугольником поверх кнопки, айфон не показывал ничего —
+   одна и та же кнопка на двух телефонах нажималась по-разному. Серый
+   прямоугольник убираем и пишем отклик сами: он достается обеим системам
+   и мыши заодно. Наведение этого не делает — его на телефоне нет. */
+html {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.btn:active,
+.toggle:active,
+.kind-item:active,
+.page-progress-slot:enabled:active {
+  opacity: 0.55;
+}
+
+/* ---------- Page footer ---------- */
+
+/* One source line for the whole page, centred under the last visualisation. */
+.page-footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 16px 24px 48px;
+  text-align: center;
+  font-size: 0.7812rem;
+  color: var(--text-caption);
+}
+
+/* What there is to do for a reader who got to the end. It stands above the
+   credits and is the only thing on the page that is not about the Higher
+   School of Economics being large — so it is set apart from the line under it
+   rather than reading as part of it. */
+.page-end {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+/* A thumb, not a cursor: the twenty-four pixels every other target on a phone
+   keeps to, with room around the words. */
+.page-footer .page-end-act {
+  padding: 12px 16px;
+  font-size: 0.875rem;
+  text-decoration: none;
+}
+
+.page-footer a {
+  color: var(--text-caption);
+  text-decoration: none;
+}
+
+/* A link dressed as a button keeps the colour of a button, not of the credits
+   it stands above. */
+.page-footer a.page-end-act {
+  color: var(--text-secondary);
+}
+
+@media (hover: hover) {
+  .page-footer a.page-end-act:hover {
+    color: var(--text);
+  }
+
+  .page-footer a:hover {
+    color: var(--text-secondary);
+  }
+}
+
+/* ---------- Meter card (segmented progress bar) ---------- */
+
+.meter-card {
+  flex: none;
+  background: var(--card);
+  border-radius: var(--r-card);
+  padding: 14px 18px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: var(--card-shadow);
+}
+
+.meter-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.meter-title {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.meter-value {
+  font-size: 0.9375rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.meter-value strong {
+  color: var(--text);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Caption under the meter — a scene uses it to say what the reader is
+   looking at right now. Takes no room when there is nothing to say. */
+.meter-note {
+  font-size: 0.8125rem;
+  line-height: 1.35;
+  color: var(--text-secondary);
+  transition: opacity 260ms ease;
+}
+
+.meter-note:empty {
+  display: none;
+}
+
+.meter-bar {
+  height: 16px;
+  border-radius: 8px;
+  background: var(--shell);
+  overflow: hidden;
+  display: flex;
+}
+
+.meter-bar-seg {
+  height: 100%;
+  width: 0%;
+  transition: width 260ms ease;
+}
+
+/* ---------- Canvas card ---------- */
+
+.canvas-card {
+  flex: 1;
+  min-height: 0;
+  background: var(--card);
+  border-radius: var(--r-canvas-card);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  box-shadow: var(--card-shadow);
+}
+
+.canvas-legend {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 4px 0;
+  font-size: 0.75rem;
+  color: var(--text-caption);
+}
+
+.canvas-legend-swatch {
+  width: 22px;
+  height: 7px;
+  border-radius: 2px;
+  background: var(--legend-swatch);
+}
+
+.canvas-wrap {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+}
+
+.canvas-wrap canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* ---------- Mobile ---------- */
+
+/* One column: the canvas moves above the controls and sticks to the top of
+   the screen, so the picture stays visible while the controls scroll under it.
+   Sections stop being screen-height — they are as tall as their content. */
+@media (max-width: 860px) {
+  /* Обложка. Заголовок на телефоне упирался в нижнюю границу clamp и выходил
+     56 пикселей — вдвое меньше, чем позволяет ширина, и страница про размер
+     начиналась с мелкой строчки. Теперь он занимает ширину почти целиком, а
+     текст стоит чуть ниже середины экрана: сверху остается воздух с бликом,
+     снизу — подсказка и кнопка.
+
+     Сколько именно воздуха под текстом — min(24dvh, 190px): на телефоне это
+     почти четверть экрана, а на низком, где заголовок и так ужат до SE-шного
+     размера, отступ перестает расти, и обложка не выходит за свой экран. */
+  /* Рост обложки — по --win: это высота окна, померенная руками, см.
+     mountWindowSize() в lib/page.js. dvh здесь остается запасным ответом на
+     случай, если скрипты еще не дошли. */
+  .page-header {
+    min-height: var(--win, 100dvh);
+    padding: 20px 16px 28px;
+    align-items: flex-end;
+    /* 56px — та самая полоса под подсказку: на обложке она стоит, и только
+       здесь. Числом, а не переменной: переменную блоки себе забрали. */
+    padding-bottom: calc(56px + min(var(--win, 100dvh) * 0.24, 190px));
+  }
+
+  .page-header-inner {
+    gap: 20px;
+  }
+
+  .page-header h1 {
+    /* 18 сотых ширины — столько, чтобы «На сколько» шло в строку и почти
+       доходило до краев; верхняя граница держит планшет. */
+    font-size: min(18vw, 4.25rem);
+    line-height: 0.96;
+  }
+
+  /* One number scales the whole ladder: the paragraphs are sized off it. */
+  .page-header-text {
+    font-size: 1.375rem;
+  }
+
+  /* Полоса внизу принадлежала подсказке, а подсказка на телефоне живет только
+     на титульном экране — на блоках ее нет, и полоса эта пятьдесят шесть
+     пикселей пустоты у каждого из них. Здесь блокам возвращается почти вся:
+     двенадцать остается воздухом у нижнего края, чтобы картинка не упиралась
+     в самый край экрана. Обложка свою полосу считает отдельно (см. ниже) и
+     этой правкой не задета — на ней подсказка как раз и стоит.
+
+     И безопасная зона снизу. У айфона со свернутой панелью страница идет под
+     ней: окно считается до самого низа экрана, а последние полсотни пикселей
+     накрыты плавающей строкой адреса. Ровно эту полосу браузер и называет
+     безопасной зоной — блок до нее не достает, и нижние кнопки больше не
+     уезжают под панель. */
+  :root {
+    --hint-room: max(12px, env(safe-area-inset-bottom, 0px));
+  }
+
+  /* «Откуда цифры» на телефоне уходит: ссылка у нее та же, что у подписи
+     строкой ниже — «© Дирекция по аналитике и управлению данными НИУ ВШЭ», —
+     и две кнопки в ряд на узком экране едва помещаются. Остается «Прочитать
+     сначала»: единственное, что читателю тут и правда может понадобиться. */
+  .page-end-source {
+    display: none;
+  }
+
+  /* The bar only reports here. A slot is four pixels tall and the page scrolls
+     on its own, so making it a target would cost more mis-taps at the top edge
+     of the screen than it saves. */
+  .page-progress {
+    pointer-events: none;
+  }
+
+  .viz-section {
+    min-height: 0;
+    padding: 8px 16px 32px;
+  }
+
+  /* Title card on a narrow screen. Pinning the whole section would cut off a
+     stacked block, so only the heading is pinned — for the height of the intro
+     zone, after which it lets go and the block scrolls on as usual. */
+  .viz-intro,
+  .viz-scene {
+    height: auto;
+    display: flex;
+    padding: 8px 16px 32px;
+  }
+
+  .viz-intro > .viz-container,
+  .viz-scene > .viz-container {
+    position: static;
+    height: auto;
+    max-width: none;
+    padding: 0;
+    /* Коробка блока не шире экрана. У шапки ширина записана долей
+       (100% / --intro-k), а доля эта считается от коробки, которую сама
+       шапка и растягивает: круг замыкается, и браузер берет ширину по
+       самому длинному, что в шапке есть, — подзаголовку в одну строку.
+       На экране в 320 точек («увеличенный» экран айфона) коробка выходила
+       на 356, и карточки блока обрезало с обеих сторон. */
+    min-width: 0;
+  }
+
+  .viz-intro .viz-intro-hold {
+    display: block;
+    height: var(--intro-hold, calc(var(--intro-zone, 1.35) * 100dvh));
+  }
+
+  .viz-intro .viz-header {
+    position: sticky;
+    top: 8px;
+  }
+
+  /* Переходный экран, который паркуется наверху, остается там на весь блок и
+     читается как его заголовок. Значит, верх каждого экрана занят им, и все,
+     что блок прибивает к верху, прибивается под ним, а не за ним. Высоту
+     парковки считает lib/page.js — она зависит от того, сколько строк в этом
+     экране на этой ширине. */
+  .viz-section.lead-parks .col-right {
+    top: var(--lead-hold, 0px);
+  }
+
+  /* Блок кончился и отдан читателю — припаркованный экран уходит: его место
+     наверху нужнее тому, чем теперь управляют, а название раздела говорит
+     полоска. Класс ставит сам блок, когда отдает себя. */
+  .viz-section.lead-parks.lead-gone .viz-lead {
+    opacity: 0;
+    visibility: hidden;
+  }
+
+  .viz-section.lead-parks.lead-gone .col-right {
+    top: 0;
+  }
+
+
+  .viz-container {
+    gap: 12px;
+  }
+
+  .viz-header {
+    margin-bottom: 0;
+  }
+
+  .viz-header h2 {
+    font-size: 1.5625rem;
+    letter-spacing: -0.025em;
+  }
+
+  .viz-header p {
+    font-size: 0.875rem;
+  }
+
+  /* Экран сжимается целиком, когда не влезает по высоте, — и вместе с высотой
+     теряет ширину: строки съезжались к середине, и самый высокий экран на
+     странице («Все эти здания нужны для того…») читался узким столбиком с
+     широкими полями по бокам. Коробке выдается запас ровно на ту же долю, на
+     которую ее потом сожмут, — после сжатия она занимает ширину целиком.
+     Отрицательные поля, а не ширина с left: иначе пришлось бы спорить с
+     translate в том же transform. */
+  .viz-lead {
+    margin-inline: calc((1 - 1 / var(--lead-squeeze, 1)) * 50%);
+  }
+
+  /* Подзаголовок — это четыре-пять строк, и на телефоне они стоят между
+     заголовком и картинкой насовсем. Прочитаны они были на титульной карточке,
+     где в них весь смысл и где под них отдан целый экран; дальше они только
+     отнимают у визуализации треть высоты. Поэтому здесь подзаголовок живет
+     ровно столько, сколько держится карточка, и складывается вместе с ней — по
+     той же --intro-body. Высоту каркас меряет сам и кладет в --sub-h, иначе
+     складывать было бы нечего: у текста нет высоты, от которой можно отнять.
+
+     Только у секций с открытием: у блока без карточки подзаголовок негде было
+     бы прочитать, и он остается на месте.
+
+     Складывается он круто — впятеро быстрее, чем садится карточка. Посадка и
+     приход блока — один такт, и на ровной доле подзаголовок почти весь этот
+     такт висел полупрозрачный уже над самой картинкой: ровно то, от чего его
+     и убирали. На крутой он уходит в первой пятой движения, пока карточка
+     еще держит экран, и читатель видит либо его, либо блок — но не оба.
+
+     Места под неприехавшие части карточка не держит: высота у подзаголовка
+     своя, а --sub-h только обрезает ее сверху. Прибитый к полной высоте, он
+     держал на карточке метро триста пикселей пустоты под единственной
+     строкой — карточка выходила в целый экран, и заголовок вставал у верхнего
+     края вместо середины. На складывание это не влияет: складываться
+     подзаголовок начинает, когда все части уже пришли, и в этот момент его
+     своя высота и есть --sub-h. */
+  .viz-intro .viz-header p {
+    --sub-gone: clamp(0, 1 - var(--intro-body, 1) * 5, 1);
+    overflow: hidden;
+    height: auto;
+    max-height: calc(var(--sub-h, 0px) * var(--sub-gone));
+    opacity: var(--sub-gone);
+  }
+
+  /* Блок проявляется не раньше, чем карточка уберется с его пути. Зона
+     парковки шапки (--intro-hold) считается по севшей высоте заголовка —
+     иначе такт промахивался бы мимо верха блока, — а на карточке заголовок
+     в полтора раза крупнее и своей коробки не держится: увеличен он
+     трансформацией, в раскладке она ничего не занимает. Пока блок прозрачен,
+     это никому не мешает: заголовок висит над пустым местом. Но на ровной
+     доле блок проявлялся как раз в эти кадры, и «Стадион заполнен на 0%»
+     ложилось поверх «„Лужники“ — самая крупная арена».
+
+     Поэтому здесь он ждет, пока карточка не сядет больше чем наполовину: к
+     этому моменту подзаголовок уже сложен (он уходит в первой пятой), а
+     заголовок вернулся почти в свой кегль и в свою коробку. На широком
+     экране этого не нужно: там блок до своего прихода стоит ниже сгиба и
+     проявляется по дороге вверх. */
+  .viz-intro .viz-body {
+    opacity: clamp(0, (var(--intro-body, 1) - 0.55) / 0.45, 1);
+  }
+
+  /* Страница не прокручивается вовсе: читатель ведет ее тактами — махом
+     пальца, колесом или клавишами, — а каркас двигает ее сам и всегда до
+     границы кадра. Браузеру прокрутку не отдаем ни жестом, ни оттяжкой за
+     край: см. «Страница не прокручивается» в lib/stepper.js.
+
+     Свое остается тому, что само умеет прокручиваться, — списку разделов. */
+  html {
+    touch-action: none;
+    overscroll-behavior: none;
+  }
+
+  /* Палец на этой странице листает, а не выделяет. Задержанный на тексте, он
+     на обеих системах зовет выделение — на айфоне всплывает лупа и ручки, на
+     андроиде синие ручки и «Копировать», — и такт под этим пальцем уже не
+     играет: читатель хотел перелистнуть, а получил меню. Страница не
+     документ, копировать с нее нечего: все числа и так на картинке.
+
+     Выделение снимаем вместе с длинным нажатием (`touch-callout`): без
+     второго айфон все равно показывает свое меню по ссылке и картинке. */
+  body {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+
+  /* Свое остается тому, что само умеет прокручиваться: списку разделов и
+     всему, что блок пометил классом page-scrolls. Блок ставит его на коробку
+     с собственной прокруткой — стену профессий, например: сорок четыре
+     карточки не кадр истории, их листают, а не отщелкивают по одной. */
+  .page-sheet,
+  .page-sheet *,
+  .page-scrolls,
+  .page-scrolls * {
+    touch-action: pan-y;
+  }
+
+  /* The page never goes sideways. A title card waits a screen to the right of
+     the block being read until its turn comes, and the document grew to twice
+     its width around it: the reader could swipe the page off to one side and
+     find nothing there. Clipped at the section rather than hidden — `hidden`
+     would make a scrolling box of every section, and the pictures pinned to
+     the top of the screen are pinned to the window, not to a box inside it. */
+  .viz-section {
+    overflow-x: clip;
+  }
+
+  .viz-body {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .col-right {
+    order: -1;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    flex: none;
+    gap: 8px;
+    padding: 8px 0 8px;
+    background: var(--bg);
+  }
+
+  /* Cards fade out as they slide under the sticky canvas. */
+  .col-right::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 100%;
+    height: 14px;
+    background: linear-gradient(var(--bg), rgba(242, 243, 245, 0));
+    pointer-events: none;
+  }
+
+  .col-left {
+    width: auto;
+    gap: 8px;
+  }
+
+  /* Четыре города в столбик — это четыре строки и двести пикселей экрана, и
+     блоки упирались в его край: низ со списком и кнопками не влезал. По двое
+     в ряд они занимают вдвое меньше. Имена в такой ряд идут короткие —
+     «С. Петербург», «Н. Новгород»; их считает data/hse.js, а модуль берет
+     `c.short` вместо `c.name`, когда экран узкий. */
+  .city-list {
+    overflow: visible;
+    display: grid;
+    /* Два в ряд — пока два в ряд помещаются. Карточка это имя и переключатель
+       в пятьдесят один пиксель, и на экране в 320 точек («увеличенный» экран
+       айфона) две таких в ряд не вставали: колонки держались по содержимому и
+       уезжали за правый край вместе с переключателями. Там, где на две не
+       хватает, города идут по одному. */
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    /* Карточки внутри ряда равны по высоте сами, а ряды между собой — нет:
+       имя, перенесенное на вторую строку, поднимало весь свой ряд, и четыре
+       города стояли лесенкой. 1fr равняет ряды по самому высокому из них. */
+    grid-auto-rows: 1fr;
+    gap: 6px;
+  }
+
+  /* Имя города переносится, а не обрезается. В колонке на 360 «С. Петербург»
+     становился «С. Петербур…», а город, который нельзя прочесть, — это уже не
+     переключатель. Карточка от переноса выше на строку, и только у длинных
+     имен. */
+  .city-name {
+    white-space: normal;
+  }
+
+  /* «Снять все» и «Вернуть все» на телефоне не нужны. Четыре города в два
+     ряда — это два движения пальцем, а кнопки занимали строку у самого низа
+     блока, там, где места меньше всего: на тесном экране из-за них не влезала
+     картинка. Снять город можно его же переключателем, вернуть — им же.
+     Выключены стилями, а не разметкой: на широком экране они на месте, и
+     модулю не нужно знать, какой сейчас экран. */
+  .actions {
+    display: none;
+  }
+
+  /* The cards of the cities are read under a picture pinned to the top of the
+     screen, so what is left for them is the strip between that picture and the
+     bottom edge — about a third of the screen. At the height they have on a
+     wide screen the column of them was taller than the whole block had left to
+     scroll: by the time the reader got to the end of the section, its head —
+     the switches of what is counted and the first city — had gone up under the
+     picture, and what was left on the screen was a bare list of cities with
+     nothing above it. So here a card is one line of type with its numbers
+     under it, and the numbers stand in a row instead of a column. */
+  .city-card {
+    padding: 8px 10px;
+    /* Шесть пикселей, а не восемь: между именем и переключателем это
+       незаметно, а имени достается ровно столько, сколько ему не хватало.
+       «С. Петербург» на айфоне мерился в 95 точек при 95 свободных и
+       переносился на вторую строку — из-за одного города весь ряд стоял выше
+       соседнего. */
+    gap: 6px;
+  }
+
+  /* Имя и числа — в строку, а не друг под другом: пока они помещаются, город
+     занимает одну строку, и карточка садится на высоту самого переключателя,
+     ниже которой ей все равно не стать. Там, где чисел два («48 139
+     студентов, 9 612 сотрудников» на стадионе), строка переносится сама, и
+     карточка остается прежней. */
+  .city-info {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 2px 10px;
+  }
+
+  .city-stats {
+    flex-direction: row;
+    flex-wrap: wrap;
+    min-height: 0;
+    gap: 2px 12px;
+    /* В колонке это центрирование было вертикальным и ничего не решало, а в
+       строке стало горизонтальным: числа встали по середине карточки, каждое
+       со своим отступом, и ни одно не совпало с именем города над ним. */
+    justify-content: flex-start;
+  }
+
+  /* The picture is pinned to the top and the controls are read in the strip
+     under it, so every pixel it takes is a pixel they lose. Thirty-five
+     hundredths of the screen is the most it can have and still leave the whole
+     column of switches — the kinds and every city — standing under it at the
+     end of the block, where the reader comes to rest. */
+  .canvas-card {
+    flex: none;
+    height: 35dvh;
+    min-height: 210px;
+    padding: 8px;
+  }
+
+  .meter-card {
+    padding: 12px 14px 14px;
+  }
+
+  .meter-header {
+    flex-wrap: wrap;
+    gap: 2px 12px;
+  }
+
+  .meter-value,
+  .meter-title {
+    font-size: 0.875rem;
+  }
+
+  .btn {
+    padding: 9px 14px;
+  }
+}
+
+/* Narrow phones: the meter label and value get their own lines. */
+@media (max-width: 400px) {
+  .viz-header h2 {
+    font-size: 1.4375rem;
+  }
+
+  .meter-value {
+    white-space: normal;
+  }
+
+  /* Узкий телефон: карточка и так села на высоту переключателя, лишние
+     четыре пикселя сверху и снизу ей не нужны — они нужны картинке. По бокам
+     тоже не нужны: двенадцать точек отсюда отнимались у имени города, а
+     именно там его и не хватало. */
+  .city-card {
+    padding: 8px 10px;
+  }
+}
+
+/* A short screen — a small phone, or any phone held sideways. The opening
+   screen is one screen tall by definition, so the title, the two paragraphs
+   and the hint have to fit into it: the whole ladder steps down a size and the
+   hint moves closer to the edge. */
+@media (max-height: 700px) {
+  .page-header-inner {
+    gap: 22px;
+  }
+
+  /* Низкий экран — это и телефон вроде SE: ширина там тоже решает, иначе на
+     нем заголовок оставался вдвое мельче, чем на соседнем телефоне повыше. */
+  .page-header h1 {
+    font-size: clamp(2.5rem, 16.5vw, 3.75rem);
+  }
+
+  .page-header-text {
+    font-size: 1.125rem;
+  }
+
+  .scroll-hint {
+    bottom: 24px;
+  }
+}
+
+/* A phone lying on its side: barely 400px of height for the whole screen. */
+@media (max-height: 460px) {
+  .page-header-inner {
+    gap: 16px;
+  }
+
+  .page-header h1 {
+    font-size: clamp(2rem, 6vw, 2.75rem);
+  }
+
+  .page-header-text {
+    font-size: 1rem;
+  }
+
+  .scroll-hint {
+    bottom: 16px;
+  }
+}
+
+/* ---------- The list of sections, for a thumb ---------- */
+
+/* The bar is eight targets for a mouse and none for a finger. On a phone it
+   becomes one: touching the hairline opens this list, and the names are read
+   instead of aimed at. Hidden entirely where the bar does its own job. */
+.page-sheet { display: none; }
+
+@media (max-width: 860px) {
+  /* Clicks come back to the bar — but to the bar itself, not to its slots:
+     43 by 4 is not a target. The strip that answers the touch is taller than
+     the hairline and invisible, so the bar still reads as a hairline. */
+  .page-progress {
+    pointer-events: auto;
+  }
+
+  .page-progress::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    height: 24px;
+  }
+
+  .page-progress-slot {
+    pointer-events: none;
+  }
+
+  /* `hidden` is an attribute, not a class, and the browser gives it a display
+     of none at the weakest strength there is — a rule of our own, however
+     plain, outranks it. Said here so the list is shut when it is shut. */
+  .page-sheet[hidden] { display: none; }
+
+  .page-sheet:not([hidden]) {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+  }
+
+  .page-sheet-veil {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    border: 0;
+    padding: 0;
+    background: rgba(20, 23, 28, 0.38);
+    -webkit-backdrop-filter: blur(2px);
+    backdrop-filter: blur(2px);
+  }
+
+  .page-sheet-list {
+    position: absolute;
+    left: 8px;
+    right: 8px;
+    top: 10px;
+    max-height: calc(100% - 20px);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    padding: 6px;
+    gap: 2px;
+    border-radius: 16px;
+    background: var(--card);
+    box-shadow: 0 12px 34px rgba(16, 24, 40, 0.24);
+  }
+
+  .page-sheet-row {
+    appearance: none;
+    border: 0;
+    background: none;
+    text-align: left;
+    font: inherit;
+    font-size: 1rem;
+    color: var(--text);
+    padding: 13px 12px;
+    border-radius: 10px;
+  }
+
+  .page-sheet-row[aria-current] {
+    background: var(--bg);
+    font-weight: 600;
+  }
+
+  /* Behind the reader. The tick is drawn rather than written so the row still
+     reads as its own name and nothing else. */
+  .page-sheet-row.is-read {
+    color: var(--text-secondary);
+  }
+
+  .page-sheet-row.is-read::after {
+    content: '';
+    float: right;
+    width: 7px;
+    height: 7px;
+    margin-top: 6px;
+    border-radius: 50%;
+    background: var(--hse-blue);
+  }
+
+  .page-sheet-home {
+    color: var(--text-secondary);
+    font-size: 0.9375rem;
+  }
+}
+
+/* ---------- Targets for a thumb ---------- */
+
+/* A finger is not a cursor: what the eye hits at a pixel the thumb needs a
+   square of. What carries the look keeps its size — the knob of a switch is as
+   wide as it ever was, and 51 by 31 is what the phones use for their own — and
+   what grows is the part that answers the tap, which is invisible either way.
+   Measured on a phone: the row of kinds came out 83 by 19, less than the
+   smallest square a standard will call a target.
+   Last in the file and named by two classes on purpose: the blocks bring their
+   own stylesheets with them, and those arrive after this one. */
+@media (max-width: 860px) {
+  .viz-section .kind-item {
+    padding: 11px 2px;
+    margin: -11px -2px;
+  }
+
+  .viz-section .btn {
+    padding: 12px 15px;
+  }
+}
+
+/* ---------- Чтение кадрами ---------- */
+/* Пока страница держится, ничто не должно тянуться резинкой под пальцем. */
+html.is-holding,
+html.is-holding body {
+  overscroll-behavior: none;
+}

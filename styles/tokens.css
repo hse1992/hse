@@ -1,0 +1,212 @@
+/* Design tokens — the single source of colour, shadow and type for the whole page.
+   Never hard-code these values in a visualisation; add a token here instead. */
+
+:root {
+  /* Surfaces */
+  --bg: #F2F3F5;
+  --card: #FFFFFF;
+
+  /* Text */
+  /* Four steps down from the title, and every one of them readable: measured
+     against the page background, the palest of them is at 4.6 to 1 where the
+     standard asks for 4.5. They used to be set by eye, and the two quiet ones
+     came out at 4.35 and 2.34 — close enough to look right to whoever picked
+     them on a good screen, and not close enough for anybody else. */
+  --text: #14171C;          /* 16.0 : 1 */
+  --text-lead: #3D4451;     /* 8.8 — the opening paragraph, a step below the title */
+  --text-secondary: #4E535D;/* 7.0 */
+  --text-caption: #6A6E76;  /* 4.6 */
+  --text-faded: #C3C9D3;    /* type that has stepped back but is still there */
+  --link: #2A55D6;
+  --link-hover: #1B3EA8;
+
+  /* Controls */
+  --check-inactive-label: #6A6E75;   /* 4.6 : 1 — a switch says which side it is on
+                                        by the knob, not by hiding the other word */
+  --check-active: #4A505B;
+  --check-inactive-border: #C4C9D2;
+  --btn-border: #DDE0E6;
+  --btn-border-hover: #B9BEC7;
+  --toggle-off: #D6D9DF;
+  --toggle-on: #34C759;     /* neutral "on" for switches that carry no colour */
+
+  /* Neutral fills used inside canvases */
+  --empty: #D3D7DE;
+  --shell: #E7E9ED;
+  --exit: #CBD0D8;
+  --legend-swatch: #C7CCD4;
+
+  /* Accents */
+  --lyceum: #FFD400;
+  --pitch: #8CC63F;
+  --hse-blue: #102D69;      /* corporate blue of the university */
+
+  /* The students as a whole, and the students from abroad among them, wherever
+     the page picks them out in one go: the stadium under the question about
+     countries, and the words of that question. */
+  --students: var(--brand-blue);
+  --foreign: var(--brand-red);
+
+  /* Corporate palette of the university, as in the brand book. The primary
+     pair is the navy and the blue, backed by the three greys; the six bright
+     ones are accents only — never more than a quarter of a drawing. Used by
+     the profession icons in assets/professions. */
+  --brand-navy: #0F2D69;
+  --brand-blue: #234B9B;
+  --brand-grey: #929292;
+  --brand-grey-mid: #C6C6C6;
+  --brand-grey-light: #E6E6E6;
+  --brand-cyan: #0FA0D7;
+  --brand-green: #009B64;
+  --brand-orange: #EB691E;
+  --brand-violet: #7D50B9;
+  --brand-red: #E61E3C;
+  --brand-yellow: #FAB900;
+
+  /* Doors of a metro car, after assets/doors.jpg — the curtain between the
+     title screen and the first block. The body of the car, the rubber down the
+     middle and along the threshold, the window and the white chevron. */
+  /* Measured off the photograph rather than guessed: the side of the car
+     averages #336077 in the light, a blue-grey and not the teal it looks at a
+     glance, and falls to about this dark where the side turns away. */
+  --door-body: #336077;
+  --door-body-dark: #22465C;
+  /* One rib of the body: a bright crest with the shade it casts under itself.
+     In the photograph they run every 65px of 566 — about one ninth of the
+     height of the car — and the crest is a quarter of that step. */
+  --door-rib: rgba(197, 222, 244, 0.5);
+  --door-rib-shade: rgba(6, 20, 28, 0.42);
+  --door-edge: #16292F;
+  --door-frame: #12313A;
+  --door-glass: #8A7430;
+  --door-glass-light: #B9BEC4;
+  --door-stripe: #E9E7E0;
+  --door-signal: var(--brand-red);   /* the lens that blinks before they shut */
+  --door-signal-off: #7F8792;        /* and the same glass while it is dark */
+  --door-lamp: #232A31;              /* and the housing it is set into */
+  --door-lamp-light: #3C464F;
+
+  /* The flash of the satellite's camera — the curtain at the other end of the
+     story, from the last picture from orbit into the finale. */
+  --flash: #FFFFFF;
+
+  /* Metro track (canvas) */
+  --metro-rail: #C9CFD8;
+  --metro-sleeper: #DCE0E6;
+  --metro-car-stripe: rgba(255, 255, 255, 0.5);
+  --metro-gangway: #8B929C;   /* the bellows between two cars of one train */
+  --metro-beam: rgba(255, 214, 102, 0.85);   /* headlights on the bed, fading out */
+
+  /* Electric buses and the road they drive on (canvas) */
+  --bus-wheel: #2A2E35;
+
+  /* The electric bus of the legend, after assets/electrobus.jpeg */
+  --ebus-body: #22A3E2;
+  --ebus-arrow: #C4CAD3;
+  --ebus-wave: #6FC8EE;
+  --ebus-glass: #143B54;
+  --ebus-hub: #B7C0CC;
+  --ebus-light: #FFE08A;
+  --ebus-stop: #E4573D;
+  --sign-blue: #1668E0;      /* road sign 5.23.1, the name of a place */
+  --sign-edge: #1A1D22;
+  --road-fill: #F1F3F6;
+  --road-edge: #AEB6C2;
+  --road-line: #C2C9D3;
+  --metro-tunnel: #464C56;
+
+  /* Historical illustrations (inline SVG in the studies section) */
+  --ill-ink: #3C4451;
+  --ill-stone: #C3CAD4;
+  --ill-light: #E6EAF0;
+  --ill-gold: #E2A93A;
+  --ill-red: #D2493F;
+  --ill-blue: #3E7BC4;
+  --ill-warm: #D9BE92;
+  --ill-green: #5C9E72;
+
+  /* City map (canvas, viz/town.js — a draft, not on the page yet) */
+  --city-land: #E6E9ED;
+  --city-block: #F1F3F5;
+  --city-park: #D4E8C6;
+  --city-tree: #A6D08C;
+  --city-tree-dark: #8BBF72;
+  --city-road: #FFFFFF;
+  --city-road-edge: #D3D8DF;
+  --city-road-dash: #C3CAD4;  /* the dashed line down the middle of a street */
+  --city-bridge: #9FA8B5;
+  --city-water: #A9D5EF;
+  --city-water-edge: #8CC4E5;
+  --city-water-label: #2F79AE;
+  --city-plaza: #FAFAFB;
+  --city-metro-line: rgba(230, 30, 60, 0.3);
+  --city-roof-cool: #D8DDE5;
+  --city-wall-cool: #AAB3C0;
+  --city-roof-light: #E8EBF0;
+  --city-wall-light: #BAC1CC;
+  --city-roof-warm: #E6DDCE;
+  --city-wall-warm: #BDAF99;
+  /* «Канатный цех» by the Neva, the one building in light yellow. */
+  --city-roof-rope: #FFF0A6;
+  --city-wall-rope: #DCC66E;
+  /* Building 11с1 of Покровский бульвар, 11, by the Moskva, in yellow. */
+  --city-roof-yellow: #FFD60A;
+  --city-wall-yellow: #C9A200;
+  /* The campus in Nizhny Novgorod by the Volga, in the middle blue of the
+     brand book, with walls a shade darker. */
+  --city-roof-nn: var(--brand-blue);
+  --city-wall-nn: #17346F;
+  /* The red porch of the campus building in Perm by the Kama. */
+  --city-roof-porch: var(--brand-red);
+  --city-wall-porch: #A3122B;
+  --city-shadow: rgba(20, 23, 28, 0.12);
+  --city-halo: rgba(255, 255, 255, 0.94);
+  /* «Счастье не за горами» on the bank of the Kama, after assets/happiness.jpeg,
+     in the red of the brand book: the face of the letters and their dark edge. */
+  --city-slogan: var(--brand-red);
+  --city-slogan-side: #A3122B;
+
+  /* Five-storey block icon (canvas) */
+  --house-wall: #E0D2BA;
+  --house-roof: #8B929C;
+  --house-window: #5C82A6;
+  --house-door: #6B5B48;
+  --house-window-lit: #FFC85C;
+
+  /* The satellites (canvas), and the one dark card on the page. The night
+     sky the globe hangs in, the stars in it, the globe itself — ocean, land,
+     ice and the rim of air around it — the orbits, the cubesats on them and
+     the flash of one burning up in the atmosphere. */
+  --space-sky: #0C1B33;
+  --space-sky-edge: #060E1E;
+  --space-star: #DCE6F7;
+  --space-ocean: #1E4D94;
+  --space-land: #2E8A63;
+  --space-ice: #E3ECF7;
+  --space-air: rgba(96, 170, 255, 0.5);
+  --space-orbit: rgba(226, 236, 250, 0.6);
+  --space-orbit-back: rgba(226, 236, 250, 0.16);
+  --space-sat: #EEF3FB;
+  --space-sat-panel: #2F7BD8;
+  --space-label: rgba(226, 235, 248, 0.78);
+  --space-burn: #FF8A3D;
+
+  /* Opening screen: two soft blooms of the corporate blue over the page
+     background, so the first screen has depth instead of a flat fill. */
+  --header-glow: rgba(35, 75, 155, 0.5);
+  --header-glow-soft: rgba(16, 45, 105, 0.3);
+
+  /* The reading hint floats over whatever is on the screen at the time —
+     including the one dark card on the page, where a thinner veil would leave
+     its words to be read against the night sky. */
+  --hint-veil: rgba(255, 255, 255, 0.86);
+
+  /* Elevation */
+  --card-shadow: 0 1px 2px rgba(16, 24, 40, 0.06);
+  --knob-shadow: 0 2px 5px rgba(16, 24, 40, 0.28);
+
+  /* Radii */
+  --r-card: 14px;
+  --r-canvas-card: 18px;
+  --r-btn: 9px;
+}

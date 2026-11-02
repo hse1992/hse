@@ -1,0 +1,55 @@
+/* HSE Sans, served from assets/fonts — no external font CDN.
+   The browser downloads only the weights the page actually uses.
+   The faces are woff2: the same outlines the university ships as .otf,
+   compressed for the web — less than half the bytes, and every browser
+   that can run this page reads them.
+   Note: the family has no Medium (500); font-weight: 500 falls back to
+   Regular, so prefer 400 / 600 / 700 in styles. */
+
+@font-face {
+  font-family: 'HSE Sans';
+  src: url('../assets/fonts/HSESans-Thin.woff2') format('woff2');
+  font-weight: 100;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'HSE Sans';
+  src: url('../assets/fonts/HSESans-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'HSE Sans';
+  src: url('../assets/fonts/HSESans-Italic.woff2') format('woff2');
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'HSE Sans';
+  src: url('../assets/fonts/HSESans-SemiBold.woff2') format('woff2');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'HSE Sans';
+  src: url('../assets/fonts/HSESans-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'HSE Sans';
+  src: url('../assets/fonts/HSESans-Black.woff2') format('woff2');
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}

@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>На сколько большая</title>
+<link rel="stylesheet" href="styles/fonts.css" />
+<link rel="stylesheet" href="styles/tokens.css" />
+<link rel="stylesheet" href="styles/layout.css" />
+</head>
+<body>
+<script>
+  // The page is read beat by beat, so a reload starts it over: without this the
+  // browser puts the reader back where they had scrolled to, in the middle of a
+  // section that has not been told yet.
+  if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+  window.scrollTo(0, 0);
+</script>
+<main>
+  <header class="page-header">
+    <div class="page-header-inner">
+      <h1><span class="title-word">На</span> <span class="title-word">сколько</span> <span class="title-word">б<a class="hse-o-link" href="https://www.hse.ru/" target="_blank" rel="noopener" title="Сайт Вышки" aria-label="Сайт НИУ ВШЭ"><svg class="hse-o" viewBox="0 0 283.47 283.47" aria-hidden="true" focusable="false"><circle class="hse-o-disc" cx="141.73" cy="141.74" r="141.73"/><path class="hse-o-mark" d="M135.6,133.32c32.26,0,44.81,21.45,44.81,60.69v29.51h-20.69v-63.35h-23.9v63.42h-18.28V53.65h18.78c7.03,0,17.71,1.58,25.25,10.95c3.93,4.73,6.34,11.04,7.19,17.38h-32.94v9.35h33.23c-0.27,6.04-1.49,12.8-7.42,19.97c-5.2,6.51-13.76,12.56-25.83,12.56c-0.06,0-0.13,0-0.2,0V133.32 M206.41,197.55c0-34.86-11.26-58.29-40.45-68.6c9.21-3.77,14.82-9.58,18.49-13.99c7.01-8.06,9.88-17.96,9.88-27.31c0-7.56-2.08-22.65-15.35-33.04c-9.1-7.04-17.16-10.43-36.43-10.43h-9.75c-0.3-0.01-0.6-0.01-0.96-0.01H91.65v189.79h114.76V197.55z"/></svg></a><span class="sr-only">о</span>льш<span class="stressed">а<i></i></span>я</span></h1>
+      <div class="page-header-text">
+        <p>Вышка такая большая, что в это трудно поверить: от вагона метро до орбиты Земли.</p>
+      </div>
+    </div>
+
+    <!-- The lamp of a closing door stands at the foot of the title screen from
+         the start, dark. The first beat happens here: it lights up red and the
+         warning appears under it. The doors themselves shut on the beat after
+         it — see lib/stepper.js. -->
+    <div class="page-signal" data-el="signal" aria-hidden="true">
+      <span class="page-signal-lamp"></span>
+      <span class="page-signal-text">Осторожно, двери закрываются!</span>
+    </div>
+
+    <!-- Nudge to scroll: fades out as soon as the reader does. -->
+    <div class="scroll-hint" data-el="scrollHint" aria-hidden="true">
+      <span class="scroll-hint-text">Листай<span class="on-keys"> или жми пробел</span></span>
+      <!-- Appears once the reader has a block behind them: by then «листай» has
+           been answered and there is room to say what else the page listens to.
+           Hidden on a touch screen, where none of it means anything. -->
+      <span class="scroll-hint-back">Стрелки и пробел тоже листают, полоска сверху — к любому разделу</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"
+           stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 3 L12 17" />
+        <path d="M5.5 11 L12 17.5 L18.5 11" />
+      </svg>
+    </div>
+  </header>
+
+  <div id="page"></div>
+
+  <footer class="page-footer">
+    <!-- Дочитавшему есть что сделать. Раньше после «Это ты» шла одна строка
+         копирайта, и страница не заканчивалась, а обрывалась. -->
+    <div class="page-end">
+      <button type="button" class="btn page-end-act" data-el="again">Прочитать сначала</button>
+      <button type="button" class="btn page-end-act" data-el="share" hidden>Поделиться</button>
+      <a class="btn page-end-act page-end-source" href="https://data.hse.ru" target="_blank" rel="noopener">Откуда цифры</a>
+    </div>
+    <span data-el="year">Показатели за 2025 год</span>
+    <a href="https://data.hse.ru" target="_blank" rel="noopener">© Дирекция по аналитике и управлению данными НИУ ВШЭ</a>
+  </footer>
+</main>
+
+<script type="module">
+  import * as metro from './viz/metro.js';
+  import * as stadium from './viz/stadium.js';
+  import * as world from './viz/world.js';
+  import * as area from './viz/area.js';
+  import * as study from './viz/study.js';
+  import * as professions from './viz/professions.js';
+  import * as space from './viz/space.js';
+  import * as each from './viz/each.js';
+  import { mountProgress, introRunner, mountTitleMark, mountWindowSize } from './lib/page.js';
+  import { nameSwitches } from './lib/ui.js';
+  import { YEAR } from './data/hse.js';
+  import { mountStepper } from './lib/stepper.js';
+
+  // Every visualisation on the page, in the order it appears.
+  // To add one: write viz/<name>.js, import it, append it here.
+  const MODULES = [metro, stadium, world, area, study, professions, space, each];
+
+  // Высота окна, померенная руками: титульный экран считает свой рост по ней,
+  // а не по dvh, который на айфоне не поспевает за панелью браузера.
+  mountWindowSize();
+
+  const page = document.getElementById('page');
+
+  // The credits name the year the figures are for — see YEAR in data/hse.js.
+  // Written in from there rather than typed into the markup, so the number
+  // the page shows and the number the data is of are the same number. What
+  // counts years backwards does not use it: that counting is from today, and
+  // viz/study.js says why.
+  const yearEl = document.querySelector('[data-el="year"]');
+  if (yearEl) yearEl.textContent = `Показатели за ${YEAR} год`;
+
+  // The page is read beat by beat: the shell lays the sections out and hands
+  // the stepper what each of them can play — see lib/stepper.js.
+  const plan = MODULES.map((mod, index) => {
+    const section = document.createElement('section');
+    // A block that hands its picture over has it stand under this lead-in —
+    // known from the start, so the lead-in is placed for it from the first frame.
+    const given = index > 0 && MODULES[index - 1].meta.carry && mod.meta.lead;
+    section.className = given ? 'viz-section has-backdrop' : 'viz-section';
+    section.id = mod.meta.id;
+    section.innerHTML = `
+      <div class="viz-container">
+        ${mod.meta.lead ? `
+          <div class="viz-lead" data-exit="${mod.meta.lead.exit || 'aside'}" data-fit="${mod.meta.lead.fit || 'top'}" data-together="${mod.meta.lead.together ? 'block' : ''}">
+            <div class="viz-lead-value">${mod.meta.lead.value}</div>
+            <p class="viz-lead-text">${mod.meta.lead.text}</p>
+          </div>
+        ` : ''}
+        <div class="viz-intro-hold">
+          <div class="viz-header">
+            <h2>${mod.meta.title}</h2>
+            <p>${mod.meta.subtitle}</p>
+          </div>
+        </div>
+        <div class="viz-body"></div>
+      </div>
+    `;
+    page.appendChild(section);
+
+    // The first section opens the page; any other can ask for the same card
+    // with `intro: true`, and for it to arrive in parts with `introStages`.
+    const opening = (index === 0 || mod.meta.intro)
+      ? introRunner(section, mod.meta.introStages, mod.meta.introScale)
+      : null;
+    if (opening) opening.run(0);
+
+    let api = null;
+    return {
+      section,
+      opening,
+      steps: mod.meta.steps || 0,
+      // Блок, который на телефоне читается кадрами, а не прокруткой: страница
+      // останавливается на нем, и каждое касание играет следующий кадр
+      // целиком — см. «Чтение кадрами» в lib/stepper.js.
+      taps: !!mod.meta.taps,
+      opensOnStep: !!mod.meta.opensOnStep,
+      // The figure this block ends on, handed over to the next — see lib/stepper.js.
+      handoff: mod.meta.handoff || null,
+      // How the block arrives, if not by the page travelling to it — see
+      // CURTAINS in lib/stepper.js. The title screen ends with «Осторожно, двери
+      // закрываются!», so the first block arrives behind the doors of a metro
+      // car. A block that ends on a photograph being taken (`meta.flash`) hands
+      // the next one over in the flash of the camera.
+      curtain: index === 0 ? 'doors'
+        : index > 0 && MODULES[index - 1].meta.flash ? 'flash'
+        : null,
+      // The picture it hands over as well, if any — see lib/stepper.js.
+      carry: () => (api && api.carry) || null,
+      setStep: (i) => api && api.step && api.step(i),
+      // How far the next state of the story is, in pixels of scroll — the
+      // block says it itself, because only it knows how its travel is cut up.
+      // Nought when there is nothing ahead. See «Далее» in lib/stepper.js.
+      ahead: () => (api && api.ahead ? api.ahead() : 0),
+      // И назад — до предыдущего состояния. Отвечает на это не всякий блок:
+      // тот, что молчит, назад листается экраном, как и раньше.
+      behind: () => (api && api.behind ? api.behind() : 0),
+      // Whether step i has to wait for the reader — see lib/stepper.js. With
+      // { quiet: true } the block only answers and shows nothing.
+      hold: (i, options) => !!(api && api.hold && api.hold(i, options)),
+      // The same for a part of the lead-in screen, by the number it is marked
+      // with in the markup: a screen that asks something waits for an answer.
+      holdIntro: (stage, options) => !!(api && api.holdIntro && api.holdIntro(stage, options)),
+      // How long step i plays, in ms, if it needs more than a beat.
+      span: (i) => (api && api.span ? api.span(i) : 0),
+      // A section is built on its way onto the screen, not before: whatever it
+      // animates on start then plays in front of the reader.
+      build: () => {
+        if (api) return;
+        api = mod.init(section.querySelector('.viz-body')) || {};
+        // The switches of the block say what they switch and whether they are
+        // on — read off the markup they are already in, see lib/ui.js.
+        nameSwitches(section);
+      },
+      // And whenever it comes onto the screen — first time or coming back — the
+      // picture inside it starts from the beginning. See lib/stepper.js.
+      open: () => api && api.open && api.open()
+    };
+  });
+
+  const progress = mountProgress(
+    MODULES.map((mod) => mod.meta.title),
+    // A name short enough to stand in the strip at the top of a phone, where
+    // the whole heading would not fit — see meta.short in CLAUDE.md.
+    MODULES.map((mod) => mod.meta.short || '')
+  );
+  mountTitleMark();
+  const story = mountStepper(plan, {
+    onProgress: progress.set,
+    // The first beat belongs to the title screen: the door signal lights up
+    // there before the doors close on the beat after it.
+    signal: document.querySelector('.page-signal'),
+    // One last beat after the story: the page lifts to show the credits.
+    finale: document.querySelector('.page-footer')
+  });
+  // The progress bar doubles as the way back: a click on a block goes there,
+  // and the narrow slot at its head returns to the title screen.
+  progress.pick(story.toBlock, story.rewind);
+
+  // Что делать дочитавшему. «Сначала» ведет тем же путем, что и узкий слот в
+  // начале полоски, — одна дорога назад на всю страницу.
+  const again = document.querySelector('[data-el="again"]');
+  if (again) again.addEventListener('click', () => story.rewind());
+
+  // «Поделиться» показывается только там, где ему есть чем поделиться:
+  // у автономной копии адрес вида file:// , и слать его некому.
+  const share = document.querySelector('[data-el="share"]');
+  if (share && location.protocol !== 'file:') {
+    const sheet = navigator.share ? 'окно' : navigator.clipboard ? 'буфер' : null;
+    if (sheet) {
+      share.hidden = false;
+      share.addEventListener('click', async () => {
+        const what = { title: document.title, url: location.href };
+        try {
+          if (sheet === 'окно') await navigator.share(what);
+          else {
+            await navigator.clipboard.writeText(location.href);
+            const was = share.textContent;
+            share.textContent = 'Ссылка скопирована';
+            setTimeout(() => { share.textContent = was; }, 2000);
+          }
+        } catch (err) {
+          // Отказ в системном окне — это ответ, а не поломка.
+        }
+      });
+    }
+  }
+
+</script>
+</body>
+</html>
