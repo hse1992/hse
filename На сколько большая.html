@@ -1180,6 +1180,18 @@ button { font-family: inherit; }
   pointer-events: auto;
 }
 
+/* Но только у той части, которая уже пришла. Место под себя часть держит с
+   первого такта экрана — шкала «Годов учебы» это полторы сотни пикселей
+   пустоты над вопросом, которого еще нет, — и палец, опущенный туда, попадал
+   в невидимую шкалу. Каркас считает ее ручкой, такта такое касание не стоит,
+   и читатель, стукнув по пустому месту, не получал ничего: приходилось
+   стучать второй раз. Закрытую часть помечает paint() в lib/page.js. */
+.viz-lead .intro-stage.is-shut button,
+.viz-lead .intro-stage.is-shut input,
+.viz-lead .intro-stage.is-shut [role="slider"] {
+  pointer-events: none;
+}
+
 /* Set in the same type as the heading of the card it hands over to: the same
    size, weight and tracking, so one reads as a continuation of the other. */
 /* --lead-fit is set by lib/page.js: a headline of one line that very nearly
@@ -3554,6 +3566,11 @@ function leadCard(section, K = () => CARD_K, cardHeight = null) {
       el.style.opacity = grown.toFixed(3);
       // Nothing to grow if it has no height of its own yet — see stageCards.
       el.style.height = grown < 1 && tall > 0 ? `${(tall * grown).toFixed(1)}px` : '';
+      // Пока часть не пришла, ее кнопки и шкалы касания не берут: место они
+      // держат с первого такта экрана, и невидимая шкала ловила палец —
+      // каркас считал касание ручкой, и такт пропадал. Сам запрет в
+      // layout.css, рядом с тем, который дает им касание.
+      el.classList.toggle('is-shut', grown < 1);
       // How far each part has come, for anyone who cares: a screen where one
       // part replaces another has the earlier one leave by the same number.
       section.style.setProperty(`--lead-stage-${k}`, grown.toFixed(3));
@@ -3820,9 +3837,12 @@ function introRunner(section, stages = 1, scale = CARD_K) {
     // Measured at the size the card will actually come out at — the shared one.
     section.style.setProperty('--intro-k', String(K()));
     // Подзаголовок на время измерений стоит в свою настоящую высоту: обычно
-    // она задана через --sub-h, то есть прошлым измерением, и считать по ней
-    // новое — значит мерить вчерашний день.
-    if (sub) sub.style.height = 'auto';
+    // он обрезан сверху через --sub-h, то есть прошлым измерением, и считать
+    // по нему новое — значит мерить вчерашний день. Режет его именно
+    // max-height, а не height: померенный под старым потолком, подзаголовок
+    // метро выходил на девяносто пикселей ниже себя, и третья часть карточки
+    // — вагоны с поездом — не показывалась на телефоне вовсе.
+    if (sub) { sub.style.height = 'auto'; sub.style.maxHeight = 'none'; }
 
     // А на телефоне у карточки есть еще один предел, кроме переносов строк:
     // экран. Окно там 659 пикселей с развернутой панелью браузера, а карточка
@@ -3858,6 +3878,7 @@ function introRunner(section, stages = 1, scale = CARD_K) {
     if (sub) {
       section.style.setProperty('--sub-h', `${sub.offsetHeight}px`);
       sub.style.height = '';
+      sub.style.maxHeight = '';
     }
     tallOpen = header.offsetHeight;
 
@@ -5076,6 +5097,10 @@ function mountScrolled(entries, onProgress) {
     frame = to;
     playing = true;
     tried('кадр', () => e.setStep(frame));
+    // Страница прибита, прокрутки нет — а значит, и события, по которому
+    // перерисовывается полоска сверху. Зовем ее сами: иначе на всем блоке,
+    // читаемом кадрами, она стояла бы на том, что было до его прихода.
+    onScroll();
     const span = Math.max(BEAT_MS, (e.span && e.span(frame)) || 0);
     setTimeout(() => {
       playing = false;
@@ -5436,20 +5461,31 @@ function mountScrolled(entries, onProgress) {
 
   let gliding = 0;
   let total = 0;
-  let asked = 0;
   let span = 0;
+  let откуда = 0;                       // от какого места страницы идет такт
+  let поставили = 0;                    // и куда ход поставил ее в прошлом кадре
   let вел = 1;                          // куда шел последний такт
   let чиню = false;                     // один доезд на такт, не больше
   const glide = (now) => {
     if (!gliding) return;
     const t = Math.min(1, (now - gliding) / span);
     const want = Math.round(total * (1 - Math.pow(1 - t, 3)));
-    // Сдвигаем на то, что попросили, а не на то, что страница дала: блок,
-    // который на приходе складывает свои цифры, меняет высоту, браузер
-    // отвечает на это сдвигом прокрутки, и разница превратила бы один такт
-    // в три.
-    window.scrollBy(0, want - asked);
-    asked = want;
+    // Страницу ход ставит туда, куда идет такт, а не двигает на столько-то
+    // пикселей от того места, где она сейчас. Разница видна на айфоне: там
+    // прокрутка живет на своей стороне, и сдвиг «на столько-то» иногда
+    // пропадает целиком — следующим кадром страница возвращается туда, где
+    // была. За такт так терялось два-три десятка пикселей: ход вставал между
+    // остановками, карточка застывала с полураскрытой строкой посреди слова,
+    // а шаг назад не доходил до начала. Поставленное место потерю переживает
+    // — следующий кадр ставит то же самое снова.
+    //
+    // А место, откуда такт идет, едет вместе со страницей: блок, который на
+    // приходе складывает свои цифры, меняет высоту, браузер отвечает на это
+    // сдвигом прокрутки — и этот сдвиг нужно отдать странице, иначе один такт
+    // превратился бы в три.
+    откуда += window.scrollY - поставили;
+    window.scrollTo({ top: откуда + want });
+    поставили = window.scrollY;
     if (t < 1) { requestAnimationFrame(glide); return; }
     gliding = 0;
     // Просьба, пришедшая, пока ход играл, ждала здесь — играем ее теперь.
@@ -5482,7 +5518,8 @@ function mountScrolled(entries, onProgress) {
     const [first] = стопы(dir);
     if (first === undefined) return;
     total = dir * Math.min(first, Math.round(window.innerHeight * AT_MOST));
-    asked = 0;
+    откуда = window.scrollY;
+    поставили = откуда;
     span = Math.min(700, 200 + Math.abs(total) / 2.5);
     gliding = performance.now();
     requestAnimationFrame(glide);
@@ -5557,7 +5594,16 @@ function mountScrolled(entries, onProgress) {
     // has just taken on — the wide one, where the whole story is eight screens
     // — and a reader halfway through would be read as being at the end.
     if (стою >= 0) { стоит = стою; доля = caught ? доля : at.part; }
-    if (onProgress) onProgress(window.scrollY / height(), at);
+    // Полоске сверху тоже отвечает блок, а не прокрутка: прибитая к окну
+    // страница стоит в нуле, и по ней выходило, что читатель в самом начале —
+    // полоска гасла целиком, хотя за спиной у него полстраницы. Доля внутри
+    // раздела тогда считается по кадру: блок рассказывает историю сам.
+    const где = caught
+      ? { ...at, index: стоит, part: caught.steps > 1 ? frame / (caught.steps - 1) : 1 }
+      : at;
+    if (onProgress) {
+      onProgress(caught ? (стоит + где.part) / entries.length : window.scrollY / height(), где);
+    }
   };
 
   // Every card is painted once at the start, even the ones far below: until a
@@ -19815,6 +19861,9 @@ const page = document.getElementById('page');
       });
     }
   }
+
+  // Dev-only: numbers on screen for walking the page on a real phone.
+  if (location.search.includes('debug')) import('./tools/debug-hud.js').catch(() => {});
 </script>
 </body>
 </html>

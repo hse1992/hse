@@ -232,6 +232,9 @@
     }
   }
 
+  // Dev-only: numbers on screen for walking the page on a real phone.
+  if (location.search.includes('debug')) import('./tools/debug-hud.js').catch(() => {});
+
 </script>
 </body>
 </html>
