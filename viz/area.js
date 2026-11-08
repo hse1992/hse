@@ -529,29 +529,37 @@ export function init(root) {
 
         .area-switches { gap: 6px 24px; padding: 0; }
 
-        /* Одна колонка: фигуры идут друг за другом, и каждой достается вся
-           ширина. Та, что сейчас не показывается, не занимает и места —
-           иначе обе делили бы высоту, и каждая осталась бы мелкой.
+        /* Одна колонка: заголовок наверху, продолжением припаркованной строки
+           «Но есть 196 зданий», под ним фигура во всю оставшуюся высоту, а
+           под ней вопрос. Фигура стоит в своей строке по центру: прижатая к
+           верху, она оставляла под собой треть пустого экрана — поле на узком
+           телефоне шире стать не может, и место под ним ничем не занять,
+           значит, его нужно разделить поровну.
 
-           Заголовок стоит наверху, продолжением припаркованной строки «Но
-           есть 196 зданий», а фигура берет себе все, что осталось, и стоит в
-           нем по центру. Прижатая к верху, она оставляла под собой треть
-           пустого экрана: поле на узком телефоне шире стать не может, и место
-           под ним ничем не занять — значит, его нужно разделить поровну. */
+           Обе фигуры стоят в одной клетке, одна поверх другой. Делить высоту
+           им нельзя — обе остались бы мелкими, — но и убирать уходящую из
+           раскладки через display: none тоже: тогда поле не сменяется
+           пятиэтажкой, а просто исчезает, и в том же кадре на пустом месте
+           возникает другая картинка. В одной клетке уходящая гаснет, пока
+           приходит следующая, как это и задумано у .area-step, — и ни одна
+           не отнимает у другой ни пикселя высоты. Видно наложение только те
+           полсекунды, пока идет подмена: показана всегда ровно одна. */
         .area-steps {
           grid-template-columns: 1fr;
-          grid-template-rows: auto 1fr;
+          grid-template-rows: auto 1fr auto;
           gap: 16px;
           align-content: stretch;
           align-items: stretch;
         }
 
+        .area-step-title { grid-area: 1 / 1; }
+        .area-step { grid-area: 2 / 1; }
+        .area-step-question { grid-area: 3 / 1; }
+
         .area-step {
           justify-content: center;
           min-height: 0;
         }
-
-        .area-step:not(.on) { display: none; }
 
         /* Вопрос не держит себе места заранее, а разворачивается на своем
            такте — по мерке (--q-h) и плавно, вместе с тактом. Три строки,
@@ -567,25 +575,14 @@ export function init(root) {
 
         .area-step-question.on { max-height: var(--q-h, 50vh); }
 
-        /* Карта города остается и под заголовком: «Общая площадь этих
-           зданий» — про те же 196 зданий, которые на ней нарисованы. Такт, на
-           котором она уходила, был экраном с одной строкой и пустотой под
-           ней. Карта подвигается под заголовок, а своя подпись ему уступает:
-           две подписи над одной картинкой читаются как брак верстки. */
-        .area-tell.titled .area-town-note { display: none; }
-
-        .area-tell.titled .area-town {
-          padding-top: var(--title-room, 0px);
-        }
-
-        /* Подвигается она плавно, вместе с тактом: заголовок проявляется не
-           мгновенно, и карта под ним не должна прыгать. */
+        /* Карта уходит на такте заголовка, так что под ним она не стоит
+           никогда — и подвигать ее под него нечего. */
         .area-town {
-          transition: opacity 300ms ease, visibility 300ms, padding-top 420ms ease;
+          transition: opacity 300ms ease, visibility 300ms;
         }
 
         .area-town.on {
-          transition: opacity 620ms ease, visibility 0s, padding-top 420ms ease;
+          transition: opacity 620ms ease, visibility 0s;
         }
 
         /* «Общая площадь этих зданий» с числом приходит на экран одна, без
@@ -1123,7 +1120,6 @@ export function init(root) {
   const pitchNoteEl = $('pitchNote');
   const houseNoteEl = $('houseNote');
   const innerEl = root.querySelector('.area-inner');
-  const tellEl = root.querySelector('.area-tell');
   const host = root.closest('.viz-section') || root.parentElement;
   const LAST = 7;
 
@@ -1139,20 +1135,25 @@ export function init(root) {
     // понятной. Порядок тот же, просто каждая получает экран целиком, и свое
     // пояснение она приносит с собой.
     if (phone.matches) {
-      // Город держится и на такте заголовка: площадь, которую тот называет, —
-      // это площадь зданий, нарисованных на карте под ним. Уходит он вместе с
-      // первым полем, которое встает на его место.
-      townEl.classList.toggle('on', told && i <= 1);
+      // Город уходит вместе с тактом, который называет площадь: карта
+      // ответила на свой вопрос — «196 зданий, а это уже целый город», — и
+      // дальше речь о метрах, а не о домах. Держать ее под заголовком значит
+      // показывать ответ на прошлый вопрос под новым.
+      //
+      // Порядок на телефоне другой, чем на широком экране: сначала площадь,
+      // следом вопрос о ней — и только потом поле и пятиэтажка, которые на
+      // него отвечают. Вопрос встает внизу экрана и с места больше не уходит:
+      // фигуры приходят между ним и заголовком, в свободную строку сетки.
+      townEl.classList.toggle('on', told && i === 0);
       titleEl.classList.toggle('on', told && i >= 1);
-      tellEl.classList.toggle('titled', told && i >= 1);
-      fieldsStepEl.classList.toggle('on', told && i >= 2 && i <= 3);
-      pitchNoteEl.classList.toggle('on', told && i === 3);
-      housesStepEl.classList.toggle('on', told && i >= 4);
-      houseNoteEl.classList.toggle('on', told && i >= 5);
-      questionEl.classList.toggle('on', told && i >= 6);
+      questionEl.classList.toggle('on', told && i >= 2);
       questionEl.classList.remove('is-answered');
-      showCrowd(told && i >= 3);
-      lightUp(told && i >= 5);
+      fieldsStepEl.classList.toggle('on', told && i >= 3 && i <= 4);
+      pitchNoteEl.classList.toggle('on', told && i === 4);
+      housesStepEl.classList.toggle('on', told && i >= 5);
+      houseNoteEl.classList.toggle('on', told && i >= 6);
+      showCrowd(told && i >= 4);
+      lightUp(told && i >= 6);
       innerEl.classList.toggle('off', told);
       host.classList.toggle('lead-gone', !told);
       return;
@@ -1186,18 +1187,14 @@ export function init(root) {
   // narrower than a wide-screen one to begin with, so the floor is lower there.
   const LEAST = phone.matches ? 104 : 160;
 
-  // Две мерки для телефона. Первая — сколько места занял заголовок: под ним
-  // стоит карта города, и подвинуть ее можно только на известное число. Вторая
-  // — какой высоты вопрос: он разворачивается на своем такте, а у текста своей
-  // высоты нет, отнимать не от чего. Обе снимаются на свободной высоте, в том
-  // состоянии, в котором элемент встанет.
+  // Мерка для телефона: какой высоты вопрос. Он разворачивается на своем
+  // такте, а у текста своей высоты нет — отнимать не от чего. Снимается она
+  // на свободной высоте, в том состоянии, в котором вопрос встанет.
   function measureParts() {
     if (!phone.matches) {
-      host.style.removeProperty('--title-room');
       host.style.removeProperty('--q-h');
       return;
     }
-    host.style.setProperty('--title-room', `${titleEl.offsetHeight + 16}px`);
     // Своя высота вопроса — та, что под обрезанием: сама коробка растянута на
     // строку сетки и о содержимом ничего не говорит.
     host.style.setProperty('--q-h', `${questionEl.scrollHeight}px`);
