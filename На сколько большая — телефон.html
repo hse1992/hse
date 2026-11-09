@@ -1059,6 +1059,36 @@ button { font-family: inherit; }
   pointer-events: none;
 }
 
+/* «Смотреть сначала»: приходит, когда читатель вернулся по полоске в
+   прочитанную главу и получил сразу ее итог. Стоит в той же нижней полосе,
+   что и подсказка (--hint-room у секции уже вычтен), но у правого края —
+   посреди экрана она закрывала бы собой «Листай». */
+.page-replay {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 6;
+  /* Плавающая кнопка, а не часть блока: на телефоне блок внизу уже занят
+     переключателями, и кнопка ложится на их угол. Поэтому она с тенью и на
+     непрозрачной карточке — так читается как то, что лежит поверх, а не как
+     поехавшая верстка. Уходит она с первым же ходом. */
+  background: var(--card);
+  box-shadow: 0 2px 10px rgba(16, 24, 40, 0.18);
+}
+
+.page-replay[hidden] {
+  display: none;
+}
+
+/* Палец — не курсор: цель меньше 24 пикселей по стороне на телефоне не
+   годится, см. конец файла. */
+
+  .page-replay {
+    padding: 10px 16px;
+    font-size: 0.875rem;
+  }
+
+
 /* Put there by lib/page.js when the reader has been still long enough. */
 .scroll-hint.is-here {
   opacity: 0.85;
@@ -2506,6 +2536,8 @@ html.is-holding body {
       </svg>
     </div>
   </header>
+
+<button type="button" class="btn page-replay" data-el="replay" hidden>Смотреть сначала</button>
 
   <div id="page"></div>
 
@@ -4403,11 +4435,30 @@ function tried(what, fn, fallback) {
   }
 }
 
+// Прыжок по полоске не ждет, пока доиграет такт: читатель попросил другой
+// раздел и получает его сразу. Поколение тактов растет, кадры прошлого такта
+// перестают рисоваться, а его done уже не отпускает страницу — иначе
+// доигравший за спиной такт перекрасил бы блок, в который читатель ушел.
+// Цепочки через setTimeout обрываются сами: они висят в done оборванного
+// play. Остается то, что такт повесил на страницу руками, — занавес; о нем
+// говорят через onCut.
+let era = 0;
+const снять = [];
+const onCut = (fn) => { снять.push(fn); };
+const cut = () => {
+  era += 1;
+  while (снять.length) tried('обрыв такта', снять.pop());
+};
+
 // no frames, and counting from the start would skip the beat to its end.
 function play(ms, fn, done) {
+  const born = era;
   let last = performance.now();
   let spent = 0;
   const tick = (now) => {
+    // Такт оборвали прыжком по полоске: кадров больше нет, и done не зовется
+    // — страницу от этого места ведет уже тот, кто оборвал.
+    if (born !== era) return;
     const dt = now - last;
     last = now;
     spent += dt > 250 ? 16 : dt;
@@ -4839,6 +4890,7 @@ function beatsOf(entry, before = null) {
       const drawn = CURTAINS[curtain];
       if (drawn && !REDUCED.matches) {
         const cover = drawn.make();
+        onCut(() => cover.remove());
         play(drawn.close, (p) => cover.put(settle(p)), () => {
           enter();
           window.scrollTo(0, section.offsetTop);
@@ -4936,7 +4988,7 @@ function beatsOf(entry, before = null) {
 // it. What the beats did, the scrolling does: a block is put together as the
 // reader comes to it, its title card follows its own position on the screen,
 // and a scene shows the state it ends in, with its controls left to the reader.
-function mountScrolled(entries, onProgress) {
+function mountScrolled(entries, onProgress, replay) {
   // Reading by frames belongs to the phone. This way of reading is also the
   // one chosen for «less movement» on a wide screen, and there taking the
   // scroll away from the reader would be the opposite of what they asked for.
@@ -5101,7 +5153,10 @@ function mountScrolled(entries, onProgress) {
   // касание, на которое страница не ответила ничем, читается как «подвисло».
   let pending = 0;
 
-  const play = (to) => {
+  // Сыграть кадр блока, который держит страницу. Называется не play, чтобы не
+  // загораживать собой play() модуля — тот играет время, а этот кадры, и
+  // вспышка на стыке зовет именно модульный.
+  const кадр = (to) => {
     const e = caught;
     if (!e) return;
     if (playing) { pending = to > frame ? 1 : -1; return; }
@@ -5124,7 +5179,7 @@ function mountScrolled(entries, onProgress) {
       playing = false;
       const next = pending;
       pending = 0;
-      if (next) play(frame + next);
+      if (next) кадр(frame + next);
     }, span);
     // The last frame is the block handing itself over to the reader, and the
     // page goes with it: holding on after the story is told would leave them
@@ -5528,10 +5583,13 @@ function mountScrolled(entries, onProgress) {
   // подряд — это «дальше», а не «через одну».
   let ждет = 0;
   const шаг = (dir, доезд) => {
+    // Первый же ход — это чтение, а не возвращение: предложение повторить
+    // главу уходит вместе с ним.
+    offer(-1);
     // Новое движение читателя — новый счет доездам: один на такт.
     if (!доезд) чиню = false;
     chill();
-    if (caught) { play(frame + dir); return; }
+    if (caught) { кадр(frame + dir); return; }
     if (gliding) { ждет = dir; return; }
     вел = dir;
     const [first] = стопы(dir);
@@ -5548,6 +5606,29 @@ function mountScrolled(entries, onProgress) {
   // догадку. На широком экране это умеет машина тактов; здесь ход тот же, что
   // от пальца.
   document.addEventListener('story:next', () => шаг(1));
+
+  // И вспышку на стыке блок тоже просит сам. На широком экране ее играет
+  // занавес машины тактов (`flash` в CURTAINS): снимок и приход финала — одно
+  // движение колеса. Тактов тут нет, и просьба приходит кнопкой «Сделать
+  // снимок»: экран белеет, страница за белым переходит к следующему разделу,
+  // и он проступает из белого, как проявляется фотография. При «меньше
+  // движения» вспышки нет — только переход.
+  let вспыхнули = false;
+  document.addEventListener('story:flash', (ev) => {
+    if (вспыхнули) return;
+    const i = entries.findIndex((e) => e.section.contains(ev.target));
+    if (i < 0 || !entries[i + 1]) return;
+    вспыхнули = true;
+    if (REDUCED.matches) { toBlock(i + 1, { jump: true }); вспыхнули = false; return; }
+    const cover = flashCurtain();
+    play(FLASH_UP, (p) => cover.put(settle(p)), () => {
+      toBlock(i + 1, { jump: true });
+      setTimeout(() => play(FLASH_DOWN, (p) => cover.put(1 - develop(p)), () => {
+        cover.remove();
+        вспыхнули = false;
+      }), FLASH_HOLD);
+    });
+  });
 
   // ---------- Картинка, переданная предыдущим блоком ----------
   // Стадион отдает «Флагам» свою арену: вопрос про страны задается над ней —
@@ -5576,6 +5657,9 @@ function mountScrolled(entries, onProgress) {
 
   let queued = false;
   let стоит = -1;                       // the block the reader is in right now
+  // И самый дальний, где читатель побывал: в такую главу прыжок по полоске
+  // приводит ее итогом, а не карточкой.
+  let дошел = -1;
   let доля = 0;                         // and how far through it they are
   const paint = () => {
     queued = false;
@@ -5612,7 +5696,11 @@ function mountScrolled(entries, onProgress) {
     // at the moment the phone unfolds, the page would answer by the geometry it
     // has just taken on — the wide one, where the whole story is eight screens
     // — and a reader halfway through would be read as being at the end.
-    if (стою >= 0) { стоит = стою; доля = caught ? доля : at.part; }
+    if (стою >= 0) {
+      стоит = стою;
+      if (стою > дошел) дошел = стою;
+      доля = caught ? доля : at.part;
+    }
     // Полоске сверху тоже отвечает блок, а не прокрутка: прибитая к окну
     // страница стоит в нуле, и по ней выходило, что читатель в самом начале —
     // полоска гасла целиком, хотя за спиной у него полстраницы. Доля внутри
@@ -5665,9 +5753,25 @@ function mountScrolled(entries, onProgress) {
 
   // The blocks of the progress bar still lead somewhere: here it is simply a
   // scroll to the top of that block.
-  const toBlock = (i, { jump = false } = {}) => {
+  // «Смотреть сначала» — то же предложение, что и на широком экране: читатель
+  // пришел по полоске в прочитанную главу и увидел сразу ее итог.
+  let offered = -1;
+  const offer = (i) => {
+    offered = i;
+    if (replay) replay.hidden = i < 0;
+  };
+  if (replay) replay.addEventListener('click', () => {
+    if (offered >= 0) toBlock(offered, { jump: true, fresh: true });
+  });
+
+  const toBlock = (i, { jump = false, fresh = false } = {}) => {
     const entry = entries[i];
     if (!entry) return;
+    // Блок, читаемый кадрами, держит страницу прибитым телом, и прокрутка в
+    // этот момент обнулена: уехать из него, не отпустив, нельзя — прыжок
+    // попадал на обложку. Отпускаем, не засчитывая блок прочитанным: читатель
+    // не дочитал его, а ушел.
+    if (caught) { caught = null; release(); }
     // A block read by frames catches the page as it comes down to its top edge
     // — and a jump from the bar rides past it smoothly, frame of scroll by
     // frame of scroll, which looks to it exactly like a reader walking up. So
@@ -5683,6 +5787,26 @@ function mountScrolled(entries, onProgress) {
     // top of the target section is no longer where it was when the reader
     // picked it. A jump to the last section landed two sections short. So the
     // page is aimed again whenever it stops short of the mark.
+    // Глава, которую уже читали, встречает своим итогом: сцена рассказана,
+    // блок отдан читателю — целимся в последний его экран, а не в карточку.
+    // Непрочитанная открывается с начала, как и раньше. «Смотреть сначала»
+    // снимает отметку и возвращает главу к ее первому кадру.
+    const read = !fresh && i < дошел;
+    if (fresh) {
+      entry.told = false;
+      if (entry.built) tried('открытие блока', () => entry.open && entry.open());
+    }
+    if (read) {
+      entry.told = true;
+      if (entry.built && entry.steps) tried('кадр', () => entry.setStep(entry.steps - 1));
+    }
+    offer(read ? i : -1);
+    const цель = () => {
+      const top = entry.section.offsetTop;
+      if (!read) return top;
+      const низ = top + entry.section.offsetHeight - window.innerHeight;
+      return Math.max(top, Math.round(низ));
+    };
     let rounds = 0;
     let still = 0;
     let was = NaN;
@@ -5690,13 +5814,13 @@ function mountScrolled(entries, onProgress) {
       still = window.scrollY === was ? still + 1 : 0;
       was = window.scrollY;
       if (still < 3) { requestAnimationFrame(ride); return; }
-      const want = entry.section.offsetTop;
+      const want = цель();
       if (Math.abs(window.scrollY - want) < 5 || ++rounds > 5) return;
       still = 0;
       window.scrollTo({ top: want, behavior: jump ? 'auto' : 'smooth' });
       requestAnimationFrame(ride);
     };
-    window.scrollTo({ top: entry.section.offsetTop, behavior: jump ? 'auto' : 'smooth' });
+    window.scrollTo({ top: цель(), behavior: jump ? 'auto' : 'smooth' });
     requestAnimationFrame(ride);
   };
 
@@ -5719,7 +5843,7 @@ function mountScrolled(entries, onProgress) {
 
 // `entries` describe the sections in order. Each is
 // { section, opening, steps, setStep, build } — see beatsOf.
-function mountStepper(entries, { onProgress, finale, signal } = {}) {
+function mountStepper(entries, { onProgress, finale, signal, replay } = {}) {
   entries.forEach((e) => markFigure(e.section));
 
   // Where a curtain joins, the block before it does not stop to be admired:
@@ -5737,6 +5861,9 @@ function mountStepper(entries, { onProgress, finale, signal } = {}) {
   // block — follows from that and needs no special case.
   const join = (last, arrival) => {
     const beat = {
+      // Такт на двоих: начинается в одном блоке, кончается в другом. Итогом
+      // главы он быть не может — досидеть в нем значит уже уехать дальше.
+      joined: true,
       title: last.title,
       top: last.top,
       section: last.section,
@@ -5849,7 +5976,7 @@ function mountStepper(entries, { onProgress, finale, signal } = {}) {
   // on for as long as the reader stayed on the title screen and warned them
   // about doors that were never going to shut, from above the headline. So here
   // it stays dark and the styles take it off the screen altogether.
-  if (NARROW.matches) return mountScrolled(entries, onProgress);
+  if (NARROW.matches) return mountScrolled(entries, onProgress, replay);
 
   // A tablet turned on its side crosses that width, and so does a folding
   // phone opened in the middle of reading. The two ways of reading cannot be
@@ -5875,6 +6002,13 @@ function mountStepper(entries, { onProgress, finale, signal } = {}) {
   const order = entries.map((e) => e.section);
   // The beat each block starts with — the one that brings it onto the screen.
   const starts = order.map((s) => beats.findIndex((b) => b.section === s));
+  // И такт, которым глава кончается, — ее итоговое состояние. Такт на двоих
+  // сюда не годится: он уводит страницу в следующий раздел.
+  const ends = order.map((s) => {
+    let k = beats.length - 1;
+    while (k >= 0 && (beats[k].section !== s || beats[k].joined)) k -= 1;
+    return k;
+  });
   const blockOf = (i) => {
     if (i < 0) return -1;
     const beat = beats[i];
@@ -6020,7 +6154,20 @@ function mountStepper(entries, { onProgress, finale, signal } = {}) {
 
   const done = () => { busy = false; warm(); };
 
+  // «Смотреть сначала». Предложение появляется, когда читатель пришел по
+  // полоске в прочитанную главу и увидел сразу ее итог, и пропадает с первым
+  // же тактом: дальше он читает страницу, а не возвращается в нее.
+  let offered = -1;
+  const offer = (i) => {
+    offered = i;
+    if (replay) replay.hidden = i < 0;
+  };
+  if (replay) replay.addEventListener('click', () => {
+    if (offered >= 0) toBlockRef.go(offered, { fresh: true });
+  });
+
   const forward = () => {
+    offer(-1);
     if (at >= beats.length - 1) return;
     // While a beat plays the page takes no orders. Anything arriving then is
     // the same movement still going — a trackpad keeps sending for a second
@@ -6050,10 +6197,20 @@ function mountStepper(entries, { onProgress, finale, signal } = {}) {
   // way is put into the state it ends in — blocks are built here if they have
   // never been opened — so arriving at a block from the front and from the
   // middle of the story look the same.
-  const toBlock = (i) => {
-    if (busy || i < 0 || i >= starts.length) return;
-    const target = starts[i];
-    if (target < 0 || target === at) return;
+  const toBlockRef = {};
+  const toBlock = (i, { fresh = false } = {}) => {
+    if (i < 0 || i >= starts.length) return;
+    // Такт, который идет, прыжку не помеха: читатель попросил другую главу и
+    // получает ее сразу. Идущий такт обрывается, а доигрывается он тут же,
+    // ниже — все блоки до цели собираются в том состоянии, которым они
+    // кончаются, так что оборванный приходит к своему концу, просто мигом.
+    if (busy) cut();
+    // Глава, которую уже читали, встречает своим итогом: смотреть заново то,
+    // что уже видел, читатель не просил — он просил эту главу. Чтобы сыграть
+    // ее сначала, рядом с подсказкой появляется «Смотреть сначала».
+    const read = !fresh && ends[i] >= 0 && ends[i] <= reached;
+    const target = read ? ends[i] : starts[i];
+    if (target < 0 || (target === at && !busy && !fresh)) { offer(read ? i : -1); return; }
     chill();
     busy = true;
     // One block that cannot put itself back does not stop the jump: the rest
@@ -6070,8 +6227,11 @@ function mountStepper(entries, { onProgress, finale, signal } = {}) {
     // behind them now, and going back a beat at a time has to work from here.
     if (at > reached) reached = at;
     report();
-    glide(beats[target].section.offsetTop, done);
+    offer(read ? i : -1);
+    const beat = beats[target];
+    glide(beat.top ? beat.top() : beat.section.offsetTop, done);
   };
+  toBlockRef.go = toBlock;
 
   // A block at a time in either direction. Past the last block there is
   // nothing to jump to, so the page simply takes the next beat and the key
@@ -6095,6 +6255,7 @@ function mountStepper(entries, { onProgress, finale, signal } = {}) {
   // single animation to reverse — does the page travel instead, with the
   // section it returns to put straight away into the state it was left in.
   const back = () => {
+    offer(-1);
     if (at < 0) return;
     if (busy) return;
     chill();
@@ -6202,7 +6363,10 @@ function mountStepper(entries, { onProgress, finale, signal } = {}) {
   // to the state it opens in, so reading forward again plays out exactly as it
   // did the first time.
   const rewind = () => {
-    if (at < 0 || busy) return;
+    offer(-1);
+    if (at < 0) return;
+    // Как и прыжок по полоске, возврат на обложку не ждет анимацию.
+    if (busy) cut();
     chill();
     busy = true;
     entries.forEach((e) => tried('сброс блока', () => {
@@ -9358,9 +9522,11 @@ const meta = {
   id: 'metro',
   // Short enough for the strip at the top of a phone — see meta.short in CLAUDE.md.
   short: 'Вагоны метро',
-  // The title card of the section fills in as the reader scrolls: first the
-  // heading with one sentence, then a sentence and a picture at a time.
-  introStages: 3,
+  // Карточка приезжает целиком — двери открываются сразу на нее. Электробус и
+  // поезд стоят рядом, потому что их и сравнивают друг с другом; порознь, да
+  // еще и после голого заголовка, это были два такта, на которых прибавлялось
+  // по строке к уже сказанному.
+  introStages: 1,
   // The number of first-year students carries over into the next block's
   // lead-in, «~22 000», rather than disappearing with this one.
   handoff: 'people',
@@ -9386,14 +9552,14 @@ const meta = {
   subtitle: `
     <span class="metro-brief">
       <span class="metro-brief-line">${SAID[0]}</span>
-      <span class="metro-brief-line intro-stage" data-stage="1">
+      <span class="metro-brief-line" style="display: block">
         <span>${SAID[1]}</span>
         <span class="metro-brief-fig metro-brief-fig-bus">
           ${busPicture('ebus-brief', 'metro-brief-bus')}
           <span class="metro-brief-times">&times;&nbsp;${nf(BUSES_TOTAL)}</span>
         </span>
       </span>
-      <span class="metro-brief-line intro-stage" data-stage="2">
+      <span class="metro-brief-line" style="display: block">
         <span>${SAID[2]}</span>
         <span class="metro-brief-fig metro-brief-fig-train">
           <!-- the styles of the module arrive with the module, a moment after
@@ -10810,6 +10976,9 @@ const meta = {
   // Hands the reader over from the trains: a number they have just met, and
   // the question it raises.
   lead: {
+    // Уезжает тем же тактом, которым приходит титульная карточка: порознь
+    // первый такт только убирал экран, не показывая ничего нового.
+    together: true,
     value: `Только первокурсников ~${nf(ADMITTED_ROUND)} человек`,
     text: 'Похоже, чтобы собрать всех людей из Вышки, нужен целый стадион…'
   },
@@ -10821,24 +10990,25 @@ const meta = {
     + '<span class="stadium-scarf-slot" style="width: 4.7em">'
     + '<img class="stadium-scarf" src="data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%2220%2062%20600%20164%22%20width%3D%22600%22%20height%3D%22164%22%20role%3D%22img%22%20aria-label%3D%22%D0%A4%D0%B0%D0%BD%D0%B0%D1%82%D1%81%D0%BA%D0%B8%D0%B9%20%D1%88%D0%B0%D1%80%D1%84%20%D0%92%D0%AB%D0%A8%D0%9A%D0%90%22%3E%20%3C%21--%20Fan%20scarf%3A%20white%20knit%2C%20HSE%20blue%20rgb%2815%2C45%2C105%29%2C%20znak%20on%20both%20ends.%20--%3E%20%3Cdefs%3E%20%3CclipPath%20id%3D%22scarf-body%22%3E%20%3Cpath%20d%3D%22M46%2C74%20C210%2C124%20430%2C124%20594%2C74%20L594%2C178%20C430%2C228%20210%2C228%2046%2C178%20Z%22%2F%3E%20%3C%2FclipPath%3E%20%3C%21--%20knit%20stitches%2C%20barely%20there%20--%3E%20%3Cpattern%20id%3D%22scarf-knit%22%20width%3D%229%22%20height%3D%227%22%20patternUnits%3D%22userSpaceOnUse%22%3E%20%3Cpath%20d%3D%22M0%2C7%20L4.5%2C2%20L9%2C7%22%20fill%3D%22none%22%20stroke%3D%22%23000000%22%20stroke-opacity%3D%220.05%22%20stroke-width%3D%221.1%22%2F%3E%20%3C%2Fpattern%3E%20%3C%2Fdefs%3E%20%3C%21--%20fringe%20--%3E%20%3Cg%20fill%3D%22none%22%20stroke%3D%22%230F2D69%22%20stroke-width%3D%225%22%20stroke-linecap%3D%22round%22%3E%20%3Cpath%20d%3D%22M46%2C78%20L30%2C80%22%2F%3E%20%3Cpath%20d%3D%22M46%2C89%20L33%2C88%22%2F%3E%20%3Cpath%20d%3D%22M46%2C99%20L29%2C102%22%2F%3E%20%3Cpath%20d%3D%22M46%2C110%20L32%2C110%22%2F%3E%20%3Cpath%20d%3D%22M46%2C120%20L28%2C122%22%2F%3E%20%3Cpath%20d%3D%22M46%2C131%20L33%2C129%22%2F%3E%20%3Cpath%20d%3D%22M46%2C142%20L30%2C143%22%2F%3E%20%3Cpath%20d%3D%22M46%2C152%20L31%2C155%22%2F%3E%20%3Cpath%20d%3D%22M46%2C163%20L29%2C162%22%2F%3E%20%3Cpath%20d%3D%22M46%2C174%20L32%2C176%22%2F%3E%20%3Cpath%20d%3D%22M594%2C78%20L610%2C80%22%2F%3E%20%3Cpath%20d%3D%22M594%2C89%20L607%2C88%22%2F%3E%20%3Cpath%20d%3D%22M594%2C99%20L611%2C102%22%2F%3E%20%3Cpath%20d%3D%22M594%2C110%20L608%2C110%22%2F%3E%20%3Cpath%20d%3D%22M594%2C120%20L612%2C122%22%2F%3E%20%3Cpath%20d%3D%22M594%2C131%20L607%2C129%22%2F%3E%20%3Cpath%20d%3D%22M594%2C142%20L610%2C143%22%2F%3E%20%3Cpath%20d%3D%22M594%2C152%20L609%2C155%22%2F%3E%20%3Cpath%20d%3D%22M594%2C163%20L611%2C162%22%2F%3E%20%3Cpath%20d%3D%22M594%2C174%20L608%2C176%22%2F%3E%20%3C%2Fg%3E%20%3C%21--%20white%20cloth%20--%3E%20%3Cpath%20d%3D%22M46%2C74%20C210%2C124%20430%2C124%20594%2C74%20L594%2C178%20C430%2C228%20210%2C228%2046%2C178%20Z%22%20fill%3D%22%23FFFFFF%22%2F%3E%20%3Cg%20clip-path%3D%22url%28%23scarf-body%29%22%3E%20%3C%21--%20blue%20bands%2C%20ends%20and%20centre%20--%3E%20%3Cg%20fill%3D%22%230F2D69%22%3E%20%3Crect%20x%3D%2246%22%20y%3D%2260%22%20width%3D%2216%22%20height%3D%22176%22%2F%3E%20%3Crect%20x%3D%2271%22%20y%3D%2260%22%20width%3D%228%22%20height%3D%22176%22%2F%3E%20%3Crect%20x%3D%2288%22%20y%3D%2260%22%20width%3D%228%22%20height%3D%22176%22%2F%3E%20%3Crect%20x%3D%22186%22%20y%3D%2260%22%20width%3D%22268%22%20height%3D%22176%22%2F%3E%20%3Crect%20x%3D%22544%22%20y%3D%2260%22%20width%3D%228%22%20height%3D%22176%22%2F%3E%20%3Crect%20x%3D%22561%22%20y%3D%2260%22%20width%3D%228%22%20height%3D%22176%22%2F%3E%20%3Crect%20x%3D%22578%22%20y%3D%2260%22%20width%3D%2216%22%20height%3D%22176%22%2F%3E%20%3C%2Fg%3E%20%3C%21--%20znak%2C%20left%20and%20right%20--%3E%20%3Cg%20transform%3D%22translate%28141%2C148.6%29%20scale%280.2329%29%20translate%28-141.73%2C-141.73%29%22%3E%20%3Ccircle%20cx%3D%22141.73%22%20cy%3D%22141.74%22%20r%3D%22141.73%22%20fill%3D%22%230F2D69%22%2F%3E%20%3Cpath%20fill%3D%22%23FFFFFF%22%20d%3D%22M135.6%2C133.32c32.26%2C0%2C44.81%2C21.45%2C44.81%2C60.69v29.51h-20.69v-63.35h-23.9v63.42h-18.28V53.65h18.78c7.03%2C0%2C17.71%2C1.58%2C25.25%2C10.95c3.93%2C4.73%2C6.34%2C11.04%2C7.19%2C17.38h-32.94v9.35h33.23c-0.27%2C6.04-1.49%2C12.8-7.42%2C19.97c-5.2%2C6.51-13.76%2C12.56-25.83%2C12.56c-0.06%2C0-0.13%2C0-0.2%2C0V133.32%20M206.41%2C197.55c0-34.86-11.26-58.29-40.45-68.6c9.21-3.77%2C14.82-9.58%2C18.49-13.99c7.01-8.06%2C9.88-17.96%2C9.88-27.31c0-7.56-2.08-22.65-15.35-33.04c-9.1-7.04-17.16-10.43-36.43-10.43h-9.75c-0.3-0.01-0.6-0.01-0.96-0.01H91.65v189.79h114.76V197.55z%22%2F%3E%20%3C%2Fg%3E%20%3Cg%20transform%3D%22translate%28499%2C148.6%29%20scale%280.2329%29%20translate%28-141.73%2C-141.73%29%22%3E%20%3Ccircle%20cx%3D%22141.73%22%20cy%3D%22141.74%22%20r%3D%22141.73%22%20fill%3D%22%230F2D69%22%2F%3E%20%3Cpath%20fill%3D%22%23FFFFFF%22%20d%3D%22M135.6%2C133.32c32.26%2C0%2C44.81%2C21.45%2C44.81%2C60.69v29.51h-20.69v-63.35h-23.9v63.42h-18.28V53.65h18.78c7.03%2C0%2C17.71%2C1.58%2C25.25%2C10.95c3.93%2C4.73%2C6.34%2C11.04%2C7.19%2C17.38h-32.94v9.35h33.23c-0.27%2C6.04-1.49%2C12.8-7.42%2C19.97c-5.2%2C6.51-13.76%2C12.56-25.83%2C12.56c-0.06%2C0-0.13%2C0-0.2%2C0V133.32%20M206.41%2C197.55c0-34.86-11.26-58.29-40.45-68.6c9.21-3.77%2C14.82-9.58%2C18.49-13.99c7.01-8.06%2C9.88-17.96%2C9.88-27.31c0-7.56-2.08-22.65-15.35-33.04c-9.1-7.04-17.16-10.43-36.43-10.43h-9.75c-0.3-0.01-0.6-0.01-0.96-0.01H91.65v189.79h114.76V197.55z%22%2F%3E%20%3C%2Fg%3E%20%3C%21--%20%D0%92%D0%AB%D0%A8%D0%9A%D0%90%2C%20letters%20follow%20the%20sag%20--%3E%20%3Cg%20fill%3D%22%23FFFFFF%22%3E%20%3Cg%20transform%3D%22translate%28200.0%2C133.3%29%20scale%280.531%29%22%3E%20%3Crect%20x%3D%220%22%20y%3D%220%22%20width%3D%2220%22%20height%3D%2296%22%2F%3E%20%3Crect%20x%3D%220%22%20y%3D%220%22%20width%3D%2258%22%20height%3D%2220%22%2F%3E%20%3Crect%20x%3D%2238%22%20y%3D%220%22%20width%3D%2220%22%20height%3D%2258%22%2F%3E%20%3Crect%20x%3D%220%22%20y%3D%2238%22%20width%3D%2262%22%20height%3D%2220%22%2F%3E%20%3Crect%20x%3D%2248%22%20y%3D%2238%22%20width%3D%2220%22%20height%3D%2258%22%2F%3E%20%3Crect%20x%3D%220%22%20y%3D%2276%22%20width%3D%2268%22%20height%3D%2220%22%2F%3E%20%3C%2Fg%3E%20%3Cg%20transform%3D%22translate%28244.1%2C136.8%29%20scale%280.531%29%22%3E%20%3Crect%20x%3D%220%22%20y%3D%220%22%20width%3D%2220%22%20height%3D%2296%22%2F%3E%20%3Crect%20x%3D%2220%22%20y%3D%2236%22%20width%3D%2238%22%20height%3D%2220%22%2F%3E%20%3Crect%20x%3D%2238%22%20y%3D%2236%22%20width%3D%2220%22%20height%3D%2260%22%2F%3E%20%3Crect%20x%3D%2220%22%20y%3D%2276%22%20width%3D%2238%22%20height%3D%2220%22%2F%3E%20%3Crect%20x%3D%2270%22%20y%3D%220%22%20width%3D%2220%22%20height%3D%2296%22%2F%3E%20%3C%2Fg%3E%20%3Cg%20transform%3D%22translate%28299.8%2C138.0%29%20scale%280.531%29%22%3E%20%3Crect%20x%3D%220%22%20y%3D%220%22%20width%3D%2220%22%20height%3D%2296%22%2F%3E%20%3Crect%20x%3D%2238%22%20y%3D%220%22%20width%3D%2220%22%20height%3D%2296%22%2F%3E%20%3Crect%20x%3D%2276%22%20y%3D%220%22%20width%3D%2220%22%20height%3D%2296%22%2F%3E%20%3Crect%20x%3D%220%22%20y%3D%2276%22%20width%3D%2296%22%20height%3D%2220%22%2F%3E%20%3C%2Fg%3E%20%3Cg%20transform%3D%22translate%28358.8%2C136.5%29%20scale%280.531%29%22%3E%20%3Crect%20x%3D%220%22%20y%3D%220%22%20width%3D%2220%22%20height%3D%2296%22%2F%3E%20%3Cpath%20d%3D%22M24%2C52%20L61%2C7%22%20stroke%3D%22%23FFFFFF%22%20stroke-width%3D%2220%22%2F%3E%20%3Cpath%20d%3D%22M26%2C50%20L62%2C90%22%20stroke%3D%22%23FFFFFF%22%20stroke-width%3D%2220%22%2F%3E%20%3C%2Fg%3E%20%3Cg%20transform%3D%22translate%28399.6%2C133.5%29%20scale%280.531%29%22%3E%20%3Cpath%20fill-rule%3D%22evenodd%22%20d%3D%22M0%2C96%20L28%2C0%20L48%2C0%20L76%2C96%20L56%2C96%20L51.3%2C80%20L24.7%2C80%20L20%2C96%20Z%20M29.4%2C64%20L46.6%2C64%20L38%2C34.4%20Z%22%2F%3E%20%3C%2Fg%3E%20%3C%2Fg%3E%20%3C%21--%20knit%20--%3E%20%3Crect%20x%3D%2240%22%20y%3D%2260%22%20width%3D%22560%22%20height%3D%22176%22%20fill%3D%22url%28%23scarf-knit%29%22%2F%3E%20%3C%2Fg%3E%20%3C%21--%20selvedge%20--%3E%20%3Cpath%20d%3D%22M46%2C74%20C210%2C124%20430%2C124%20594%2C74%20L594%2C178%20C430%2C228%20210%2C228%2046%2C178%20Z%22%20fill%3D%22none%22%20stroke%3D%22%230F2D69%22%20stroke-width%3D%222.5%22%20stroke-linejoin%3D%22round%22%2F%3E%20%3C%2Fsvg%3E" alt="" aria-hidden="true">'
     + '</span>',
-  // The title card arrives in two goes: the arena first, what we are about to
-  // do with it a screen later. Both sentences are phrasing content — the page
-  // shell puts the subtitle inside a <p>.
+  // Карточка приходит целиком: вторая строка только договаривала первую, и
+  // такт на нее был тактом без картинки. Both sentences are phrasing content —
+  // the page shell puts the subtitle inside a <p>.
   subtitle: `
     <span class="stadium-brief">
-      <span class="stadium-brief-line">«Лужники» — самая крупная арена России, вмещающая ${nf(TOTAL)} человек.</span>
-      <span class="stadium-brief-line intro-stage" data-stage="1">Вышка такая большая, что может заполнить ее практически полностью</span>
+      <span class="stadium-brief-line" style="display: block">«Лужники» — самая крупная арена России, вмещающая ${nf(TOTAL)} человек.</span>
+      <span class="stadium-brief-line" style="display: block">Вышка такая большая, что может заполнить ее практически полностью</span>
     </span>
   `,
   // Opens with the heading alone, then the empty arena fills up campus by
   // campus; the last step hands the stadium over to the reader.
   intro: true,
-  introStages: 2,
-  // Empty arena, five arrivals, then the stadium is handed over to the reader.
-  // Every step changes something: a beat that only waits would be a «next»
-  // that does nothing. The empty arena comes with the block itself, so the
-  // beats start with the first arrival.
-  steps: 7,
+  // Пустая арена, четыре прихода и передача стадиона читателю. Москва —
+  // последний и самый большой приход, и такт у нее свой: на нем арена
+  // заполняется до конца, и это главный кадр блока. Every step changes
+  // something: a beat that only waits would be a «next» that does nothing.
+  // The empty arena comes with the block itself, so the beats start with the
+  // first arrival.
+  steps: 6,
   opensOnStep: true,
   // The seats taken carry over into the next block's lead-in: everyone on the
   // stadium narrows down to the students among them.
@@ -11744,8 +11914,10 @@ function init(root) {
 
   const ARRIVALS = [
     { key: 'lyceum', note: `Первыми пропустим ${mark('лицеистов Москвы и Перми,', 'lyceum')} их ${many(LYCEUM)}` },
-    { key: 'perm', note: `Дальше студенты и сотрудники ${mark('пермского кампуса', 'perm')} — ${many(people('perm'))}` },
-    { key: 'nn', note: `Затем ${mark('нижегородский кампус', 'nn')} — ${many(people('nn'))}` },
+    // Два небольших кампуса приходят одним тактом: порознь это были две почти
+    // одинаковые полоски на трибунах, и вторая читалась как повтор первой.
+    // Обе цифры при этом на месте — их и сравнивают.
+    { key: ['perm', 'nn'], note: `Дальше ${mark('Пермь', 'perm')} — ${many(people('perm'))} и ${mark('Нижний Новгород', 'nn')} — ${many(people('nn'))}` },
     { key: 'spb', note: `Потом ${mark('Питер', 'spb')} — ${many(people('spb'))}` },
     { key: 'msk', note: `И ${mark('Москва', 'msk')} — ${many(people('msk'))}` }
   ];
@@ -11814,8 +11986,10 @@ function init(root) {
       // full one, so the reader gets a moment with it before the controls.
       const shown = Math.min(i, ARRIVALS.length);
       const came = ARRIVALS.slice(0, shown);
-      CITIES.forEach((c) => { state.active[c.key] = came.some((a) => a.key === c.key); });
-      state.kinds.lyceum = came.some((a) => a.key === 'lyceum');
+      // Приход может привести сразу два кампуса, поэтому ключи разворачиваем.
+      const keys = came.flatMap((a) => (Array.isArray(a.key) ? a.key : [a.key]));
+      CITIES.forEach((c) => { state.active[c.key] = keys.includes(c.key); });
+      state.kinds.lyceum = keys.includes('lyceum');
       state.kinds.students = true;
       state.kinds.staff = true;
       figureNote.innerHTML = shown === 0
@@ -12492,6 +12666,7 @@ function init(root) {
       .world-send {
         display: flex;
         justify-content: center;
+        gap: 8px;
         max-height: 64px;
         padding-top: 6px;
         overflow: hidden;
@@ -12530,6 +12705,12 @@ function init(root) {
         cursor: default;
         background: var(--hse-blue);
         border-color: var(--hse-blue);
+      }
+
+      /* Выход из вопроса рядом с ним — обычной кнопкой: угадывать никто не
+         обязан, но главное действие на экране все же догадка. */
+      .world-skip {
+        font-size: 0.9375rem;
       }
 
       /* ---------- The heading ---------- */
@@ -12765,6 +12946,7 @@ function init(root) {
         <div class="world-verdict" data-el="verdict" aria-live="polite"></div>
         <div class="world-send">
           <button type="button" class="btn world-check" data-el="check">Ответить</button>
+          <button type="button" class="btn world-skip" data-el="skip">Показать ответ</button>
         </div>
       </div>
 
@@ -13064,6 +13246,7 @@ function init(root) {
   const guessEl = $('guess');
   const verdictEl = $('verdict');
   const check = $('check');
+  const skip = $('skip');
 
   // The ruler under the bar. A mark every ten countries, a longer one with a
   // figure every fifty — and the last one at the end of the scale, so both
@@ -13091,6 +13274,7 @@ function init(root) {
   let guess = null;       // the reader's mark, or null while there is none
   let asking = null;      // the question is on the screen, not the answer
   let checked = false;    // on a page that scrolls: the answer has been asked for
+  let skipped = false;    // читатель попросил ответ, не угадывая
   let walled = null;      // стена флагов в блоке, а не за его краем
 
   // Beat by beat the page is read only on a wide screen. Elsewhere it simply
@@ -13144,15 +13328,12 @@ function init(root) {
           ? 'Нажми на полосу или потяни метку'
           : `Твоя догадка — ${nf(guess)}`;
       }
-      // Where the page waits for a mark the button waits with it. Where the
-      // page scrolls on regardless, the answer can be had without one.
-      if (walks()) {
-        check.textContent = 'Ответить';
-        check.disabled = guess === null;
-      } else {
-        check.textContent = guess === null ? 'Показать ответ' : 'Ответить';
-        check.disabled = false;
-      }
+      // «Ответить» ждет метку, «Показать ответ» — нет: угадывать никто не
+      // обязан, и выход из вопроса виден с самого начала, а не только тогда,
+      // когда читатель уже что-то поставил. Поставил — и второй кнопки
+      // больше нет: обе делали бы одно и то же.
+      check.disabled = guess === null;
+      skip.hidden = guess !== null;
       return;
     }
 
@@ -13205,13 +13386,21 @@ function init(root) {
   // The button sends the guess. Read beat by beat, the page is asked for its
   // next beat, and that beat brings the answer; where the page scrolls there
   // is no beat to ask for, and the answer is shown right here.
-  check.addEventListener('click', () => {
+  const answer = () => {
     if (walks()) {
       root.dispatchEvent(new CustomEvent('story:next', { bubbles: true }));
       return;
     }
     checked = true;
     setAsking(false);
+  };
+  check.addEventListener('click', answer);
+
+  // Тот же ответ, только без догадки. Такт его не придерживает: читатель
+  // попросил ответ прямо, и ждать от него метку после этого незачем.
+  skip.addEventListener('click', () => {
+    skipped = true;
+    answer();
   });
 
   // Asked to go on without a mark: the page stays where it is, and the bar
@@ -13380,9 +13569,10 @@ function init(root) {
     scale.setAttribute('aria-disabled', on ? 'false' : 'true');
     scale.tabIndex = on ? 0 : -1;
     check.tabIndex = on ? 0 : -1;
+    skip.tabIndex = on ? 0 : -1;
     // The mark is kept, the scale is not a control any more: no focus ring
     // left standing round the answer.
-    if (!on && [scale, check].includes(document.activeElement)) document.activeElement.blur();
+    if (!on && [scale, check, skip].includes(document.activeElement)) document.activeElement.blur();
     paintMeter();
     // С ответом в блоке прибавилось: карточка счета подросла, а на широком
     // экране пришли еще и кампусы — стене осталось меньше. Меряем сразу,
@@ -13430,7 +13620,7 @@ function init(root) {
   // because the reader wants to go on, it also shows them what is missing;
   // asked `quiet`ly — by anything that only wants to know — it just answers.
   function hold(i, { quiet = false } = {}) {
-    if (i !== 1 || guess !== null) return false;
+    if (i !== 1 || guess !== null || skipped) return false;
     if (!quiet) nudge();
     return true;
   }
@@ -13455,6 +13645,11 @@ const MOD_area = (() => {
 
 
 
+
+// Сколько у блока тактов, решает ширина: на телефоне фигуры идут по одной на
+// экран, и порядок там свой. Спрашивается один раз, до meta, — число шагов
+// каркас читает при сборке страницы.
+const PHONE = window.matchMedia('(max-width: 860px)').matches;
 
 // Facts about the buildings themselves — they live here, not in data/hse.js,
 // which only knows about the university.
@@ -13495,26 +13690,31 @@ const meta = {
   // Short enough for the strip at the top of a phone — see meta.short in CLAUDE.md.
   short: 'Здания',
   // The reader arrives straight from the arena, so the section opens with a
-  // screen of its own, told in two goes: the stadium the university has not
-  // got, and the town its buildings make instead. It does not leave — it goes
-  // up to the top of the section and stays there while the rest is told under it.
+  // screen of its own: the stadium the university has not got, and the town
+  // its buildings make instead. Обе строки приходят разом — вторая только
+  // договаривала первую, и такт на нее был тактом без картинки. It does not
+  // leave — it goes up to the top of the section and stays there while the
+  // rest is told under it.
   lead: {
     exit: 'top',
     // Goes up in the same beat as the map of the town comes up under it:
     // parking alone would be a beat with nothing new on the screen.
     together: true,
     value: 'Для расположения всех студентов и сотрудников у Вышки нет своего стадиона <span class="area-soon">(пока)</span>',
-    text: `<span class="area-lead-line intro-stage" data-stage="1">Но есть <span class="area-mark">${nf(BUILDINGS)} ${plural(BUILDINGS, 'здание', 'здания', 'зданий')}</span>. А это уже целый город</span>`
+    text: `<span class="area-lead-line" style="display: block">Но есть <span class="area-mark">${nf(BUILDINGS)} ${plural(BUILDINGS, 'здание', 'здания', 'зданий')}</span>. А это уже целый город</span>`
   },
   title: 'В тесноте да не в обиде',
   subtitle: 'На сколько это много?',
   intro: true,
-  // Steps: the map of the town, the heading with the area of its buildings,
-  // that area in pitches, the same area in blocks of flats beside it, the
-  // question both raise, the answer under each of them, and then the
-  // visualisation itself. The map is on the screen the moment the block fades
-  // in, so no beat is spent on showing what is already there.
-  steps: 8,
+  // Steps: the map of the town; the heading with the area of its buildings и
+  // сразу поля, в которых она измерена; пятиэтажки с вопросом, который обе
+  // цифры поднимают; ответ под каждой из них; и сама визуализация. Заголовок
+  // без картинки и вопрос без картинки были тактами, на которых прибавлялась
+  // одна строка, — теперь они приходят вместе с тем, о чем говорят. На
+  // телефоне фигуры идут по одной на экран, и вопрос стоит до них, так что
+  // тактов там больше: там ответ приходит под каждой фигурой отдельно, на том
+  // же экране, где она стоит.
+  steps: PHONE ? 7 : 5,
   opensOnStep: true,
   // The area the block ends on flies into the lead-in of the studies, where it
   // turns into the number of programmes those buildings are there for.
@@ -14572,7 +14772,7 @@ function init(root) {
   const houseNoteEl = $('houseNote');
   const innerEl = root.querySelector('.area-inner');
   const host = root.closest('.viz-section') || root.parentElement;
-  const LAST = 7;
+  const LAST = meta.steps - 1;
 
   // The same town as the town section draws — see lib/town-map.js.
   // На телефоне тот же город показывается втрое уже, и дом в восемь пикселей
@@ -14597,28 +14797,30 @@ function init(root) {
       // фигуры приходят между ним и заголовком, в свободную строку сетки.
       townEl.classList.toggle('on', told && i === 0);
       titleEl.classList.toggle('on', told && i >= 1);
-      questionEl.classList.toggle('on', told && i >= 2);
+      questionEl.classList.toggle('on', told && i >= 1);
       questionEl.classList.remove('is-answered');
-      fieldsStepEl.classList.toggle('on', told && i >= 3 && i <= 4);
-      pitchNoteEl.classList.toggle('on', told && i === 4);
-      housesStepEl.classList.toggle('on', told && i >= 5);
-      houseNoteEl.classList.toggle('on', told && i >= 6);
-      showCrowd(told && i >= 4);
-      lightUp(told && i >= 6);
+      fieldsStepEl.classList.toggle('on', told && i >= 2 && i <= 3);
+      pitchNoteEl.classList.toggle('on', told && i === 3);
+      housesStepEl.classList.toggle('on', told && i >= 4);
+      houseNoteEl.classList.toggle('on', told && i >= 5);
+      showCrowd(told && i >= 3);
+      lightUp(told && i >= 5);
       innerEl.classList.toggle('off', told);
       host.classList.toggle('lead-gone', !told);
       return;
     }
     townEl.classList.toggle('on', told && i === 0);
     titleEl.classList.toggle('on', told && i >= 1);
-    fieldsStepEl.classList.toggle('on', told && i >= 2);
-    housesStepEl.classList.toggle('on', told && i >= 3);
-    questionEl.classList.toggle('on', told && i >= 4);
-    questionEl.classList.toggle('is-answered', told && i >= 5);
-    pitchNoteEl.classList.toggle('on', told && i >= 5);
-    houseNoteEl.classList.toggle('on', told && i >= 6);
-    showCrowd(told && i >= 5);
-    lightUp(told && i >= 6);
+    fieldsStepEl.classList.toggle('on', told && i >= 1);
+    housesStepEl.classList.toggle('on', told && i >= 2);
+    questionEl.classList.toggle('on', told && i >= 2);
+    // Обе фигуры стоят рядом, и ответ у них общий: и толпа на поле, и свет в
+    // окнах приходят одним тактом — порознь это были два такта на одну мысль.
+    questionEl.classList.toggle('is-answered', told && i >= 3);
+    pitchNoteEl.classList.toggle('on', told && i >= 3);
+    houseNoteEl.classList.toggle('on', told && i >= 3);
+    showCrowd(told && i >= 3);
+    lightUp(told && i >= 3);
     innerEl.classList.toggle('off', told);
     // На телефоне переходный экран припаркован наверху и читается как
     // заголовок блока. Когда блок отдан читателю, место под ним нужнее
@@ -15043,7 +15245,7 @@ const LEAD_STYLE = `<style>
      by how far their beat has come. */
   .study-lead-gone {
     display: block;
-    opacity: calc(1 - var(--lead-stage-3, 0) * 2.5);
+    opacity: calc(1 - var(--lead-stage-2, 0) * 2.5);
   }
 
   /* The question stands in the same place and is given the same room as the
@@ -15051,8 +15253,8 @@ const LEAD_STYLE = `<style>
   .study-lead-ask {
     display: block;
     margin-top: 1.8em;
-    opacity: min(calc(var(--lead-stage-3, 1) * 2 - 1),
-                 calc(1 - var(--lead-stage-4, 0) * 2.5));
+    opacity: min(calc(var(--lead-stage-2, 1) * 2 - 1),
+                 calc(1 - var(--lead-stage-3, 0) * 2.5));
   }
 
   /* The turn of the screen, and it is given room: the answer should not
@@ -15061,8 +15263,8 @@ const LEAD_STYLE = `<style>
   .study-lead-answer {
     display: block;
     margin-top: 1.8em;
-    opacity: min(calc(var(--lead-stage-4, 1) * 2 - 1),
-                 calc(1 - var(--lead-stage-5, 0) * 2.5));
+    opacity: min(calc(var(--lead-stage-3, 1) * 2 - 1),
+                 calc(1 - var(--lead-stage-4, 0) * 2.5));
   }
 
   /* What the figure answers, set small under it — the number is the thing
@@ -15079,7 +15281,7 @@ const LEAD_STYLE = `<style>
   .study-lead-then {
     display: block;
     margin-top: 1.8em;
-    opacity: calc(var(--lead-stage-5, 1) * 2 - 1);
+    opacity: calc(var(--lead-stage-4, 1) * 2 - 1);
   }
 
   /* ---------- The mark the reader puts down ---------- */
@@ -15094,7 +15296,7 @@ const LEAD_STYLE = `<style>
 
   .study-lead-guess-in {
     display: block;
-    opacity: calc(1 - var(--lead-stage-5, 0) * 2.5);
+    opacity: calc(1 - var(--lead-stage-4, 0) * 2.5);
   }
 
   /* The bar is the slider: its hit area reaches above and below, so the mark
@@ -15219,12 +15421,23 @@ const LEAD_STYLE = `<style>
     color: var(--text);
   }
 
+  /* Две кнопки под шкалой: отправить догадку и попросить ответ без нее.
+     Переносятся, если в строку не встают: на телефоне экран набран крупно, и
+     вдвоем они в его ширину не умещаются — тогда вторая встает под первой.
+     Обе уходят вместе, так что строка пропадает целиком. */
+  .study-lead-send {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.6em;
+    margin-top: 0.8em;
+  }
+
   /* The same button the other question of the page sends its guess with —
      filled, in the corporate blue — but set against this screen, which is
      blown up as a whole. */
   .study-lead-check {
     display: block;
-    margin: 0.8em auto 0;
     padding: 0.62em 2em;
     font-size: calc(0.9375rem * var(--intro-k, 1.55));
     font-weight: 600;
@@ -15249,6 +15462,18 @@ const LEAD_STYLE = `<style>
   }
 
   .study-lead-check[hidden] {
+    display: none;
+  }
+
+  /* Выход из вопроса — обычной кнопкой страницы: угадывать никто не обязан,
+     но главное действие на экране все же догадка. */
+  .study-lead-skip {
+    display: block;
+    padding: 0.62em 1.4em;
+    font-size: calc(0.875rem * var(--intro-k, 1.55));
+  }
+
+  .study-lead-skip[hidden] {
     display: none;
   }
 
@@ -15447,26 +15672,26 @@ const LEAD_STYLE = `<style>
        средствами стилей нечем.
 
        Столкнуться они не могут: и подъем, и рост идут по одному и тому же
-       --lead-stage-5, а он у каркаса уже сглаженный, — на любой точке такта
+       --lead-stage-4, а он у каркаса уже сглаженный, — на любой точке такта
        между ними остается зазор в свою долю от --swap-gap. */
     #study .viz-lead { --swap-gap: 16px; }
 
-    .study-lead-answer { opacity: calc(var(--lead-stage-4, 1) * 2 - 1); }
+    .study-lead-answer { opacity: calc(var(--lead-stage-3, 1) * 2 - 1); }
 
     /* Поднимается коробка такта, а не сам ответ внутри нее: каждую часть
        каркас режет по своему краю (overflow: hidden), и уехавший вверх ответ
        она срезала бы целиком — на экране оставалась бы пустота. */
     .study-lead-beat-answer {
-      transform: translateY(calc(-1 * var(--lead-stage-5, 0)
+      transform: translateY(calc(-1 * var(--lead-stage-4, 0)
         * (var(--then-h, 0px) + var(--swap-gap))));
     }
 
     .study-lead-beat-then {
-      margin-top: calc(var(--lead-stage-5, 0) * (var(--ans-h, 0px) + var(--swap-gap)));
+      margin-top: calc(var(--lead-stage-4, 0) * (var(--ans-h, 0px) + var(--swap-gap)));
     }
 
     /* Место под ответ берется у шкалы: к этому такту она уже сказала все, что
-       могла, и уходит (--lead-stage-5 гасит ее и так). Берется ровно столько,
+       могла, и уходит (--lead-stage-4 гасит ее и так). Берется ровно столько,
        на сколько подросла коробка подмены, и в ту же долю такта — высота
        экрана не меняется ни на кадр.
 
@@ -15481,7 +15706,7 @@ const LEAD_STYLE = `<style>
        только через min-height. Отступ шкалы уехал внутрь коробки: снаружи он
        остался бы стоять, когда от самой шкалы уже ничего не осталось. */
     .study-lead-guess {
-      --swap-took: max(0px, calc(var(--lead-stage-5, 0)
+      --swap-took: max(0px, calc(var(--lead-stage-4, 0)
         * (var(--then-h, 0px) + var(--ans-h, 0px) + var(--swap-gap))
         - var(--dots-h, 0px)));
       margin-top: 0;
@@ -15509,6 +15734,7 @@ const LEAD_STYLE = `<style>
     .study-guess-tick span { font-size: 1rem; top: 15px; }
     .study-lead-verdict { font-size: 1.25rem; }
     .study-lead-check { font-size: 1.3125rem; padding: 0.86em 2.6em; }
+    .study-lead-skip { font-size: 1.125rem; padding: 0.8em 1.6em; }
     .study-lead-say { font-size: 1.5rem; }
     .study-lead-years { font-size: 5rem; }
     .study-lead-year { font-size: 2.125rem; }
@@ -15582,6 +15808,9 @@ const meta = {
   // that to the year such a student would have had to start in. The last line
   // runs into the heading.
   lead: {
+    // Уезжает тем же тактом, которым приходит титульная карточка: порознь
+    // первый такт только убирал экран, не показывая ничего нового.
+    together: true,
     // The screen grows by a whole block at a time, so it holds the middle of
     // the screen rather than the top edge of the title card to come.
     fit: 'center',
@@ -15595,12 +15824,12 @@ const meta = {
     text: LEAD_STYLE
       + '<span class="study-lead-swap">'
       + '<span class="study-lead-beat"><span class="study-lead-gone">'
-      +   `${dotsOf(LEVELS[0], 1, true)}${dotsOf(LEVELS[1], 2, false)}`
+      +   `${dotsOf(LEVELS[0], 1, true)}${dotsOf(LEVELS[1], 1, false)}`
       + '</span></span>'
       // The question stands where the answer will: a figure of its own, still
       // unknown, and one line asking for it. The scale to put a mark on is
       // under the screen — see below.
-      + '<span class="study-lead-beat intro-stage" data-stage="3"><span class="study-lead-ask">'
+      + '<span class="study-lead-beat intro-stage" data-stage="2"><span class="study-lead-ask">'
       +   '<span class="study-lead-years"><span data-el="guessValue">?</span>'
       +     '<span class="study-lead-years-unit" data-el="guessUnit">лет</span>'
       +   '</span>'
@@ -15609,7 +15838,7 @@ const meta = {
       + '</span></span>'
       // The answer, in the place the question held: the figure first — it is
       // what the screen turns on — and the sentence it answers under it.
-      + '<span class="study-lead-beat study-lead-beat-answer intro-stage" data-stage="4"><span class="study-lead-answer">'
+      + '<span class="study-lead-beat study-lead-beat-answer intro-stage" data-stage="3"><span class="study-lead-answer">'
       +   `<span class="study-lead-years">${nf(YEARS_TOTAL)}`
       +     `<span class="study-lead-years-unit">${plural(YEARS_TOTAL, 'год', 'года', 'лет')}</span>`
       +   '</span>'
@@ -15619,13 +15848,13 @@ const meta = {
       // thought turning into the next, not two standing side by side. На
       // телефоне — не уступает: ответ остается наверху, а год встает под ним,
       // см. .study-lead-beat-then ниже.
-      + '<span class="study-lead-beat study-lead-beat-then intro-stage" data-stage="5"><span class="study-lead-then">'
+      + '<span class="study-lead-beat study-lead-beat-then intro-stage" data-stage="4"><span class="study-lead-then">'
       +   `<span class="study-lead-card">${LEAD_CARD}</span>`
       + '</span></span></span>'
       // The scale stands under the screen rather than inside the swap: the
       // mark the reader put down stays where it was while the answer lands
       // beside it, and the two are read against each other.
-      + '<span class="study-lead-guess intro-stage" data-stage="3"><span class="study-lead-guess-in">'
+      + '<span class="study-lead-guess intro-stage" data-stage="2"><span class="study-lead-guess-in">'
       +   `<span class="study-scale" data-el="scale" role="slider" tabindex="0" aria-label="Сколько лет, по-твоему" aria-valuemin="0" aria-valuemax="${GUESS_MAX}">`
       +     '<span class="study-scale-bar">'
       +       '<span class="study-scale-fill" data-el="fill"></span>'
@@ -15634,9 +15863,12 @@ const meta = {
       +     RULER
       +   '</span>'
       +   '<span class="study-lead-verdict" data-el="verdict">Нажми на полосу или потяни метку</span>'
-      +   '<button type="button" class="btn study-lead-check" data-el="check" disabled>Ответить</button>'
+      +   '<span class="study-lead-send">'
+      +     '<button type="button" class="btn study-lead-check" data-el="check" disabled>Ответить</button>'
+      +     '<button type="button" class="btn study-lead-skip" data-el="skip">Показать ответ</button>'
+      +   '</span>'
       + '</span></span>'
-      + '<span class="study-lead-outro intro-stage" data-stage="6">В общем нужно…</span>'
+      + '<span class="study-lead-outro intro-stage" data-stage="4">В общем нужно…</span>'
   },
   title: 'Учиться, учиться и еще раз учиться',
   // The heading arrives on its own — the reader has just been told all this on
@@ -16195,6 +16427,7 @@ function init(root) {
   const guessUnitEl = atLead('guessUnit');
   const verdictEl = atLead('verdict');
   const checkEl = atLead('check');
+  const skipEl = atLead('skip');
   const askTailEl = atLead('askTail');
   const guessBoxEl = section && section.querySelector('.study-lead-guess');
 
@@ -16239,6 +16472,7 @@ function init(root) {
 
   let guess = null;        // the reader's mark, or null while there is none
   let told = false;        // the answer is out
+  let skipped = false;     // читатель попросил ответ, не угадывая
 
   // Beat by beat the page is read only on a wide screen. Elsewhere it simply
   // scrolls, there is no next beat to ask for, and the answer comes on its own.
@@ -16288,6 +16522,10 @@ function init(root) {
     // scrolls on regardless, there is no beat to ask for and no button.
     checkEl.disabled = guess === null;
     checkEl.hidden = told || !stepped();
+    // «Ответить» ждет метку, «Показать ответ» — нет: выход из вопроса виден с
+    // самого начала, а не только тогда, когда читатель уже что-то поставил.
+    // Поставил — и второй кнопки больше нет: обе делали бы одно и то же.
+    if (skipEl) skipEl.hidden = checkEl.hidden || guess !== null;
     // Строка под шкалой то спрашивает, то отвечает, а кнопка уходит совсем —
     // и коробка от этого то выше, то ниже. На телефоне она прибита к числу
     // (reserve), так что мерить нужно заново: по старому числу коробка
@@ -16343,6 +16581,13 @@ function init(root) {
   // The button sends the mark: the page is asked for its next beat, and that
   // beat is the one that brings the answer.
   checkEl.addEventListener('click', () => {
+    root.dispatchEvent(new CustomEvent('story:next', { bubbles: true }));
+  });
+
+  // Тот же ответ, только без догадки. Такт его больше не придерживает:
+  // читатель попросил ответ прямо, и ждать от него метку после этого незачем.
+  if (skipEl) skipEl.addEventListener('click', () => {
+    skipped = true;
     root.dispatchEvent(new CustomEvent('story:next', { bubbles: true }));
   });
 
@@ -16413,9 +16658,9 @@ function init(root) {
   window.addEventListener('resize', reserveParts);
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(reserveParts);
 
-  fillEl.style.width = `calc(${along(YEARS_TOTAL)} * var(--lead-stage-4, 0))`;
+  fillEl.style.width = `calc(${along(YEARS_TOTAL)} * var(--lead-stage-3, 0))`;
   const followAnswer = () => {
-    const at = parseFloat(section.style.getPropertyValue('--lead-stage-4')) || 0;
+    const at = parseFloat(section.style.getPropertyValue('--lead-stage-3')) || 0;
     if ((at > 0.5) === told) return;
     told = at > 0.5;
     paintGuess();
@@ -16428,7 +16673,7 @@ function init(root) {
   // Only the beat that opens the answer waits, and only until there is a mark.
   return {
     holdIntro: (stage, { quiet = false } = {}) => {
-      if (stage !== 4 || guess !== null) return false;
+      if (stage !== 3 || guess !== null || skipped) return false;
       if (!quiet) nudge();
       return true;
     }
@@ -16594,12 +16839,14 @@ const meta = {
     + '<span class="prof-settled">Мы — Высшая школа '
     +   '<span class="prof-accent" style="background: var(--hse-blue); color: var(--card)">не только</span>'
     + ' экономики</span>',
-  // The last beat of the card: what the wall under it is about.
-  subtitle: `<span class="prof-lead intro-stage" data-stage="2">В Вышке можно стать кем угодно. ${mark(`${nf(KINDS_TOTAL)} ${plural(KINDS_TOTAL, 'специализация', 'специализации', 'специализаций')}`)}, где раскроется любой талант. Укрупненно из них можно выделить ${mark(`${PROFESSIONS.length} профессии`)}</span>`,
+  // Что за стена под карточкой — приходит тем же тактом, которым логотип
+  // раскрывает кольцо и впускает в него «не только»: одна мысль, одно
+  // движение. Отдельного такта эта строка не просит — текст без картинки.
+  subtitle: `<span class="prof-lead intro-stage" data-stage="1" style="display: block">В Вышке можно стать кем угодно. ${mark(`${nf(KINDS_TOTAL)} ${plural(KINDS_TOTAL, 'специализация', 'специализации', 'специализаций')}`)}, где раскроется любой талант. Укрупненно из них можно выделить ${mark(`${PROFESSIONS.length} профессии`)}</span>`,
   intro: true,
-  // Three beats before the block: the logo as it is, the logo opening up, and
-  // the line under it.
-  introStages: 3
+  // Two beats before the block: the logo as it is, and the logo opening up
+  // with the line about the wall under it.
+  introStages: 2
 };
 
 function init(root) {
@@ -17548,12 +17795,8 @@ const STORY = [
     sub: 'Третий на орбите до сих пор'
   },
   {
-    line: SEEN_FROM_ORBIT,
-    sub: ''
-  },
-  {
-    // The line stays put while the picture is taken: there is nothing to read
-    // in the time that takes, and a line that changed would only flicker.
+    // Спутник доворачивается к Вышке и на этом же такте снимает — строка над
+    // картинкой одна на оба движения.
     line: SEEN_FROM_ORBIT,
     sub: ''
   }
@@ -17564,8 +17807,11 @@ const STORY = [
 // down to the Earth — the picture it takes is the flash the next block
 // arrives in (meta.flash).
 const BURN = SATS.length + 1;
+// Снимок делается тем же тактом, что и поворот: порознь эти два такта несли
+// одну и ту же строку над картинкой, и второй из них читался как остановка
+// без нового кадра. Спутник доворачивается, и за ним щелкает затвор.
 const HOLD = BURN + 1;
-const SHOT = HOLD + 1;
+const SHOT = HOLD;
 
 const meta = {
   id: 'space',
@@ -17611,7 +17857,7 @@ const meta = {
   intro: true,
   // The empty Earth arrives with the block, then one satellite a beat, a
   // beat for the one still flying, and the last one for the picture it takes.
-  steps: 7,
+  steps: 6,
   opensOnStep: true,
   // The block ends on a photograph about to be taken, and the next one comes
   // in the flash of it — the shell draws the flash, see «Вспышка на стыке».
@@ -17717,7 +17963,32 @@ function init(root) {
 
       .space-run { display: none; }
 
+      /* Снимок делает читатель — но только на телефоне: на широком экране
+         спутник снимает сам, тактом, и вспышка приходит за ним. */
+      .space-shot { display: none; }
+
       @media (max-width: 860px) {
+        /* Кнопка стоит на самой картинке, у нижнего края: снимает спутник,
+           и просить об этом логично там, где он летит, а не строкой ниже.
+           Места она не отнимает — под шаром его и так нет. */
+        .space-card { position: relative; }
+
+        .space-shot {
+          display: block;
+          position: absolute;
+          left: 50%;
+          bottom: 14px;
+          transform: translateX(-50%);
+          font-size: 0.9375rem;
+          font-weight: 600;
+          padding: 12px 26px;
+          color: var(--card);
+          background: var(--hse-blue);
+          border-color: var(--hse-blue);
+        }
+
+        .space-shot[hidden] { display: none; }
+
         .space-note-line { font-size: 1.125rem; }
         .space-note-sub { font-size: 0.9375rem; }
 
@@ -17769,6 +18040,7 @@ function init(root) {
       </div>
       <div class="canvas-card space-card">
         <div class="canvas-wrap" data-el="wrap"></div>
+        <button type="button" class="btn space-shot" data-el="shot" hidden>Сделать снимок</button>
       </div>
     </div>
     <div class="space-run" data-el="run" aria-hidden="true"></div>
@@ -17781,6 +18053,9 @@ function init(root) {
   const $ = (name) => root.querySelector(`[data-el="${name}"]`);
   const noteEl = $('note');
   const subEl = $('sub');
+  // На телефоне снимок делает читатель — кнопкой на последнем такте.
+  const shotEl = $('shot');
+  let snapped = false;
   // What the picture holds, for whoever is read to rather than shown: the
   // line under it tells the story beat by beat, so this says only the things
   // that are nowhere in words — the planet, the rings round it, and the marks
@@ -18337,10 +18612,13 @@ function init(root) {
       drawOrbit(sat, (1 - dying) * (sat.died === null ? 1 : 0.5));
       if (dying > 0) drawFlare(p.x, p.y, dying);
       // The frame brightens as the picture is taken.
-      const taking = sat.shot === null ? 0 : Math.max(0, 1 - (clock - sat.shot) / 500);
+      // Снимок назначен вперед — на конец доворота, — так что до него счет
+      // отрицательный и затвора еще нет.
+      const since = sat.shot === null ? -1 : clock - sat.shot;
+      const taking = since < 0 ? 0 : Math.max(0, 1 - since / 500);
       if (aimed > 0 && !hidden(p)) drawView(p, under, angle, aimed * (1 + taking));
       drawBody(p.x, p.y, angle, away * (1 - dying), aimed);
-      if (sat.shot !== null && !hidden(p)) drawGlint(p, angle, clock - sat.shot);
+      if (since >= 0 && !hidden(p)) drawGlint(p, angle, since);
       if (!dying) drawLabel(sat, p.x, p.y, hidden(p) ? 0.45 : 1);
     });
   }
@@ -18559,6 +18837,10 @@ function init(root) {
     fling = 0;
     frozen = false;
     shown = -1;
+    // Снимок — такое же положение картинки, как поворот планеты: вернувшись
+    // в раздел, читатель застает спутник над Вышкой и кнопку под ним, а не
+    // уже отснятый кадр.
+    snapped = false;
     SATS.forEach((sat) => {
       sat.born = null;
       sat.died = null;
@@ -18616,8 +18898,10 @@ function init(root) {
       if (!aims) { sat.aim = null; if (i < HOLD) steer = null; }
       // The picture is taken on the beat after that, and the flash it goes off
       // in belongs to the same beat — the shell draws that part.
-      const shoots = aims && i >= SHOT;
-      if (shoots && sat.shot === null) sat.shot = instant ? clock - 600 : clock;
+      // На телефоне снимок делает читатель: такт приводит спутник к Вышке и
+      // отдает кнопку, а снимает она (см. shoot ниже).
+      const shoots = aims && i >= SHOT && (!narrow.matches || snapped);
+      if (shoots && sat.shot === null) sat.shot = instant ? clock - 600 : clock + AIM_MS;
       if (!shoots) sat.shot = null;
     });
 
@@ -18625,11 +18909,44 @@ function init(root) {
     // on its own: the reader needs the picture still to read the line over it.
     frozen = i >= HOLD;
 
+    // Кнопка приходит с последним тактом и уходит со снимком. Назад, к
+    // прошлым тактам, уходит и сам снимок — значит, просить о нем можно снова.
+    if (i < SHOT) snapped = false;
+    if (shotEl) shotEl.hidden = !narrow.matches || i < SHOT || snapped;
+
     shown = i;
     say(i);
     if (!started) { started = true; run(near); }
     if (still) paint();
   }
+
+  // ---------- Снимок рукой ----------
+  // На широком экране спутник снимает сам: последний такт разворачивает его
+  // объективом к Земле, и вспышка этого снимка — занавес, в котором приходит
+  // финал. На телефоне тактов нет, историю ведет прокрутка — а прокрутка не
+  // умеет остановиться на кадре и не умеет закрыть занавес. Поэтому снимает
+  // читатель: такт приводит спутник к Вышке и отдает кнопку.
+  //
+  // Дальше все то же самое, только по очереди: круглая вспышка на линзе —
+  // та же, что и на широком экране, — а за ней белый экран и финал,
+  // проступающий из белого. Вспышку играет каркас (`story:flash`).
+  const GLINT_MS = 560;         // блик на линзе; 500мс горит, остаток на спад
+  if (shotEl) shotEl.addEventListener('click', () => {
+    if (snapped) return;
+    snapped = true;
+    shotEl.hidden = true;
+    // Не через step(): шаг с тем же номером считается прыжком и ставит
+    // снимок сразу сделанным, без вспышки. Снимает тот спутник, который
+    // остался на орбите и уже смотрит вниз.
+    const sat = SATS[SATS.length - 1];
+    if (sat.shot === null) sat.shot = clock;
+    // При «меньше движения» цикл отрисовки не идет вовсе, и кадр со вспышкой
+    // некому нарисовать: рисуем его сами, один раз.
+    paint();
+    setTimeout(() => {
+      root.dispatchEvent(new CustomEvent('story:flash', { bubbles: true }));
+    }, GLINT_MS);
+  });
 
   // ---------- The story on a phone ----------
   // There the page is not read in beats: nothing calls step() but the shell,
@@ -18721,8 +19038,8 @@ function init(root) {
       // 2200 while that line counted its laps up — with the counting gone,
       // holding the wheel that long would be holding it on a still picture.
       if (i === BURN) return 1400;
-      if (i === HOLD) return AIM_MS;
-      if (i === SHOT) return 600;
+      // Доворот и за ним снимок — один такт, и держать колесо нужно оба.
+      if (i === HOLD) return AIM_MS + 600;
       return ARRIVE_MS;
     }
   };
@@ -19847,7 +20164,10 @@ const page = document.getElementById('page');
     // there before the doors close on the beat after it.
     signal: document.querySelector('.page-signal'),
     // One last beat after the story: the page lifts to show the credits.
-    finale: document.querySelector('.page-footer')
+    finale: document.querySelector('.page-footer'),
+    // «Смотреть сначала» у нижнего края — для главы, в которую читатель
+    // вернулся и увидел сразу ее итог.
+    replay: document.querySelector('.page-replay')
   });
   // The progress bar doubles as the way back: a click on a block goes there,
   // and the narrow slot at its head returns to the title screen.
