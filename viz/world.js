@@ -483,6 +483,7 @@ export function init(root) {
       .world-send {
         display: flex;
         justify-content: center;
+        gap: 8px;
         max-height: 64px;
         padding-top: 6px;
         overflow: hidden;
@@ -521,6 +522,12 @@ export function init(root) {
         cursor: default;
         background: var(--hse-blue);
         border-color: var(--hse-blue);
+      }
+
+      /* Выход из вопроса рядом с ним — обычной кнопкой: угадывать никто не
+         обязан, но главное действие на экране все же догадка. */
+      .world-skip {
+        font-size: 0.9375rem;
       }
 
       /* ---------- The heading ---------- */
@@ -756,6 +763,7 @@ export function init(root) {
         <div class="world-verdict" data-el="verdict" aria-live="polite"></div>
         <div class="world-send">
           <button type="button" class="btn world-check" data-el="check">Ответить</button>
+          <button type="button" class="btn world-skip" data-el="skip">Показать ответ</button>
         </div>
       </div>
 
@@ -1055,6 +1063,7 @@ export function init(root) {
   const guessEl = $('guess');
   const verdictEl = $('verdict');
   const check = $('check');
+  const skip = $('skip');
 
   // The ruler under the bar. A mark every ten countries, a longer one with a
   // figure every fifty — and the last one at the end of the scale, so both
@@ -1082,6 +1091,7 @@ export function init(root) {
   let guess = null;       // the reader's mark, or null while there is none
   let asking = null;      // the question is on the screen, not the answer
   let checked = false;    // on a page that scrolls: the answer has been asked for
+  let skipped = false;    // читатель попросил ответ, не угадывая
   let walled = null;      // стена флагов в блоке, а не за его краем
 
   // Beat by beat the page is read only on a wide screen. Elsewhere it simply
@@ -1135,15 +1145,12 @@ export function init(root) {
           ? 'Нажми на полосу или потяни метку'
           : `Твоя догадка — ${nf(guess)}`;
       }
-      // Where the page waits for a mark the button waits with it. Where the
-      // page scrolls on regardless, the answer can be had without one.
-      if (walks()) {
-        check.textContent = 'Ответить';
-        check.disabled = guess === null;
-      } else {
-        check.textContent = guess === null ? 'Показать ответ' : 'Ответить';
-        check.disabled = false;
-      }
+      // «Ответить» ждет метку, «Показать ответ» — нет: угадывать никто не
+      // обязан, и выход из вопроса виден с самого начала, а не только тогда,
+      // когда читатель уже что-то поставил. Поставил — и второй кнопки
+      // больше нет: обе делали бы одно и то же.
+      check.disabled = guess === null;
+      skip.hidden = guess !== null;
       return;
     }
 
@@ -1196,13 +1203,21 @@ export function init(root) {
   // The button sends the guess. Read beat by beat, the page is asked for its
   // next beat, and that beat brings the answer; where the page scrolls there
   // is no beat to ask for, and the answer is shown right here.
-  check.addEventListener('click', () => {
+  const answer = () => {
     if (walks()) {
       root.dispatchEvent(new CustomEvent('story:next', { bubbles: true }));
       return;
     }
     checked = true;
     setAsking(false);
+  };
+  check.addEventListener('click', answer);
+
+  // Тот же ответ, только без догадки. Такт его не придерживает: читатель
+  // попросил ответ прямо, и ждать от него метку после этого незачем.
+  skip.addEventListener('click', () => {
+    skipped = true;
+    answer();
   });
 
   // Asked to go on without a mark: the page stays where it is, and the bar
@@ -1371,9 +1386,10 @@ export function init(root) {
     scale.setAttribute('aria-disabled', on ? 'false' : 'true');
     scale.tabIndex = on ? 0 : -1;
     check.tabIndex = on ? 0 : -1;
+    skip.tabIndex = on ? 0 : -1;
     // The mark is kept, the scale is not a control any more: no focus ring
     // left standing round the answer.
-    if (!on && [scale, check].includes(document.activeElement)) document.activeElement.blur();
+    if (!on && [scale, check, skip].includes(document.activeElement)) document.activeElement.blur();
     paintMeter();
     // С ответом в блоке прибавилось: карточка счета подросла, а на широком
     // экране пришли еще и кампусы — стене осталось меньше. Меряем сразу,
@@ -1421,7 +1437,7 @@ export function init(root) {
   // because the reader wants to go on, it also shows them what is missing;
   // asked `quiet`ly — by anything that only wants to know — it just answers.
   function hold(i, { quiet = false } = {}) {
-    if (i !== 1 || guess !== null) return false;
+    if (i !== 1 || guess !== null || skipped) return false;
     if (!quiet) nudge();
     return true;
   }

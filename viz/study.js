@@ -405,12 +405,23 @@ const LEAD_STYLE = `<style>
     color: var(--text);
   }
 
+  /* Две кнопки под шкалой: отправить догадку и попросить ответ без нее.
+     Переносятся, если в строку не встают: на телефоне экран набран крупно, и
+     вдвоем они в его ширину не умещаются — тогда вторая встает под первой.
+     Обе уходят вместе, так что строка пропадает целиком. */
+  .study-lead-send {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.6em;
+    margin-top: 0.8em;
+  }
+
   /* The same button the other question of the page sends its guess with —
      filled, in the corporate blue — but set against this screen, which is
      blown up as a whole. */
   .study-lead-check {
     display: block;
-    margin: 0.8em auto 0;
     padding: 0.62em 2em;
     font-size: calc(0.9375rem * var(--intro-k, 1.55));
     font-weight: 600;
@@ -435,6 +446,18 @@ const LEAD_STYLE = `<style>
   }
 
   .study-lead-check[hidden] {
+    display: none;
+  }
+
+  /* Выход из вопроса — обычной кнопкой страницы: угадывать никто не обязан,
+     но главное действие на экране все же догадка. */
+  .study-lead-skip {
+    display: block;
+    padding: 0.62em 1.4em;
+    font-size: calc(0.875rem * var(--intro-k, 1.55));
+  }
+
+  .study-lead-skip[hidden] {
     display: none;
   }
 
@@ -695,6 +718,7 @@ const LEAD_STYLE = `<style>
     .study-guess-tick span { font-size: 1rem; top: 15px; }
     .study-lead-verdict { font-size: 1.25rem; }
     .study-lead-check { font-size: 1.3125rem; padding: 0.86em 2.6em; }
+    .study-lead-skip { font-size: 1.125rem; padding: 0.8em 1.6em; }
     .study-lead-say { font-size: 1.5rem; }
     .study-lead-years { font-size: 5rem; }
     .study-lead-year { font-size: 2.125rem; }
@@ -820,7 +844,10 @@ export const meta = {
       +     RULER
       +   '</span>'
       +   '<span class="study-lead-verdict" data-el="verdict">Нажми на полосу или потяни метку</span>'
-      +   '<button type="button" class="btn study-lead-check" data-el="check" disabled>Ответить</button>'
+      +   '<span class="study-lead-send">'
+      +     '<button type="button" class="btn study-lead-check" data-el="check" disabled>Ответить</button>'
+      +     '<button type="button" class="btn study-lead-skip" data-el="skip">Показать ответ</button>'
+      +   '</span>'
       + '</span></span>'
       + '<span class="study-lead-outro intro-stage" data-stage="6">В общем нужно…</span>'
   },
@@ -1381,6 +1408,7 @@ export function init(root) {
   const guessUnitEl = atLead('guessUnit');
   const verdictEl = atLead('verdict');
   const checkEl = atLead('check');
+  const skipEl = atLead('skip');
   const askTailEl = atLead('askTail');
   const guessBoxEl = section && section.querySelector('.study-lead-guess');
 
@@ -1425,6 +1453,7 @@ export function init(root) {
 
   let guess = null;        // the reader's mark, or null while there is none
   let told = false;        // the answer is out
+  let skipped = false;     // читатель попросил ответ, не угадывая
 
   // Beat by beat the page is read only on a wide screen. Elsewhere it simply
   // scrolls, there is no next beat to ask for, and the answer comes on its own.
@@ -1474,6 +1503,10 @@ export function init(root) {
     // scrolls on regardless, there is no beat to ask for and no button.
     checkEl.disabled = guess === null;
     checkEl.hidden = told || !stepped();
+    // «Ответить» ждет метку, «Показать ответ» — нет: выход из вопроса виден с
+    // самого начала, а не только тогда, когда читатель уже что-то поставил.
+    // Поставил — и второй кнопки больше нет: обе делали бы одно и то же.
+    if (skipEl) skipEl.hidden = checkEl.hidden || guess !== null;
     // Строка под шкалой то спрашивает, то отвечает, а кнопка уходит совсем —
     // и коробка от этого то выше, то ниже. На телефоне она прибита к числу
     // (reserve), так что мерить нужно заново: по старому числу коробка
@@ -1529,6 +1562,13 @@ export function init(root) {
   // The button sends the mark: the page is asked for its next beat, and that
   // beat is the one that brings the answer.
   checkEl.addEventListener('click', () => {
+    root.dispatchEvent(new CustomEvent('story:next', { bubbles: true }));
+  });
+
+  // Тот же ответ, только без догадки. Такт его больше не придерживает:
+  // читатель попросил ответ прямо, и ждать от него метку после этого незачем.
+  if (skipEl) skipEl.addEventListener('click', () => {
+    skipped = true;
     root.dispatchEvent(new CustomEvent('story:next', { bubbles: true }));
   });
 
@@ -1614,7 +1654,7 @@ export function init(root) {
   // Only the beat that opens the answer waits, and only until there is a mark.
   return {
     holdIntro: (stage, { quiet = false } = {}) => {
-      if (stage !== 4 || guess !== null) return false;
+      if (stage !== 4 || guess !== null || skipped) return false;
       if (!quiet) nudge();
       return true;
     }
