@@ -241,7 +241,32 @@ export function init(root) {
 
       .space-run { display: none; }
 
+      /* Снимок делает читатель — но только на телефоне: на широком экране
+         спутник снимает сам, тактом, и вспышка приходит за ним. */
+      .space-shot { display: none; }
+
       @media (max-width: 860px) {
+        /* Кнопка стоит на самой картинке, у нижнего края: снимает спутник,
+           и просить об этом логично там, где он летит, а не строкой ниже.
+           Места она не отнимает — под шаром его и так нет. */
+        .space-card { position: relative; }
+
+        .space-shot {
+          display: block;
+          position: absolute;
+          left: 50%;
+          bottom: 14px;
+          transform: translateX(-50%);
+          font-size: 0.9375rem;
+          font-weight: 600;
+          padding: 12px 26px;
+          color: var(--card);
+          background: var(--hse-blue);
+          border-color: var(--hse-blue);
+        }
+
+        .space-shot[hidden] { display: none; }
+
         .space-note-line { font-size: 1.125rem; }
         .space-note-sub { font-size: 0.9375rem; }
 
@@ -293,6 +318,7 @@ export function init(root) {
       </div>
       <div class="canvas-card space-card">
         <div class="canvas-wrap" data-el="wrap"></div>
+        <button type="button" class="btn space-shot" data-el="shot" hidden>Сделать снимок</button>
       </div>
     </div>
     <div class="space-run" data-el="run" aria-hidden="true"></div>
@@ -305,6 +331,9 @@ export function init(root) {
   const $ = (name) => root.querySelector(`[data-el="${name}"]`);
   const noteEl = $('note');
   const subEl = $('sub');
+  // На телефоне снимок делает читатель — кнопкой на последнем такте.
+  const shotEl = $('shot');
+  let snapped = false;
   // What the picture holds, for whoever is read to rather than shown: the
   // line under it tells the story beat by beat, so this says only the things
   // that are nowhere in words — the planet, the rings round it, and the marks
@@ -1083,6 +1112,10 @@ export function init(root) {
     fling = 0;
     frozen = false;
     shown = -1;
+    // Снимок — такое же положение картинки, как поворот планеты: вернувшись
+    // в раздел, читатель застает спутник над Вышкой и кнопку под ним, а не
+    // уже отснятый кадр.
+    snapped = false;
     SATS.forEach((sat) => {
       sat.born = null;
       sat.died = null;
@@ -1140,7 +1173,9 @@ export function init(root) {
       if (!aims) { sat.aim = null; if (i < HOLD) steer = null; }
       // The picture is taken on the beat after that, and the flash it goes off
       // in belongs to the same beat — the shell draws that part.
-      const shoots = aims && i >= SHOT;
+      // На телефоне снимок делает читатель: такт приводит спутник к Вышке и
+      // отдает кнопку, а снимает она (см. shoot ниже).
+      const shoots = aims && i >= SHOT && (!narrow.matches || snapped);
       if (shoots && sat.shot === null) sat.shot = instant ? clock - 600 : clock;
       if (!shoots) sat.shot = null;
     });
@@ -1149,11 +1184,44 @@ export function init(root) {
     // on its own: the reader needs the picture still to read the line over it.
     frozen = i >= HOLD;
 
+    // Кнопка приходит с последним тактом и уходит со снимком. Назад, к
+    // прошлым тактам, уходит и сам снимок — значит, просить о нем можно снова.
+    if (i < SHOT) snapped = false;
+    if (shotEl) shotEl.hidden = !narrow.matches || i < SHOT || snapped;
+
     shown = i;
     say(i);
     if (!started) { started = true; run(near); }
     if (still) paint();
   }
+
+  // ---------- Снимок рукой ----------
+  // На широком экране спутник снимает сам: последний такт разворачивает его
+  // объективом к Земле, и вспышка этого снимка — занавес, в котором приходит
+  // финал. На телефоне тактов нет, историю ведет прокрутка — а прокрутка не
+  // умеет остановиться на кадре и не умеет закрыть занавес. Поэтому снимает
+  // читатель: такт приводит спутник к Вышке и отдает кнопку.
+  //
+  // Дальше все то же самое, только по очереди: круглая вспышка на линзе —
+  // та же, что и на широком экране, — а за ней белый экран и финал,
+  // проступающий из белого. Вспышку играет каркас (`story:flash`).
+  const GLINT_MS = 560;         // блик на линзе; 500мс горит, остаток на спад
+  if (shotEl) shotEl.addEventListener('click', () => {
+    if (snapped) return;
+    snapped = true;
+    shotEl.hidden = true;
+    // Не через step(): шаг с тем же номером считается прыжком и ставит
+    // снимок сразу сделанным, без вспышки. Снимает тот спутник, который
+    // остался на орбите и уже смотрит вниз.
+    const sat = SATS[SATS.length - 1];
+    if (sat.shot === null) sat.shot = clock;
+    // При «меньше движения» цикл отрисовки не идет вовсе, и кадр со вспышкой
+    // некому нарисовать: рисуем его сами, один раз.
+    paint();
+    setTimeout(() => {
+      root.dispatchEvent(new CustomEvent('story:flash', { bubbles: true }));
+    }, GLINT_MS);
+  });
 
   // ---------- The story on a phone ----------
   // There the page is not read in beats: nothing calls step() but the shell,
