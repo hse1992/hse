@@ -168,6 +168,153 @@ button { font-family: inherit; }
   pointer-events: none;
 }
 
+/* ---------- Дверной проем на обложке ---------- */
+
+/* Обложка — это место перед дверями вагона, и сказано это деталями самого
+   вагона: створки, отъехавшие к краям экрана, порог под ногами со швом ровно
+   посередине — там, где они сойдутся, — и фонарь над проемом. Все тихое и
+   низкого контраста: читать на обложке нужно заголовок, а вагон только
+   отвечает на вопрос «где я». На первом такте створки занавеса выезжают
+   из-за краев экрана и первым делом накрывают эти полосы (doorsCurtain() в
+   lib/stepper.js): ребра, тень борта и резина у них те же, так что движение
+   начинается с того, на что читатель уже смотрел. */
+.page-doorway {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* Полоса вагона по краю экрана — не похожая на створку картинка, а сама
+   створка: внутрь полосы положена настоящая `.page-door` во всю свою ширину,
+   а полоса ее обрезает. Прижата створка к той стороне, которой сойдется со
+   второй, — значит, на обложке видно именно этот край: резину, белый клин,
+   сходящийся к середине, и тень борта, уходящую в темное у самого стыка.
+   Раньше тут была своя картинка, нарисованная по мотивам, и срез у нее шел с
+   обратной стороны: читатель видел тот край створки, который в закрытых
+   дверях оказывается у края экрана, а не посередине. */
+.page-leaf {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: var(--door-open);
+  overflow: hidden;
+}
+
+.page-leaf-left {
+  left: 0;
+}
+
+.page-leaf-right {
+  right: 0;
+}
+
+/* Полширины экрана, как у закрывающихся створок, — та же `50.2%`, только
+   считать ее тут не от чего: полоса узкая. */
+.page-leaf .page-door {
+  width: 50.2vw;
+  /* Эта створка никуда не едет. */
+  will-change: auto;
+}
+
+/* Левая створка прижата правым краем, правая — левым: это те самые края,
+   которыми они встретятся посередине экрана. */
+.page-leaf-left .page-door {
+  right: 0;
+  left: auto;
+}
+
+.page-leaf-right .page-door {
+  left: 0;
+  right: auto;
+}
+
+/* Порог у створки свой, но на обложке он один на весь проем — см. ниже. */
+.page-leaf .page-door::after {
+  content: none;
+}
+
+/* Порог под ногами и шов посередине. Шов — единственная метка середины на
+   неподвижной обложке, и он же говорит, что створок две: сойдутся они
+   именно здесь. */
+.page-sill {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  /* Та же доля, что у порога самой створки (`.page-door::after`), — полоса
+     внизу идет через весь экран без ступеньки на стыке. */
+  height: 3%;
+  background: var(--door-edge);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16);
+}
+
+.page-sill::before {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 3px;
+  height: calc(3% + 20px);
+  margin-left: -1.5px;
+  border-radius: 2px 2px 0 0;
+  background: var(--door-edge);
+}
+
+/* ---------- «Начать путешествие» ---------- */
+
+/* Видимое действие на обложке. Нажатие играет ту же законченную сцену, что и
+   первая прокрутка и пробел: фонарь, предупреждение, створки и первая
+   остановка за ними. */
+.page-header-go {
+  display: flex;
+}
+
+.page-go {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 15px 26px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--hse-blue);
+  color: var(--card);
+  font: inherit;
+  font-size: 1.0625rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(16, 45, 105, 0.3);
+  transition: transform 160ms ease, box-shadow 160ms ease, filter 160ms ease;
+  /* Приходит последней, после заголовка и строки под ним: сначала читатель
+     читает, куда его зовут, и только потом видит чем идти. */
+  animation: rise-in 620ms cubic-bezier(0.215, 0.61, 0.355, 1) 820ms backwards;
+}
+
+.page-go svg {
+  width: 20px;
+  height: 20px;
+  flex: none;
+}
+
+@media (hover: hover) {
+  .page-go:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 10px 24px rgba(16, 45, 105, 0.34);
+    filter: brightness(1.14);
+  }
+}
+
+.page-go:active {
+  transform: translateY(1px);
+  box-shadow: 0 3px 10px rgba(16, 45, 105, 0.3);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-go { animation: none; }
+}
+
 /* The signal of a closing door, over the title screen — where such a lamp
    hangs in a carriage, above the doors rather than by the floor. It is there
    from the first moment, dark and silent: part of the car the reader is
@@ -195,6 +342,13 @@ button { font-family: inherit; }
   0%   { opacity: 0; transform: translate(-50%, -18px); }
   62%  { opacity: 1; transform: translate(-50%, 3px); }
   100% { opacity: 1; transform: translateX(-50%); }
+}
+
+/* То же самое для фонаря, растянутого во всю ширину, — на телефоне. */
+@keyframes lamp-in-flow {
+  0%   { opacity: 0; transform: translateY(-18px); }
+  62%  { opacity: 1; transform: translateY(3px); }
+  100% { opacity: 1; transform: none; }
 }
 
 /* The lamp over the doors of every car of this kind: a housing of dark metal
@@ -575,7 +729,9 @@ button { font-family: inherit; }
 .page-header {
   position: relative;
   min-height: 100dvh;
-  padding: 24px;
+  /* По бокам стоят створки вагона, и текст до них не доходит: проем — это то,
+     что между ними. */
+  padding: 24px calc(24px + var(--door-open));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1079,13 +1235,66 @@ button { font-family: inherit; }
 }
 
 @media (max-width: 860px) {
-  /* The lamp over the doors of a carriage, and the warning under it, belong to
-     the beat that shuts those doors. On a phone that beat does not exist — the
-     page scrolls into the first block instead — so the warning promised
-     something nothing was going to answer, blinked for as long as the reader
-     stayed, and pushed the headline a hundred and fifty pixels down the first
-     screen they ever see. */
-  .page-signal { display: none; }
+  /* Фонарь над дверями вагона на телефоне тоже есть — теперь ему есть что
+     обещать: сцену играет «Начать путешествие», первый мах пальцем или
+     пробел, и створки за ней съезжаются так же, как на широком экране.
+     Раньше такта здесь не было вовсе, фонарь обещал то, на что никто не
+     отвечал, мигал все время, пока читатель стоял на обложке, и отодвигал
+     заголовок на полторы сотни пикселей вниз первого же экрана.
+
+     Композиция здесь своя. На широком экране фонарь висит поверх обложки:
+     заголовок стоит посреди пустого поля, и места над ним вдоволь. На
+     телефоне поля нет — заголовок в три строки от края до края, — и
+     прибитый к верху фонарь ложился прямо на «На». Поэтому на узком экране
+     он не висит, а стоит в потоке: обложка становится колонкой, фонарь
+     уходит в ее начало, а заголовок с текстом и кнопкой — в конец. Сверху
+     вниз получается то же, что в вагоне: лампа над дверями, под ней проем,
+     в проеме — то, ради чего читатель пришел.
+
+     И мельче: экран узкий, корпус во всю его ширину читался бы как полоса,
+     а не как лампа. */
+  /* «Не прислоняться» печатают в одну строку, и строка эта меряется высотой
+     экрана: на широком окно створки в три сотни пикселей, и надпись в них
+     ложится. На телефоне створка вдвое уже окна, а высота та же — надпись
+     вылезала за стекло на обе стороны. Здесь ее кегль считается шириной,
+     от которой зависит и само стекло. */
+  .page-door-sign {
+    font-size: 3vw;
+  }
+
+  .page-signal {
+    /* Во всю ширину, а не в половину: фонарь стоит по центру от края до
+       края, и предупреждение под ним встает в одну строку. Прибитый за
+       левый край и отодвинутый на половину себя, он оставлял строке
+       половину экрана, и она ломалась надвое — на два десятка пикселей
+       выше, чем нужно. */
+    top: 22px;
+    left: 0;
+    right: 0;
+    transform: none;
+    gap: 9px;
+    /* Та же анимация, только без сдвига на половину ширины: сдвигать больше
+       нечего, а кадры со старым сдвигом увезли бы фонарь за левый край. */
+    animation-name: lamp-in-flow;
+  }
+
+  .page-signal-lamp {
+    width: 104px;
+    height: 30px;
+    border-radius: 6px;
+  }
+
+  .page-signal-lamp::before {
+    top: 5px;
+    right: 14px;
+    bottom: 5px;
+    left: 14px;
+  }
+
+  .page-signal-text {
+    font-size: 0.9375rem;
+    text-align: center;
+  }
 
   /* Nothing is pinned as a whole here, so the lead-in holds the screen itself:
      it is fixed to the middle of the window while its part of the zone lasts,
@@ -1684,11 +1893,21 @@ html {
      случай, если скрипты еще не дошли. */
   .page-header {
     min-height: var(--win, 100dvh);
-    padding: 20px 16px 28px;
-    align-items: flex-end;
+    /* Сверху — место фонаря: 22 отступа, 61 он сам (корпус, зазор и строка
+       предупреждения) и 29 воздуха под ним. Числом, потому что все три
+       числа тут же, в этом файле, и ни одно из них не считается на ходу. */
+    padding: 112px calc(12px + var(--door-open)) 28px;
+    align-items: center;
     /* 56px — та самая полоса под подсказку: на обложке она стоит, и только
-       здесь. Числом, а не переменной: переменную блоки себе забрали. */
-    padding-bottom: calc(56px + min(var(--win, 100dvh) * 0.24, 190px));
+       здесь. Числом, а не переменной: переменную блоки себе забрали.
+       Воздух под лесенкой был в четверть экрана, пока лесенка кончалась
+       строкой текста: ей нужно было, чтобы под ней было пусто. Теперь внизу
+       стоит «Начать путешествие» — кнопка, которую ищут глазами и в которую
+       целятся пальцем, — и четверть экрана под ней уводила ее к середине, а
+       фонарю наверху места не оставляла вовсе. Теперь воздух делится поровну:
+       лесенка стоит по центру между фонарем и этой полосой, и на высоком
+       телефоне пустота прибавляется с обеих сторон, а не только сверху. */
+    padding-bottom: 80px;
   }
 
   .page-header-inner {
@@ -1696,9 +1915,11 @@ html {
   }
 
   .page-header h1 {
-    /* 18 сотых ширины — столько, чтобы «На сколько» шло в строку и почти
-       доходило до краев; верхняя граница держит планшет. */
-    font-size: min(18vw, 4.25rem);
+    /* 17 сотых ширины — столько, чтобы «На сколько» шло в строку и почти
+       доходило до краев; верхняя граница держит планшет. Было восемнадцать,
+       пока по краям обложки не встал борт вагона: поля подросли на него, и
+       в той же строке заголовок начал ломаться натрое. */
+    font-size: min(17vw, 4.25rem);
     line-height: 0.96;
   }
 
@@ -2128,6 +2349,42 @@ html {
 
   .scroll-hint {
     bottom: 16px;
+  }
+}
+
+/* Низкий телефон — маленький или положенный набок. Фонарь и кнопка тоже
+   мельчают: место, отданное им сверху и снизу, на четырех сотнях пикселей
+   высоты — это половина экрана. */
+@media (max-width: 860px) and (max-height: 560px) {
+  .page-header {
+    padding-top: 84px;
+    padding-bottom: 60px;
+  }
+
+  .page-signal {
+    top: 12px;
+    gap: 6px;
+  }
+
+  .page-signal-lamp {
+    width: 84px;
+    height: 24px;
+  }
+
+  .page-signal-lamp::before {
+    top: 4px;
+    right: 11px;
+    bottom: 4px;
+    left: 11px;
+  }
+
+  .page-signal-text {
+    font-size: 0.875rem;
+  }
+
+  .page-go {
+    padding: 12px 20px;
+    font-size: 1rem;
   }
 }
 

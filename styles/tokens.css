@@ -85,6 +85,10 @@
   --door-signal-off: #7F8792;        /* and the same glass while it is dark */
   --door-lamp: #232A31;              /* and the housing it is set into */
   --door-lamp-light: #3C464F;
+  /* Ширина той полосы вагона, что стоит на обложке по краям экрана, — борт
+     рядом с проемом. Текст до нее не доходит: поля обложки считаются от
+     этого числа. */
+  --door-open: clamp(22px, 7.2vw, 124px);
 
   /* The flash of the satellite's camera — the curtain at the other end of the
      story, from the last picture from orbit into the finale. */
@@ -209,4 +213,15 @@
   --r-card: 14px;
   --r-canvas-card: 18px;
   --r-btn: 9px;
+}
+
+/* На телефоне борт уже. Дело не в пропорции, а в строке: поля обложки
+   считаются от этой полосы, и на широком экране семь сотых ширины — это
+   воздух, а на узком это двадцать пикселей, на которые «На сколько» не
+   умещается в строку и заголовок распадается на три. Борт при этом никуда
+   не девается — его хватает, чтобы сказать, где читатель стоит. */
+@media (max-width: 860px) {
+  :root {
+    --door-open: clamp(18px, 5.2vw, 30px);
+  }
 }

@@ -116,6 +116,10 @@
   --door-signal-off: #7F8792;        /* and the same glass while it is dark */
   --door-lamp: #232A31;              /* and the housing it is set into */
   --door-lamp-light: #3C464F;
+  /* Ширина той полосы вагона, что стоит на обложке по краям экрана, — борт
+     рядом с проемом. Текст до нее не доходит: поля обложки считаются от
+     этого числа. */
+  --door-open: clamp(22px, 7.2vw, 124px);
 
   /* The flash of the satellite's camera — the curtain at the other end of the
      story, from the last picture from orbit into the finale. */
@@ -240,6 +244,17 @@
   --r-card: 14px;
   --r-canvas-card: 18px;
   --r-btn: 9px;
+}
+
+/* На телефоне борт уже. Дело не в пропорции, а в строке: поля обложки
+   считаются от этой полосы, и на широком экране семь сотых ширины — это
+   воздух, а на узком это двадцать пикселей, на которые «На сколько» не
+   умещается в строку и заголовок распадается на три. Борт при этом никуда
+   не девается — его хватает, чтобы сказать, где читатель стоит. */
+@media (max-width: 860px) {
+  :root {
+    --door-open: clamp(18px, 5.2vw, 30px);
+  }
 }
 
 /* Shared page shell and UI components.
@@ -412,6 +427,153 @@ button { font-family: inherit; }
   pointer-events: none;
 }
 
+/* ---------- Дверной проем на обложке ---------- */
+
+/* Обложка — это место перед дверями вагона, и сказано это деталями самого
+   вагона: створки, отъехавшие к краям экрана, порог под ногами со швом ровно
+   посередине — там, где они сойдутся, — и фонарь над проемом. Все тихое и
+   низкого контраста: читать на обложке нужно заголовок, а вагон только
+   отвечает на вопрос «где я». На первом такте створки занавеса выезжают
+   из-за краев экрана и первым делом накрывают эти полосы (doorsCurtain() в
+   lib/stepper.js): ребра, тень борта и резина у них те же, так что движение
+   начинается с того, на что читатель уже смотрел. */
+.page-doorway {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* Полоса вагона по краю экрана — не похожая на створку картинка, а сама
+   створка: внутрь полосы положена настоящая `.page-door` во всю свою ширину,
+   а полоса ее обрезает. Прижата створка к той стороне, которой сойдется со
+   второй, — значит, на обложке видно именно этот край: резину, белый клин,
+   сходящийся к середине, и тень борта, уходящую в темное у самого стыка.
+   Раньше тут была своя картинка, нарисованная по мотивам, и срез у нее шел с
+   обратной стороны: читатель видел тот край створки, который в закрытых
+   дверях оказывается у края экрана, а не посередине. */
+.page-leaf {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: var(--door-open);
+  overflow: hidden;
+}
+
+.page-leaf-left {
+  left: 0;
+}
+
+.page-leaf-right {
+  right: 0;
+}
+
+/* Полширины экрана, как у закрывающихся створок, — та же `50.2%`, только
+   считать ее тут не от чего: полоса узкая. */
+.page-leaf .page-door {
+  width: 50.2vw;
+  /* Эта створка никуда не едет. */
+  will-change: auto;
+}
+
+/* Левая створка прижата правым краем, правая — левым: это те самые края,
+   которыми они встретятся посередине экрана. */
+.page-leaf-left .page-door {
+  right: 0;
+  left: auto;
+}
+
+.page-leaf-right .page-door {
+  left: 0;
+  right: auto;
+}
+
+/* Порог у створки свой, но на обложке он один на весь проем — см. ниже. */
+.page-leaf .page-door::after {
+  content: none;
+}
+
+/* Порог под ногами и шов посередине. Шов — единственная метка середины на
+   неподвижной обложке, и он же говорит, что створок две: сойдутся они
+   именно здесь. */
+.page-sill {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  /* Та же доля, что у порога самой створки (`.page-door::after`), — полоса
+     внизу идет через весь экран без ступеньки на стыке. */
+  height: 3%;
+  background: var(--door-edge);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16);
+}
+
+.page-sill::before {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 3px;
+  height: calc(3% + 20px);
+  margin-left: -1.5px;
+  border-radius: 2px 2px 0 0;
+  background: var(--door-edge);
+}
+
+/* ---------- «Начать путешествие» ---------- */
+
+/* Видимое действие на обложке. Нажатие играет ту же законченную сцену, что и
+   первая прокрутка и пробел: фонарь, предупреждение, створки и первая
+   остановка за ними. */
+.page-header-go {
+  display: flex;
+}
+
+.page-go {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 15px 26px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--hse-blue);
+  color: var(--card);
+  font: inherit;
+  font-size: 1.0625rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(16, 45, 105, 0.3);
+  transition: transform 160ms ease, box-shadow 160ms ease, filter 160ms ease;
+  /* Приходит последней, после заголовка и строки под ним: сначала читатель
+     читает, куда его зовут, и только потом видит чем идти. */
+  animation: rise-in 620ms cubic-bezier(0.215, 0.61, 0.355, 1) 820ms backwards;
+}
+
+.page-go svg {
+  width: 20px;
+  height: 20px;
+  flex: none;
+}
+
+@media (hover: hover) {
+  .page-go:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 10px 24px rgba(16, 45, 105, 0.34);
+    filter: brightness(1.14);
+  }
+}
+
+.page-go:active {
+  transform: translateY(1px);
+  box-shadow: 0 3px 10px rgba(16, 45, 105, 0.3);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-go { animation: none; }
+}
+
 /* The signal of a closing door, over the title screen — where such a lamp
    hangs in a carriage, above the doors rather than by the floor. It is there
    from the first moment, dark and silent: part of the car the reader is
@@ -439,6 +601,13 @@ button { font-family: inherit; }
   0%   { opacity: 0; transform: translate(-50%, -18px); }
   62%  { opacity: 1; transform: translate(-50%, 3px); }
   100% { opacity: 1; transform: translateX(-50%); }
+}
+
+/* То же самое для фонаря, растянутого во всю ширину, — на телефоне. */
+@keyframes lamp-in-flow {
+  0%   { opacity: 0; transform: translateY(-18px); }
+  62%  { opacity: 1; transform: translateY(3px); }
+  100% { opacity: 1; transform: none; }
 }
 
 /* The lamp over the doors of every car of this kind: a housing of dark metal
@@ -819,7 +988,9 @@ button { font-family: inherit; }
 .page-header {
   position: relative;
   min-height: 100dvh;
-  padding: 24px;
+  /* По бокам стоят створки вагона, и текст до них не доходит: проем — это то,
+     что между ними. */
+  padding: 24px calc(24px + var(--door-open));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1323,13 +1494,66 @@ button { font-family: inherit; }
 }
 
 @media (max-width: 860px) {
-  /* The lamp over the doors of a carriage, and the warning under it, belong to
-     the beat that shuts those doors. On a phone that beat does not exist — the
-     page scrolls into the first block instead — so the warning promised
-     something nothing was going to answer, blinked for as long as the reader
-     stayed, and pushed the headline a hundred and fifty pixels down the first
-     screen they ever see. */
-  .page-signal { display: none; }
+  /* Фонарь над дверями вагона на телефоне тоже есть — теперь ему есть что
+     обещать: сцену играет «Начать путешествие», первый мах пальцем или
+     пробел, и створки за ней съезжаются так же, как на широком экране.
+     Раньше такта здесь не было вовсе, фонарь обещал то, на что никто не
+     отвечал, мигал все время, пока читатель стоял на обложке, и отодвигал
+     заголовок на полторы сотни пикселей вниз первого же экрана.
+
+     Композиция здесь своя. На широком экране фонарь висит поверх обложки:
+     заголовок стоит посреди пустого поля, и места над ним вдоволь. На
+     телефоне поля нет — заголовок в три строки от края до края, — и
+     прибитый к верху фонарь ложился прямо на «На». Поэтому на узком экране
+     он не висит, а стоит в потоке: обложка становится колонкой, фонарь
+     уходит в ее начало, а заголовок с текстом и кнопкой — в конец. Сверху
+     вниз получается то же, что в вагоне: лампа над дверями, под ней проем,
+     в проеме — то, ради чего читатель пришел.
+
+     И мельче: экран узкий, корпус во всю его ширину читался бы как полоса,
+     а не как лампа. */
+  /* «Не прислоняться» печатают в одну строку, и строка эта меряется высотой
+     экрана: на широком окно створки в три сотни пикселей, и надпись в них
+     ложится. На телефоне створка вдвое уже окна, а высота та же — надпись
+     вылезала за стекло на обе стороны. Здесь ее кегль считается шириной,
+     от которой зависит и само стекло. */
+  .page-door-sign {
+    font-size: 3vw;
+  }
+
+  .page-signal {
+    /* Во всю ширину, а не в половину: фонарь стоит по центру от края до
+       края, и предупреждение под ним встает в одну строку. Прибитый за
+       левый край и отодвинутый на половину себя, он оставлял строке
+       половину экрана, и она ломалась надвое — на два десятка пикселей
+       выше, чем нужно. */
+    top: 22px;
+    left: 0;
+    right: 0;
+    transform: none;
+    gap: 9px;
+    /* Та же анимация, только без сдвига на половину ширины: сдвигать больше
+       нечего, а кадры со старым сдвигом увезли бы фонарь за левый край. */
+    animation-name: lamp-in-flow;
+  }
+
+  .page-signal-lamp {
+    width: 104px;
+    height: 30px;
+    border-radius: 6px;
+  }
+
+  .page-signal-lamp::before {
+    top: 5px;
+    right: 14px;
+    bottom: 5px;
+    left: 14px;
+  }
+
+  .page-signal-text {
+    font-size: 0.9375rem;
+    text-align: center;
+  }
 
   /* Nothing is pinned as a whole here, so the lead-in holds the screen itself:
      it is fixed to the middle of the window while its part of the zone lasts,
@@ -1928,11 +2152,21 @@ html {
      случай, если скрипты еще не дошли. */
   .page-header {
     min-height: var(--win, 100dvh);
-    padding: 20px 16px 28px;
-    align-items: flex-end;
+    /* Сверху — место фонаря: 22 отступа, 61 он сам (корпус, зазор и строка
+       предупреждения) и 29 воздуха под ним. Числом, потому что все три
+       числа тут же, в этом файле, и ни одно из них не считается на ходу. */
+    padding: 112px calc(12px + var(--door-open)) 28px;
+    align-items: center;
     /* 56px — та самая полоса под подсказку: на обложке она стоит, и только
-       здесь. Числом, а не переменной: переменную блоки себе забрали. */
-    padding-bottom: calc(56px + min(var(--win, 100dvh) * 0.24, 190px));
+       здесь. Числом, а не переменной: переменную блоки себе забрали.
+       Воздух под лесенкой был в четверть экрана, пока лесенка кончалась
+       строкой текста: ей нужно было, чтобы под ней было пусто. Теперь внизу
+       стоит «Начать путешествие» — кнопка, которую ищут глазами и в которую
+       целятся пальцем, — и четверть экрана под ней уводила ее к середине, а
+       фонарю наверху места не оставляла вовсе. Теперь воздух делится поровну:
+       лесенка стоит по центру между фонарем и этой полосой, и на высоком
+       телефоне пустота прибавляется с обеих сторон, а не только сверху. */
+    padding-bottom: 80px;
   }
 
   .page-header-inner {
@@ -1940,9 +2174,11 @@ html {
   }
 
   .page-header h1 {
-    /* 18 сотых ширины — столько, чтобы «На сколько» шло в строку и почти
-       доходило до краев; верхняя граница держит планшет. */
-    font-size: min(18vw, 4.25rem);
+    /* 17 сотых ширины — столько, чтобы «На сколько» шло в строку и почти
+       доходило до краев; верхняя граница держит планшет. Было восемнадцать,
+       пока по краям обложки не встал борт вагона: поля подросли на него, и
+       в той же строке заголовок начал ломаться натрое. */
+    font-size: min(17vw, 4.25rem);
     line-height: 0.96;
   }
 
@@ -2375,6 +2611,42 @@ html {
   }
 }
 
+/* Низкий телефон — маленький или положенный набок. Фонарь и кнопка тоже
+   мельчают: место, отданное им сверху и снизу, на четырех сотнях пикселей
+   высоты — это половина экрана. */
+@media (max-width: 860px) and (max-height: 560px) {
+  .page-header {
+    padding-top: 84px;
+    padding-bottom: 60px;
+  }
+
+  .page-signal {
+    top: 12px;
+    gap: 6px;
+  }
+
+  .page-signal-lamp {
+    width: 84px;
+    height: 24px;
+  }
+
+  .page-signal-lamp::before {
+    top: 4px;
+    right: 11px;
+    bottom: 4px;
+    left: 11px;
+  }
+
+  .page-signal-text {
+    font-size: 0.875rem;
+  }
+
+  .page-go {
+    padding: 12px 20px;
+    font-size: 1rem;
+  }
+}
+
 /* ---------- The list of sections, for a thumb ---------- */
 
 /* The bar is eight targets for a mouse and none for a finger. On a phone it
@@ -2521,10 +2793,51 @@ html.is-holding body {
 </script>
 <main>
 <header class="page-header">
+    <!-- Читатель стоит на платформе перед вагоном. Створки отъехали к краям
+         экрана, между ними проем с заголовком, над ним фонарь, под ногами
+         порог со швом посередине — там, где створки сойдутся. Вагон нарочно
+         тихий: главное на обложке — заголовок, а створки только говорят, где
+         мы. На первом же такте створки занавеса выезжают из-за краев экрана
+         и первым делом накрывают эти самые полосы — ребра и тень борта у них
+         те же, так что начала хода почти не видно. См. doorsCurtain() в
+         lib/stepper.js. -->
+    <div class="page-doorway" aria-hidden="true">
+      <div class="page-leaf page-leaf-left">
+        <div class="page-door page-door-left">
+          <div class="page-door-window"></div>
+          <div class="page-door-stripe page-door-stripe-up"></div>
+          <div class="page-door-stripe page-door-stripe-down"></div>
+        </div>
+      </div>
+      <div class="page-leaf page-leaf-right">
+        <div class="page-door page-door-right">
+          <div class="page-door-window"></div>
+          <div class="page-door-stripe page-door-stripe-up"></div>
+          <div class="page-door-stripe page-door-stripe-down"></div>
+        </div>
+      </div>
+      <div class="page-sill"></div>
+    </div>
+
     <div class="page-header-inner">
       <h1><span class="title-word">На</span> <span class="title-word">сколько</span> <span class="title-word">б<a class="hse-o-link" href="https://www.hse.ru/" target="_blank" rel="noopener" title="Сайт Вышки" aria-label="Сайт НИУ ВШЭ"><svg class="hse-o" viewBox="0 0 283.47 283.47" aria-hidden="true" focusable="false"><circle class="hse-o-disc" cx="141.73" cy="141.74" r="141.73"/><path class="hse-o-mark" d="M135.6,133.32c32.26,0,44.81,21.45,44.81,60.69v29.51h-20.69v-63.35h-23.9v63.42h-18.28V53.65h18.78c7.03,0,17.71,1.58,25.25,10.95c3.93,4.73,6.34,11.04,7.19,17.38h-32.94v9.35h33.23c-0.27,6.04-1.49,12.8-7.42,19.97c-5.2,6.51-13.76,12.56-25.83,12.56c-0.06,0-0.13,0-0.2,0V133.32 M206.41,197.55c0-34.86-11.26-58.29-40.45-68.6c9.21-3.77,14.82-9.58,18.49-13.99c7.01-8.06,9.88-17.96,9.88-27.31c0-7.56-2.08-22.65-15.35-33.04c-9.1-7.04-17.16-10.43-36.43-10.43h-9.75c-0.3-0.01-0.6-0.01-0.96-0.01H91.65v189.79h114.76V197.55z"/></svg></a><span class="sr-only">о</span>льш<span class="stressed">а<i></i></span>я</span></h1>
       <div class="page-header-text">
         <p>Вышка такая большая, что в это трудно поверить: от вагона метро до орбиты Земли.</p>
+      </div>
+
+      <!-- Видимое действие: с него начинается вся сцена целиком — фонарь,
+           предупреждение, створки и первая остановка за ними. То же делает
+           первая прокрутка и пробел: одно действие, одна законченная
+           последовательность. -->
+      <div class="page-header-go">
+        <button type="button" class="page-go" data-el="go">
+          Начать путешествие
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+            <path d="M5 12 L17 12" />
+            <path d="M12 7 L17 12 L12 17" />
+          </svg>
+        </button>
       </div>
     </div>
 
@@ -4790,6 +5103,10 @@ function carry(picture, backdrop, travel) {
 const DOORS_SHUT = 620;      // the leaves coming together
 const DOORS_HOLD = 280;      // shut, with the page moving behind them
 const DOORS_OPEN = 760;      // and opening on the block
+// Фонарь горит и мигает перед тем, как створки тронутся: цикл мигания 900мс,
+// так что это полтора мигания — достаточно, чтобы прочитаться как мигание, а
+// не как одна вспышка, и кончается оно на зажженной линзе.
+const LAMP_MS = 1200;
 
 function doorsCurtain() {
   const wrap = document.createElement('div');
@@ -4806,11 +5123,16 @@ function doorsCurtain() {
   document.body.appendChild(wrap);
   const [left, right] = wrap.children;
 
-  // 0 — wide open, 1 — shut.
+  // 0 — открыты, 1 — сошлись. Открытая створка уходит за край экрана целиком,
+  // и первое, что она накрывает, — полосы вагона с обложки (`.page-leaf` в
+  // index.html): ребра, тень борта и резина у них те же, так что начала хода
+  // почти не видно — двери трогаются оттуда, куда читатель и смотрел. Уходят
+  // они туда же: открывшись, створки не оставляют по краям экрана полоски,
+  // которая потом пропала бы вместе с занавесом.
   const put = (p) => {
-    const away = (100 * (1 - p)).toFixed(2);
-    left.style.transform = `translateX(-${away}%)`;
-    right.style.transform = `translateX(${away}%)`;
+    const away = window.innerWidth * 0.502 * (1 - p);
+    left.style.transform = `translateX(${(-away).toFixed(2)}px)`;
+    right.style.transform = `translateX(${away.toFixed(2)}px)`;
   };
   put(0);
   return { put, remove: () => wrap.remove() };
@@ -5003,7 +5325,7 @@ function beatsOf(entry, before = null) {
 // it. What the beats did, the scrolling does: a block is put together as the
 // reader comes to it, its title card follows its own position on the screen,
 // and a scene shows the state it ends in, with its controls left to the reader.
-function mountScrolled(entries, onProgress, replay) {
+function mountScrolled(entries, onProgress, replay, signal) {
   // Reading by frames belongs to the phone. This way of reading is also the
   // one chosen for «less movement» on a wide screen, and there taking the
   // scroll away from the reader would be the opposite of what they asked for.
@@ -5601,6 +5923,10 @@ function mountScrolled(entries, onProgress, replay) {
     // Первый же ход — это чтение, а не возвращение: предложение повторить
     // главу уходит вместе с ним.
     offer(-1);
+    // С обложки читателя отпускает не прокрутка, а целая сцена: фонарь,
+    // предупреждение и створки. Просьба о ней одна, чем бы она ни пришла —
+    // кнопкой, махом пальца или пробелом.
+    if (dir > 0 && наОбложке()) { начать(); return; }
     // Новое движение читателя — новый счет доездам: один на такт.
     if (!доезд) чиню = false;
     chill();
@@ -5615,6 +5941,56 @@ function mountScrolled(entries, onProgress, replay) {
     span = Math.min(700, 200 + Math.abs(total) / 2.5);
     gliding = performance.now();
     requestAnimationFrame(glide);
+  };
+
+  // ---------- Обложка: одно действие, одна сцена ----------
+  // На широком экране этим занимается такт (фонарь, сшитый с занавесом дверей
+  // в mountStepper). Тактов тут нет, но сцена та же и неделимая: фонарь
+  // загорается и мигает, под ним встает предупреждение, створки съезжаются на
+  // весь экран, за ними страница переходит к метро, и они открываются уже на
+  // нем. Просит об этом одно действие — кнопка «Начать путешествие», первый
+  // мах пальцем или пробел.
+  //
+  // «Меньше движения» значит именно это: читатель получает первую сцену
+  // сразу, без фонаря и створок.
+  let едем = false;                     // сцена играет прямо сейчас
+  let тронулись = false;                // и уже сыграна
+  const первый = () => (entries[0] ? entries[0].section.offsetTop : 0);
+  // Где страница стоит на самом деле. Блок, который читается кадрами, держит
+  // ее `position: fixed` на `body` — и `scrollY` в этот момент ноль, сколько
+  // бы страниц ни осталось за спиной. По нулю выходило, что читатель вернулся
+  // на обложку: фонарь гас, а следующее касание посреди стадиона играло
+  // сцену с дверями заново и увозило к метро.
+  const сейчас = () => (caught ? keptY : window.scrollY);
+  const наОбложке = () => !тронулись && сейчас() + ОСТАТОК < первый();
+
+  const начать = () => {
+    if (едем || тронулись) return;
+    тронулись = true;
+    if (REDUCED.matches || !signal) { toBlock(0, { jump: true }); return; }
+    едем = true;
+    signal.classList.add('is-here');
+    setTimeout(() => {
+      const cover = doorsCurtain();
+      onCut(() => { cover.remove(); signal.classList.remove('is-here'); едем = false; });
+      play(DOORS_SHUT, (p) => cover.put(settle(p)), () => {
+        toBlock(0, { jump: true });
+        signal.classList.remove('is-here');
+        setTimeout(() => play(DOORS_OPEN, (p) => cover.put(1 - settle(p)), () => {
+          cover.remove();
+          едем = false;
+        }), DOORS_HOLD);
+      });
+    }, LAMP_MS);
+  };
+
+  // Вернувшись на обложку, читатель снова стоит перед дверями: фонарь темный,
+  // а следующее движение опять играет всю сцену.
+  const вернулись = () => {
+    if (едем || !тронулись) return;
+    if (сейчас() + ОСТАТОК >= первый()) return;
+    тронулись = false;
+    if (signal) signal.classList.remove('is-here');
   };
 
   // Блок может попросить ход сам — кнопкой, которой читатель отправляет свою
@@ -5711,6 +6087,7 @@ function mountScrolled(entries, onProgress, replay) {
     // at the moment the phone unfolds, the page would answer by the geometry it
     // has just taken on — the wide one, where the whole story is eight screens
     // — and a reader halfway through would be read as being at the end.
+    вернулись();
     if (стою >= 0) {
       стоит = стою;
       if (стою > дошел) дошел = стою;
@@ -5853,7 +6230,7 @@ function mountScrolled(entries, onProgress, replay) {
   const раздел = kept();
   if (раздел > 0) requestAnimationFrame(() => toBlock(раздел, { jump: true }));
 
-  return { free: true, toBlock, rewind };
+  return { free: true, toBlock, rewind, begin: начать };
 }
 
 // `entries` describe the sections in order. Each is
@@ -5936,11 +6313,6 @@ function mountStepper(entries, { onProgress, finale, signal, replay } = {}) {
   // warns about shut on the same movement, with the page stepping to the first
   // block behind them. Announcing the doors and closing them are one thing
   // happening, and the reader asked for it once.
-  // The light on its own, before the leaves move. The lens blinks on a cycle
-  // of 900мс, so this is a blink and a half — long enough to read as blinking
-  // rather than as one flash, and it ends while the lens is lit, so the doors
-  // start moving under a red light rather than a dark one.
-  const LAMP_MS = 1200;
   const lit = (on) => signal && signal.classList.toggle('is-here', on);
   if (signal && beats.length) {
     const lamp = {
@@ -5976,9 +6348,18 @@ function mountStepper(entries, { onProgress, finale, signal, replay } = {}) {
       if (e.opening) e.opening.run(1);
       if (e.steps) e.setStep(e.steps - 1);
     }));
-    lit(true);
     if (onProgress) onProgress(1);
-    return { free: true };
+    // «Начать путешествие» работает и здесь — только без самой сцены:
+    // читатель просил меньше движения, и створки ему не показывают. Фонарь
+    // загорается сразу, первая остановка приходит тем же мгновением. До
+    // нажатия он темный: гореть все время, пока читатель стоит на обложке,
+    // значит обещать то, на что никто не ответит.
+    const begin = () => {
+      lit(true);
+      const first = entries[0] && entries[0].section;
+      if (first) window.scrollTo(0, first.offsetTop);
+    };
+    return { free: true, begin };
   }
 
   // A phone is read with the thumb, and a block does not fit its screen: laid
@@ -5986,12 +6367,12 @@ function mountStepper(entries, { onProgress, finale, signal, replay } = {}) {
   // would have to hide half of what they show, so here the page is a page —
   // it scrolls, and the story is told by that scrolling instead. The title
   // cards still play: each follows its own place on the screen.
-  // Nothing is played beat by beat here — and the doors the lamp belongs to are
-  // not played either: on a phone there is no curtain to close. Lit, it blinked
-  // on for as long as the reader stayed on the title screen and warned them
-  // about doors that were never going to shut, from above the headline. So here
-  // it stays dark and the styles take it off the screen altogether.
-  if (NARROW.matches) return mountScrolled(entries, onProgress, replay);
+  // Фонарь едет туда же: обложка на телефоне тоже начинается с него, и
+  // створки за ним тоже съезжаются — только просит об этом не колесо, а
+  // «Начать путешествие», первый мах пальцем или пробел. До этого он темный
+  // и молчит: гореть все время, пока читатель стоит на обложке, значит
+  // предупреждать о дверях, которые не закроются.
+  if (NARROW.matches) return mountScrolled(entries, onProgress, replay, signal);
 
   // A tablet turned on its side crosses that width, and so does a folding
   // phone opened in the middle of reading. The two ways of reading cannot be
@@ -6472,7 +6853,9 @@ function mountStepper(entries, { onProgress, finale, signal, replay } = {}) {
     // пикселей от него.
     setTimeout(() => { if (!busy) window.scrollTo(0, hereTop()); }, SETTLE_MS + 160);
   });
-  return { forward, back, toBlock, rewind };
+  // Обложка отпускает читателя одним действием: кнопка «Начать путешествие»
+  // просит тот самый первый такт, в который сшиты фонарь и створки.
+  return { forward, back, toBlock, rewind, begin: forward };
 }
 
 return { mountStepper };
@@ -20187,6 +20570,11 @@ const page = document.getElementById('page');
   // The progress bar doubles as the way back: a click on a block goes there,
   // and the narrow slot at its head returns to the title screen.
   progress.pick(story.toBlock, story.rewind);
+
+  // «Начать путешествие» — то же самое, что первая прокрутка и пробел: одно
+  // действие, и за ним вся сцена целиком, фонарь и створки включительно.
+  const go = document.querySelector('[data-el="go"]');
+  if (go && story.begin) go.addEventListener('click', () => story.begin());
 
   // Что делать дочитавшему. «Сначала» ведет тем же путем, что и узкий слот в
   // начале полоски, — одна дорога назад на всю страницу.

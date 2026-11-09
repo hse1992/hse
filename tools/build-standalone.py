@@ -187,6 +187,11 @@ for f in LIBS:
     body = strip_module(src)
     if not out:
         raise SystemExit(f"сборка испорчена: {f} ничего не экспортирует")
+    # Стили, которые библиотека ставит на страницу сама (карта города в
+    # lib/town-map.js), — такие же свои стили, как у модуля: телефонную ветку
+    # в них тоже нужно раскрыть.
+    if PHONE:
+        body = only_narrow(body)
     parts.append(f"const {{ {out} }} = (() => {{\n{body}\nreturn {{ {out} }};\n}})();")
 libs = "\n\n".join(parts)
 # знак Вышки читается через fetch по адресу файла — подставляем его целиком
@@ -211,6 +216,13 @@ for name in NAMES:
     for _, (_, pattern, replacement) in BY_NAME.items():
         src = src.replace(pattern, replacement)
     src = inline_assets(src)
+    # Свои стили у модуля едут внутри него, а не в styles/, — и телефонную
+    # ветку в них нужно раскрыть так же. Без этого телефонная копия на
+    # большом экране отвечала телефоном только за общую раскладку: у метро
+    # поезд во всю ширину оставался виден и распирал колонку до своих
+    # 4956 пикселей, а колонки не складывались в одну.
+    if PHONE:
+        src = only_narrow(src)
     mods.append(f"const MOD_{name} = (() => {{\n{src}\nreturn {{ meta, init }};\n}})();")
 mods = "\n\n".join(mods)
 
