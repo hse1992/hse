@@ -229,7 +229,7 @@ const LEAD_STYLE = `<style>
      by how far their beat has come. */
   .study-lead-gone {
     display: block;
-    opacity: calc(1 - var(--lead-stage-3, 0) * 2.5);
+    opacity: calc(1 - var(--lead-stage-2, 0) * 2.5);
   }
 
   /* The question stands in the same place and is given the same room as the
@@ -237,8 +237,8 @@ const LEAD_STYLE = `<style>
   .study-lead-ask {
     display: block;
     margin-top: 1.8em;
-    opacity: min(calc(var(--lead-stage-3, 1) * 2 - 1),
-                 calc(1 - var(--lead-stage-4, 0) * 2.5));
+    opacity: min(calc(var(--lead-stage-2, 1) * 2 - 1),
+                 calc(1 - var(--lead-stage-3, 0) * 2.5));
   }
 
   /* The turn of the screen, and it is given room: the answer should not
@@ -247,8 +247,8 @@ const LEAD_STYLE = `<style>
   .study-lead-answer {
     display: block;
     margin-top: 1.8em;
-    opacity: min(calc(var(--lead-stage-4, 1) * 2 - 1),
-                 calc(1 - var(--lead-stage-5, 0) * 2.5));
+    opacity: min(calc(var(--lead-stage-3, 1) * 2 - 1),
+                 calc(1 - var(--lead-stage-4, 0) * 2.5));
   }
 
   /* What the figure answers, set small under it — the number is the thing
@@ -265,7 +265,7 @@ const LEAD_STYLE = `<style>
   .study-lead-then {
     display: block;
     margin-top: 1.8em;
-    opacity: calc(var(--lead-stage-5, 1) * 2 - 1);
+    opacity: calc(var(--lead-stage-4, 1) * 2 - 1);
   }
 
   /* ---------- The mark the reader puts down ---------- */
@@ -280,7 +280,7 @@ const LEAD_STYLE = `<style>
 
   .study-lead-guess-in {
     display: block;
-    opacity: calc(1 - var(--lead-stage-5, 0) * 2.5);
+    opacity: calc(1 - var(--lead-stage-4, 0) * 2.5);
   }
 
   /* The bar is the slider: its hit area reaches above and below, so the mark
@@ -656,26 +656,26 @@ const LEAD_STYLE = `<style>
        средствами стилей нечем.
 
        Столкнуться они не могут: и подъем, и рост идут по одному и тому же
-       --lead-stage-5, а он у каркаса уже сглаженный, — на любой точке такта
+       --lead-stage-4, а он у каркаса уже сглаженный, — на любой точке такта
        между ними остается зазор в свою долю от --swap-gap. */
     #study .viz-lead { --swap-gap: 16px; }
 
-    .study-lead-answer { opacity: calc(var(--lead-stage-4, 1) * 2 - 1); }
+    .study-lead-answer { opacity: calc(var(--lead-stage-3, 1) * 2 - 1); }
 
     /* Поднимается коробка такта, а не сам ответ внутри нее: каждую часть
        каркас режет по своему краю (overflow: hidden), и уехавший вверх ответ
        она срезала бы целиком — на экране оставалась бы пустота. */
     .study-lead-beat-answer {
-      transform: translateY(calc(-1 * var(--lead-stage-5, 0)
+      transform: translateY(calc(-1 * var(--lead-stage-4, 0)
         * (var(--then-h, 0px) + var(--swap-gap))));
     }
 
     .study-lead-beat-then {
-      margin-top: calc(var(--lead-stage-5, 0) * (var(--ans-h, 0px) + var(--swap-gap)));
+      margin-top: calc(var(--lead-stage-4, 0) * (var(--ans-h, 0px) + var(--swap-gap)));
     }
 
     /* Место под ответ берется у шкалы: к этому такту она уже сказала все, что
-       могла, и уходит (--lead-stage-5 гасит ее и так). Берется ровно столько,
+       могла, и уходит (--lead-stage-4 гасит ее и так). Берется ровно столько,
        на сколько подросла коробка подмены, и в ту же долю такта — высота
        экрана не меняется ни на кадр.
 
@@ -690,7 +690,7 @@ const LEAD_STYLE = `<style>
        только через min-height. Отступ шкалы уехал внутрь коробки: снаружи он
        остался бы стоять, когда от самой шкалы уже ничего не осталось. */
     .study-lead-guess {
-      --swap-took: max(0px, calc(var(--lead-stage-5, 0)
+      --swap-took: max(0px, calc(var(--lead-stage-4, 0)
         * (var(--then-h, 0px) + var(--ans-h, 0px) + var(--swap-gap))
         - var(--dots-h, 0px)));
       margin-top: 0;
@@ -792,6 +792,9 @@ export const meta = {
   // that to the year such a student would have had to start in. The last line
   // runs into the heading.
   lead: {
+    // Уезжает тем же тактом, которым приходит титульная карточка: порознь
+    // первый такт только убирал экран, не показывая ничего нового.
+    together: true,
     // The screen grows by a whole block at a time, so it holds the middle of
     // the screen rather than the top edge of the title card to come.
     fit: 'center',
@@ -805,12 +808,12 @@ export const meta = {
     text: LEAD_STYLE
       + '<span class="study-lead-swap">'
       + '<span class="study-lead-beat"><span class="study-lead-gone">'
-      +   `${dotsOf(LEVELS[0], 1, true)}${dotsOf(LEVELS[1], 2, false)}`
+      +   `${dotsOf(LEVELS[0], 1, true)}${dotsOf(LEVELS[1], 1, false)}`
       + '</span></span>'
       // The question stands where the answer will: a figure of its own, still
       // unknown, and one line asking for it. The scale to put a mark on is
       // under the screen — see below.
-      + '<span class="study-lead-beat intro-stage" data-stage="3"><span class="study-lead-ask">'
+      + '<span class="study-lead-beat intro-stage" data-stage="2"><span class="study-lead-ask">'
       +   '<span class="study-lead-years"><span data-el="guessValue">?</span>'
       +     '<span class="study-lead-years-unit" data-el="guessUnit">лет</span>'
       +   '</span>'
@@ -819,7 +822,7 @@ export const meta = {
       + '</span></span>'
       // The answer, in the place the question held: the figure first — it is
       // what the screen turns on — and the sentence it answers under it.
-      + '<span class="study-lead-beat study-lead-beat-answer intro-stage" data-stage="4"><span class="study-lead-answer">'
+      + '<span class="study-lead-beat study-lead-beat-answer intro-stage" data-stage="3"><span class="study-lead-answer">'
       +   `<span class="study-lead-years">${nf(YEARS_TOTAL)}`
       +     `<span class="study-lead-years-unit">${plural(YEARS_TOTAL, 'год', 'года', 'лет')}</span>`
       +   '</span>'
@@ -829,13 +832,13 @@ export const meta = {
       // thought turning into the next, not two standing side by side. На
       // телефоне — не уступает: ответ остается наверху, а год встает под ним,
       // см. .study-lead-beat-then ниже.
-      + '<span class="study-lead-beat study-lead-beat-then intro-stage" data-stage="5"><span class="study-lead-then">'
+      + '<span class="study-lead-beat study-lead-beat-then intro-stage" data-stage="4"><span class="study-lead-then">'
       +   `<span class="study-lead-card">${LEAD_CARD}</span>`
       + '</span></span></span>'
       // The scale stands under the screen rather than inside the swap: the
       // mark the reader put down stays where it was while the answer lands
       // beside it, and the two are read against each other.
-      + '<span class="study-lead-guess intro-stage" data-stage="3"><span class="study-lead-guess-in">'
+      + '<span class="study-lead-guess intro-stage" data-stage="2"><span class="study-lead-guess-in">'
       +   `<span class="study-scale" data-el="scale" role="slider" tabindex="0" aria-label="Сколько лет, по-твоему" aria-valuemin="0" aria-valuemax="${GUESS_MAX}">`
       +     '<span class="study-scale-bar">'
       +       '<span class="study-scale-fill" data-el="fill"></span>'
@@ -849,7 +852,7 @@ export const meta = {
       +     '<button type="button" class="btn study-lead-skip" data-el="skip">Показать ответ</button>'
       +   '</span>'
       + '</span></span>'
-      + '<span class="study-lead-outro intro-stage" data-stage="6">В общем нужно…</span>'
+      + '<span class="study-lead-outro intro-stage" data-stage="4">В общем нужно…</span>'
   },
   title: 'Учиться, учиться и еще раз учиться',
   // The heading arrives on its own — the reader has just been told all this on
@@ -1639,9 +1642,9 @@ export function init(root) {
   window.addEventListener('resize', reserveParts);
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(reserveParts);
 
-  fillEl.style.width = `calc(${along(YEARS_TOTAL)} * var(--lead-stage-4, 0))`;
+  fillEl.style.width = `calc(${along(YEARS_TOTAL)} * var(--lead-stage-3, 0))`;
   const followAnswer = () => {
-    const at = parseFloat(section.style.getPropertyValue('--lead-stage-4')) || 0;
+    const at = parseFloat(section.style.getPropertyValue('--lead-stage-3')) || 0;
     if ((at > 0.5) === told) return;
     told = at > 0.5;
     paintGuess();
@@ -1654,7 +1657,7 @@ export function init(root) {
   // Only the beat that opens the answer waits, and only until there is a mark.
   return {
     holdIntro: (stage, { quiet = false } = {}) => {
-      if (stage !== 4 || guess !== null || skipped) return false;
+      if (stage !== 3 || guess !== null || skipped) return false;
       if (!quiet) nudge();
       return true;
     }

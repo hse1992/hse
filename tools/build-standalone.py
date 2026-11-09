@@ -217,6 +217,11 @@ mods = "\n\n".join(mods)
 # ---------- каркас ----------
 header = inline_assets(re.search(r"<header class=\"page-header\">.*?</header>", index_src, re.S).group(0))
 footer = re.search(r"<footer class=\"page-footer\">.*?</footer>", index_src, re.S).group(0)
+# «Смотреть сначала» лежит вне шапки: при чтении тактами шапка целиком inert,
+# и внутри нее кнопка была бы недоступна ни мыши, ни клавише. Шапку и подвал
+# сборщик берет по их тегам, а она стоит между ними — поэтому отдельной строкой.
+replay = re.search(r"<button[^>]*class=\"[^\"]*page-replay[^\"]*\"[^>]*>.*?</button>",
+                   index_src, re.S).group(0)
 # всё, что делает каркас: раскладка секций, запуск пошагового чтения и связка
 # полоски прогресса со степпером. Начало ищется по коду, а не по комментарию:
 # тем же оборотом начинается ранний скрипт про scrollRestoration, и поиск
@@ -262,6 +267,8 @@ html = f"""<!DOCTYPE html>
 </script>
 <main>
 {header}
+
+{replay}
 
   <div id="page"></div>
 

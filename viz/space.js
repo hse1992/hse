@@ -72,12 +72,8 @@ const STORY = [
     sub: 'Третий на орбите до сих пор'
   },
   {
-    line: SEEN_FROM_ORBIT,
-    sub: ''
-  },
-  {
-    // The line stays put while the picture is taken: there is nothing to read
-    // in the time that takes, and a line that changed would only flicker.
+    // Спутник доворачивается к Вышке и на этом же такте снимает — строка над
+    // картинкой одна на оба движения.
     line: SEEN_FROM_ORBIT,
     sub: ''
   }
@@ -88,8 +84,11 @@ const STORY = [
 // down to the Earth — the picture it takes is the flash the next block
 // arrives in (meta.flash).
 const BURN = SATS.length + 1;
+// Снимок делается тем же тактом, что и поворот: порознь эти два такта несли
+// одну и ту же строку над картинкой, и второй из них читался как остановка
+// без нового кадра. Спутник доворачивается, и за ним щелкает затвор.
 const HOLD = BURN + 1;
-const SHOT = HOLD + 1;
+const SHOT = HOLD;
 
 export const meta = {
   id: 'space',
@@ -135,7 +134,7 @@ export const meta = {
   intro: true,
   // The empty Earth arrives with the block, then one satellite a beat, a
   // beat for the one still flying, and the last one for the picture it takes.
-  steps: 7,
+  steps: 6,
   opensOnStep: true,
   // The block ends on a photograph about to be taken, and the next one comes
   // in the flash of it — the shell draws the flash, see «Вспышка на стыке».
@@ -890,10 +889,13 @@ export function init(root) {
       drawOrbit(sat, (1 - dying) * (sat.died === null ? 1 : 0.5));
       if (dying > 0) drawFlare(p.x, p.y, dying);
       // The frame brightens as the picture is taken.
-      const taking = sat.shot === null ? 0 : Math.max(0, 1 - (clock - sat.shot) / 500);
+      // Снимок назначен вперед — на конец доворота, — так что до него счет
+      // отрицательный и затвора еще нет.
+      const since = sat.shot === null ? -1 : clock - sat.shot;
+      const taking = since < 0 ? 0 : Math.max(0, 1 - since / 500);
       if (aimed > 0 && !hidden(p)) drawView(p, under, angle, aimed * (1 + taking));
       drawBody(p.x, p.y, angle, away * (1 - dying), aimed);
-      if (sat.shot !== null && !hidden(p)) drawGlint(p, angle, clock - sat.shot);
+      if (since >= 0 && !hidden(p)) drawGlint(p, angle, since);
       if (!dying) drawLabel(sat, p.x, p.y, hidden(p) ? 0.45 : 1);
     });
   }
@@ -1176,7 +1178,7 @@ export function init(root) {
       // На телефоне снимок делает читатель: такт приводит спутник к Вышке и
       // отдает кнопку, а снимает она (см. shoot ниже).
       const shoots = aims && i >= SHOT && (!narrow.matches || snapped);
-      if (shoots && sat.shot === null) sat.shot = instant ? clock - 600 : clock;
+      if (shoots && sat.shot === null) sat.shot = instant ? clock - 600 : clock + AIM_MS;
       if (!shoots) sat.shot = null;
     });
 
@@ -1313,8 +1315,8 @@ export function init(root) {
       // 2200 while that line counted its laps up — with the counting gone,
       // holding the wheel that long would be holding it on a still picture.
       if (i === BURN) return 1400;
-      if (i === HOLD) return AIM_MS;
-      if (i === SHOT) return 600;
+      // Доворот и за ним снимок — один такт, и держать колесо нужно оба.
+      if (i === HOLD) return AIM_MS + 600;
       return ARRIVE_MS;
     }
   };

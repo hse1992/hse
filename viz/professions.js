@@ -155,12 +155,14 @@ export const meta = {
     + '<span class="prof-settled">Мы — Высшая школа '
     +   '<span class="prof-accent" style="background: var(--hse-blue); color: var(--card)">не только</span>'
     + ' экономики</span>',
-  // The last beat of the card: what the wall under it is about.
-  subtitle: `<span class="prof-lead intro-stage" data-stage="2">В Вышке можно стать кем угодно. ${mark(`${nf(KINDS_TOTAL)} ${plural(KINDS_TOTAL, 'специализация', 'специализации', 'специализаций')}`)}, где раскроется любой талант. Укрупненно из них можно выделить ${mark(`${PROFESSIONS.length} профессии`)}</span>`,
+  // Что за стена под карточкой — приходит тем же тактом, которым логотип
+  // раскрывает кольцо и впускает в него «не только»: одна мысль, одно
+  // движение. Отдельного такта эта строка не просит — текст без картинки.
+  subtitle: `<span class="prof-lead intro-stage" data-stage="1" style="display: block">В Вышке можно стать кем угодно. ${mark(`${nf(KINDS_TOTAL)} ${plural(KINDS_TOTAL, 'специализация', 'специализации', 'специализаций')}`)}, где раскроется любой талант. Укрупненно из них можно выделить ${mark(`${PROFESSIONS.length} профессии`)}</span>`,
   intro: true,
-  // Three beats before the block: the logo as it is, the logo opening up, and
-  // the line under it.
-  introStages: 3
+  // Two beats before the block: the logo as it is, and the logo opening up
+  // with the line about the wall under it.
+  introStages: 2
 };
 
 export function init(root) {

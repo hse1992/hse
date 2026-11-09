@@ -49,6 +49,13 @@
     </div>
   </header>
 
+  <!-- В прочитанную главу полоска сверху приводит ее итогом: смотреть заново
+       то, что уже видел, читатель не просил. А эта кнопка играет главу
+       сначала. Показывает и прячет ее каркас. Стоит вне шапки: при чтении
+       тактами шапка выключена целиком (inert), и кнопка в ней была бы
+       недоступна ни мыши, ни клавише. -->
+  <button type="button" class="btn page-replay" data-el="replay" hidden>Смотреть сначала</button>
+
   <div id="page"></div>
 
   <footer class="page-footer">
@@ -197,7 +204,10 @@
     // there before the doors close on the beat after it.
     signal: document.querySelector('.page-signal'),
     // One last beat after the story: the page lifts to show the credits.
-    finale: document.querySelector('.page-footer')
+    finale: document.querySelector('.page-footer'),
+    // «Смотреть сначала» у нижнего края — для главы, в которую читатель
+    // вернулся и увидел сразу ее итог.
+    replay: document.querySelector('.page-replay')
   });
   // The progress bar doubles as the way back: a click on a block goes there,
   // and the narrow slot at its head returns to the title screen.

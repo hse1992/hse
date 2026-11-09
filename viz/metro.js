@@ -115,9 +115,11 @@ export const meta = {
   id: 'metro',
   // Short enough for the strip at the top of a phone — see meta.short in CLAUDE.md.
   short: 'Вагоны метро',
-  // The title card of the section fills in as the reader scrolls: first the
-  // heading with one sentence, then a sentence and a picture at a time.
-  introStages: 3,
+  // Карточка приезжает целиком — двери открываются сразу на нее. Электробус и
+  // поезд стоят рядом, потому что их и сравнивают друг с другом; порознь, да
+  // еще и после голого заголовка, это были два такта, на которых прибавлялось
+  // по строке к уже сказанному.
+  introStages: 1,
   // The number of first-year students carries over into the next block's
   // lead-in, «~22 000», rather than disappearing with this one.
   handoff: 'people',
@@ -143,14 +145,14 @@ export const meta = {
   subtitle: `
     <span class="metro-brief">
       <span class="metro-brief-line">${SAID[0]}</span>
-      <span class="metro-brief-line intro-stage" data-stage="1">
+      <span class="metro-brief-line" style="display: block">
         <span>${SAID[1]}</span>
         <span class="metro-brief-fig metro-brief-fig-bus">
           ${busPicture('ebus-brief', 'metro-brief-bus')}
           <span class="metro-brief-times">&times;&nbsp;${nf(BUSES_TOTAL)}</span>
         </span>
       </span>
-      <span class="metro-brief-line intro-stage" data-stage="2">
+      <span class="metro-brief-line" style="display: block">
         <span>${SAID[2]}</span>
         <span class="metro-brief-fig metro-brief-fig-train">
           <!-- the styles of the module arrive with the module, a moment after

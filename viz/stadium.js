@@ -23,6 +23,9 @@ export const meta = {
   // Hands the reader over from the trains: a number they have just met, and
   // the question it raises.
   lead: {
+    // Уезжает тем же тактом, которым приходит титульная карточка: порознь
+    // первый такт только убирал экран, не показывая ничего нового.
+    together: true,
     value: `Только первокурсников ~${nf(ADMITTED_ROUND)} человек`,
     text: 'Похоже, чтобы собрать всех людей из Вышки, нужен целый стадион…'
   },
@@ -34,24 +37,25 @@ export const meta = {
     + '<span class="stadium-scarf-slot" style="width: 4.7em">'
     + '<img class="stadium-scarf" src="assets/scarf-hse.svg" alt="" aria-hidden="true">'
     + '</span>',
-  // The title card arrives in two goes: the arena first, what we are about to
-  // do with it a screen later. Both sentences are phrasing content — the page
-  // shell puts the subtitle inside a <p>.
+  // Карточка приходит целиком: вторая строка только договаривала первую, и
+  // такт на нее был тактом без картинки. Both sentences are phrasing content —
+  // the page shell puts the subtitle inside a <p>.
   subtitle: `
     <span class="stadium-brief">
-      <span class="stadium-brief-line">«Лужники» — самая крупная арена России, вмещающая ${nf(TOTAL)} человек.</span>
-      <span class="stadium-brief-line intro-stage" data-stage="1">Вышка такая большая, что может заполнить ее практически полностью</span>
+      <span class="stadium-brief-line" style="display: block">«Лужники» — самая крупная арена России, вмещающая ${nf(TOTAL)} человек.</span>
+      <span class="stadium-brief-line" style="display: block">Вышка такая большая, что может заполнить ее практически полностью</span>
     </span>
   `,
   // Opens with the heading alone, then the empty arena fills up campus by
   // campus; the last step hands the stadium over to the reader.
   intro: true,
-  introStages: 2,
-  // Empty arena, five arrivals, then the stadium is handed over to the reader.
-  // Every step changes something: a beat that only waits would be a «next»
-  // that does nothing. The empty arena comes with the block itself, so the
-  // beats start with the first arrival.
-  steps: 7,
+  // Пустая арена, четыре прихода и передача стадиона читателю. Москва —
+  // последний и самый большой приход, и такт у нее свой: на нем арена
+  // заполняется до конца, и это главный кадр блока. Every step changes
+  // something: a beat that only waits would be a «next» that does nothing.
+  // The empty arena comes with the block itself, so the beats start with the
+  // first arrival.
+  steps: 6,
   opensOnStep: true,
   // The seats taken carry over into the next block's lead-in: everyone on the
   // stadium narrows down to the students among them.
@@ -957,8 +961,10 @@ export function init(root) {
 
   const ARRIVALS = [
     { key: 'lyceum', note: `Первыми пропустим ${mark('лицеистов Москвы и Перми,', 'lyceum')} их ${many(LYCEUM)}` },
-    { key: 'perm', note: `Дальше студенты и сотрудники ${mark('пермского кампуса', 'perm')} — ${many(people('perm'))}` },
-    { key: 'nn', note: `Затем ${mark('нижегородский кампус', 'nn')} — ${many(people('nn'))}` },
+    // Два небольших кампуса приходят одним тактом: порознь это были две почти
+    // одинаковые полоски на трибунах, и вторая читалась как повтор первой.
+    // Обе цифры при этом на месте — их и сравнивают.
+    { key: ['perm', 'nn'], note: `Дальше ${mark('Пермь', 'perm')} — ${many(people('perm'))} и ${mark('Нижний Новгород', 'nn')} — ${many(people('nn'))}` },
     { key: 'spb', note: `Потом ${mark('Питер', 'spb')} — ${many(people('spb'))}` },
     { key: 'msk', note: `И ${mark('Москва', 'msk')} — ${many(people('msk'))}` }
   ];
@@ -1027,8 +1033,10 @@ export function init(root) {
       // full one, so the reader gets a moment with it before the controls.
       const shown = Math.min(i, ARRIVALS.length);
       const came = ARRIVALS.slice(0, shown);
-      CITIES.forEach((c) => { state.active[c.key] = came.some((a) => a.key === c.key); });
-      state.kinds.lyceum = came.some((a) => a.key === 'lyceum');
+      // Приход может привести сразу два кампуса, поэтому ключи разворачиваем.
+      const keys = came.flatMap((a) => (Array.isArray(a.key) ? a.key : [a.key]));
+      CITIES.forEach((c) => { state.active[c.key] = keys.includes(c.key); });
+      state.kinds.lyceum = keys.includes('lyceum');
       state.kinds.students = true;
       state.kinds.staff = true;
       figureNote.innerHTML = shown === 0

@@ -5,6 +5,11 @@ import { nf, plural } from '../lib/format.js';
 import { mountCanvas, onResize, stepAhead } from '../lib/ui.js';
 import { mountTownMap } from '../lib/town-map.js';
 
+// Сколько у блока тактов, решает ширина: на телефоне фигуры идут по одной на
+// экран, и порядок там свой. Спрашивается один раз, до meta, — число шагов
+// каркас читает при сборке страницы.
+const PHONE = window.matchMedia('(max-width: 860px)').matches;
+
 // Facts about the buildings themselves — they live here, not in data/hse.js,
 // which only knows about the university.
 const BUILDINGS = 196;
@@ -44,26 +49,31 @@ export const meta = {
   // Short enough for the strip at the top of a phone — see meta.short in CLAUDE.md.
   short: 'Здания',
   // The reader arrives straight from the arena, so the section opens with a
-  // screen of its own, told in two goes: the stadium the university has not
-  // got, and the town its buildings make instead. It does not leave — it goes
-  // up to the top of the section and stays there while the rest is told under it.
+  // screen of its own: the stadium the university has not got, and the town
+  // its buildings make instead. Обе строки приходят разом — вторая только
+  // договаривала первую, и такт на нее был тактом без картинки. It does not
+  // leave — it goes up to the top of the section and stays there while the
+  // rest is told under it.
   lead: {
     exit: 'top',
     // Goes up in the same beat as the map of the town comes up under it:
     // parking alone would be a beat with nothing new on the screen.
     together: true,
     value: 'Для расположения всех студентов и сотрудников у Вышки нет своего стадиона <span class="area-soon">(пока)</span>',
-    text: `<span class="area-lead-line intro-stage" data-stage="1">Но есть <span class="area-mark">${nf(BUILDINGS)} ${plural(BUILDINGS, 'здание', 'здания', 'зданий')}</span>. А это уже целый город</span>`
+    text: `<span class="area-lead-line" style="display: block">Но есть <span class="area-mark">${nf(BUILDINGS)} ${plural(BUILDINGS, 'здание', 'здания', 'зданий')}</span>. А это уже целый город</span>`
   },
   title: 'В тесноте да не в обиде',
   subtitle: 'На сколько это много?',
   intro: true,
-  // Steps: the map of the town, the heading with the area of its buildings,
-  // that area in pitches, the same area in blocks of flats beside it, the
-  // question both raise, the answer under each of them, and then the
-  // visualisation itself. The map is on the screen the moment the block fades
-  // in, so no beat is spent on showing what is already there.
-  steps: 8,
+  // Steps: the map of the town; the heading with the area of its buildings и
+  // сразу поля, в которых она измерена; пятиэтажки с вопросом, который обе
+  // цифры поднимают; ответ под каждой из них; и сама визуализация. Заголовок
+  // без картинки и вопрос без картинки были тактами, на которых прибавлялась
+  // одна строка, — теперь они приходят вместе с тем, о чем говорят. На
+  // телефоне фигуры идут по одной на экран, и вопрос стоит до них, так что
+  // тактов там больше: там ответ приходит под каждой фигурой отдельно, на том
+  // же экране, где она стоит.
+  steps: PHONE ? 7 : 5,
   opensOnStep: true,
   // The area the block ends on flies into the lead-in of the studies, where it
   // turns into the number of programmes those buildings are there for.
@@ -1121,7 +1131,7 @@ export function init(root) {
   const houseNoteEl = $('houseNote');
   const innerEl = root.querySelector('.area-inner');
   const host = root.closest('.viz-section') || root.parentElement;
-  const LAST = 7;
+  const LAST = meta.steps - 1;
 
   // The same town as the town section draws — see lib/town-map.js.
   // На телефоне тот же город показывается втрое уже, и дом в восемь пикселей
@@ -1146,28 +1156,30 @@ export function init(root) {
       // фигуры приходят между ним и заголовком, в свободную строку сетки.
       townEl.classList.toggle('on', told && i === 0);
       titleEl.classList.toggle('on', told && i >= 1);
-      questionEl.classList.toggle('on', told && i >= 2);
+      questionEl.classList.toggle('on', told && i >= 1);
       questionEl.classList.remove('is-answered');
-      fieldsStepEl.classList.toggle('on', told && i >= 3 && i <= 4);
-      pitchNoteEl.classList.toggle('on', told && i === 4);
-      housesStepEl.classList.toggle('on', told && i >= 5);
-      houseNoteEl.classList.toggle('on', told && i >= 6);
-      showCrowd(told && i >= 4);
-      lightUp(told && i >= 6);
+      fieldsStepEl.classList.toggle('on', told && i >= 2 && i <= 3);
+      pitchNoteEl.classList.toggle('on', told && i === 3);
+      housesStepEl.classList.toggle('on', told && i >= 4);
+      houseNoteEl.classList.toggle('on', told && i >= 5);
+      showCrowd(told && i >= 3);
+      lightUp(told && i >= 5);
       innerEl.classList.toggle('off', told);
       host.classList.toggle('lead-gone', !told);
       return;
     }
     townEl.classList.toggle('on', told && i === 0);
     titleEl.classList.toggle('on', told && i >= 1);
-    fieldsStepEl.classList.toggle('on', told && i >= 2);
-    housesStepEl.classList.toggle('on', told && i >= 3);
-    questionEl.classList.toggle('on', told && i >= 4);
-    questionEl.classList.toggle('is-answered', told && i >= 5);
-    pitchNoteEl.classList.toggle('on', told && i >= 5);
-    houseNoteEl.classList.toggle('on', told && i >= 6);
-    showCrowd(told && i >= 5);
-    lightUp(told && i >= 6);
+    fieldsStepEl.classList.toggle('on', told && i >= 1);
+    housesStepEl.classList.toggle('on', told && i >= 2);
+    questionEl.classList.toggle('on', told && i >= 2);
+    // Обе фигуры стоят рядом, и ответ у них общий: и толпа на поле, и свет в
+    // окнах приходят одним тактом — порознь это были два такта на одну мысль.
+    questionEl.classList.toggle('is-answered', told && i >= 3);
+    pitchNoteEl.classList.toggle('on', told && i >= 3);
+    houseNoteEl.classList.toggle('on', told && i >= 3);
+    showCrowd(told && i >= 3);
+    lightUp(told && i >= 3);
     innerEl.classList.toggle('off', told);
     // На телефоне переходный экран припаркован наверху и читается как
     // заголовок блока. Когда блок отдан читателю, место под ним нужнее
