@@ -63,33 +63,6 @@
   --brand-red: #E61E3C;
   --brand-yellow: #FAB900;
 
-  /* Doors of a metro car, after assets/doors.jpg — the curtain between the
-     title screen and the first block. The body of the car, the rubber down the
-     middle and along the threshold, the window and the white chevron. */
-  /* Measured off the photograph rather than guessed: the side of the car
-     averages #336077 in the light, a blue-grey and not the teal it looks at a
-     glance, and falls to about this dark where the side turns away. */
-  --door-body: #336077;
-  --door-body-dark: #22465C;
-  /* One rib of the body: a bright crest with the shade it casts under itself.
-     In the photograph they run every 65px of 566 — about one ninth of the
-     height of the car — and the crest is a quarter of that step. */
-  --door-rib: rgba(197, 222, 244, 0.5);
-  --door-rib-shade: rgba(6, 20, 28, 0.42);
-  --door-edge: #16292F;
-  --door-frame: #12313A;
-  --door-glass: #8A7430;
-  --door-glass-light: #B9BEC4;
-  --door-stripe: #E9E7E0;
-  --door-signal: var(--brand-red);   /* the lens that blinks before they shut */
-  --door-signal-off: #7F8792;        /* and the same glass while it is dark */
-  --door-lamp: #232A31;              /* and the housing it is set into */
-  --door-lamp-light: #3C464F;
-  /* Ширина той полосы вагона, что стоит на обложке по краям экрана, — борт
-     рядом с проемом. Текст до нее не доходит: поля обложки считаются от
-     этого числа. */
-  --door-open: clamp(22px, 7.2vw, 124px);
-
   /* The flash of the satellite's camera — the curtain at the other end of the
      story, from the last picture from orbit into the finale. */
   --flash: #FFFFFF;
@@ -213,15 +186,4 @@
   --r-card: 14px;
   --r-canvas-card: 18px;
   --r-btn: 9px;
-}
-
-/* На телефоне борт уже. Дело не в пропорции, а в строке: поля обложки
-   считаются от этой полосы, и на широком экране семь сотых ширины — это
-   воздух, а на узком это двадцать пикселей, на которые «На сколько» не
-   умещается в строку и заголовок распадается на три. Борт при этом никуда
-   не девается — его хватает, чтобы сказать, где читатель стоит. */
-@media (max-width: 860px) {
-  :root {
-    --door-open: clamp(18px, 5.2vw, 30px);
-  }
 }
