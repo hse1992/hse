@@ -12237,8 +12237,17 @@ function init(root) {
          instead: "none" hands every touch to the slider. "pan-y" keeps the
          horizontal ones — the tap and the drag that set the guess — and gives
          the vertical ones back to the page. */
+      /* И линейка той же длины, что у вопроса в «Годах учебы»: два вопроса
+         страницы читаются одинаково, а там шкала идет во всю ширину экрана.
+         Здесь она стоит в карточке со счетом — и чтобы дотянуться до тех же
+         краев, ей отданы поля карточки. Отданы ей одной, отрицательным
+         отступом: заголовку, числам и кнопкам поля по-прежнему нужны. Отступ
+         тот же, что у .meter-card на узком экране (layout.css). */
       
-        .world-scale { touch-action: pan-y; }
+        .world-scale {
+          touch-action: pan-y;
+          margin: -9px -14px;
+        }
       
 
       .world-scale:focus-visible {
@@ -18877,9 +18886,11 @@ return { meta, init };
 
 const MOD_each = (() => {
 // The last screen of the page: every figure it has counted, all at once and
-// without a word of explanation. Then they are added up into one number, and
-// that number is taken apart down to one. Nothing here is drawn — the whole
-// scene is the numbers themselves, set in the same face as the rest of the page.
+// without a word of explanation. Then they gather in the middle and stand in
+// the shape of the one figure the page comes down to — the shape gives way to
+// that figure, and the figure is told what it is. Nothing here is drawn: the
+// whole scene is the numbers themselves, set in the same face as the rest of
+// the page.
 
 
 
@@ -18997,12 +19008,13 @@ function init(root) {
   const markup = (f) => `<span class="each-n">${f.value}</span>`
     + `<span class="each-w">\u00a0${f.noun}</span>`;
 
-  // What the board comes to when it is added up. It is not a quantity of
-  // anything — square metres, years and people all go into it — and nothing on
-  // the screen claims otherwise: it is every figure of the page put together,
-  // and it is there to be taken apart again.
-  const TOTAL = FIGURES.reduce((n, f) => n + f.n, 0);
   const ALL = FIGURES.map((_, i) => i);
+
+  // The board is never added up — square metres, people and programmes do not
+  // make a quantity of anything, and a seven-digit number that is not a count
+  // of anything was the page claiming otherwise. The figures do not become one
+  // number: they gather and stand in the shape of one figure. Where each of
+  // them goes is in shapeOf() below.
 
   // ---------- Markup ----------
   root.innerHTML = `
@@ -19029,12 +19041,16 @@ function init(root) {
         will-change: transform, opacity;
       }
 
-      /* The figure in the middle carries its own clearing: a soft field of the
-         card's own white, so the board draining around it never runs across
-         its digits. On a white card it is invisible — it only ever shows as
-         the room it makes. */
-      .each-sum.is-clearing {
-        box-shadow: 0 0 130px 42px var(--card);
+      /* The card is the print the photograph is on, and it goes with the rest
+         of the frame: by the time the one is told what it is, there is nothing
+         on the screen but the figure and the two lines under it. */
+      .each-card {
+        transition: background 620ms ease, box-shadow 620ms ease;
+      }
+
+      .each-card.is-bare {
+        background: transparent;
+        box-shadow: none;
       }
 
       /* What the figure counts: after the number, in grey, smaller and without
@@ -19051,6 +19067,16 @@ function init(root) {
       /* Once the board steps back, the words go with their figures. */
       .each-stage.is-faded .each-w {
         color: inherit;
+      }
+
+      /* And while the figures gather into the shape of the one, what each of
+         them counts drops away: there they are no longer figures of anything,
+         they are what the one is made of. The word keeps its place in the box
+         — the move that carries the figure takes half of it back, so what
+         lands on the point is the number. */
+      .each-stage.is-shaping .each-w {
+        opacity: 0;
+        transition: opacity 420ms ease;
       }
 
       /* The board is a shot from orbit: the corners of a viewfinder, and the
@@ -19299,6 +19325,7 @@ function init(root) {
 
   const $ = (name) => root.querySelector(`[data-el="${name}"]`);
   const stage = $('stage');
+  const card = root.querySelector('.each-card');
 
   // The heading of this section — the shell draws it, but the scene sends it
   // away and puts its own line in its place.
@@ -19342,6 +19369,15 @@ function init(root) {
     tiles.forEach((t) => { t.el.style.color = grey ? GREY : INK[t.c]; });
   };
 
+  // And as they gather into the shape of the one they take its colour, so the
+  // figure grows out of figures already wearing it rather than arriving over
+  // a grey crowd. Grey here left the shape too faint to be read as a one at
+  // all, which is the only thing those few hundred milliseconds are for.
+  const paintOne = () => {
+    stage.classList.add('is-faded');
+    tiles.forEach((t) => { t.el.style.color = HSE; });
+  };
+
   // ---------- The lines ----------
   const lines = { turn, end: $('end') };
   const say = (name) => Object.keys(lines).forEach((k) => lines[k].classList.toggle('is-on', k === name));
@@ -19369,8 +19405,106 @@ function init(root) {
       const r = probe.getBoundingClientRect();
       return { w: r.width, h: r.height };
     };
-    tiles.forEach((t) => { t.m = read(null, markup(t)); });
-    sumM = read(nf(TOTAL));
+    tiles.forEach((t) => {
+      t.m = read(null, markup(t));
+      // And the number on its own: in the shape of the one the words are gone,
+      // and a figure placed by the box it had with its word would stand half a
+      // word to the left of the point it was sent to.
+      t.mn = read(t.value);
+    });
+    sumM = read('1');
+    glyph = readGlyph();
+  }
+
+  // ---------- The outline of the one ----------
+  // Пропорции единицы берутся с того самого знака, которым набрана страница, а
+  // не выдумываются: единица один раз печатается в холст, и каждая ее полоска
+  // меряется — где начинается краска, где кончается. Из этих полосок shapeOf()
+  // ниже достает все, что ему нужно: толщину стойки, ширину лапы и наклон
+  // флага. Тринадцать полосок, а не восемь: стойка одинакова во всю высоту и
+  // лишних не просит, а вот флагу достаются только верхние, и по двум полоскам
+  // наклон не посчитать.
+  const ROWS = 13;
+  let glyph = null;
+
+  function readGlyph() {
+    const cv = document.createElement('canvas');
+    const g = cv.getContext && cv.getContext('2d', { willReadFrequently: true });
+    if (!g) return null;
+
+    const cs = getComputedStyle(sum);
+    const H = 180;
+    const font = `${cs.fontWeight} ${H}px ${cs.fontFamily}`;
+    g.font = font;
+    const m = g.measureText('1');
+    const left = m.actualBoundingBoxLeft || 0;
+    const right = m.actualBoundingBoxRight || m.width;
+    const up = m.actualBoundingBoxAscent || H * 0.72;
+    const down = m.actualBoundingBoxDescent || 0;
+    const pad = 4;
+    cv.width = Math.ceil(left + right) + pad * 2;
+    cv.height = Math.ceil(up + down) + pad * 2;
+    g.font = font;                       // resizing the canvas clears its state
+    g.textBaseline = 'alphabetic';
+    g.fillStyle = '#000';
+    g.fillText('1', pad + left, pad + up);
+
+    let px;
+    try {
+      px = g.getImageData(0, 0, cv.width, cv.height).data;
+    } catch (err) {
+      return null;                       // nothing to read it from; see shapeOf
+    }
+    const inked = (x, y) => px[(y * cv.width + x) * 4 + 3] > 80;
+
+    let y0 = -1;
+    let y1 = -1;
+    let x0 = cv.width;
+    let x1 = -1;
+    for (let y = 0; y < cv.height; y++) {
+      for (let x = 0; x < cv.width; x++) {
+        if (!inked(x, y)) continue;
+        if (y0 < 0) y0 = y;
+        y1 = y;
+        if (x < x0) x0 = x;
+        if (x > x1) x1 = x;
+      }
+    }
+    if (y1 <= y0) return null;
+
+    const tall = y1 - y0 + 1;
+    const mid = (x0 + x1 + 1) / 2;
+    const rows = [];
+    for (let i = 0; i < ROWS; i++) {
+      const y = Math.min(y1, Math.round(y0 + ((i + 0.5) * tall) / ROWS));
+      let a = -1;
+      let b = -1;
+      for (let x = 0; x < cv.width; x++) {
+        if (!inked(x, y)) continue;
+        if (a < 0) a = x;
+        b = x;
+      }
+      if (a < 0) continue;
+      // Everything in units of the ink's own height, from its own middle.
+      rows.push({ y: (y + 0.5 - y0) / tall - 0.5, a: (a - mid) / tall, b: (b + 1 - mid) / tall });
+    }
+    if (rows.length < 4) return null;
+
+    // Where the ink sits inside the box the figure is placed by: the element
+    // is centred on its box, and the box is taller and wider than the mark in
+    // it. Without this the shape and the one growing out of it would stand a
+    // few per cent apart — which is the whole of the effect.
+    const fbUp = m.fontBoundingBoxAscent;
+    const fbDown = m.fontBoundingBoxDescent;
+    const base = fbUp === undefined ? 0.5 + (up - down) / 2 / H
+      : (1 - (fbUp + fbDown) / H) / 2 + fbUp / H;
+
+    return {
+      rows,
+      k: tall / H,                       // how tall the ink is per unit of type
+      dx: (right - left - m.width) / 2 / H,
+      dy: base - (up - down) / 2 / H - 0.5
+    };
   }
 
   // ---------- Layout ----------
@@ -19456,13 +19590,34 @@ function init(root) {
     // Half the board's margin: this one figure is meant to fill the screen,
     // and only needs to stop short of the edge of the card.
     const wide = { x: airX / 2, y: 0, w: Math.max(200, w - airX), h };
-    const big = pack([{ m: sumM, w: 1 }], wide, Math.min(area.h * 0.62, 300));
+    // As large as the card will take it. The figure is the point of the
+    // screen — and the shape the board stands in before it is the same height,
+    // so a bigger one is also what lets the figures in that shape be set
+    // large enough to read.
+    const big = pack([{ m: sumM, w: 1 }], wide, Math.min(area.h * 0.68, 360));
 
     // Once the answer is there, the figure and the two lines under it stand as
-    // one block in the middle of the screen.
+    // one block in the middle of the screen. The shape the figures take stands
+    // in exactly that place and at exactly that height: the one does not move
+    // in after them, it grows out of where they are standing.
     const numH = big[0].h;
     const gap = Math.round(Math.min(40, h * 0.06));
-    const top = (h - (numH + gap + endH)) / 2;
+    const block = numH + gap + endH;
+    let top = (h - block) / 2;
+
+    // On a phone the card is pinned part way down the screen, and the print it
+    // is on goes with the frame — so the closing composition is centred on the
+    // window and not on a card that by then is no longer there. Where the card
+    // comes to rest is asked of the card itself; clamped to what the stage can
+    // hold, because it clips whatever goes past its edge.
+    if (narrow.matches) {
+      const cs = getComputedStyle(card);
+      const stuck = (parseFloat(cs.top) || 0) + (parseFloat(cs.paddingTop) || 0);
+      const vh = document.documentElement.clientHeight || window.innerHeight;
+      top = Math.max(0, Math.min(h - block, (vh - block) / 2 - stuck));
+    }
+
+    const seat = { cx: big[0].cx, cy: top + numH / 2, h: numH, num: big[0].num };
 
     // The board is laid out inside the frame of the shot, clear of the caption
     // strips along its top and bottom edges — and clear of the frame itself,
@@ -19480,7 +19635,7 @@ function init(root) {
     L = {
       board: pack(tiles.map((t) => ({ m: t.m, w: t.size })), shot, 150),
       big,
-      end: [{ ...big[0], cy: top + numH / 2 }],
+      end: [{ ...big[0], cy: seat.cy }],
       endTop: Math.round(top + numH + gap),
       // On a phone the board has the card to itself — the one it comes down
       // to arrives in its place, on the next turn of the finger, rather than
@@ -19494,6 +19649,184 @@ function init(root) {
           w: Math.max(120, w - airX * 2),
           h: Math.max(60, h - capTop - capBottom - airPoster * 2) }, 90)
     };
+
+    // Measured against the board the figures are actually standing on, so that
+    // every point of the shape takes the figure already nearest to it.
+    L.shape = shapeOf(narrow.matches ? L.poster : L.board, seat);
+  }
+
+  // ---------- The shape of the one ----------
+  // Залить знак текстом семнадцатью цифрами нельзя: чтобы заполнить его очко,
+  // строк нужно вдвое больше, чем у нас цифр, — набор выходит редким, и единица
+  // читается столбиком. Поэтому она не заливается, а рисуется теми тремя
+  // штрихами, из которых ее и рисуют: стойка — столбик цифр в один кегль,
+  // выключенный вправо; флаг — одна длинная цифра, положенная на наклон; лапа
+  // — два ряда, выключенных во всю ширину. Пропорции штрихов сняты с самого
+  // знака (readGlyph выше), так что крупная единица вырастает ровно оттуда,
+  // где цифры стоят.
+  const GAP = 0.34;                   // between two figures in a row, in ems
+  // Междустрочие стойки, в кеглях. Тесное нарочно: ряды должны почти касаться,
+  // иначе столбик читается строчками текста, а не штрихом.
+  const LEAD = 1.15;
+  const relOf = (i) => tiles[i].mn.w / REF;
+
+  function shapeOf(from, box) {
+    // No canvas to read the glyph from: the figures still gather, in a plain
+    // column, and the one still grows out of them.
+    if (!glyph) {
+      const unit = box.h * 0.062;
+      return tiles.map((t, i) => ({
+        cx: box.cx + ((t.m.w - t.mn.w) * unit) / REF / 2,
+        cy: box.cy + (i / Math.max(1, tiles.length - 1) - 0.5) * box.h * 0.9,
+        num: unit
+      }));
+    }
+
+    const F = box.num;                             // the one's own type size
+    const ink = glyph.k * F;
+    const cx = box.cx + glyph.dx * F;
+    const cy = box.cy + glyph.dy * F;
+
+    // Стойка — та ширина, что повторяется у знака чаще других: она идет во всю
+    // его высоту, а флаг и лапа — только по своей трети. Ни самый узкий ряд, ни
+    // срединный тут не годятся: первый — верхушка, с которой начинается флаг,
+    // второй — уже сам флаг.
+    const same = (r) => glyph.rows.filter((o) =>
+      Math.abs((o.b - o.a) - (r.b - r.a)) < (r.b - r.a) * 0.08).length;
+    const thin = glyph.rows.reduce((m, r) => {
+      const d = same(r) - same(m);
+      return d > 0 || (d === 0 && r.b - r.a < m.b - m.a) ? r : m;
+    });
+    const stemW = thin.b - thin.a;
+    const sole = glyph.rows.filter((r) => r.y > 0 && r.b - r.a > stemW * 1.15)
+      .sort((a, b) => (b.b - b.a) - (a.b - a.a))[0]
+      || { a: thin.a - stemW, b: thin.b + stemW };
+    // Сам косой штрих: от верха стойки вниз-влево, до самой левой точки знака.
+    const tip = glyph.rows.reduce((m, r) => (r.a < m.a ? r : m));
+    const high = glyph.rows.reduce((m, r) => (r.y < m.y ? r : m));
+
+    // Кто в каком штрихе — по тому, какая цифра в наборе насколько длинная;
+    // в эмах, а не в пикселях, потому что кегль раздача задает сама.
+    //
+    // Флагу — одна цифра, и самая длинная: он косой штрих, и цифра, положенная
+    // на этот наклон, читается штрихом сразу. Три ступени, стоявшие тут
+    // раньше, забирали у стойки три ряда — а ей рядами и набирается рост.
+    // Лапе — длинные, двумя рядами во всю ширину, и заодно огрызки вроде «3»:
+    // ряд выключается, и короткими он как раз добирается до края. Стойке —
+    // все остальное: цифры близкой ширины, которые и складываются в брусок.
+    const desc = ALL.slice().sort((a, b) => relOf(b) - relOf(a));
+    const mid = relOf(desc[desc.length >> 1]);
+    const wideOf = (row) => row.reduce((s, i) => s + relOf(i) + GAP, -GAP);
+
+    function deal(take) {
+      const feet = [[], []];
+      const drop = (i) => {
+        feet.sort((a, b) => wideOf(a) - wideOf(b));
+        feet[0].push(i);
+      };
+      // Коротышки — сразу в лапу: в столбике, где рядом стоят «3» и «77 649»,
+      // бруска не видно, а выключенному ряду они только в помощь.
+      const free = desc.filter((i) => relOf(i) >= mid * 0.72);
+      desc.filter((i) => relOf(i) < mid * 0.72).forEach(drop);
+      const flag = free.shift();
+      free.splice(0, take).forEach(drop);
+
+      return {
+        flag,
+        // Снизу самый широкий ряд: лапа тогда читается подставкой, а не
+        // случайно набранным хвостом.
+        feet: feet.filter((row) => row.length).sort((a, b) => wideOf(a) - wideOf(b)),
+        stem: free,
+        stemEm: free.length ? relOf(free[0]) : mid,
+        footEm: Math.max(...feet.map(wideOf), 1)
+      };
+    }
+
+    // Сколько длинных цифр уйдет в лапу, зависит от того, какой ширины выйдет
+    // стойка, а она — от того, сколько у нее осталось. Круг этот не решается,
+    // поэтому просто примеряем: лапа знака втрое шире его стойки, и берем ту
+    // раздачу, у которой это отношение ближе всего к знаковому.
+    let lay = null;
+    for (let take = 0; take + 4 <= desc.length; take += 2) {
+      const next = deal(take);
+      next.off = Math.abs(next.footEm / next.stemEm - (sole.b - sole.a) / stemW);
+      if (!lay || next.off < lay.off) lay = next;
+    }
+
+    const size = Math.min(
+      (0.92 * ink) / Math.max(1, lay.stem.length + lay.feet.length - 1) / LEAD,
+      // Стойка не намного толще стойки знака: столбик из широких цифр иначе
+      // сравнялся бы с лапой, и единица стала бы похожа на брусок.
+      (stemW * ink * 1.3) / Math.max(0.2, lay.stemEm)
+    );
+
+    // Ряды стоят по всей высоте очка: сверху вниз стойка, двумя последними —
+    // лапа. Столбик идет от более узкой цифры к более широкой, так что к лапе
+    // он слегка расширяется.
+    const column = lay.stem.slice().sort((a, b) => relOf(a) - relOf(b));
+    const slots = Math.max(2, column.length + lay.feet.length);
+    const pitch = (0.92 * ink) / (slots - 1);
+    const top = cy - 0.46 * ink;
+    const axis = cx + ((thin.a + thin.b) / 2) * ink;
+    // Стойка выключена вправо: прямой край во всю высоту — то, по чему
+    // единица и узнается. Выключи столбик по центру — и он прочтется абзацем,
+    // а не штрихом, какой бы ровной ни была его ширина.
+    const bar = lay.stemEm * size;
+    const right = axis + bar / 2;
+
+    const out = [];
+    // The word after the figure is still in the box, invisible: half of it is
+    // taken back here, so what lands on the line is the number — and when the
+    // figure lies on a slant, that half is taken back along the slant.
+    const put = (i, x, y, turn = 0) => {
+      const a = (turn * Math.PI) / 180;
+      const back = ((tiles[i].m.w - tiles[i].mn.w) * size) / REF / 2 + (relOf(i) * size) / 2;
+      out[i] = { cx: x + back * Math.cos(a), cy: y + back * Math.sin(a), num: size, turn };
+    };
+
+    column.forEach((i, k) => put(i, right - relOf(i) * size, top + k * pitch));
+
+    // Флаг лежит на самом наклоне: правым концом в левый край стойки у ее
+    // верха, дальше вниз-влево — туда же, куда уходит косой штрих знака.
+    if (lay.flag !== undefined) {
+      const run = (thin.a - tip.a) * ink;             // сколько штрих уходит влево
+      const fall = (tip.y - high.y) * ink;            // и насколько при этом вниз
+      const turn = -(Math.atan2(fall, Math.max(1, run)) * 180) / Math.PI;
+      const a = (turn * Math.PI) / 180;
+      const len = relOf(lay.flag) * size;
+      put(lay.flag,
+        right - lay.stemEm * size - GAP * size * 0.5 - len * Math.cos(a),
+        top - len * Math.sin(a),
+        turn);
+    }
+
+    lay.feet.forEach((row, k) => {
+      if (!row.length) return;
+      // Слева направо в том порядке, в каком цифры уже стоят, — чтобы по дороге
+      // ни одна не прошла перед другой.
+      const idx = row.slice().sort((a, b) => {
+        const A = from && from[a];
+        const B = from && from[b];
+        return (A ? A.cx : a) - (B ? B.cx : b);
+      });
+      // Лапа выключается во всю ширину лапы знака. Именно в нее, а не в кратное
+      // толщине столбика: столбик из цифр выходит толще стойки знака, и лапа,
+      // выросшая вместе с ним, сделала бы единицу шириной с собственный рост.
+      const span = (sole.b - sole.a) * ink;
+      const used = idx.reduce((s, i) => s + relOf(i), 0) * size;
+      const gap = idx.length > 1
+        ? Math.max(GAP * size, Math.min((span - used) / (idx.length - 1), GAP * size * 2.4))
+        : 0;
+      const wide = used + gap * (idx.length - 1);
+      const y = top + (column.length + k) * pitch;
+      let x = cx + ((sole.a + sole.b) / 2) * ink - wide / 2;
+      idx.forEach((i) => { put(i, x, y); x += relOf(i) * size + gap; });
+    });
+
+    // Ни одна цифра не остается без места: с чем бы ни вышла раскладка,
+    // apply() должен получить точку на каждую.
+    ALL.forEach((i) => { if (!out[i]) put(i, right - relOf(i) * size, cy); });
+    return out;
   }
 
   // ---------- Moving ----------
@@ -19517,10 +19850,11 @@ function init(root) {
       }
       t.el.style.fontSize = `${to.num}px`;
 
-      const from = t.at && t.at.a ? t.at : { cx: to.cx, cy: to.cy, num: to.num * 0.86, a: 0 };
+      const from = t.at && t.at.a ? t.at
+        : { cx: to.cx, cy: to.cy, num: to.num * 0.86, a: 0, turn: to.turn };
       t.el.style.transition = 'none';
       t.el.style.transform = `translate(${from.cx}px, ${from.cy}px) translate(-50%, -50%)`
-        + ` scale(${from.num / to.num})`;
+        + ` scale(${from.num / to.num}) rotate(${from.turn || 0}deg)`;
       t.el.style.opacity = `${from.a}`;
       t.next = { to, wait };
     });
@@ -19535,7 +19869,8 @@ function init(root) {
       const a = to.a === undefined ? 1 : to.a;
       t.el.style.transition = `transform ${d}ms ${EASE} ${wait}ms, opacity ${f}ms ease ${wait}ms,`
         + ' color 620ms ease';
-      t.el.style.transform = `translate(${to.cx}px, ${to.cy}px) translate(-50%, -50%) scale(1)`;
+      t.el.style.transform = `translate(${to.cx}px, ${to.cy}px) translate(-50%, -50%) scale(1)`
+        + ` rotate(${to.turn || 0}deg)`;
       t.el.style.opacity = `${a}`;
       t.at = { ...to, a };
     });
@@ -19543,104 +19878,15 @@ function init(root) {
 
   // The middle never moves sideways and never changes size, so it needs none
   // of the above: it is put where it goes and told what to say.
-  function placeSum(at, { dur = 620, show = true, text = null, color = null } = {}) {
+  function placeSum(at, { dur = 620, show = true, text = null, color = null, scale = 1 } = {}) {
     const d = still ? 0 : dur;
     if (text !== null) sum.textContent = text;
     if (color) sum.style.color = color;
     sum.style.fontSize = `${at.num}px`;
     sum.style.transition = `transform ${d}ms ${EASE}, opacity ${Math.min(d, 420)}ms ease,`
       + ' color 620ms ease';
-    sum.style.transform = `translate(${at.cx}px, ${at.cy}px) translate(-50%, -50%)`;
+    sum.style.transform = `translate(${at.cx}px, ${at.cy}px) translate(-50%, -50%) scale(${scale})`;
     sum.style.opacity = show ? '1' : '0';
-  }
-
-  // ---------- The counts ----------
-  let counting = null;
-  const stopCount = () => { if (counting) { cancelAnimationFrame(counting); counting = null; } };
-
-  // The board is added up. The figures come into the middle one after another,
-  // quicker and quicker, and the middle takes each of them on as it arrives —
-  // so the number growing there is the sum of everything that has landed.
-  function addUp(done) {
-    stopCount();
-    sum.classList.add('is-clearing');
-    const c = L.big[0];
-    const span = 1000;
-    const flight = 560;
-    const gone = 300;                              // how long one takes to go
-
-    // Nearest first: the middle of the board empties before the figure that
-    // is growing there has to share the room with anything, and the drain
-    // reads as one movement outwards rather than as a scatter.
-    const reach = (k) => Math.hypot(L.board[k].cx - c.cx, L.board[k].cy - c.cy);
-    const wait = rush(ALL.slice().sort((a, b) => reach(a) - reach(b)), span);
-
-    placeSum(c, { dur: 0, show: false, text: nf(0), color: INK.ink });
-
-    // A figure sets off towards the middle and is spent before it gets there:
-    // it fades out about half way, so nothing ever piles up on the number
-    // growing in the centre and no two of them cross in front of it. Only the
-    // way they are all heading is read, which is the whole point.
-    apply(tiles.map((t, k) => {
-      const from = L.board[k];
-      const half = 0.5;
-      return {
-        cx: from.cx + (c.cx - from.cx) * half,
-        cy: from.cy + (c.cy - from.cy) * half,
-        num: from.num * 0.62,
-        a: 0
-      };
-    }), { dur: flight, fade: gone, delay: wait });
-
-    if (still) { placeSum(c, { dur: 0, text: nf(TOTAL) }); done(); return; }
-
-    // Each of them is taken on at the moment it disappears, so the number in
-    // the middle grows exactly as the board is spent.
-    const lands = ALL.map((k) => ({ n: FIGURES[k].n, at: wait(k) + gone * 0.9 }));
-    const last = Math.max(...lands.map((x) => x.at));
-    const t0 = performance.now();
-    sum.style.transition = 'opacity 320ms ease';
-    let shownYet = false;
-
-    const frame = (now) => {
-      const t = now - t0;
-      const got = lands.reduce((n, x) => n + (t >= x.at ? x.n : 0), 0);
-      sum.textContent = nf(got);
-      if (got > 0 && !shownYet) { shownYet = true; sum.style.opacity = '1'; }
-      if (t < last) { counting = requestAnimationFrame(frame); return; }
-      counting = null;
-      sum.textContent = nf(TOTAL);
-      done();
-    };
-    counting = requestAnimationFrame(frame);
-  }
-
-  // And the sum falls to one, with an equal share of the time for every digit
-  // it loses: it slows down of its own accord and the last dozens can be read
-  // one by one. It keeps its size and simply grows shorter.
-  function countDown(done) {
-    stopCount();
-    if (still) { done(); return; }
-    const t0 = performance.now();
-    const dur = 2200;
-    const frame = (now) => {
-      const raw = Math.min(1, (now - t0) / dur);
-      const u = 1 - Math.pow(1 - raw, 1.6);
-      sum.textContent = nf(Math.max(1, Math.round(Math.pow(TOTAL, 1 - u))));
-      if (raw < 1) { counting = requestAnimationFrame(frame); return; }
-      counting = null;
-      done();
-    };
-    counting = requestAnimationFrame(frame);
-  }
-
-  // What is left takes the colour of the university itself — the only place on
-  // the page where it stands for something other than a campus.
-  function landOne() {
-    stopCount();
-    sum.textContent = '1';
-    sum.style.transition = 'color 620ms ease';
-    sum.style.color = HSE;
   }
 
   // ---------- The scene ----------
@@ -19666,6 +19912,88 @@ function init(root) {
     lines.end.style.bottom = top === null ? '' : 'auto';
   }
 
+  // ---------- The turn ----------
+  // The board gathers into the shape of the one, the shape gives way to the
+  // figure, and the figure is told what it is. One movement from end to end:
+  // the page has been leading here, and a turn that waits on the wheel twice
+  // is two smaller turns.
+  const GATHER = 1100;        // the figures fly in and take their places
+  const LOOK = 1000;          // and stand there long enough to be read as a one
+  const BECOME = 760;         // the shape gives way to the figure
+  const ALONE = 680;          // the one by itself before it is told what it is
+
+  // Everything the photograph was made of, put back the way it was: the frame,
+  // the print it is on, and the word after every figure.
+  function photo(on) {
+    $('hud').classList.toggle('is-gone', !on);
+    card.classList.toggle('is-bare', !on);
+    stage.classList.toggle('is-shaping', !on);
+  }
+
+  // The last composition, with nothing playing: the one and the two lines
+  // under it on a bare field. This is also what a window resized after the
+  // turn comes back to — running the whole thing again would take the answer
+  // off the screen and make the reader sit through it to get it back.
+  function settled() {
+    // Asked for less movement, the reader is shown the state the block ends
+    // in and nothing else — so this one screen is the whole section for them,
+    // and the heading has to stay on it. Played out, the heading has already
+    // said its piece and given way to the question, and the last composition
+    // is the one and the two lines under it.
+    hush(!still);
+    photo(false);
+    paint(true);
+    endAt(L.endTop);
+    apply(tiles.map(() => null), { dur: 0 });
+    placeSum(L.end[0], { dur: 0, text: '1', color: HSE, scale: 1 });
+    say('end');
+  }
+
+  function finish(onDone) {
+    if (still) { settled(); onDone(); return; }
+
+    // On a wide screen the question stands where the heading was and can stay
+    // until it is answered. On a phone it is said over the board itself, in
+    // the middle of the card — exactly where the one is about to stand.
+    say(narrow.matches ? null : 'turn');
+
+    // Nothing of the photograph survives the turn: the corners of the
+    // viewfinder, the caption along its edges and the print itself all go
+    // while the figures are still on their way in.
+    photo(false);
+    paintOne();
+    endAt(L.endTop);
+
+    // From the middle of the stem outwards, so the one builds rather than
+    // lands all at once.
+    const from = L.end[0].cy;
+    const order = ALL.slice().sort((a, b) =>
+      Math.abs(L.shape[a].cy - from) - Math.abs(L.shape[b].cy - from));
+    apply(L.shape.map((p) => ({ ...p, a: 1 })),
+      { dur: GATHER, fade: 420, delay: rush(order, 420) });
+
+    placeSum(L.end[0], { dur: 0, show: false, text: '1', color: HSE, scale: 0.88 });
+
+    later(() => {
+      // The shape gives way to the figure it was standing in for. The numbers
+      // draw in towards the middle as they go, so the one grows out of them
+      // instead of being swapped in over them.
+      apply(L.shape.map((p) => ({
+        cx: L.end[0].cx + (p.cx - L.end[0].cx) * 0.84,
+        cy: L.end[0].cy + (p.cy - L.end[0].cy) * 0.84,
+        num: p.num,
+        turn: p.turn,
+        a: 0
+      })), { dur: BECOME, fade: 560 });
+      placeSum(L.end[0], { dur: BECOME, show: true, scale: 1 });
+
+      later(() => {
+        say('end');
+        onDone();
+      }, BECOME + ALONE);
+    }, GATHER + LOOK);
+  }
+
   // ---------- The phone ----------
   // A narrow screen has no beats, so the turn is driven by the scroll. The
   // card is pinned inside a block of travel and the reader walks it: the
@@ -19680,11 +20008,9 @@ function init(root) {
   function phoneBoard() {
     hush(false);
     paint(false);
-    // Nothing is flying past it here, and the clearing would only wash out
-    // the board it stands in.
-    sum.classList.remove('is-clearing');
+    photo(true);
     say(null);
-    placeSum(L.end[0], { dur: 0, show: false, text: '1', color: HSE });
+    placeSum(L.end[0], { dur: 0, show: false, text: '1', color: HSE, scale: 0.88 });
     apply(tiles.map((t, k) => ({ ...L.poster[k], a: 1 })), { delay: rush(ALL, 700, 100) });
   }
 
@@ -19694,18 +20020,18 @@ function init(root) {
   function phoneAsk() {
     hush(false);
     paint(true);
-    sum.classList.remove('is-clearing');
+    photo(true);
     say('turn');
-    placeSum(L.end[0], { dur: 0, show: false, text: '1', color: HSE });
+    placeSum(L.end[0], { dur: 0, show: false, text: '1', color: HSE, scale: 0.88 });
     apply(tiles.map((t, k) => ({ ...L.poster[k], a: 0.18 })), {});
   }
 
+  // One swipe of the finger plays the whole of it, exactly as one turn of the
+  // wheel does on a wide screen. Coming back to a turn already played puts it
+  // back as it ended instead of playing it again.
   function phoneOne() {
-    sum.classList.remove('is-clearing');
-    endAt(L.endTop);
-    apply(tiles.map(() => null), {});
-    placeSum(L.end[0], { dur: 620, text: '1', color: HSE });
-    say('end');
+    if (done) { settled(); return; }
+    finish(() => { done = true; });
   }
 
   // Where the reader is through the block, counted over the distance the
@@ -19729,43 +20055,30 @@ function init(root) {
     let want = Math.max(0, phoneStage);
     while (want < AHEAD.length && p > AHEAD[want]) want += 1;
     while (want > 0 && p < BACK[want - 1]) want -= 1;
+    // Back out of the turn and it is a turn again: the next swipe plays it.
+    if (want < 2) done = false;
     if (want === phoneStage && !force) return;
     phoneStage = want;
+    clearLater();
     PHONE_STATE[want]();
-    // The frame belongs to the photograph: the board and the question over it.
-    // With the one left alone on the card there is nothing left to frame.
-    $('hud').classList.toggle('is-gone', want >= 2);
   }
 
   // The closing beat, put back as it ended instead of played again. A window
   // resized after the answer has arrived still has to be laid out afresh —
-  // the board is packed to the size of the card — but running the whole count
-  // a second time would take the answer off the screen and make the reader
-  // watch five seconds of it to get the same screen back.
+  // the board is packed to the size of the card — but playing the turn a
+  // second time would take the answer off the screen and make the reader sit
+  // through it to get the same screen back.
   function settle() {
     clearLater();
-    stopCount();
     if (narrow.matches) { phone(true); return; }
-    $('hud').classList.add('is-gone');
-    say('end');
-    hush(true);
-    paint(true);
-    endAt(L.endTop);
-    sum.classList.remove('is-clearing');
-    apply(tiles.map(() => null), { dur: 0 });
-    placeSum(L.end[0], { dur: 0, text: '1', color: HSE });
+    settled();
   }
 
   function play(i) {
     clearLater();
-    stopCount();
     done = false;
     if (!L) relayout();
     if (narrow.matches) { phone(true); return; }
-
-    // The shot stays a shot while the board is up; once it starts adding up,
-    // the frame around it goes.
-    $('hud').classList.toggle('is-gone', i >= 2);
 
     // The whole board at once. It is put up without an arrival of its own: the
     // section is still coming in when this is called, so anything played here
@@ -19779,40 +20092,22 @@ function init(root) {
       say(asked ? 'turn' : null);
       hush(asked);
       endAt(L.endTop);
-      sum.classList.remove('is-clearing');
-      placeSum(L.big[0], { dur: 0, show: false, text: nf(TOTAL), color: INK.ink });
+      // Back from the turn, the photograph is a photograph again.
+      photo(true);
+      placeSum(L.end[0], { dur: 0, show: false, text: '1', color: HSE, scale: 0.88 });
       apply(tiles.map((t, k) => ({ ...L.board[k], a: 1 })), { dur: asked ? 620 : 0 });
       paint(asked);
       return;
     }
 
-    // The end, all of it, on one turn of the wheel. The board adds itself up
-    // into the middle, that number falls to one, and the one is told what it
-    // is — with the question still standing where the heading was. Splitting
-    // this across beats made the reader ask for the answer to a question the
-    // screen had already finished asking; it is one thought, so it is one
-    // movement, and nothing waits on the wheel again.
-    say('turn');
+    // The end, all of it, on one turn of the wheel: the board gathers into
+    // the shape of the one, the shape gives way to the figure, and the figure
+    // is told what it is — with the question still standing where the heading
+    // was. Splitting this across beats made the reader ask for the answer to
+    // a question the screen had already finished asking; it is one thought,
+    // so it is one movement, and nothing waits on the wheel again.
     hush(true);
-    paint(true);
-    addUp(() => {
-      // The whole sum is held first — it is the figure the page has been
-      // adding up to, and seven digits take a moment to become a number
-      // rather than a row of marks. Half a second was not enough: it began
-      // coming apart while the eye was still reading it.
-      later(() => countDown(() => {
-        landOne();
-        // And the one is left alone before it is told what it is — a shorter
-        // wait than the sum got, and deliberately so. One digit is read at a
-        // glance, and the count slows into it of its own accord, so the pause
-        // that number needed would be a stop here.
-        later(() => {
-          say('end');
-          placeSum(L.end[0], { dur: 620 });
-          done = true;
-        }, 900);
-      }), 1200);
-    });
+    finish(() => { done = true; });
   }
 
   // ---------- Wiring ----------
