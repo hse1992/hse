@@ -391,8 +391,17 @@ export function init(root) {
          instead: "none" hands every touch to the slider. "pan-y" keeps the
          horizontal ones — the tap and the drag that set the guess — and gives
          the vertical ones back to the page. */
+      /* И линейка той же длины, что у вопроса в «Годах учебы»: два вопроса
+         страницы читаются одинаково, а там шкала идет во всю ширину экрана.
+         Здесь она стоит в карточке со счетом — и чтобы дотянуться до тех же
+         краев, ей отданы поля карточки. Отданы ей одной, отрицательным
+         отступом: заголовку, числам и кнопкам поля по-прежнему нужны. Отступ
+         тот же, что у .meter-card на узком экране (layout.css). */
       @media (max-width: 860px) {
-        .world-scale { touch-action: pan-y; }
+        .world-scale {
+          touch-action: pan-y;
+          margin: -9px -14px;
+        }
       }
 
       .world-scale:focus-visible {
