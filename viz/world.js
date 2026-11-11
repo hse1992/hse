@@ -81,7 +81,8 @@ export const meta = {
         ? '<span class="world-ask-line" style="display: block; margin-top: 0.5em;'
           + ' color: var(--hse-blue); font-weight: 700; font-size: 1.12em">'
           + 'Как думаешь, из скольких стран?</span>'
-        : '<span class="world-ask" style="background: var(--hse-blue); color: var(--card)">'
+        : '<span class="world-ask world-ask-line"'
+          + ' style="background: var(--hse-blue); color: var(--card)">'
           + 'Как думаешь, из скольких стран?</span>')
   },
   // Pushkin himself closes the line, the way the scarf closes it on the
@@ -592,23 +593,146 @@ export function init(root) {
         font-size: 0.875rem;
       }
 
+      /* ---------- Набор вопроса ---------- */
+
+      /* Вопрос набран ровно так же, как вопрос в «Годах учебы»: тот же кегль,
+         та же длина линейки, те же кнопки под ней. Два вопроса страницы —
+         одна угадайка, и читатель, дошедший до второго, должен узнать первый,
+         а не разбираться в новом устройстве.
+
+         Там угадайка стоит на переходном экране и набрана от его множителя
+         (--intro-k, 1,55 в начале). Здесь она стоит в блоке, под
+         припаркованным экраном, и своего множителя у блока нет — так что он
+         записан числом. */
+      .world-body {
+        --ask-k: 1.55;
+      }
+
+      /* На невысоком окне множитель убавляется. Там, у «Годов учебы», за это
+         отвечает сам переходный экран: не поместившись, он сжимается целиком
+         (--lead-squeeze). Здесь сжимать некому — угадайка стоит в блоке, — и
+         набранная в полный рост она роняла вторую кнопку за нижний край
+         экрана: на 360x640 «Показать ответ» уходила под обрез. */
+      @media (max-height: 700px) {
+        .world-body { --ask-k: 1.35; }
+      }
+
+      @media (max-height: 620px) {
+        .world-body { --ask-k: 1.2; }
+      }
+
+      /* Карточки у вопроса нет: он стоит прямо на странице, как и там.
+         Карточка возвращается со стеной — на том кадре она снова счет, а не
+         вопрос, и ей снова нужны поля и тень. Меняется это на глазах, тактом,
+         поэтому переходом, а не рывком. */
+      .world-body .meter-card {
+        transition: background-color 260ms ease, box-shadow 260ms ease,
+                    padding 260ms ease;
+      }
+
+      .world-body:not(.world-walled) .meter-card {
+        background-color: transparent;
+        box-shadow: none;
+        padding: 0;
+        text-align: center;
+      }
+
+      /* «Твоя догадка» на вопросе не нужна: под крупным «?» и так ничего
+         другого стоять не может, а на том вопросе такой строки нет. */
+      .world-body:not(.world-walled) .meter-title {
+        display: none;
+      }
+
+      /* Цифра и то, из скольких она, — одной строкой по центру: «? из 195
+         стран мира» набрано так же, как «? лет» там. Единица измерения
+         меньше самой цифры и тише ее, долей от нее же.
+         Кегль ограничен долей высоты окна: на низком экране цифра в полтора
+         десятка строк съела бы и линейку, и кнопки под ней. */
+      .world-body:not(.world-walled) .world-score {
+        justify-content: center;
+        gap: 0.18em;
+        line-height: 1;
+        font-size: min(calc(3.25rem * var(--ask-k)), 9vh);
+      }
+
+      .world-body:not(.world-walled) .world-score-value {
+        font-size: 1em;
+        letter-spacing: -0.04em;
+        color: var(--hse-blue);
+      }
+
+      .world-body:not(.world-walled) .world-score-note {
+        font-size: 0.36em;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+      }
+
+      .world-body .world-score {
+        transition: font-size 260ms ease, gap 260ms ease;
+      }
+
+      /* Линейка той же длины, что и там, и так же посередине экрана.
+         Ширина проставлена явно: карточка — колонка флексом, а поле auto
+         поперек нее отменяет растяжение, и шкала садилась по содержимому —
+         в полосу шириной с один штрих линейки. */
+      .world-body:not(.world-walled) .world-scale {
+        width: 100%;
+        max-width: 720px;
+        margin-left: auto;
+        margin-right: auto;
+      }
+
+      .world-body:not(.world-walled) .world-ruler {
+        height: calc(1.6em * var(--ask-k));
+      }
+
+      .world-body:not(.world-walled) .world-tick span {
+        font-size: calc(0.6875rem * var(--ask-k));
+      }
+
+      .world-body:not(.world-walled) .world-verdict {
+        margin-top: 0.5em;
+        font-size: calc(1rem * var(--ask-k));
+      }
+
+      .world-body:not(.world-walled) .world-check {
+        font-size: calc(0.9375rem * var(--ask-k));
+      }
+
+      .world-body:not(.world-walled) .world-skip {
+        font-size: calc(0.875rem * var(--ask-k));
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .world-body .meter-card,
+        .world-body .world-score {
+          transition: none;
+        }
+      }
+
       /* ---------- The heading ---------- */
 
       /* Where the whole section is pinned, the lead-in with the question goes
          up and stays as the heading while the reader answers, and the heading
          of the section waits off to the right, where the shell leaves it. With
-         the answer the question gives way and the heading comes in — the same
-         move sideways every card on the page arrives with. */
+         the wall of flags the question gives way and the heading comes in —
+         the same move sideways every card on the page arrives with.
+
+         Со стеной, а не с ответом: кадр с ответом — это все еще тот экран, где
+         спрашивали, и «Все флаги в гости будут к нам» над крупным 128 и
+         шкалой с меткой читается как заголовок угадайки. Цитата приходит
+         вместе с флагами, про которые она сказана. На телефоне то же самое
+         делает follow(). */
       @media (min-width: 861px) {
         .world-scene .viz-lead {
           transition: opacity 260ms ease;
         }
 
-        .world-scene.world-answered .viz-lead {
+        .world-scene.world-wall .viz-lead {
           opacity: 0;
         }
 
-        .world-scene.world-answered .viz-header {
+        .world-scene.world-wall .viz-header {
           transform: none;
         }
 
@@ -617,7 +741,7 @@ export function init(root) {
         }
 
         /* The room kept for the lead-in is not needed under the heading. */
-        .world-scene.world-answered .viz-body {
+        .world-scene.world-wall .viz-body {
           margin-top: 0;
         }
       }
@@ -765,6 +889,17 @@ export function init(root) {
 
         .world-right::after { display: none; }
 
+        /* Пока стена закрыта, в колонке стоит одна карточка — вопрос или
+           ответ на него, — и ниже нее до низа экрана ничего нет. Она встает
+           посередине оставшегося места, как и на широком экране: это
+           отдельный кадр, а не верх страницы, у которой срезали низ. Расти
+           колонке при этом можно, сжиматься — нет: ужатая ниже своего
+           содержимого, она налезает на то, что под ней. */
+        .world-shut .world-right {
+          flex: 1 0 auto;
+          justify-content: center;
+        }
+
         /* Липнуть не к чему: страница под карточкой не едет. А липкой она
            вставала поверх первых рядов стены — те сто тридцать пикселей
            флагов читатель не видел вовсе. */
@@ -837,7 +972,7 @@ export function init(root) {
         </div>
         <div class="world-verdict" data-el="verdict" aria-live="polite"></div>
         <div class="world-send">
-          <button type="button" class="btn world-check" data-el="check">Проверить догадку</button>
+          <button type="button" class="btn world-check" data-el="check">Ответить</button>
           <button type="button" class="btn world-skip" data-el="skip">Показать ответ</button>
         </div>
       </div>
@@ -1368,11 +1503,17 @@ export function init(root) {
 
   // Taken by a click and by dragging, never by the wheel: on a wide screen the
   // wheel belongs to the story.
+  //
+  // Фокус пальцем шкала не забирает. Браузер рисует вокруг фокуса рамку, а
+  // коробка шкалы — это и полоса, и линейка под ней: рамка выходила на
+  // полэкрана прямоугольником вокруг всего вопроса. Нажавшему пальцем или
+  // мышью она не говорит ничего — он и так видит, куда поставил метку, — а
+  // пришедшему табом достается как была. Так же сделано и у того же вопроса
+  // в «Годах учебы»: там фокус берется только подсказкой (nudge).
   scale.addEventListener('pointerdown', (e) => {
     if (!asking) return;
     e.preventDefault();
     scale.setPointerCapture(e.pointerId);
-    scale.focus({ preventScroll: true });
     setGuess(valueAt(e.clientX));
   });
   scale.addEventListener('pointermove', (e) => {
@@ -1419,10 +1560,11 @@ export function init(root) {
   }
 
   // ---------- The heading ----------
-  // The shell draws the heading of the answer — the quotation — and that is
-  // the name the block goes by in the progress bar. While the question stands
+  // The shell draws the heading of the wall — the quotation — and that is
+  // the name the block goes by in the progress bar. Until the flags are there
   // the header says the question instead: it is written into the header, and
-  // the shell, which watches it, measures the card again.
+  // the shell, which watches it, measures the card again. Меняет его setWall:
+  // цитата сказана про флаги, и приходит она с ними, а не с ответом.
   const section = root.closest('.viz-section');
   section.classList.add('world-scene');
   root.classList.add('world-body');
@@ -1503,8 +1645,10 @@ export function init(root) {
     // скольких стран?» над карточкой, где крупно написано 128, спрашивает о
     // том, что под ним и отвечено. Остальное в экране — 63 000 студентов и
     // 5 600 иностранцев — это то, из чего эти 128 взялись, и стоит над ними
-    // до самой стены.
-    if (askLine) askLine.style.display = asking ? 'block' : 'none';
+    // до самой стены. Так на обоих экранах: на телефоне вопрос стоит своей
+    // строкой, на широком — в конце строки про иностранцев, и строка от его
+    // ухода не становится ниже.
+    if (askLine) askLine.style.display = asking ? (PHONE ? 'block' : 'inline') : 'none';
     growSoon();
   }
   if (PHONE) window.addEventListener('scroll', follow, { passive: true });
@@ -1558,6 +1702,18 @@ export function init(root) {
     walled = on;
     const was = card.getBoundingClientRect().top;
     root.classList.toggle('world-walled', on);
+    // Заголовок блока приходит со стеной: цитата сказана про флаги, а не про
+    // угадайку, — и до них наверху стоит вопрос. На широком экране заголовок
+    // выезжает справа (стили выше), и выезд этот — такт, значит, с переходом;
+    // на телефоне заголовок переезжает в сам припаркованный экран, этим
+    // занимается follow().
+    section.classList.toggle('world-wall', on);
+    setHeading(!on);
+    if (!first && walks()) {
+      section.classList.add('world-turning');
+      clearTimeout(turning);
+      turning = setTimeout(() => section.classList.remove('world-turning'), 660);
+    }
     if (on) {
       unveil(after);
     } else {
@@ -1604,7 +1760,7 @@ export function init(root) {
     // Где ответ и стена — один кадр, стена идет за ответом; где два, ею
     // распоряжается свой кадр.
     if (!SPLIT()) setWall(!on, plays ? 620 : 0);
-    setHeading(on);
+    // Заголовком распоряжается стена, а не ответ — см. setWall.
     follow();
     scale.setAttribute('aria-disabled', on ? 'false' : 'true');
     scale.tabIndex = on ? 0 : -1;
