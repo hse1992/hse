@@ -129,7 +129,7 @@ export function init(root) {
   // make a quantity of anything, and a seven-digit number that is not a count
   // of anything was the page claiming otherwise. The figures do not become one
   // number: they gather and stand in the shape of one figure. Where each of
-  // them goes is in shapeOf() below.
+  // them goes is in fillOf() below.
 
   // ---------- Markup ----------
   root.innerHTML = `
@@ -154,6 +154,13 @@ export function init(root) {
         white-space: nowrap;
         opacity: 0;
         will-change: transform, opacity;
+      }
+
+      /* Цифры, из которых набирается единица. Слоя заранее они не просят:
+         восемьдесят пять слоев — это память телефона, а летят цифры один раз,
+         и на это время слой им даст сам переход. */
+      .each-digit {
+        will-change: auto;
       }
 
       /* The card is the print the photograph is on, and it goes with the rest
@@ -481,6 +488,26 @@ export function init(root) {
     return { ...f, el, at: null };
   });
 
+  // Цифры всех чисел, по одной. Числами единицу не набрать: их семнадцать, и
+  // плашка «687 332» в знаке стоит поперек него, сколько ее ни верти. А цифр
+  // шестьдесят восемь, и каждая — квадратик в кегль высотой: из таких знак и
+  // заливается. До поворота их на экране нет вовсе; на повороте числа
+  // рассыпаются — каждая цифра встает ровно там, где она и стояла в своем
+  // числе, и оттуда летит на свое место в единице.
+  const digits = [];
+  tiles.forEach((t, ti) => {
+    Array.from(t.value).forEach((ch, k) => {
+      if (!/\d/.test(ch)) return;
+      const el = document.createElement('div');
+      el.className = 'each-tile each-digit';
+      // Числа уже прочитаны диктором на доске; это их же цифры, по одной.
+      el.setAttribute('aria-hidden', 'true');
+      el.textContent = ch;
+      stage.appendChild(el);
+      digits.push({ t: ti, k, el, at: null });
+    });
+  });
+
   // The figure in the middle: the board adds up into it, and it counts itself
   // down to the one. It belongs to no campus, so it is set in plain text until
   // the very end.
@@ -524,6 +551,7 @@ export function init(root) {
   stage.appendChild(probe);
 
   let sumM = null;                                 // the widest the middle gets
+  let digW = REF * 0.55;                           // and the width of one digit
 
   function measure() {
     probe.style.fontSize = `${REF}px`;
@@ -540,18 +568,23 @@ export function init(root) {
       t.mn = read(t.value);
     });
     sumM = read('1');
+    // Все цифры одной ширины — страница набрана табличными. Значит, и место
+    // цифры в числе берется счетом: сколько места заняло все, что стоит перед
+    // ней. Пробелы в числе свое место занимают, но цифрами не считаются.
+    digW = read('0').w;
+    digits.forEach((d) => {
+      const t = tiles[d.t];
+      d.x = read(t.value.slice(0, d.k)).w + digW / 2;
+    });
     glyph = readGlyph();
   }
 
   // ---------- The outline of the one ----------
-  // Пропорции единицы берутся с того самого знака, которым набрана страница, а
-  // не выдумываются: единица один раз печатается в холст, и каждая ее полоска
-  // меряется — где начинается краска, где кончается. Из этих полосок shapeOf()
-  // ниже достает все, что ему нужно: толщину стойки, ширину лапы и наклон
-  // флага. Тринадцать полосок, а не восемь: стойка одинакова во всю высоту и
-  // лишних не просит, а вот флагу достаются только верхние, и по двум полоскам
-  // наклон не посчитать.
-  const ROWS = 13;
+  // Форма единицы берется с того самого знака, которым набрана страница, а не
+  // выдумывается: единица один раз печатается в холст, и у каждой строки
+  // пикселей меряется, где начинается краска и где кончается. Из этих строк
+  // fillOf() ниже и заливает знак цифрами — не тремя штрихами, а по контуру,
+  // ряд за рядом.
   let glyph = null;
 
   function readGlyph() {
@@ -580,7 +613,7 @@ export function init(root) {
     try {
       px = g.getImageData(0, 0, cv.width, cv.height).data;
     } catch (err) {
-      return null;                       // nothing to read it from; see shapeOf
+      return null;                       // nothing to read it from; see fillOf
     }
     const inked = (x, y) => px[(y * cv.width + x) * 4 + 3] > 80;
 
@@ -601,21 +634,14 @@ export function init(root) {
 
     const tall = y1 - y0 + 1;
     const mid = (x0 + x1 + 1) / 2;
-    const rows = [];
-    for (let i = 0; i < ROWS; i++) {
-      const y = Math.min(y1, Math.round(y0 + ((i + 0.5) * tall) / ROWS));
-      let a = -1;
-      let b = -1;
-      for (let x = 0; x < cv.width; x++) {
-        if (!inked(x, y)) continue;
-        if (a < 0) a = x;
-        b = x;
-      }
-      if (a < 0) continue;
-      // Everything in units of the ink's own height, from its own middle.
-      rows.push({ y: (y + 0.5 - y0) / tall - 0.5, a: (a - mid) / tall, b: (b + 1 - mid) / tall });
+    if (tall < 8) return null;
+    // Сама краска, пиксель за пикселем. Пролета строки — докуда в ней краска —
+    // тут мало: у единицы между косым штрихом и стойкой лежит пустое место, и
+    // ряд, выключенный от края до края, заливал бы цифрами и его.
+    const mask = new Uint8Array(cv.width * cv.height);
+    for (let y = y0; y <= y1; y++) {
+      for (let x = 0; x < cv.width; x++) if (inked(x, y)) mask[y * cv.width + x] = 1;
     }
-    if (rows.length < 4) return null;
 
     // Where the ink sits inside the box the figure is placed by: the element
     // is centred on its box, and the box is taller and wider than the mark in
@@ -627,7 +653,15 @@ export function init(root) {
       : (1 - (fbUp + fbDown) / H) / 2 + fbUp / H;
 
     return {
-      rows,
+      mask,
+      mw: cv.width,
+      mh: cv.height,
+      tall,
+      mid,
+      y0,
+      // Края краски, в единицах ее же высоты от ее середины.
+      a: (x0 - mid) / tall,
+      b: (x1 + 1 - mid) / tall,
       k: tall / H,                       // how tall the ink is per unit of type
       dx: (right - left - m.width) / 2 / H,
       dy: base - (up - down) / 2 / H - 0.5
@@ -779,32 +813,50 @@ export function init(root) {
 
     // Measured against the board the figures are actually standing on, so that
     // every point of the shape takes the figure already nearest to it.
-    L.shape = shapeOf(narrow.matches ? L.poster : L.board, seat);
+    L.shape = fillOf(narrow.matches ? L.poster : L.board, seat);
   }
 
   // ---------- The shape of the one ----------
-  // Залить знак текстом семнадцатью цифрами нельзя: чтобы заполнить его очко,
-  // строк нужно вдвое больше, чем у нас цифр, — набор выходит редким, и единица
-  // читается столбиком. Поэтому она не заливается, а рисуется теми тремя
-  // штрихами, из которых ее и рисуют: стойка — столбик цифр в один кегль,
-  // выключенный вправо; флаг — одна длинная цифра, положенная на наклон; лапа
-  // — два ряда, выключенных во всю ширину. Пропорции штрихов сняты с самого
-  // знака (readGlyph выше), так что крупная единица вырастает ровно оттуда,
-  // где цифры стоят.
-  const GAP = 0.34;                   // between two figures in a row, in ems
-  // Междустрочие стойки, в кеглях. Тесное нарочно: ряды должны почти касаться,
-  // иначе столбик читается строчками текста, а не штрихом.
-  const LEAD = 1.15;
-  const relOf = (i) => tiles[i].mn.w / REF;
+  // Единица не рисуется штрихами и не складывается из чисел — она заливается
+  // цифрами по самой краске знака. Числа для этого рассыпаются: «687 332» —
+  // это шесть цифр, а не одна длинная плашка, и из шестидесяти восьми цифр
+  // знак набирается, как мозаика: клетка за клеткой по сетке, и цифра встает
+  // только туда, где под ней краска. Поэтому стойка выходит ровным бруском,
+  // лапа внизу шире, а флаг сверху сходит ступенями по косому штриху — и
+  // пустота между флагом и стойкой остается пустотой.
+  const LEAD = 1.04;                  // междустрочие: ряды почти касаются
+  const KERN = 0.1;                   // и цифры в ряду — тоже
+  const COVER = 0.42;                 // доля краски под цифрой, при которой она встает
 
-  function shapeOf(from, box) {
+  // Сколько краски под прямоугольником. Углы и края знака этим и отсекаются:
+  // цифра, которой краска досталась меньше чем наполовину, не ставится вовсе.
+  function inkUnder(x, y, w, h) {
+    const px = (u) => glyph.mid + u * glyph.tall;
+    const py = (v) => glyph.y0 + v * glyph.tall;
+    const S = 5;
+    let hit = 0;
+    for (let i = 0; i < S; i++) {
+      const cy = Math.round(py(y + (h * (i + 0.5)) / S));
+      if (cy < 0 || cy >= glyph.mh) continue;
+      for (let j = 0; j < S; j++) {
+        const cx = Math.round(px(x + (w * (j + 0.5)) / S));
+        if (cx < 0 || cx >= glyph.mw) continue;
+        hit += glyph.mask[cy * glyph.mw + cx];
+      }
+    }
+    return hit / (S * S);
+  }
+
+  function fillOf(from, box) {
+    const N = digits.length;
     // No canvas to read the glyph from: the figures still gather, in a plain
     // column, and the one still grows out of them.
-    if (!glyph) {
-      const unit = box.h * 0.062;
-      return tiles.map((t, i) => ({
-        cx: box.cx + ((t.m.w - t.mn.w) * unit) / REF / 2,
-        cy: box.cy + (i / Math.max(1, tiles.length - 1) - 0.5) * box.h * 0.9,
+    if (!glyph || !N) {
+      const unit = box.h * 0.055;
+      const per = Math.max(1, Math.round(Math.sqrt(N)));
+      return digits.map((d, i) => ({
+        cx: box.cx + ((i % per) - (per - 1) / 2) * unit * 0.6,
+        cy: box.cy + (Math.floor(i / per) / Math.max(1, Math.ceil(N / per) - 1) - 0.5) * box.h * 0.9,
         num: unit
       }));
     }
@@ -813,146 +865,76 @@ export function init(root) {
     const ink = glyph.k * F;
     const cx = box.cx + glyph.dx * F;
     const cy = box.cy + glyph.dy * F;
+    const top = cy - ink / 2;
 
-    // Стойка — та ширина, что повторяется у знака чаще других: она идет во всю
-    // его высоту, а флаг и лапа — только по своей трети. Ни самый узкий ряд, ни
-    // срединный тут не годятся: первый — верхушка, с которой начинается флаг,
-    // второй — уже сам флаг.
-    const same = (r) => glyph.rows.filter((o) =>
-      Math.abs((o.b - o.a) - (r.b - r.a)) < (r.b - r.a) * 0.08).length;
-    const thin = glyph.rows.reduce((m, r) => {
-      const d = same(r) - same(m);
-      return d > 0 || (d === 0 && r.b - r.a < m.b - m.a) ? r : m;
-    });
-    const stemW = thin.b - thin.a;
-    const sole = glyph.rows.filter((r) => r.y > 0 && r.b - r.a > stemW * 1.15)
-      .sort((a, b) => (b.b - b.a) - (a.b - a.a))[0]
-      || { a: thin.a - stemW, b: thin.b + stemW };
-    // Сам косой штрих: от верха стойки вниз-влево, до самой левой точки знака.
-    const tip = glyph.rows.reduce((m, r) => (r.a < m.a ? r : m));
-    const high = glyph.rows.reduce((m, r) => (r.y < m.y ? r : m));
-
-    // Кто в каком штрихе — по тому, какая цифра в наборе насколько длинная;
-    // в эмах, а не в пикселях, потому что кегль раздача задает сама.
-    //
-    // Флагу — одна цифра, и самая длинная: он косой штрих, и цифра, положенная
-    // на этот наклон, читается штрихом сразу. Три ступени, стоявшие тут
-    // раньше, забирали у стойки три ряда — а ей рядами и набирается рост.
-    // Лапе — длинные, двумя рядами во всю ширину, и заодно огрызки вроде «3»:
-    // ряд выключается, и короткими он как раз добирается до края. Стойке —
-    // все остальное: цифры близкой ширины, которые и складываются в брусок.
-    const desc = ALL.slice().sort((a, b) => relOf(b) - relOf(a));
-    const mid = relOf(desc[desc.length >> 1]);
-    const wideOf = (row) => row.reduce((s, i) => s + relOf(i) + GAP, -GAP);
-
-    function deal(take) {
-      const feet = [[], []];
-      const drop = (i) => {
-        feet.sort((a, b) => wideOf(a) - wideOf(b));
-        feet[0].push(i);
-      };
-      // Коротышки — сразу в лапу: в столбике, где рядом стоят «3» и «77 649»,
-      // бруска не видно, а выключенному ряду они только в помощь.
-      const free = desc.filter((i) => relOf(i) >= mid * 0.72);
-      desc.filter((i) => relOf(i) < mid * 0.72).forEach(drop);
-      const flag = free.shift();
-      free.splice(0, take).forEach(drop);
-
-      return {
-        flag,
-        // Снизу самый широкий ряд: лапа тогда читается подставкой, а не
-        // случайно набранным хвостом.
-        feet: feet.filter((row) => row.length).sort((a, b) => wideOf(a) - wideOf(b)),
-        stem: free,
-        stemEm: free.length ? relOf(free[0]) : mid,
-        footEm: Math.max(...feet.map(wideOf), 1)
-      };
-    }
-
-    // Сколько длинных цифр уйдет в лапу, зависит от того, какой ширины выйдет
-    // стойка, а она — от того, сколько у нее осталось. Круг этот не решается,
-    // поэтому просто примеряем: лапа знака втрое шире его стойки, и берем ту
-    // раздачу, у которой это отношение ближе всего к знаковому.
-    let lay = null;
-    for (let take = 0; take + 4 <= desc.length; take += 2) {
-      const next = deal(take);
-      next.off = Math.abs(next.footEm / next.stemEm - (sole.b - sole.a) / stemW);
-      if (!lay || next.off < lay.off) lay = next;
-    }
-
-    const size = Math.min(
-      (0.92 * ink) / Math.max(1, lay.stem.length + lay.feet.length - 1) / LEAD,
-      // Стойка не намного толще стойки знака: столбик из широких цифр иначе
-      // сравнялся бы с лапой, и единица стала бы похожа на брусок.
-      (stemW * ink * 1.3) / Math.max(0.2, lay.stemEm)
-    );
-
-    // Ряды стоят по всей высоте очка: сверху вниз стойка, двумя последними —
-    // лапа. Столбик идет от более узкой цифры к более широкой, так что к лапе
-    // он слегка расширяется.
-    const column = lay.stem.slice().sort((a, b) => relOf(a) - relOf(b));
-    const slots = Math.max(2, column.length + lay.feet.length);
-    const pitch = (0.92 * ink) / (slots - 1);
-    const top = cy - 0.46 * ink;
-    const axis = cx + ((thin.a + thin.b) / 2) * ink;
-    // Стойка выключена вправо: прямой край во всю высоту — то, по чему
-    // единица и узнается. Выключи столбик по центру — и он прочтется абзацем,
-    // а не штрихом, какой бы ровной ни была его ширина.
-    const bar = lay.stemEm * size;
-    const right = axis + bar / 2;
-
-    const out = [];
-    // The word after the figure is still in the box, invisible: half of it is
-    // taken back here, so what lands on the line is the number — and when the
-    // figure lies on a slant, that half is taken back along the slant.
-    const put = (i, x, y, turn = 0) => {
-      const a = (turn * Math.PI) / 180;
-      const back = ((tiles[i].m.w - tiles[i].mn.w) * size) / REF / 2 + (relOf(i) * size) / 2;
-      out[i] = { cx: x + back * Math.cos(a), cy: y + back * Math.sin(a), num: size, turn };
+    // Какой кегль у цифр, столько их и встанет в знак. Прямо это не считается:
+    // клеток в сетке тем больше, чем они мельче, а сколько из них окажется на
+    // краске — дело формы знака. Поэтому примеряем и берем самый крупный
+    // кегль, при котором места хватает всем.
+    const shape = (s) => {
+      const rowH = s * LEAD;
+      const R = Math.max(1, Math.round(ink / rowH));
+      const stepY = ink / R;
+      const pitch = (digW * s * (1 + KERN)) / REF;
+      const cols = Math.max(1, Math.ceil(((glyph.b - glyph.a) * ink) / pitch));
+      // Сетка прибита к правому краю краски: прямой край стойки во всю высоту
+      // — то, по чему единица и узнается, и он должен быть ровным.
+      const right = cx + glyph.b * ink;
+      // Цифра занимает не всю клетку: краску под ней мерим по ней самой.
+      const w = (digW * 0.8) / REF * s;
+      const h = s * 0.7;
+      const cells = [];
+      for (let i = 0; i < R; i++) {
+        const y = top + (i + 0.5) * stepY;
+        for (let j = cols - 1; j >= 0; j--) {
+          const x = right - (j + 0.5) * pitch;
+          const got = inkUnder((x - w / 2 - cx) / ink, (y - h / 2 - top) / ink, w / ink, h / ink);
+          if (got >= COVER) cells.push({ cx: x, cy: y, num: s, row: i, got });
+        }
+      }
+      return cells;
     };
 
-    column.forEach((i, k) => put(i, right - relOf(i) * size, top + k * pitch));
-
-    // Флаг лежит на самом наклоне: правым концом в левый край стойки у ее
-    // верха, дальше вниз-влево — туда же, куда уходит косой штрих знака.
-    if (lay.flag !== undefined) {
-      const run = (thin.a - tip.a) * ink;             // сколько штрих уходит влево
-      const fall = (tip.y - high.y) * ink;            // и насколько при этом вниз
-      const turn = -(Math.atan2(fall, Math.max(1, run)) * 180) / Math.PI;
-      const a = (turn * Math.PI) / 180;
-      const len = relOf(lay.flag) * size;
-      put(lay.flag,
-        right - lay.stemEm * size - GAP * size * 0.5 - len * Math.cos(a),
-        top - len * Math.sin(a),
-        turn);
+    let lo = 2;
+    let hi = ink / 2;
+    let cells = null;
+    for (let k = 0; k < 20; k++) {
+      const s = (lo + hi) / 2;
+      const got = shape(s);
+      if (got.length >= N) { cells = got; lo = s; } else { hi = s; }
     }
+    if (!cells) cells = shape(2);
 
-    lay.feet.forEach((row, k) => {
-      if (!row.length) return;
-      // Слева направо в том порядке, в каком цифры уже стоят, — чтобы по дороге
-      // ни одна не прошла перед другой.
-      const idx = row.slice().sort((a, b) => {
-        const A = from && from[a];
-        const B = from && from[b];
-        return (A ? A.cx : a) - (B ? B.cx : b);
-      });
-      // Лапа выключается во всю ширину лапы знака. Именно в нее, а не в кратное
-      // толщине столбика: столбик из цифр выходит толще стойки знака, и лапа,
-      // выросшая вместе с ним, сделала бы единицу шириной с собственный рост.
-      const span = (sole.b - sole.a) * ink;
-      const used = idx.reduce((s, i) => s + relOf(i), 0) * size;
-      const gap = idx.length > 1
-        ? Math.max(GAP * size, Math.min((span - used) / (idx.length - 1), GAP * size * 2.4))
-        : 0;
-      const wide = used + gap * (idx.length - 1);
-      const y = top + (column.length + k) * pitch;
-      let x = cx + ((sole.a + sole.b) / 2) * ink - wide / 2;
-      idx.forEach((i) => { put(i, x, y); x += relOf(i) * size + gap; });
+    // Лишние клетки — те, под которыми краски меньше всех: это края знака, и
+    // сходит он от них ровнее, чем от середины.
+    if (cells.length > N) {
+      const weak = cells.slice().sort((a, b) => a.got - b.got).slice(0, cells.length - N);
+      const cut = new Set(weak);
+      cells = cells.filter((c) => !cut.has(c));
+    }
+    // Сверху вниз, слева направо — порядок, в котором их и раздают.
+    cells.sort((a, b) => (a.row - b.row) || (a.cx - b.cx));
+
+    // Цифры одного числа идут подряд — в единице они стоят рядом, и в ней
+    // по-прежнему читаются куски тех самых чисел. А числа раздаются сверху
+    // вниз в том порядке, в каком они стоят на доске, чтобы по дороге цифры
+    // не пролетали сквозь чужие.
+    const order = tiles.map((t, i) => i).sort((a, b) => {
+      const A = from && from[a];
+      const B = from && from[b];
+      if (!A || !B) return a - b;
+      return (A.cy - B.cy) || (A.cx - B.cx);
     });
-
-    // Ни одна цифра не остается без места: с чем бы ни вышла раскладка,
-    // apply() должен получить точку на каждую.
-    ALL.forEach((i) => { if (!out[i]) put(i, right - relOf(i) * size, cy); });
+    const out = [];
+    let k = 0;
+    order.forEach((ti) => {
+      digits.forEach((d, di) => {
+        if (d.t !== ti) return;
+        const c = cells[k];
+        out[di] = c ? { cx: c.cx, cy: c.cy, num: c.num } : null;
+        k += 1;
+      });
+    });
     return out;
   }
 
@@ -961,11 +943,11 @@ export function init(root) {
   // up and how large it is there, and is then carried over from wherever it
   // was. The type size is set at once and the difference is taken up by a
   // scale, so nothing is animated by reflow and the figures are crisp at rest.
-  function apply(targets, { dur = 620, fade = null, delay = () => 0 } = {}) {
+  function move(items, targets, { dur = 620, fade = null, delay = () => 0 } = {}) {
     const d = still ? 0 : dur;
     const f = still ? 0 : (fade === null ? Math.min(d, 420) : fade);
 
-    tiles.forEach((t, i) => {
+    items.forEach((t, i) => {
       const to = targets[i];
       const wait = still ? 0 : delay(i);
       // Nowhere to go: it simply goes out where it stands.
@@ -989,7 +971,7 @@ export function init(root) {
     // One reflow for all of them, and then everybody sets off together.
     void stage.offsetWidth;
 
-    tiles.forEach((t) => {
+    items.forEach((t) => {
       if (!t.next) return;
       const { to, wait } = t.next;
       t.next = null;
@@ -1014,6 +996,29 @@ export function init(root) {
       + ' color 620ms ease';
     sum.style.transform = `translate(${at.cx}px, ${at.cy}px) translate(-50%, -50%) scale(${scale})`;
     sum.style.opacity = show ? '1' : '0';
+  }
+
+  const apply = (targets, opts) => move(tiles, targets, opts);
+  const applyDigits = (targets, opts) => move(digits, targets, opts);
+  // Цифр на экране нет, пока не началось рассыпание, и нет после него.
+  const noDigits = (dur = 0) => applyDigits(digits.map(() => null), { dur });
+
+  // Число рассыпается на цифры: каждая встает ровно туда, где она в этом числе
+  // и стояла — в том же кегле и того же цвета, — а само число в тот же кадр
+  // исчезает. Подмены не видно: на экране те же пиксели. И только с этого
+  // места цифры разлетаются каждая по своему делу.
+  function crumble() {
+    digits.forEach((d) => {
+      const t = tiles[d.t];
+      d.el.style.color = HSE;
+      if (!t.at) { d.at = null; return; }
+      const num = t.at.num;
+      // Число стоит в коробке вместе со своим словом и выключено в ней влево;
+      // слово к этому времени уже погашено, но место свое держит.
+      const left = t.at.cx - (t.m.w * num) / REF / 2;
+      d.at = { cx: left + (d.x * num) / REF, cy: t.at.cy, num, a: 1, turn: 0 };
+    });
+    apply(tiles.map(() => null), { dur: 0 });
   }
 
   // ---------- The scene ----------
@@ -1072,9 +1077,14 @@ export function init(root) {
     paint(true);
     endAt(L.endTop);
     apply(tiles.map(() => null), { dur: 0 });
+    noDigits();
     placeSum(L.end[0], { dur: 0, text: '1', color: HSE, scale: 1 });
     say('end');
   }
+
+  // Куда летит цифра. Без места она не остается — но если раскладка все же
+  // не нашла ей клетки, считаем, что она в середине: ей все равно гаснуть.
+  const place = (i) => L.shape[i] || L.end[0];
 
   function finish(onDone) {
     if (still) { settled(); onDone(); return; }
@@ -1091,12 +1101,16 @@ export function init(root) {
     paintOne();
     endAt(L.endTop);
 
+    // Числа рассыпаются на цифры там, где стоят, и дальше летит уже не доска,
+    // а шестьдесят восемь цифр.
+    crumble();
+
     // From the middle of the stem outwards, so the one builds rather than
     // lands all at once.
     const from = L.end[0].cy;
-    const order = ALL.slice().sort((a, b) =>
-      Math.abs(L.shape[a].cy - from) - Math.abs(L.shape[b].cy - from));
-    apply(L.shape.map((p) => ({ ...p, a: 1 })),
+    const order = digits.map((d, i) => i).sort((a, b) =>
+      Math.abs(place(a).cy - from) - Math.abs(place(b).cy - from));
+    applyDigits(L.shape.map((p) => (p ? { ...p, a: 1 } : null)),
       { dur: GATHER, fade: 420, delay: rush(order, 420) });
 
     placeSum(L.end[0], { dur: 0, show: false, text: '1', color: HSE, scale: 0.88 });
@@ -1105,13 +1119,12 @@ export function init(root) {
       // The shape gives way to the figure it was standing in for. The numbers
       // draw in towards the middle as they go, so the one grows out of them
       // instead of being swapped in over them.
-      apply(L.shape.map((p) => ({
+      applyDigits(L.shape.map((p) => (p ? {
         cx: L.end[0].cx + (p.cx - L.end[0].cx) * 0.84,
         cy: L.end[0].cy + (p.cy - L.end[0].cy) * 0.84,
         num: p.num,
-        turn: p.turn,
         a: 0
-      })), { dur: BECOME, fade: 560 });
+      } : null)), { dur: BECOME, fade: 560 });
       placeSum(L.end[0], { dur: BECOME, show: true, scale: 1 });
 
       later(() => {
@@ -1137,6 +1150,7 @@ export function init(root) {
     paint(false);
     photo(true);
     say(null);
+    noDigits();
     placeSum(L.end[0], { dur: 0, show: false, text: '1', color: HSE, scale: 0.88 });
     apply(tiles.map((t, k) => ({ ...L.poster[k], a: 1 })), { delay: rush(ALL, 700, 100) });
   }
@@ -1149,6 +1163,7 @@ export function init(root) {
     paint(true);
     photo(true);
     say('turn');
+    noDigits();
     placeSum(L.end[0], { dur: 0, show: false, text: '1', color: HSE, scale: 0.88 });
     apply(tiles.map((t, k) => ({ ...L.poster[k], a: 0.18 })), {});
   }
@@ -1221,6 +1236,7 @@ export function init(root) {
       endAt(L.endTop);
       // Back from the turn, the photograph is a photograph again.
       photo(true);
+      noDigits();
       placeSum(L.end[0], { dur: 0, show: false, text: '1', color: HSE, scale: 0.88 });
       apply(tiles.map((t, k) => ({ ...L.board[k], a: 1 })), { dur: asked ? 620 : 0 });
       paint(asked);
