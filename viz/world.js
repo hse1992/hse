@@ -799,6 +799,32 @@ export function init(root) {
         .world-dim .world-group { transform: none; }
       }
 
+      /* ---------- Смена композиций ---------- */
+
+      /* Вопрос и стена — две законченные композиции, и меняются они целиком:
+         одна гаснет, не трогая своей геометрии, вторая проявляется уже
+         собранной (setWall в коде ниже). Между ними один кадр, в котором не
+         видно ни той, ни другой, — в нем и меняются места, размеры и роли.
+
+         Значит, на время смены все прежние переходы выключены: кегль цифры,
+         фон и поля карточки, складывающаяся шкала, ширина колонки кампусов,
+         волна по группам флагов, уход переходного экрана. Каждый из них
+         когда-то и был этим переходом — цифра мельчала и уезжала в угол,
+         шкала укорачивалась, вокруг нее проступал белый фон, а следом
+         кампусы раздвигали все это влево. Новую анимацию поверх старой класть
+         нельзя: старая и есть то, от чего эта. */
+      .world-body.world-swap .meter-card,
+      .world-body.world-swap .world-score,
+      .world-body.world-swap .world-scale,
+      .world-body.world-swap .world-bar-seg,
+      .world-body.world-swap .world-left,
+      .world-body.world-swap .world-flags-card,
+      .world-body.world-swap .world-group,
+      .world-scene.world-swap .viz-lead,
+      .world-scene.world-swap .viz-header {
+        transition: none;
+      }
+
       @media (min-width: 861px) {
         /* Ширину колонки и зазор между колонками не анимируем. Пока они ехали
            620мс, стене каждый кадр доставалась новая ширина: наблюдатель за
@@ -1025,8 +1051,9 @@ export function init(root) {
     return set;
   }
 
-  // Карточка со счетом: она же стоит и на вопросе, и на ответе, и над стеной.
-  const card = root.querySelector('.meter-card');
+  // Колонки блока целиком: ими и меняются композиции вопроса и стены — см.
+  // setWall ниже. Левая на телефоне не рисуется вовсе.
+  const rightCol = root.querySelector('.world-right');
 
   // ---------- Flags ----------
   const grid = $('grid');
@@ -1535,6 +1562,9 @@ export function init(root) {
   // кадры и есть: при «меньше движения» страница прокручивается и показывает
   // итоговое состояние целиком, одним экраном.
   const SPLIT = walks;
+  // Читатель попросил меньше движения: композиции меняются сразу, без
+  // гашения и всплытия.
+  const still = window.matchMedia('(prefers-reduced-motion: reduce)');
 
   // What to say once the answer is out. Judged by how far off the guess was
   // against the answer, not by the bare difference: forty away from 128 is
@@ -1785,67 +1815,74 @@ export function init(root) {
     );
   }
 
-  // The wall comes back only once the scale has drawn aside: first into the
-  // layout, then — a frame later, or there is no wave — into sight.
-  let unveiling = 0;
-  function unveil(after) {
-    clearTimeout(unveiling);
-    unveiling = setTimeout(() => {
-      // Пока стена закрыта, карточка стоит посреди пустого экрана (см.
-      // .world-shut .world-right в стилях), а со стеной возвращается наверх —
-      // это две сотни пикселей, которые она проходила за один кадр. Съезжает
-      // она туда так же, как блок съезжает под сменившийся заголовок: место
-      // меняется сразу, а поверх играет то, чего не хватает.
-      const was = card.getBoundingClientRect().top;
-      // Одна запись — и место колонок, зазоров и стены окончательное: ширина
-      // с зазором больше не едут 620мс, едут transform и прозрачность.
-      root.classList.remove('world-shut');
-      // Стена вернулась в раскладку — считаем ее размер по тому месту, в
-      // котором она и останется, пока флагов еще не видно.
-      grow();
-      layout();
-      slideCard(was);
-      // Плитки уже нужного размера — теперь стену можно проявлять. Один
-      // пересчет тут нужен нарочно: до него стена стояла в display: none, и
-      // прозрачности, от которой пойдет переход, у групп просто нет. Кадром
-      // это откладывать нельзя: в неактивной вкладке кадра можно ждать
-      // секунду, и вернувшийся читатель застал бы пустую карточку.
-      void grid.offsetWidth;
-      root.classList.remove('world-dim');
-    }, after);
+  // ---------- Смена композиций ----------
+  // Вопрос и стена — две законченные композиции, а не одна, которая
+  // перестраивается на глазах. Раньше было второе: тот же элемент был и
+  // крупной цифрой посреди пустого экрана, и карточкой счета над стеной, и
+  // кадр между ними читатель смотрел, как цифра мельчает, шкала укорачивается,
+  // вокруг нее проступает белый фон карточки, а следом колонка кампусов
+  // раздвигает все это влево. Девять сотен миллисекунд перестроения, в любой
+  // точке которого на экране стояла раскладка, которой на странице нет.
+  //
+  // Теперь одна композиция гаснет целиком, не меняя своей геометрии, а вторая
+  // проявляется уже собранной. Места и размеры меняются в один кадр между
+  // ними — в тот, когда на экране не видно ни той, ни другой.
+  const FADE_OUT = 160;
+  const FADE_IN = 260;
+  const RISE = 10;                   // на сколько приходящая композиция всплывает
+
+  // Что из чего состоит. Карточка счета и стена — одна колонка; кампусы стоят
+  // своей, и на телефоне их нет вовсе. Заголовок на широком экране приезжает
+  // карточкой справа, а на телефоне переезжает внутрь припаркованного экрана
+  // (leadShow выше) — то есть там он и есть этот экран.
+  const askParts = () => [leadEl, rightCol].filter(Boolean);
+  const wallParts = () => (phone.matches
+    ? [leadEl, rightCol]
+    : [headEl, leftCol, rightCol]).filter(Boolean);
+
+  // Поколение перехода: читатель, ушедший назад посреди смены, не должен
+  // досматривать ее до конца. Устаревший таймер проверяет свой номер и
+  // молчит, а начатые анимации снимаются.
+  let swapGen = 0;
+  let swapWait = 0;
+  let swapRuns = [];
+  function swapStop() {
+    swapGen += 1;
+    clearTimeout(swapWait);
+    swapWait = 0;
+    // cancel() возвращает элементам их собственную прозрачность, какой бы
+    // она ни была: своего inline-стиля мы не пишем, и зависнуть на нуле
+    // прерванной композиции не на чем.
+    swapRuns.forEach((a) => { try { a.cancel(); } catch (err) { /* уже снята */ } });
+    swapRuns = [];
+    root.classList.remove('world-swap');
+    section.classList.remove('world-swap');
   }
 
-  // Стена приходит и уходит: на широком экране — вместе с ответом, на
-  // телефоне — своим кадром, следующим за ним. С ней приходит заголовок
-  // (follow выше) и уходит шкала.
-  function setWall(on, after) {
-    if (on === walled) return;
-    // Первое состояние просто ставится, а не играется — как и в setAsking.
-    const first = walled === null;
-    walled = on;
-    const was = card.getBoundingClientRect().top;
+  const fade = (parts, from, to, ms, rise) => parts.forEach((el) => {
+    if (!el.animate) return;
+    const way = rise
+      ? [{ opacity: from, transform: `translateY(${RISE}px)` },
+         { opacity: to, transform: 'translateY(0px)' }]
+      : [{ opacity: from }, { opacity: to }];
+    swapRuns.push(el.animate(way, {
+      duration: ms,
+      easing: rise ? 'cubic-bezier(0.215, 0.61, 0.355, 1)' : 'linear',
+      fill: 'forwards'
+    }));
+  });
+
+  // Все места, размеры и роли — одной записью. Зовется либо сразу (первое
+  // состояние, «меньше движения», страница без кадров), либо в середине
+  // смены, когда обе композиции невидимы.
+  function setState(on) {
     root.classList.toggle('world-walled', on);
+    root.classList.toggle('world-shut', !on);
+    root.classList.toggle('world-dim', !on);
     // Заголовок блока приходит со стеной: цитата сказана про флаги, а не про
-    // угадайку, — и до них наверху стоит вопрос. На широком экране заголовок
-    // выезжает справа (стили выше), и выезд этот — такт, значит, с переходом;
-    // на телефоне заголовок переезжает в сам припаркованный экран, этим
-    // занимается follow().
+    // угадайку, — и до них наверху стоит вопрос.
     section.classList.toggle('world-wall', on);
     setHeading(!on);
-    if (!first && walks()) {
-      section.classList.add('world-turning');
-      clearTimeout(turning);
-      turning = setTimeout(() => section.classList.remove('world-turning'), 660);
-    }
-    if (on) {
-      unveil(after);
-    } else {
-      // Прерванное раскрытие не оставляет за собой ни таймера, ни кадра:
-      // читатель, ушедший назад посреди появления, возвращается к закрытой
-      // стене, а не к полупроявленной.
-      clearTimeout(unveiling);
-      root.classList.add('world-shut', 'world-dim');
-    }
     // Кампусы приезжают и уезжают вместе со стеной: счет по городам — такой
     // же ответ, как сами флаги, и на вопросе его на экране быть не должно.
     // Сложенная колонка не берет ни таб, ни диктора — ширина у нее ноль, но
@@ -1853,22 +1890,49 @@ export function init(root) {
     if (leftCol) leftCol.inert = !on;
     follow();
     grow();
-    // Назад карточка съезжает так же, как вперед (см. unveil), только сразу:
-    // ждать нечего, стена уходит вместе с тактом. Такт назад — то же
-    // движение, отыгранное обратно, и прыжок в две сотни пикселей ему не к
-    // лицу.
-    if (!on && !first) slideCard(was);
+    // Стена встала в раскладку — считаем размер плитки по тому месту, в
+    // котором она и останется. Здесь же, а не кадром позже: кадр позже — это
+    // кадр, в котором стена уже видна и еще не разложена.
+    if (on) layout();
   }
 
-  // Карточка уже на новом месте — поверх играет то, чего не хватает до
-  // старого. Так же съезжает и сам блок под сменившимся заголовком (glide).
-  function slideCard(was) {
-    const dy = was - card.getBoundingClientRect().top;
-    if (Math.abs(dy) < 1 || !card.animate) return;
-    card.animate(
-      [{ transform: `translateY(${dy.toFixed(1)}px)` }, { transform: 'translateY(0px)' }],
-      { duration: 620, easing: 'cubic-bezier(0.215, 0.61, 0.355, 1)' }
-    );
+  // Стена приходит и уходит: на широком экране — вместе с ответом, на
+  // телефоне — своим кадром, следующим за ним.
+  function setWall(on) {
+    if (on === walled) return;
+    // Первое состояние просто ставится, а не играется — как и в setAsking.
+    // И при «меньше движения» тоже: там страница не рассказывает историю, а
+    // показывает итог. Спрашивается это до записи: после нее «было пусто»
+    // уже не отличить от «было другое».
+    const first = walled === null;
+    walled = on;
+    swapStop();
+    if (first || !walks() || still.matches) { setState(on); return; }
+
+    // Пока идет смена, все прежние переходы выключены: кегль цифры, фон
+    // карточки, ширина колонки кампусов, волна по группам флагов. Иначе новая
+    // анимация легла бы поверх старой — а старая и есть то перестроение, от
+    // которого эта правка.
+    root.classList.add('world-swap');
+    section.classList.add('world-swap');
+
+    const mine = ++swapGen;
+    fade(on ? askParts() : wallParts(), 1, 0, FADE_OUT, false);
+    swapWait = setTimeout(() => {
+      if (mine !== swapGen) return;
+      // Композиции не видно — значит, можно менять под ней что угодно.
+      swapRuns.forEach((a) => { try { a.cancel(); } catch (err) { /* уже снята */ } });
+      swapRuns = [];
+      setState(on);
+      // Анимация заводится в том же такте скрипта, что и смена классов, —
+      // до первой отрисовки. Поэтому собранная композиция не успевает
+      // мелькнуть непрозрачной: ее первый кадр уже нулевой.
+      fade(on ? wallParts() : askParts(), 0, 1, FADE_IN, true);
+      swapWait = setTimeout(() => {
+        if (mine !== swapGen) return;
+        swapStop();
+      }, FADE_IN);
+    }, FADE_OUT);
   }
 
   function setAsking(on) {
@@ -1885,7 +1949,7 @@ export function init(root) {
     section.classList.toggle('world-answered', !on);
     // Где ответ и стена — один кадр, стена идет за ответом; где два, ею
     // распоряжается свой кадр.
-    if (!SPLIT()) setWall(!on, plays ? 620 : 0);
+    if (!SPLIT()) setWall(!on);
     // Заголовком распоряжается стена, а не ответ — см. setWall.
     follow();
     scale.setAttribute('aria-disabled', on ? 'false' : 'true');
@@ -1933,7 +1997,6 @@ export function init(root) {
   // every block into the state it ends in. A block holding its question would
   // be the one place that never got there: the number of countries was never
   // shown at all unless they found the scale and answered it.
-  const still = window.matchMedia('(prefers-reduced-motion: reduce)');
   function step(i) {
     if (!walks()) {
       // Без кадров ответ и стена приходят вместе — их разводит setAsking.
@@ -1942,11 +2005,9 @@ export function init(root) {
     }
     setAsking(i < 1);
     // Третий кадр — стена. Ответ на шкале к этому моменту уже прочитан, и
-    // шкала уходит, освобождая флагам свои полторы сотни пикселей. На широком
-    // экране она складывается плавно — стена ждет, пока карточка над ней
-    // осядет, иначе флаги приезжают в еще едущую раскладку. На телефоне шкала
-    // пропадает разом, и ждать нечего.
-    setWall(i >= 2, phone.matches ? 0 : 280);
+    // шкала уходит вместе со всей композицией вопроса: она гаснет целиком, а
+    // стена приходит уже собранной — см. setWall.
+    setWall(i >= 2);
   }
 
   // The answer does not come before the reader has put a mark down. Asked
@@ -1959,7 +2020,7 @@ export function init(root) {
   }
 
   setAsking(true);
-  setWall(false, 0);
+  setWall(false);
   render();
   layout();
   // Стена листается пальцем, и место, на котором ее бросили, — такое же
