@@ -49,9 +49,13 @@ const SEEN_FROM_ORBIT = 'Вышка такая большая, что ее мо�
 // One line per beat, and a quieter one under it.
 const STORY = [
   {
-    // The card above has just said it all — the Earth arrives without a word.
-    line: '',
-    sub: ''
+    // Сцена начинается с того, что читатель уже знает: те же четыре города,
+    // которыми он ходил по всей странице. Отсюда они умещаются в один палец —
+    // и это первое, что говорит эта глава о масштабе.
+    line: 'Четыре города, в которых стоит Вышка',
+    // Имя из двух слов не ломается пополам: строка переносится по запятым,
+    // а не посреди Нижнего Новгорода.
+    sub: CITIES.map((c) => c.name.replace(/ /g, ' ')).join(', ')
   },
   {
     // The name and the date are the data's; how the launch site is said —
@@ -112,7 +116,12 @@ export const meta = {
     // are measured as one long one, judged not to fit, and the whole screen
     // is set a quarter smaller than every other lead-in on the page.
     // The second line is picked out the way the page picks out what a screen
-    // turns on: corporate blue behind it, the card colour on top. Выделение
+    // turns on — только наоборот: плашка цвета карточки, буквы корпоративные
+    // синие. Небо этой главы лежит на всю секцию, и синяя плашка на нем
+    // пропадала; белая на черном читается как выделение, а на белой странице
+    // от нее остаются просто синие буквы — то есть экран верен и в том
+    // случае, если каркас показал его раньше, чем блок собрался и принес
+    // свое небо. Выделение
     // идет по тексту, а не коробкой: на телефоне фраза сама переносится на две
     // строки, и коробке в fit-content доставалась ширина самой длинной из них —
     // под коротким «орбиты» синее поле тянулось до правого края. Строчное с
@@ -124,7 +133,7 @@ export const meta = {
     value: '<span style="display: block; white-space: normal; line-height: 1.45">Вышка настолько большая,<br>'
       + '<span style="padding: 0.1em 0.26em; border-radius: 0.22em;'
       + ' -webkit-box-decoration-break: clone; box-decoration-break: clone;'
-      + ' background: var(--hse-blue); color: var(--card)">что достает даже до орбиты</span>'
+      + ' background: var(--card); color: var(--hse-blue)">что достает даже до орбиты</span>'
       + '</span>',
     text: ''
   },
@@ -172,12 +181,52 @@ export function init(root) {
   // ---------- Markup ----------
   root.innerHTML = `
     <style>
-      /* The only dark card on the page. The sky is painted by the card
-         itself, so the canvas has nothing but the things in it to draw and
-         the corners stay round. */
-      .space-card {
+      /* ---------- Сцена во весь экран ----------
+         Единственный темный раздел страницы — и темный он целиком, от края до
+         края. Не карточка с картинкой внутри, а небо, в которое читатель
+         попадает: карточка отдает скругления, тень и поля, границы у космоса
+         нет. Небо лежит на самой секции, а не в теле блока: тело само себе
+         коробка (contain), и все в нем меряется от него, а не от окна.
+         Уходит оно вместе с секцией — финал приходит из вспышки уже белым. */
+      .space-section {
+        position: relative;
+        isolation: isolate;
+      }
+
+      .space-sky {
+        position: absolute;
+        inset: 0;
+        z-index: 0;
         background: radial-gradient(120% 130% at 50% 34%,
                     var(--space-sky) 0%, var(--space-sky-edge) 100%);
+        pointer-events: none;
+      }
+
+      /* Все, что каркас рисует в этой секции, стоит над небом. */
+      .space-section > .viz-container {
+        position: relative;
+        z-index: 1;
+      }
+
+      .space-card {
+        position: relative;
+        background: none;
+        border-radius: 0;
+        box-shadow: none;
+        padding: 0;
+        gap: 0;
+      }
+
+      /* И читается по темному: заголовок, подзаголовок и переходный экран
+         каркас набирает цветами страницы, а страница здесь — ночное небо. */
+      .space-section .viz-header h2,
+      .space-section .viz-lead-value {
+        color: var(--space-sat);
+      }
+
+      .space-section .viz-header p,
+      .space-section .viz-lead-text {
+        color: var(--space-label);
       }
 
       /* The heading does not fly in from the side. The shell walks a title
@@ -198,12 +247,14 @@ export function init(root) {
       /* What the block is about, picked out in the heading the way the page
          picks out a figure that matters. The heading is drawn by the shell,
          outside this body — these rules reach it all the same, and by the
-         time the card is shown the block has long been built. */
+         time the card is shown the block has long been built.
+         Плашка здесь цвета карточки, а буквы синие: небо этой главы темное,
+         и синее на синем не читалось бы. */
       .space-mark {
         padding: 0.06em 0.26em;
         border-radius: 0.22em;
-        background: var(--hse-blue);
-        color: var(--card);
+        background: var(--card);
+        color: var(--hse-blue);
         box-decoration-break: clone;
         -webkit-box-decoration-break: clone;
       }
@@ -217,25 +268,40 @@ export function init(root) {
         cursor: grabbing;
       }
 
-      /* Room for two lines is held from the start: the card underneath keeps
-         its height, and the globe in it never has to be refitted mid-story. */
+      /* Название спутника и строка под ним стоят в самой сцене, у ее верхнего
+         края: полосы над картинкой больше нет — картинка и есть экран. Шар
+         встает в то, что осталось ниже (band() в коде), так что подпись на
+         аппарат не ложится.
+
+         Касаний строка не берет: под ней шар, который вертят рукой, и такт,
+         который играет стук по экрану.
+
+         Room for two lines is held from the start: a line that grew by a row
+         would push the globe down and pull it back up again mid-story. */
       .space-note {
-        flex: none;
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 0;
+        z-index: 2;
         min-height: 76px;
+        pointer-events: none;
       }
 
       .space-note-line {
         font-size: 1.5rem;
         font-weight: 600;
         letter-spacing: -0.01em;
-        color: var(--text);
+        color: var(--space-sat);
+        text-wrap: pretty;
       }
 
       .space-note-sub {
         margin-top: 4px;
         font-size: 1.0625rem;
-        color: var(--text-secondary);
+        color: var(--space-label);
         font-variant-numeric: tabular-nums;
+        text-wrap: pretty;
       }
 
       .space-run { display: none; }
@@ -245,16 +311,37 @@ export function init(root) {
       .space-shot { display: none; }
 
       @media (max-width: 860px) {
+        /* Сцена держит весь экран: колонка прибита к его верху, и в ней
+           ничего, кроме неба и шара. Своего фона у колонки нет — под ней то
+           же небо, и полоса цвета страницы дала бы поперек экрана шов.
+           Восемь пикселей — поле секции сверху: без них сцена съезжала бы
+           вниз ровно на него и столько же вылезала бы за нижний край. */
+        .space-section .col-right {
+          height: calc(100svh - 8px);
+          padding: 0;
+          gap: 0;
+          background: none;
+        }
+
+        /* И тени под ней тоже: она растушевывала карточки, уезжающие под
+           прибитую картинку, а здесь под картинкой ничего не едет. */
+        .space-section .col-right::after { content: none; }
+
+        .space-card {
+          flex: 1;
+          height: auto;
+          min-height: 0;
+        }
+
         /* Кнопка стоит на самой картинке, у нижнего края: снимает спутник,
            и просить об этом логично там, где он летит, а не строкой ниже.
-           Места она не отнимает — под шаром его и так нет. */
-        .space-card { position: relative; }
-
+           Выше подсказки «Листай» — та стоит в своей полосе у самого низа
+           (--hint-room), и кнопка, прижатая к краю, легла бы на нее. */
         .space-shot {
           display: block;
           position: absolute;
           left: 50%;
-          bottom: 14px;
+          bottom: calc(var(--hint-room, 12px) + 20px);
           transform: translateX(-50%);
           font-size: 0.9375rem;
           font-weight: 600;
@@ -274,12 +361,6 @@ export function init(root) {
            story goes by, and a line that grew by a row would push the globe
            down and pull it back up again mid-story. */
         .space-note { min-height: 104px; }
-
-        /* Taller than the usual card on a phone. Under a pinned picture there
-           is normally a block scrolling by; here there is only the travel the
-           story is told over, so the screen would be half empty for five
-           screens of it. The globe takes that room instead. */
-        .space-card { height: 56dvh; }
 
         /* On a phone the page scrolls instead of stepping, and the globe with
            its line is pinned to the top there. This is the travel that goes
@@ -311,12 +392,12 @@ export function init(root) {
     </style>
 
     <div class="col-right">
-      <div class="space-note">
-        <div class="space-note-line" data-el="note"></div>
-        <div class="space-note-sub" data-el="sub"></div>
-      </div>
       <div class="canvas-card space-card">
         <div class="canvas-wrap" data-el="wrap"></div>
+        <div class="space-note" data-el="note-box">
+          <div class="space-note-line" data-el="note"></div>
+          <div class="space-note-sub" data-el="sub"></div>
+        </div>
         <button type="button" class="btn space-shot" data-el="shot" hidden>Сделать снимок</button>
       </div>
     </div>
@@ -327,9 +408,21 @@ export function init(root) {
   const host = root.closest('.viz-section');
   if (host) host.classList.add('space-section');
 
+  // Небо на всю секцию. Лежит оно на секции, а не внутри блока: тело блока
+  // само себе коробка (`contain`), и небо из него не вышло бы ни за поля
+  // страницы, ни за заголовок. Отдельным слоем, а не фоном секции, — чтобы
+  // каркас мог ставить на секцию свои классы, ничего не зная об этом.
+  if (host && !host.querySelector('.space-sky')) {
+    const sky = document.createElement('div');
+    sky.className = 'space-sky';
+    sky.setAttribute('aria-hidden', 'true');
+    host.insertBefore(sky, host.firstChild);
+  }
+
   const $ = (name) => root.querySelector(`[data-el="${name}"]`);
   const noteEl = $('note');
   const subEl = $('sub');
+  const noteBox = $('note-box');
   // На телефоне снимок делает читатель — кнопкой на последнем такте.
   const shotEl = $('shot');
   let snapped = false;
@@ -422,22 +515,68 @@ export function init(root) {
   const cosT = Math.cos(TILT), sinT = Math.sin(TILT);
   const sinI = Math.sin(INCLINE * RAD), cosI = Math.cos(INCLINE * RAD);
 
-  let W = 0, H = 0, CX = 0, CY = 0, R = 0, RO = 0, S = 1;
+  // Кадр, каким его дает экран, — и кадр, каким его видит камера: на
+  // последнем такте она наезжает, и все, что ниже, рисуется уже по
+  // наехавшему (см. lens()).
+  let W = 0, H = 0;
+  let CX0 = 0, CY0 = 0, R0 = 0, RO0 = 0;
+  let CX = 0, CY = 0, R = 0, RO = 0, S = 1;
   let stars = null;
+  // Высота строки над сценой. Меряется, а не считается: строк в ней то одна,
+  // то две, и экран у всех разной ширины.
+  let noteH = 0;
+  const measure = () => { noteH = noteBox ? noteBox.offsetHeight : 0; };
+
+  // Сколько сверху занято подписью, а снизу — кнопкой снимка. Шар встает в
+  // то, что осталось между ними: так подпись не ложится на аппарат, а
+  // аппарат не вылезает из кадра.
+  const band = () => ({
+    top: noteH + (narrow.matches ? 10 : 8),
+    bottom: narrow.matches ? 72 : 0
+  });
 
   function fit() {
     const w = canvas.clientWidth || 900;
     const h = canvas.clientHeight || 520;
-    if (w === W && h === H) return;
-    W = w; H = h;
-    CX = W / 2;
-    CY = H / 2;
-    R = Math.min(W, H) * 0.4;
+    if (w !== W || h !== H) { W = w; H = h; measure(); makeStars(); }
+    const b = band();
+    const free = Math.max(80, H - b.top - b.bottom);
+    CX0 = W / 2;
+    CY0 = b.top + free / 2;
+    // Кадрирование у телефона свое: экран там узкий и высокий, и шар в нем
+    // меряется шириной, а не меньшей стороной — иначе планета, главный
+    // предмет главы, занимала бы треть высоты посреди пустого неба.
+    R0 = narrow.matches
+      ? Math.min(W * 0.40, free * 0.42)
+      : Math.min(W * 0.34, free * 0.46);
     // True to scale the orbit runs eight per cent above the surface — a dozen
     // pixels here. Never closer than room enough to make out what is flying.
-    RO = Math.max(R * (1 + ORBIT_KM / EARTH_KM), R + 20);
-    S = Math.max(0.68, Math.min(1.25, R / 190));
-    makeStars();
+    RO0 = Math.max(R0 * (1 + ORBIT_KM / EARTH_KM), R0 + 20);
+    // Наезд записан в точках базового кадра, а кадр только что пересчитан.
+    if (cam) cam = aimAt(SATS[SATS.length - 1]);
+    lens();
+  }
+
+  // ---------- Камера ----------
+  // Всю историю она стоит на месте. На последнем такте, когда спутник
+  // доворачивается объективом к Земле, она наезжает: точка базового кадра
+  // (bx, by) — середина между аппаратом и метками под ним — встает в
+  // (sx, sy), а все расстояния растут в k раз. camK говорит, насколько она
+  // туда доехала, и на нуле наезда нет вовсе.
+  let cam = null;
+  let camK = 0;
+
+  function lens() {
+    const t = cam ? camK : 0;
+    const k = 1 + (cam ? (cam.k - 1) * t : 0);
+    R = R0 * k;
+    RO = Math.max(R * (1 + ORBIT_KM / EARTH_KM), R + 20 * k);
+    // Аппарат на наезде тоже растет — но медленнее планеты. Вырасти он
+    // вровень с ней, и подпись рядом набралась бы вдвое крупнее заголовка;
+    // не вырасти вовсе — наезд был бы на Землю, а не на спутник.
+    S = Math.max(0.68, Math.min(1.25, R0 / 190)) * (1 + (k - 1) * 0.55);
+    CX = cam ? (CX0 - cam.bx) * k + cam.bx + (cam.sx - cam.bx) * t : CX0;
+    CY = cam ? (CY0 - cam.by) * k + cam.by + (cam.sy - cam.by) * t : CY0;
   }
 
   function makeStars() {
@@ -455,16 +594,24 @@ export function init(root) {
   // A point of the sphere: latitude, longitude as seen from here, radius.
   // `z` is what faces us — it is positive on the half of the world we see,
   // and zero exactly along the edge of the disc.
-  function put(phi, psi, r) {
+  //
+  // Сначала без середины кадра: так ту же точку можно посчитать и на базовом
+  // кадре — наезд целится в место, которое не должно ехать вместе с ним.
+  function at(phi, psi, r) {
     const f = phi * RAD, l = psi * RAD;
     const cf = Math.cos(f), sf = Math.sin(f), cl = Math.cos(l);
     const X = r * cf * Math.sin(l);
     const Y = -r * (cosL * sf - sinL * cf * cl);
     return {
-      x: CX + X * cosT - Y * sinT,
-      y: CY + X * sinT + Y * cosT,
+      dx: X * cosT - Y * sinT,
+      dy: X * sinT + Y * cosT,
       z: sinL * sf + cosL * cf * cl
     };
+  }
+
+  function put(phi, psi, r) {
+    const q = at(phi, psi, r);
+    return { x: CX + q.dx, y: CY + q.dy, z: q.z };
   }
 
   // The same answer without the rest of the work: which side of the world a
@@ -627,7 +774,9 @@ export function init(root) {
     // the globe, flattens towards the edge and goes round with everything
     // else. The mark keeps the colours it wears everywhere on the page.
     if (mark) {
-      const arc = Math.max(8, R * 0.06) / 2 / R;   // its radius, in surface radians
+      // Чуть крупнее прежнего: с них начинается глава, и на телефоне метка в
+      // восемь пикселей читалась как пылинка.
+      const arc = Math.max(10, R * 0.07) / 2 / R;  // its radius, in surface radians
       const D = 0.4;                               // degrees, to read the lie of the ground
       // Which way east and north run on the screen — read once, in the middle
       // of the four, and used for all of them. The lie of the ground is a
@@ -687,10 +836,16 @@ export function init(root) {
   }
 
   // Where a satellite is along its orbit, u counted from the equator.
+  function orbitAngles(sat, u) {
+    return {
+      phi: Math.asin(sinI * Math.sin(u)) / RAD,
+      psi: sat.node + Math.atan2(cosI * Math.sin(u), Math.cos(u)) / RAD
+    };
+  }
+
   function onOrbit(sat, u, r = RO) {
-    const phi = Math.asin(sinI * Math.sin(u)) / RAD;
-    const psi = sat.node + Math.atan2(cosI * Math.sin(u), Math.cos(u)) / RAD;
-    return put(phi, psi, r);
+    const a = orbitAngles(sat, u);
+    return put(a.phi, a.psi, r);
   }
 
   function drawOrbit(sat, alpha) {
@@ -812,22 +967,58 @@ export function init(root) {
     ctx.restore();
   }
 
-  function drawLabel(sat, x, y, alpha) {
-    if (R < 130) return;
-    const d = Math.max(1, Math.hypot(x - CX, y - CY));
-    const ux = (x - CX) / d, uy = (y - CY) / d;
+  // Имя спутника. Оно всегда целиком в кадре: сцена теперь во весь экран, и
+  // аппарат, вышедший к его краю, уводил имя за край — читатель видел «Cube»
+  // и «-HSE». Коробка строки загоняется в кадр, а если после этого она легла
+  // на сам аппарат, уходит от него вверх или вниз: подпись называет аппарат,
+  // а не закрывает его.
+  function drawLabels(list) {
+    if (R < 110 || !list.length) return;
+    const size = Math.round(11 * S + 1);
+    const pad = 6;
+    const top = band().top + size * 0.7;
+    const low = H - pad - size * 0.7;
+    const hold = (v) => Math.max(top, Math.min(low, v));
+    const near = 13 * S;
     ctx.save();
-    ctx.globalAlpha = alpha;
     ctx.fillStyle = C.label;
-    ctx.font = `600 ${Math.round(11 * S + 1)}px 'HSE Sans', sans-serif`;
-    ctx.textAlign = ux >= 0 ? 'left' : 'right';
+    ctx.font = `600 ${size}px 'HSE Sans', sans-serif`;
+    ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
     // A name crosses the lit side of the planet as often as the sky, so it
     // carries its own bit of night with it.
     ctx.shadowColor = 'rgba(6, 14, 30, 0.9)';
     ctx.shadowBlur = 5;
-    ctx.fillText(sat.name, x + ux * 17 * S, y + uy * 17 * S);
-    ctx.fillText(sat.name, x + ux * 17 * S, y + uy * 17 * S);
+    const set = [];
+    list.forEach(({ sat, x, y, alpha }) => {
+      const w = ctx.measureText(sat.name).width;
+      const d = Math.max(1, Math.hypot(x - CX, y - CY));
+      const ux = (x - CX) / d, uy = (y - CY) / d;
+      // Имя стоит с той стороны аппарата, в которую тот смотрит от середины
+      // планеты: так оно уходит от шара, а не ложится на него.
+      let lx = Math.max(pad, Math.min(W - pad - w, x + ux * 17 * S - (ux >= 0 ? 0 : w)));
+      let ly = hold(y + uy * 17 * S);
+      // Загнанная в кадр строка могла лечь на сам аппарат — тогда она отходит
+      // от него по вертикали, вниз от верхней половины кадра и вверх от
+      // нижней: подпись называет аппарат, а не закрывает его.
+      if (Math.abs(ly - y) < near && lx < x + near && lx + w > x - near) {
+        ly = hold(y + (y < H / 2 ? 1 : -1) * (near + size * 0.8));
+      }
+      // И не на чужое имя: две орбиты то и дело сходятся на экране, и два
+      // названия ложились одно поверх другого в нечитаемую кашу.
+      for (let guard = 0; guard < 5; guard++) {
+        const hit = set.find((b) => Math.abs(b.ly - ly) < size * 1.2
+          && lx < b.lx + b.w + 4 && lx + w > b.lx - 4);
+        if (!hit) break;
+        const to = hold(hit.ly + (ly >= hit.ly ? 1 : -1) * size * 1.35);
+        if (to === ly) break;
+        ly = to;
+      }
+      set.push({ lx, ly, w });
+      ctx.globalAlpha = alpha;
+      ctx.fillText(sat.name, lx, ly);
+      ctx.fillText(sat.name, lx, ly);
+    });
     ctx.restore();
   }
 
@@ -844,13 +1035,43 @@ export function init(root) {
     ctx.globalAlpha = 1;
   }
 
+  // Первый кадр главы — про четыре города, которыми читатель ходил всю
+  // страницу: отсюда они умещаются в один палец. Тонкое кольцо говорит, куда
+  // смотреть; с приходом первого спутника оно гаснет.
+  function drawHome(a) {
+    if (a <= 0.01) return;
+    const pts = CITIES.map((c) => CITY_AT[c.key]).filter(Boolean)
+      .map((place) => put(place[0], place[1] - spin, R))
+      .filter((p) => p.z > 0);
+    if (!pts.length) return;
+    let x = 0, y = 0;
+    pts.forEach((p) => { x += p.x / pts.length; y += p.y / pts.length; });
+    const far = pts.reduce((m, p) => Math.max(m, Math.hypot(p.x - x, p.y - y)), 0);
+    const rr = Math.max(14 * S, far + Math.max(12, R * 0.09));
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(x, y, rr, 0, Math.PI * 2);
+    ctx.globalAlpha = a * 0.1;
+    ctx.fillStyle = C.sat;
+    ctx.fill();
+    ctx.globalAlpha = a * 0.8;
+    ctx.strokeStyle = C.sat;
+    ctx.lineWidth = Math.max(1, 1.2 * S);
+    ctx.stroke();
+    ctx.restore();
+  }
+
   function paint() {
     fit();
     resize();
     ctx.clearRect(0, 0, W, H);
     drawStars();
     drawGlobe();
+    drawHome(homeK);
 
+    // Имена собираются по дороге и ставятся после всех: каждое из них должно
+    // знать, где уже стоят соседи.
+    const names = [];
     SATS.forEach((sat) => {
       if (sat.born === null) return;
       const dying = sat.died === null ? 0 : Math.min(1, (clock - sat.died) / BURN_MS);
@@ -896,13 +1117,17 @@ export function init(root) {
       if (aimed > 0 && !hidden(p)) drawView(p, under, angle, aimed * (1 + taking));
       drawBody(p.x, p.y, angle, away * (1 - dying), aimed);
       if (since >= 0 && !hidden(p)) drawGlint(p, angle, since);
-      if (!dying) drawLabel(sat, p.x, p.y, hidden(p) ? 0.45 : 1);
+      if (!dying) names.push({ sat, x: p.x, y: p.y, alpha: hidden(p) ? 0.45 : 1 });
     });
+    drawLabels(names);
   }
 
   // ---------- Time ----------
   let clock = 0;
   let spin = 45;              // European Russia faces us to start with
+  // Кольцо вокруг четырех городов: единица на первом кадре, ноль дальше.
+  let homeK = 0;
+  let homeTo = 0;
   let raf = null;
   let last = 0;
 
@@ -936,6 +1161,18 @@ export function init(root) {
       spin += fling * dt - (dt / (LAP_MS * DAY_LAPS)) * 360;
       fling *= Math.exp(-dt / 450);
       if (Math.abs(fling) < 1e-4) fling = 0;
+    }
+    // Кольцо городов приходит и уходит плавно — оно указывает, а не мигает.
+    if (homeK !== homeTo) {
+      const step = dt / 420;
+      homeK = homeTo > homeK ? Math.min(homeTo, homeK + step) : Math.max(homeTo, homeK - step);
+    }
+    // Наезд идет вместе с доворотом: камера подходит ровно тогда, когда
+    // спутник поворачивается объективом к Земле.
+    const flying = SATS[SATS.length - 1];
+    if (cam && flying.aim) {
+      const p = Math.min(1, Math.max(0, (clock - flying.aim.t0) / (AIM_MS * AIM_TURN)));
+      camK = 1 - Math.pow(1 - p, 3);
     }
     SATS.forEach((sat) => {
       if (sat.born === null) return;
@@ -1068,6 +1305,33 @@ export function init(root) {
     return { u, spin: MIDDLE[1] - psi + FACE };
   };
 
+  // Куда наезжает камера на последнем такте: середина между аппаратом и
+  // метками, над которыми он встанет. Считается на базовом кадре — иначе
+  // наезд гнался бы за собственным следом, — и каждый раз заново, потому что
+  // базовый кадр меняется с окном.
+  function aimAt(sat) {
+    const o = overhead(sat);
+    const a = orbitAngles(sat, o.u);
+    const g = at(MIDDLE[0], MIDDLE[1] - o.spin, R0);
+    const p = at(a.phi, a.psi, RO0);
+    const b = band();
+    const free = Math.max(80, H - b.top - b.bottom);
+    return {
+      // Насколько ближе — спрашивается у кадра, а не пишется числом: шар
+      // меряется шириной экрана, а свободная высота у телефона вдвое больше
+      // ее. Одна и та же доля оставляла бы на высоком экране полкадра пустого
+      // неба над планетой.
+      k: Math.max(1.4, Math.min(2.1, (free * 0.6) / R0)),
+      bx: CX0 + (g.dx + p.dx) / 2,
+      by: CY0 + (g.dy + p.dy) / 2,
+      sx: CX0,
+      // И стоит аппарат выше середины: под ним остается Земля, а над ним
+      // только небо — кадр, поставленный ровно по центру, выходил пустым
+      // сверху.
+      sy: b.top + free * 0.33
+    };
+  }
+
   // ---------- The story ----------
   // Each of them sets off a little before the point of its own orbit that is
   // nearest to us, so the lap it draws on the way in starts in plain sight
@@ -1097,6 +1361,9 @@ export function init(root) {
   function say(i) {
     noteEl.innerHTML = STORY[i].line;
     subEl.textContent = STORY[i].sub;
+    // Строка стоит в самой сцене, и кадр для шара считается по ней: сколько
+    // в ней строк — столько сверху и занято.
+    measure();
   }
 
   // The page opens this block: the reader has just come to it, by beats or
@@ -1114,6 +1381,12 @@ export function init(root) {
     fling = 0;
     frozen = false;
     shown = -1;
+    // Камера тоже возвращается к своему началу: наезд — такое же положение
+    // картинки, как поворот планеты.
+    cam = null;
+    camK = 0;
+    homeK = 0;
+    homeTo = 0;
     // Снимок — такое же положение картинки, как поворот планеты: вернувшись
     // в раздел, читатель застает спутник над Вышкой и кнопку под ним, а не
     // уже отснятый кадр.
@@ -1165,14 +1438,29 @@ export function init(root) {
         const turn = over.spin + 360 * Math.round((spin - over.spin) / 360);
         if (instant) {
           sat.aim = { from: to, to, t0: clock - AIM_MS, extra: 0 };
+          // И сам аппарат уже там. Довозит его до этой точки часовой цикл,
+          // а он при мгновенном такте не идет вовсе: при «меньше движения»
+          // его нет совсем, а на прыжке по полоске такт доигрывается разом.
+          // Без этой строки читатель заставал объектив, нацеленный на Вышку
+          // откуда-то из-за края кадра.
+          sat.u = to;
           spin = turn;
           steer = null;
         } else {
           sat.aim = { from: sat.u, to, t0: clock, extra: 0 };
           steer = { from: spin, to: turn, t0: clock };
         }
+        // И камера подходит ближе: аппарат с объективом и четыре метки под
+        // ним занимают кадр, остальное уходит за край. Это конец главы —
+        // дальше вспышка и снимок.
+        cam = aimAt(sat);
+        camK = instant ? 1 : 0;
       }
-      if (!aims) { sat.aim = null; if (i < HOLD) steer = null; }
+      if (!aims) {
+        sat.aim = null;
+        if (i < HOLD) steer = null;
+        if (k === SATS.length - 1) { cam = null; camK = 0; }
+      }
       // The picture is taken on the beat after that, and the flash it goes off
       // in belongs to the same beat — the shell draws that part.
       // На телефоне снимок делает читатель: такт приводит спутник к Вышке и
@@ -1184,7 +1472,17 @@ export function init(root) {
 
     // From the beat it comes round over the campuses, the globe stops turning
     // on its own: the reader needs the picture still to read the line over it.
-    frozen = i >= HOLD;
+    //
+    // И на первом кадре тоже: он про четыре города, и города эти должны
+    // стоять лицом к читателю, сколько бы он на них ни смотрел. Шар крутится
+    // оборот за две минуты — а блок собирается задолго до того, как до него
+    // дошли, и к приходу читателя Вышка успевала уехать за край.
+    frozen = i >= HOLD || i === 0;
+
+    // Кольцо вокруг четырех городов — только на первом кадре: дальше глава
+    // про то, что летает над ними.
+    homeTo = i === 0 ? 1 : 0;
+    if (instant) homeK = homeTo;
 
     // Кнопка приходит с последним тактом и уходит со снимком. Назад, к
     // прошлым тактам, уходит и сам снимок — значит, просить о нем можно снова.
@@ -1207,7 +1505,10 @@ export function init(root) {
   // Дальше все то же самое, только по очереди: круглая вспышка на линзе —
   // та же, что и на широком экране, — а за ней белый экран и финал,
   // проступающий из белого. Вспышку играет каркас (`story:flash`).
-  const GLINT_MS = 560;         // блик на линзе; 500мс горит, остаток на спад
+  // Блик на линзе; 500мс горит, остаток на спад. При «меньше движения»
+  // переход сокращается до отклика на нажатие: занавес каркас там не играет
+  // вовсе, и ждать полсекунды читателю не за чем.
+  const GLINT_MS = still ? 160 : 560;
   if (shotEl) shotEl.addEventListener('click', () => {
     if (snapped) return;
     snapped = true;
