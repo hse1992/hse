@@ -277,6 +277,27 @@ export function init(root) {
           width: 100%;
           transform: translateY(calc((1 - var(--intro-body, 1)) * 100vh));
           opacity: var(--intro-body, 1);
+          /* Порядок слоев называем: планета стоит на экране с первого кадра
+             раздела, и заголовок с переходным экраном читаются поверх нее. */
+          position: relative;
+          z-index: 3;
+        }
+
+        /* ---------- Планета приходит издалека ----------
+           Блок не ждет за сгибом, пока придет карточка (так ведет себя любой
+           другой раздел, см. .viz-intro .viz-body в layout.css): планета
+           приходит еще под переходным экраном, точкой в глубине неба, и
+           вырастает тем же тактом, которым приезжает карточка. Ждать ей
+           негде, а строк на первом кадре в блоке нет — только шар. Ведет
+           этот приход approach() в коде. */
+        .viz-intro.space-section .viz-body {
+          transform: none;
+          opacity: 1;
+        }
+
+        .space-section .viz-lead {
+          position: absolute;
+          z-index: 4;
         }
       }
 
@@ -1460,7 +1481,8 @@ export function init(root) {
     // On a phone the story is told by the scroll, and the reader can come back
     // to the middle of it: the run says where they are, and the block is put
     // back to that, not to the beginning of the story.
-    if (narrow.matches) { approach(); follow(true); }
+    approach();
+    if (narrow.matches) follow(true);
     paint();
   }
 
@@ -1608,7 +1630,7 @@ export function init(root) {
   // переходного экрана; на свое место она поднимается вместе с ростом.
   function approach() {
     const was = farK;
-    if (!narrow.matches || still || !colEl || !host) {
+    if (still || !colEl || !host) {
       farK = 1;
       canvas.style.transform = '';
       canvas.style.pointerEvents = '';
@@ -1618,6 +1640,25 @@ export function init(root) {
     // Кадр нужен посчитанным: отсюда берется радиус планеты, а первый раз
     // эта проверка случается раньше первой отрисовки.
     fit();
+    // На широком экране открытие идет тактами, а не пальцем, и спрашивать
+    // дорогу не у кого: доля посадки карточки записана каркасом прямо в
+    // секцию, и планета растет по ней. Холст при этом двигать не нужно — он
+    // и так стоит на своем месте, под переходным экраном.
+    if (!narrow.matches) {
+      // Такт здесь один на двоих: сначала уезжает переходный экран
+      // (--lead-away), следом садится карточка (--intro-body). Планета идет
+      // по обоим — считай она только по второму, весь подлет пришелся бы на
+      // вторую половину такта и читался бы рывком, а не полетом.
+      const part = (name) => {
+        const v = parseFloat(host.style.getPropertyValue(name));
+        return Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 1;
+      };
+      farK = (part('--lead-away') + part('--intro-body')) / 2;
+      canvas.style.transform = '';
+      canvas.style.pointerEvents = '';
+      if (Math.abs(farK - was) > 0.0005) paint();
+      return;
+    }
     const box = host.getBoundingClientRect();
     const col = colEl.getBoundingClientRect().top;
     const span = Math.max(1, col - box.top);
@@ -1659,12 +1700,27 @@ export function init(root) {
     step(i);
   }
 
-  if (narrow.matches) {
-    window.addEventListener('scroll', () => { approach(); follow(); }, { passive: true });
-    window.addEventListener('resize', () => { approach(); follow(); });
-    approach();
-    follow(true);
+  // Приход планеты считается по положению страницы — и тактами ее двигают
+  // или пальцем, положение это меняется прокруткой. Историю по пути читает
+  // только телефон: на широком экране ее ведет step() от каркаса.
+  const walked = () => { approach(); if (narrow.matches) follow(); };
+  window.addEventListener('scroll', walked, { passive: true });
+  window.addEventListener('resize', walked);
+  // Но прокрутки для прихода планеты мало, и на обоих экранах по-своему. На
+  // широком странице во время открытия ехать некуда — карточку сажает такт, и
+  // за все открытие не приходит ни одного события. На телефоне события есть,
+  // но положение, спрошенное в обработчике, бывает вчерашним: прибитая колонка
+  // встает на место позже самого события, и планета отставала на целый такт.
+  //
+  // Каркас же меряет страницу в своем кадре, после раскладки, и посчитанное
+  // кладет прямо в стиль секции. На эту запись и смотрим — она случается
+  // каждый кадр, пока раздел на экране, и всегда по верной геометрии.
+  if (host) {
+    new MutationObserver(() => approach())
+      .observe(host, { attributes: true, attributeFilter: ['style'] });
   }
+  approach();
+  if (narrow.matches) follow(true);
 
   // How far the next step is: the same travel as follow() walks, read the
   // other way round.
