@@ -95,28 +95,6 @@ const BURN = SATS.length + 1;
 const HOLD = BURN + 1;
 const SHOT = HOLD;
 
-// Звездное небо — плиткой, а не холстом. Небо этой главы лежит на всей
-// секции, и звезды должны быть на нем с первого же кадра: раздел начинается
-// переходным экраном «Вышка настолько большая, что достает даже до орбиты», а
-// холст с планетой приходит позже и занимает только свою часть экрана.
-// Рисуется плитка один раз, при сборке блока, и дальше не стоит ничего:
-// звезды далеко, и ни поворот планеты, ни наезд камеры их не двигают.
-//
-// Сетка та же, что была в холсте: одна звезда на 8000 пикселей, и порядок у
-// них всегда один — зерно это день, когда ушел первый спутник.
-function starTile(size, color) {
-  let seed = 20210322;
-  const rnd = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
-  let dots = '';
-  for (let i = 0, n = Math.round((size * size) / 8000); i < n; i++) {
-    dots += `<circle cx="${(rnd() * size).toFixed(1)}" cy="${(rnd() * size).toFixed(1)}"`
-      + ` r="${(0.4 + rnd() * 1.1).toFixed(2)}" opacity="${(0.2 + rnd() * 0.6).toFixed(2)}"/>`;
-  }
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}"`
-    + ` fill="${color}">${dots}</svg>`;
-  return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
-}
-
 export const meta = {
   id: 'space',
   // Short enough for the strip at the top of a phone — see meta.short in CLAUDE.md.
@@ -225,17 +203,23 @@ export function init(root) {
         pointer-events: none;
       }
 
-      /* Звезды на этом небе — плиткой (starTile выше), а не в холсте: небо
-         приходит с первым кадром раздела, холст с планетой позже. Слой прибит
-         к окну и ростом с него: звезды стоят, пока раздел идет мимо. Поехав
-         вместе со страницей, они читались бы как движение самой камеры — а
-         камера здесь неподвижна до последнего такта. */
+      /* Звезды живут на этом небе, а не в холсте с планетой: небо приходит с
+         первым кадром раздела, холст позже и занимает только свою часть
+         экрана. Слой прибит к окну и ростом с него — звезды стоят, пока
+         раздел идет мимо; поехав вместе со страницей, они читались бы как
+         движение самой камеры, а камера здесь неподвижна до последнего
+         такта. Свой холст им нужен затем, что на подлете они расходятся и
+         смазываются — см. paintSky(). */
       .space-stars {
         position: sticky;
         top: 0;
         height: var(--win, 100svh);
-        background-image: var(--space-star-tile, none);
-        background-repeat: repeat;
+      }
+
+      .space-stars canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
       }
 
       /* Все, что каркас рисует в этой секции, стоит над небом. */
@@ -527,10 +511,108 @@ export function init(root) {
     burn: token('--space-burn')
   };
 
-  // Звезды кладутся на небо, а не в холст: цвет у них тот же токен, а места
-  // своего они не меняют никогда — значит, и рисовать их заново незачем.
+  // ---------- Небо ----------
+  // Звезды лежат на небе всей секции и стоят на месте — ровно до того кадра,
+  // когда планета идет к читателю. На подлете они расходятся от точки, в
+  // которую он летит, и вытягиваются в черточки: так в кино показывают
+  // разгон корабля. Черточка — это путь звезды за кадр, и чем дальше звезда
+  // от середины, тем он длиннее.
+  const SKY_DEEP = 0.78;    // во столько раз небо сжато к середине в начале пути
+  const SKY_TRAIL = 0.14;   // и такой доли своего пути достигает черточка на ходу
+  const SKY_FAST = 0.0016;  // а в полную силу смаз набирает вот на такой скорости
   const starLayer = sky && sky.querySelector('.space-stars');
-  if (starLayer) starLayer.style.setProperty('--space-star-tile', starTile(900, C.star));
+  const skyBoard = starLayer ? mountCanvas(starLayer, () => paintSky()) : null;
+  let skyStars = null;
+  let skyW = 0, skyH = 0;
+  let skyRun = 0;                     // смаз: 0 — звезды стоят, 1 — летят во весь дух
+  let skyWas = 1;                     // где планета была на прошлом кадре
+  let skyAt = performance.now();      // и когда это было
+  let skyWait = 0;
+
+  function makeSky() {
+    if (!skyBoard) return false;
+    const w = skyBoard.canvas.clientWidth || 0;
+    const h = skyBoard.canvas.clientHeight || 0;
+    if (!w || !h) return false;
+    if (w === skyW && h === skyH && skyStars) return true;
+    skyW = w;
+    skyH = h;
+    // Небо всегда одно и то же: зерно — день, когда ушел первый спутник.
+    let seed = 20210322;
+    const rnd = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
+    // Поле шире окна во столько же раз, во сколько небо сжимается на подлете:
+    // сжатое, оно все равно должно доставать до углов. И звезд в нем ровно
+    // настолько больше — чтобы у пришедшего неба была та же сетка, что и
+    // раньше: одна звезда на 8000 пикселей.
+    const k = 1 / SKY_DEEP;
+    const n = Math.round((w * h * k * k) / 8000);
+    skyStars = [];
+    for (let i = 0; i < n; i++) {
+      skyStars.push({
+        dx: (rnd() - 0.5) * w * k,
+        dy: (rnd() - 0.5) * h * k,
+        r: 0.4 + rnd() * 1.1,
+        a: 0.2 + rnd() * 0.6
+      });
+    }
+    return true;
+  }
+
+  function paintSky() {
+    if (!makeSky()) return;
+    const { canvas: board, ctx: air } = skyBoard;
+    const d = Math.min(window.devicePixelRatio || 1, 2);
+    const w = Math.round(skyW * d), h = Math.round(skyH * d);
+    if (board.width !== w || board.height !== h) { board.width = w; board.height = h; }
+    air.setTransform(d, 0, 0, d, 0, 0);
+    air.clearRect(0, 0, skyW, skyH);
+    const cx = skyW / 2, cy = skyH / 2;
+    // Небо расходится вместе с ростом планеты и по той же доле, что и она.
+    const z = SKY_DEEP + (1 - SKY_DEEP) * farK * farK;
+    const speed = skyRun;
+    const trail = SKY_TRAIL * speed;
+    air.fillStyle = C.star;
+    air.strokeStyle = C.star;
+    air.lineCap = 'round';
+    skyStars.forEach((s) => {
+      const x = cx + s.dx * z, y = cy + s.dy * z;
+      if (x < -24 || y < -24 || x > skyW + 24 || y > skyH + 24) return;
+      // Растянутая звезда отдает тот же свет длине втрое большей — и светит
+      // слабее ровно настолько, насколько растянулась.
+      air.globalAlpha = s.a * (1 - 0.3 * speed);
+      if (trail < 0.004) {
+        air.beginPath();
+        air.arc(x, y, s.r, 0, Math.PI * 2);
+        air.fill();
+        return;
+      }
+      air.lineWidth = s.r * 2;
+      air.beginPath();
+      air.moveTo(cx + s.dx * z * (1 - trail), cy + s.dy * z * (1 - trail));
+      air.lineTo(x, y);
+      air.stroke();
+    });
+    air.globalAlpha = 1;
+  }
+
+  // Черточка — это путь звезды за кадр, то есть скорость, а не место. Мерить
+  // ее по тому, далеко ли планета, нельзя: на телефоне ход останавливается там,
+  // где кончился такт, и небо застывало смазанным посреди неподвижной страницы.
+  function flew() {
+    const now = performance.now();
+    const dt = Math.max(16, Math.min(120, now - skyAt));
+    const v = still ? 0 : Math.abs(farK - skyWas) / dt;
+    skyWas = farK;
+    skyAt = now;
+    // Разгон мгновенный, торможение плавное: иначе смаз мигал бы на тех кадрах,
+    // где такт не сдвинул планету ни на сколько.
+    skyRun = Math.max(Math.min(1, v / SKY_FAST), skyRun * Math.pow(0.86, dt / 16));
+    if (skyRun < 0.01) skyRun = 0;
+    paintSky();
+    // Страница встала, а смаз еще есть — его нужно догасить самим: о том, что
+    // ничего не меняется, никто не сообщит.
+    if (skyRun > 0 && !skyWait) skyWait = requestAnimationFrame(() => { skyWait = 0; flew(); });
+  }
 
   // The mark of the university, for the four places it stands in. It is read
   // from the file, so it arrives a moment after everything else — until then
@@ -1482,6 +1564,12 @@ export function init(root) {
     // to the middle of it: the run says where they are, and the block is put
     // back to that, not to the beginning of the story.
     approach();
+    // Пришедшему в раздел читателю небо достается спокойным: прыжок по полоске
+    // двигает планету разом, и смаз от такого скачка — это не разгон, а рябь.
+    skyRun = 0;
+    skyWas = farK;
+    skyAt = performance.now();
+    paintSky();
     if (narrow.matches) follow(true);
     paint();
   }
@@ -1630,11 +1718,19 @@ export function init(root) {
   // переходного экрана; на свое место она поднимается вместе с ростом.
   function approach() {
     const was = farK;
+    // Планета и небо ходят вместе: планета растет, звезды расходятся и
+    // смазываются. Перерисовывать их порознь не за чем — обе картинки идут по
+    // одной и той же доле пути.
+    const moved = () => {
+      if (Math.abs(farK - was) <= 0.0005) return;
+      paint();
+      flew();
+    };
     if (still || !colEl || !host) {
       farK = 1;
       canvas.style.transform = '';
       canvas.style.pointerEvents = '';
-      if (was !== 1) paint();
+      moved();
       return;
     }
     // Кадр нужен посчитанным: отсюда берется радиус планеты, а первый раз
@@ -1656,7 +1752,7 @@ export function init(root) {
       farK = (part('--lead-away') + part('--intro-body')) / 2;
       canvas.style.transform = '';
       canvas.style.pointerEvents = '';
-      if (Math.abs(farK - was) > 0.0005) paint();
+      moved();
       return;
     }
     const box = host.getBoundingClientRect();
@@ -1679,7 +1775,7 @@ export function init(root) {
       canvas.style.transform = '';
       canvas.style.pointerEvents = '';
     }
-    if (Math.abs(farK - was) > 0.0005) paint();
+    moved();
   }
 
   function follow(force) {
