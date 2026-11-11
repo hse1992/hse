@@ -770,22 +770,45 @@ export function init(root) {
       }
 
       .world-flags-card {
-        transition: opacity 260ms ease;
+        transition: opacity 200ms ease;
       }
 
-      .world-dim .world-flags-card,
-      .world-dim .world-tile {
+      .world-dim .world-flags-card {
         opacity: 0;
       }
 
-      @media (min-width: 861px) {
-        .world-body {
-          transition: gap 620ms cubic-bezier(0.215, 0.61, 0.355, 1);
-        }
+      /* Стена приходит пятью группами, а не ста двадцатью восемью флагами.
+         Плитки появлялись каждая со своей задержкой — 128 переходов в один
+         кадр, и это тот самый кадр, в котором стена впервые размечается и
+         растеризуется. Волну по флагам это давало ровно ту же, что и волна
+         по группам, только ценой всей раскладки. Задержка у флага осталась:
+         по ней бежит волна при переключении кампусов — там стена уже стоит,
+         и менять ей нечего, кроме цвета. */
+      .world-group {
+        transition: opacity 260ms ease var(--gd, 0ms),
+                    transform 260ms cubic-bezier(0.215, 0.61, 0.355, 1) var(--gd, 0ms);
+      }
 
+      .world-dim .world-group {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .world-group { transition: none; }
+        .world-dim .world-group { transform: none; }
+      }
+
+      @media (min-width: 861px) {
+        /* Ширину колонки и зазор между колонками не анимируем. Пока они ехали
+           620мс, стене каждый кадр доставалась новая ширина: наблюдатель за
+           размером звал раскладку, та считала размер плитки и тут же читала
+           геометрию обратно — за одно раскрытие --tile переписывался 39 раз.
+           Теперь место встает сразу, одним кадром, а движение играют
+           transform и opacity, которые раскладку не трогают. */
         .world-left {
-          transition: width 620ms cubic-bezier(0.215, 0.61, 0.355, 1),
-                      opacity 260ms ease;
+          transition: opacity 320ms ease,
+                      transform 420ms cubic-bezier(0.215, 0.61, 0.355, 1);
         }
 
         /* Held at their own width while the column opens, so the cards are
@@ -805,6 +828,7 @@ export function init(root) {
         .world-shut .world-left {
           width: 0;
           opacity: 0;
+          transform: translateX(-16px);
           overflow: hidden;
           pointer-events: none;
         }
@@ -823,6 +847,7 @@ export function init(root) {
         .world-scale.is-nudged .meter-bar { animation: none; }
         .world-body,
         .world-left { transition: none; }
+        .world-shut .world-left { transform: none; }
       }
 
       /* Кампусов на телефоне нет вовсе. Четыре переключателя внизу отнимали
@@ -1012,10 +1037,16 @@ export function init(root) {
   let index = 0;
 
   const groupCountEls = {};
+  const groupEls = [];
+  // Стена приходит группами: пять задержек по 60мс — вся волна укладывается
+  // в полсекунды вместе с переходом самой группы.
+  const GROUP_STEP = 60;
 
-  REGIONS.forEach((region) => {
+  REGIONS.forEach((region, gi) => {
     const group = document.createElement('div');
     group.className = 'world-group';
+    group.style.setProperty('--gd', `${gi * GROUP_STEP}ms`);
+    groupEls.push(group);
     group.innerHTML = `
       <div class="world-group-title">${region.label}
         <span><b data-el="groupCount"></b> из ${REGION_WORLD[region.key]} ${countriesOf(REGION_WORLD[region.key])}</span>
@@ -1070,6 +1101,7 @@ export function init(root) {
   // тесном телефоне — стене отдается полоса в четыре ряда, а блок честно
   // вырастает выше экрана: низ у него каркас достает отдельным тактом.
   const WALL_MIN = 140;              // меньше четырех рядов флагов не оставляем
+  let wallH = -1;                    // последняя записанная высота стены
   function grow() {
     if (!phone.matches) return;
     // Экран, который блоку отведен: min-height тела каркас считает по окну,
@@ -1082,41 +1114,106 @@ export function init(root) {
     grid.style.maxHeight = '0px';
     const without = root.scrollHeight;
     root.style.minHeight = kept;
-    grid.style.maxHeight = `${Math.max(WALL_MIN, Math.round(room - without))}px`;
+    const want = Math.max(WALL_MIN, Math.round(room - without));
+    // Та же высота второй раз не пишется: запись меняет размер стены, за
+    // которым следит наблюдатель, и он зовет раскладку обратно — круг, в
+    // котором стена пересчитывает сама себя без конца.
+    if (want === wallH) { grid.style.maxHeight = `${wallH}px`; return; }
+    wallH = want;
+    grid.style.maxHeight = `${want}px`;
   }
 
-  // Flags are laid out to fill the card: take the largest size at which every
-  // group, caption and flag still fits without scrolling.
-  function layout() {
-    if (phone.matches) {
-      grid.style.setProperty('--tile', `${TILE_PHONE}px`);
-      grow();
-      return;
-    }
-    const style = getComputedStyle(grid);
-    const w = grid.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
-    const h = grid.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
-    if (w <= 0 || h <= 0) return;
+  // Размер плитки пишется один раз на значение: лишняя запись — это лишняя
+  // перерисовка всей стены и лишнее уведомление наблюдателю.
+  let tileNow = 0;
+  function setTile(size) {
+    if (size === tileNow) return;
+    tileNow = size;
+    grid.style.setProperty('--tile', `${size}px`);
+  }
 
-    let size = TILE_MIN;
+  // Высота подписи раздела — единственное, чего арифметика про себя не знает:
+  // в загруженном шрифте строка может оказаться выше заявленной, а в узкой
+  // колонке еще и перенестись. Поэтому она меряется живьем — но в фазе
+  // чтения, до единой записи, а не после каждой, как было.
+  const TITLE_GAP = 6;               // .world-group gap, см. стили выше
+  function headRoom() {
+    let tall = 0;
+    groupEls.forEach((g) => {
+      const t = g.firstElementChild;
+      if (t) tall = Math.max(tall, t.getBoundingClientRect().height);
+    });
+    return (tall || HEAD - TITLE_GAP) + TITLE_GAP;
+  }
+
+  // Самый крупный размер плитки, при котором все группы с подписями влезают
+  // в отведенную высоту.
+  function fit(w, h, headH) {
     for (let t = TILE_MAX; t > TILE_MIN; t--) {
       const cols = Math.max(1, Math.floor((w + GAP) / (t + GAP)));
       let need = GROUP_GAP * (REGIONS.length - 1);
       REGIONS.forEach((region) => {
         const rows = Math.ceil(region.codes.length / cols);
-        need += HEAD + rows * ((t * 3) / 4) + (rows - 1) * GAP;
+        need += headH + rows * ((t * 3) / 4) + (rows - 1) * GAP;
       });
-      if (need <= h) { size = t; break; }
+      if (need <= h) return t;
     }
-    grid.style.setProperty('--tile', `${size}px`);
+    return TILE_MIN;
+  }
 
-    // The estimate above does not know the exact height of a caption in the
-    // loaded font, so the last word is left to the browser: shrink until the
-    // wall really stops scrolling.
-    while (size > TILE_MIN && grid.scrollHeight > grid.clientHeight) {
-      size -= 1;
-      grid.style.setProperty('--tile', `${size}px`);
+  // Flags are laid out to fill the card: take the largest size at which every
+  // group, caption and flag still fits without scrolling.
+  //
+  // Сначала читаем все, что нужно, потом считаем, потом пишем — один раз.
+  // Раньше после каждой записи --tile тут же читались scrollHeight и
+  // clientHeight, и так по пикселю вниз: каждое такое чтение заставляет
+  // браузер пересчитать раскладку заново, а в ней сто двадцать восемь плиток.
+  let fitKey = '';
+  function layout() {
+    if (phone.matches) {
+      setTile(TILE_PHONE);
+      grow();
+      return;
     }
+    // ---- чтение ----
+    const style = getComputedStyle(grid);
+    const w = grid.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+    const h = grid.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
+    if (w <= 0 || h <= 0) return;
+    const headH = headRoom();
+    // Ничего значимого не изменилось — и считать нечего.
+    const key = `${Math.round(w)}:${Math.round(h)}:${Math.round(headH)}`;
+    if (key === fitKey) return;
+    fitKey = key;
+    // ---- счет и одна запись ----
+    setTile(fit(w, h, headH));
+    // ---- и контрольная проверка, уже на следующих кадрах ----
+    // Мерить сразу после записи — это тот самый принудительный пересчет, от
+    // которого мы ушли: чтение в том же кадре заставляет браузер разметить
+    // стену заново. На следующем кадре она уже размечена, и чтение ничего не
+    // стоит. Проверок не больше трех, и каждая — одно чтение и одна запись.
+    fixes = 0;
+    checkFit();
+  }
+
+  let checking = 0;
+  let fixes = 0;
+  function checkFit() {
+    cancelAnimationFrame(checking);
+    checking = requestAnimationFrame(() => {
+      checking = 0;
+      if (phone.matches || tileNow <= TILE_MIN || fixes >= 3) return;
+      const over = grid.scrollHeight - grid.clientHeight;
+      if (over <= 1 || grid.clientHeight <= 0) return;
+      fixes += 1;
+      // Сколько не хватило, столько и отнимаем — поделив на ряды, которым эта
+      // нехватка досталась. Шаг ограничен: ошибиться на пиксель-другой счет
+      // может, а на треть стены — нет, и такая поправка была бы не поправкой,
+      // а второй раскладкой, вдвое мельче нужной.
+      const rows = Math.max(1, Math.round(grid.scrollHeight / ((tileNow * 3) / 4 + GAP)));
+      setTile(Math.max(TILE_MIN, tileNow - Math.min(6, Math.ceil(over / rows / 0.75))));
+      checkFit();
+    });
   }
 
   // The block is built a screen before it is shown, and then the whole wall
@@ -1124,12 +1221,30 @@ export function init(root) {
   // is one of 128 doing the same thing at once — so they are decoded here,
   // while the reader is still reading the title card. On a phone there is
   // nothing to decode yet: the flags are left to load as they are reached.
-  if (!phone.matches) {
+  //
+  // На телефоне то же самое, только позже. Там флаги помечены `lazy`, а
+  // закрытая стена стоит в display: none — значит, до раскрытия браузер не
+  // грузит ни одного, и вся сотня приходит ровно в тот кадр, в котором стена
+  // появляется. Поэтому на телефоне их просят не при сборке блока, а когда
+  // читатель ответил: кадр до стены, пока он смотрит на свой промах.
+  let warmed = false;
+  function warmFlags() {
+    if (warmed) return;
+    warmed = true;
     grid.querySelectorAll('img').forEach((img) => {
+      img.removeAttribute('loading');
+      // Один не загрузившийся флаг не держит ни стену, ни остальных.
       if (img.decode) img.decode().catch(() => {});
     });
   }
+  if (!phone.matches) warmFlags();
 
+  // Наблюдателей за размером трое — карточка счета, экран и сама стена
+  // меняются в одном и том же кадре, — а пересчет нужен один. Своего кадра
+  // для этого не заводим: onResize и так отвечает раз в кадр, а лишняя
+  // отсрочка оставила бы стену ненамеренного размера на кадр дольше. Второй
+  // и третий заходы останавливает fitKey внутри layout: входные числа те же,
+  // значит, считать и писать нечего.
   onResize(grid, layout);
   // Стена берет то, что осталось от экрана, — значит, следить надо за тем,
   // что его занимает: карточка счета подрастает с ответом и становится другой
@@ -1682,11 +1797,19 @@ export function init(root) {
       // она туда так же, как блок съезжает под сменившийся заголовок: место
       // меняется сразу, а поверх играет то, чего не хватает.
       const was = card.getBoundingClientRect().top;
+      // Одна запись — и место колонок, зазоров и стены окончательное: ширина
+      // с зазором больше не едут 620мс, едут transform и прозрачность.
       root.classList.remove('world-shut');
-      // Стена вернулась в раскладку — теперь ее можно мерить вместе с
-      // карточкой, которая над ней стоит.
+      // Стена вернулась в раскладку — считаем ее размер по тому месту, в
+      // котором она и останется, пока флагов еще не видно.
       grow();
+      layout();
       slideCard(was);
+      // Плитки уже нужного размера — теперь стену можно проявлять. Один
+      // пересчет тут нужен нарочно: до него стена стояла в display: none, и
+      // прозрачности, от которой пойдет переход, у групп просто нет. Кадром
+      // это откладывать нельзя: в неактивной вкладке кадра можно ждать
+      // секунду, и вернувшийся читатель застал бы пустую карточку.
       void grid.offsetWidth;
       root.classList.remove('world-dim');
     }, after);
@@ -1717,6 +1840,9 @@ export function init(root) {
     if (on) {
       unveil(after);
     } else {
+      // Прерванное раскрытие не оставляет за собой ни таймера, ни кадра:
+      // читатель, ушедший назад посреди появления, возвращается к закрытой
+      // стене, а не к полупроявленной.
       clearTimeout(unveiling);
       root.classList.add('world-shut', 'world-dim');
     }
@@ -1774,6 +1900,10 @@ export function init(root) {
     // экране пришли еще и кампусы — стене осталось меньше. Меряем сразу,
     // иначе до первого движения она стоит во всю высоту и вылезает за край.
     if (!on) grow();
+    // И флаги просим здесь же: до стены остался кадр, и за него сотня
+    // картинок успевает дойти и раскодироваться — а не начать это делать
+    // в тот самый кадр, в котором стена появляется.
+    if (!on) warmFlags();
 
     if (plays) glide(from);
   }
