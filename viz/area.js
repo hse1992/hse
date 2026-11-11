@@ -640,7 +640,7 @@ export function init(root) {
           </div>
 
           <div class="area-step area-step-houses" data-el="stepHouses">
-            <p class="area-step-line">Или ${nf(HOUSES_TOTAL)} ${plural(HOUSES_TOTAL, 'пятиэтажка', 'пятиэтажки', 'пятиэтажек')}</p>
+            <p class="area-step-line">Или площадь всех квартир в ${nf(HOUSES_TOTAL)} ${plural(HOUSES_TOTAL, 'пятиэтажке', 'пятиэтажках', 'пятиэтажках')}</p>
             <div class="area-step-fig">
               <div class="canvas-wrap area-step-house" data-el="stepHouse"></div>
               <div class="area-step-times">&times;&nbsp;${nf(HOUSES_TOTAL)}</div>
