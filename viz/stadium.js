@@ -37,18 +37,25 @@ export const meta = {
     + '<span class="stadium-scarf-slot" style="width: 4.7em">'
     + '<img class="stadium-scarf" src="assets/scarf-hse.svg" alt="" aria-hidden="true">'
     + '</span>',
-  // Карточка приходит целиком: вторая строка только договаривала первую, и
-  // такт на нее был тактом без картинки. Both sentences are phrasing content —
-  // the page shell puts the subtitle inside a <p>.
+  // Both sentences are phrasing content — the page shell puts the subtitle
+  // inside a <p>.
   subtitle: `
     <span class="stadium-brief">
       <span class="stadium-brief-line" style="display: block">«Лужники» — самая крупная арена России, вмещающая ${nf(TOTAL)} человек.</span>
       <span class="stadium-brief-line" style="display: block">Вышка такая большая, что может заполнить ее практически полностью</span>
     </span>
   `,
-  // Opens with the heading alone, then the empty arena fills up campus by
-  // campus; the last step hands the stadium over to the reader.
+  // Открывается переходным экраном от метро, а дальше пустая арена заполняется
+  // кампус за кампусом; последний шаг отдает стадион читателю.
   intro: true,
+  // Титульной карточки у блока нет: заголовок не выходит крупно на середину
+  // экрана, чтобы потом уехать наверх и уменьшиться, — он приходит сразу на
+  // свое место и в своем кегле, вместе с ареной. Экран перед ним уже сказал
+  // все, что нужно было сказать словами («чтобы собрать всех людей из Вышки,
+  // нужен целый стадион…»), и держать после него еще один кадр с одним
+  // заголовком было нечем: на телефоне это был отдельный мах пальцем,
+  // приносивший только текст.
+  card: false,
   // Пустая арена, четыре прихода и передача стадиона читателю. Москва —
   // последний и самый большой приход, и такт у нее свой: на нем арена
   // заполняется до конца, и это главный кадр блока. Every step changes
@@ -99,21 +106,15 @@ export function init(root) {
   root.classList.add('stadium-body');
   root.innerHTML = `
     <style>
-      /* Both sentences of the title card are their own line. While the card is
-         out in the middle of the screen a blank line separates them; as it
-         settles into the heading the blank line folds away and the two read as
-         one plain subtitle. Folds faster than the card lands, hence the ×3. */
-      .stadium-brief {
-        --fold: clamp(0, 1 - var(--intro-body, 1) * 3, 1);
-        display: block;
-      }
-
+      /* Оба предложения подзаголовка стоят каждое на своей строке. Пустой
+         строки между ними больше нет: она разделяла их, пока заголовок держал
+         середину экрана крупной карточкой, и складывалась по мере его посадки
+         (--intro-body). Карточки у блока нет — заголовок приходит сразу на свое
+         место, — и складывать стало нечего: пустая строка успевала мелькнуть
+         ровно в тот такт, которым подзаголовок появлялся. */
+      .stadium-brief,
       .stadium-brief-line {
         display: block;
-      }
-
-      .stadium-brief-line + .stadium-brief-line {
-        margin-top: calc(var(--fold) * 1.4em);
       }
 
       /* Always in the flow: it opens and closes by height, so the canvas next

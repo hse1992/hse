@@ -124,8 +124,11 @@
 
     // The first section opens the page; any other can ask for the same card
     // with `intro: true`, and for it to arrive in parts with `introStages`.
+    // А `card: false` — наоборот: открытие есть, карточки нет. Заголовок стоит
+    // на своем месте и приходит вместе с блоком, одним тактом.
     const opening = (index === 0 || mod.meta.intro)
-      ? introRunner(section, mod.meta.introStages, mod.meta.introScale)
+      ? introRunner(section, mod.meta.introStages, mod.meta.introScale,
+                    mod.meta.card !== false)
       : null;
     if (opening) opening.run(0);
 

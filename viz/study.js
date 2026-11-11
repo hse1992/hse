@@ -855,13 +855,16 @@ export const meta = {
       + '<span class="study-lead-outro intro-stage" data-stage="4">В общем нужно…</span>'
   },
   title: 'Учиться, учиться и еще раз учиться',
-  // The heading arrives on its own — the reader has just been told all this on
-  // the screen before it. The subtitle comes with the block underneath, on the
-  // same fade: --intro-body is how far that block has arrived.
-  subtitle: `<span class="study-sub" style="opacity: var(--intro-body, 1)">Вышка обучает по ${nf(PROGRAMS_TOTAL)} образовательным программам</span>`,
-  // Opens with that screen and then with the title card, like the sections
-  // before it.
-  intro: true
+  // Заголовок с подзаголовком приходят вместе с блоком — см. card ниже.
+  subtitle: `Вышка обучает по ${nf(PROGRAMS_TOTAL)} образовательным программам`,
+  // Открывается тем самым экраном — с вопросом, ответом и годом.
+  intro: true,
+  // А титульной карточки нет. Экран перед заголовком и так читается четырьмя
+  // тактами, и последним из них «В общем нужно…» подводит прямо к нему:
+  // отдельный кадр, на котором заголовок стоит крупно по центру, чтобы следом
+  // уехать наверх и уменьшиться, был пятым тактом без картинки. Заголовок
+  // приходит сразу на свое место и в своем кегле, вместе с блоком.
+  card: false
 };
 
 export function init(root) {

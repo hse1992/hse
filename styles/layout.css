@@ -973,6 +973,37 @@ button { font-family: inherit; }
   }
 }
 
+/* Раздел без титульной карточки (card: false в meta — introRunner в
+   lib/page.js ставит по нему класс). Заголовок не выходит на середину экрана и
+   не мельчает по дороге: он стоит на своем месте, в своем кегле, и проявляется
+   вместе с блоком — один такт на обоих.
+
+   Поэтому здесь не используются ни --card-x с --card-y (карточке негде
+   ждать своей очереди), ни --intro-dy с --intro-k (ей некуда садиться и нечего
+   уменьшать). Остается --intro-body — то, насколько блок пришел; за ним идут и
+   заголовок, и блок, так что начинают и кончают они вместе.
+
+   Переходного экрана это не касается: он набран от --intro-k, который
+   по-прежнему считается, и выглядит так же, как у разделов с карточкой. */
+.viz-intro.intro-plain .viz-header {
+  width: 100%;
+  transform: translateY(calc((1 - var(--intro-body, 1)) * 16px));
+  opacity: var(--intro-body, 1);
+}
+
+.viz-intro.intro-plain .viz-body {
+  opacity: var(--intro-body, 1);
+}
+
+/* Ждать за сгибом блоку тоже незачем: уходить с его пути нечему, и подниматься
+   на целый экран означало бы, что заголовок с блоком приходят порознь. Оба
+   едут на одни и те же шестнадцать пикселей. */
+@media (min-width: 861px) {
+  .viz-intro.intro-plain .viz-body {
+    transform: translateY(calc((1 - var(--intro-body, 1)) * 16px));
+  }
+}
+
 /* Wraps the heading so that on a narrow screen it can be pinned on its own for
    exactly the length of the intro zone. Invisible on a wide screen. */
 .viz-intro-hold {
@@ -1615,6 +1646,17 @@ html {
     height: auto;
     max-height: calc(var(--sub-h, 0px) * var(--sub-gone));
     opacity: var(--sub-gone);
+  }
+
+  /* А у раздела без карточки подзаголовок не складывается: карточки, на которой
+     его читают, здесь нет — он приходит вместе с заголовком и блоком и остается
+     при них. Складывался бы он ровно в тот же такт, в который появился:
+     --sub-gone уходит в ноль на первой пятой --intro-body, то есть читатель
+     увидел бы, как подзаголовок мелькнул и пропал. Место он отнимает, и это
+     цена: прочитать его больше негде. */
+  .viz-intro.intro-plain .viz-header p {
+    --sub-gone: 1;
+    max-height: none;
   }
 
   /* Блок проявляется не раньше, чем карточка уберется с его пути. Зона
