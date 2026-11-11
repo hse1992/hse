@@ -95,6 +95,28 @@ const BURN = SATS.length + 1;
 const HOLD = BURN + 1;
 const SHOT = HOLD;
 
+// Звездное небо — плиткой, а не холстом. Небо этой главы лежит на всей
+// секции, и звезды должны быть на нем с первого же кадра: раздел начинается
+// переходным экраном «Вышка настолько большая, что достает даже до орбиты», а
+// холст с планетой приходит позже и занимает только свою часть экрана.
+// Рисуется плитка один раз, при сборке блока, и дальше не стоит ничего:
+// звезды далеко, и ни поворот планеты, ни наезд камеры их не двигают.
+//
+// Сетка та же, что была в холсте: одна звезда на 8000 пикселей, и порядок у
+// них всегда один — зерно это день, когда ушел первый спутник.
+function starTile(size, color) {
+  let seed = 20210322;
+  const rnd = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
+  let dots = '';
+  for (let i = 0, n = Math.round((size * size) / 8000); i < n; i++) {
+    dots += `<circle cx="${(rnd() * size).toFixed(1)}" cy="${(rnd() * size).toFixed(1)}"`
+      + ` r="${(0.4 + rnd() * 1.1).toFixed(2)}" opacity="${(0.2 + rnd() * 0.6).toFixed(2)}"/>`;
+  }
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}"`
+    + ` fill="${color}">${dots}</svg>`;
+  return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
+}
+
 export const meta = {
   id: 'space',
   // Short enough for the strip at the top of a phone — see meta.short in CLAUDE.md.
@@ -201,6 +223,19 @@ export function init(root) {
         background: radial-gradient(120% 130% at 50% 34%,
                     var(--space-sky) 0%, var(--space-sky-edge) 100%);
         pointer-events: none;
+      }
+
+      /* Звезды на этом небе — плиткой (starTile выше), а не в холсте: небо
+         приходит с первым кадром раздела, холст с планетой позже. Слой прибит
+         к окну и ростом с него: звезды стоят, пока раздел идет мимо. Поехав
+         вместе со страницей, они читались бы как движение самой камеры — а
+         камера здесь неподвижна до последнего такта. */
+      .space-stars {
+        position: sticky;
+        top: 0;
+        height: var(--win, 100svh);
+        background-image: var(--space-star-tile, none);
+        background-repeat: repeat;
       }
 
       /* Все, что каркас рисует в этой секции, стоит над небом. */
@@ -328,6 +363,21 @@ export function init(root) {
            прибитую картинку, а здесь под картинкой ничего не едет. */
         .space-section .col-right::after { content: none; }
 
+        /* ---------- Планета приходит издалека ----------
+           Блок здесь не ждет, пока карточка уберется с его пути (так делают
+           все остальные разделы, см. .viz-intro .viz-body в layout.css):
+           ждать нечему. На первом кадре в нем одна планета и ни одной
+           строки — и приходит она еще под переходным экраном, точкой в
+           глубине неба. Ведет этот приход approach() в коде. */
+        .viz-intro.space-section .viz-body { opacity: 1; }
+
+        /* Пока планета в пути, холст стоит не на своем месте в колонке, а
+           там, где он встанет, — то есть поверх заголовка и переходного
+           экрана. Значит, порядок слоев нужно назвать: колонка прибита к
+           верху и лежит на z-index: 2, а эти двое читаются поверх нее. */
+        .space-section .viz-header { z-index: 3; }
+        .space-section .viz-lead { z-index: 4; }
+
         .space-card {
           flex: 1;
           height: auto;
@@ -413,10 +463,14 @@ export function init(root) {
   // само себе коробка (`contain`), и небо из него не вышло бы ни за поля
   // страницы, ни за заголовок. Отдельным слоем, а не фоном секции, — чтобы
   // каркас мог ставить на секцию свои классы, ничего не зная об этом.
-  if (host && !host.querySelector('.space-sky')) {
-    const sky = document.createElement('div');
+  let sky = host && host.querySelector('.space-sky');
+  if (host && !sky) {
+    sky = document.createElement('div');
     sky.className = 'space-sky';
     sky.setAttribute('aria-hidden', 'true');
+    const stars = document.createElement('div');
+    stars.className = 'space-stars';
+    sky.appendChild(stars);
     host.insertBefore(sky, host.firstChild);
   }
 
@@ -451,6 +505,11 @@ export function init(root) {
     hse: token('--hse-blue'),
     burn: token('--space-burn')
   };
+
+  // Звезды кладутся на небо, а не в холст: цвет у них тот же токен, а места
+  // своего они не меняют никогда — значит, и рисовать их заново незачем.
+  const starLayer = sky && sky.querySelector('.space-stars');
+  if (starLayer) starLayer.style.setProperty('--space-star-tile', starTile(900, C.star));
 
   // The mark of the university, for the four places it stands in. It is read
   // from the file, so it arrives a moment after everything else — until then
@@ -522,7 +581,6 @@ export function init(root) {
   let W = 0, H = 0;
   let CX0 = 0, CY0 = 0, R0 = 0, RO0 = 0;
   let CX = 0, CY = 0, R = 0, RO = 0, S = 1;
-  let stars = null;
   // Высота строки над сценой. Меряется, а не считается: строк в ней то одна,
   // то две, и экран у всех разной ширины.
   let noteH = 0;
@@ -539,7 +597,7 @@ export function init(root) {
   function fit() {
     const w = canvas.clientWidth || 900;
     const h = canvas.clientHeight || 520;
-    if (w !== W || h !== H) { W = w; H = h; measure(); makeStars(); }
+    if (w !== W || h !== H) { W = w; H = h; measure(); }
     const b = band();
     const free = Math.max(80, H - b.top - b.bottom);
     CX0 = W / 2;
@@ -567,10 +625,28 @@ export function init(root) {
   let cam = null;
   let camK = 0;
 
+  // ---------- Планета приходит издалека ----------
+  // Глава открывается переходным экраном «Вышка настолько большая, что
+  // достает даже до орбиты»: звездное небо, и в нем точка — Земля, до которой
+  // еще лететь. Пока открытие идет, она растет и поднимается на свое место, и
+  // к тому кадру, где титульная карточка села, планета пришла.
+  //
+  // Идет это не тактом, а дорогой, которую прошла прибитая колонка: открытие
+  // на телефоне читается прокруткой, и приход должен идти вместе с пальцем —
+  // отыгранный после того, как палец отпущен, он был бы вторым движением
+  // вдогонку первому.
+  const DEEP = 0.05;         // такой доли своего радиуса планета начинается
+  let farK = 1;              // сколько дороги пройдено: 0 — точка, 1 — пришла
+  let far = 1;               // и во сколько раз она от этого мельче
+
   function lens() {
     const t = cam ? camK : 0;
     const k = 1 + (cam ? (cam.k - 1) * t : 0);
-    R = R0 * k;
+    // Планета может быть еще в пути — см. approach(). Доля эта идет по
+    // квадрату: угловой размер растет к концу дороги, а не ровно, и только так
+    // движение читается приближением, а не раздуванием круга на месте.
+    far = DEEP + (1 - DEEP) * farK * farK;
+    R = R0 * k * far;
     RO = Math.max(R * (1 + ORBIT_KM / EARTH_KM), R + 20 * k);
     // Аппарат на наезде тоже растет — но медленнее планеты. Вырасти он
     // вровень с ней, и подпись рядом набралась бы вдвое крупнее заголовка;
@@ -578,18 +654,6 @@ export function init(root) {
     S = Math.max(0.68, Math.min(1.25, R0 / 190)) * (1 + (k - 1) * 0.55);
     CX = cam ? (CX0 - cam.bx) * k + cam.bx + (cam.sx - cam.bx) * t : CX0;
     CY = cam ? (CY0 - cam.by) * k + cam.by + (cam.sy - cam.by) * t : CY0;
-  }
-
-  function makeStars() {
-    // Always the same sky: the seed is the day the first one went up, so a
-    // repaint never reshuffles it.
-    let seed = 20210322;
-    const rnd = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
-    const n = Math.round((W * H) / 8000);
-    stars = [];
-    for (let i = 0; i < n; i++) {
-      stars.push({ x: rnd() * W, y: rnd() * H, r: 0.4 + rnd() * 1.1, a: 0.2 + rnd() * 0.6 });
-    }
   }
 
   // A point of the sphere: latitude, longitude as seen from here, radius.
@@ -732,17 +796,6 @@ export function init(root) {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
 
-  function drawStars() {
-    ctx.fillStyle = C.star;
-    stars.forEach((s) => {
-      ctx.globalAlpha = s.a;
-      ctx.beginPath();
-      ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
-      ctx.fill();
-    });
-    ctx.globalAlpha = 1;
-  }
-
   function drawGlobe() {
     ctx.save();
     ctx.beginPath();
@@ -777,7 +830,10 @@ export function init(root) {
     if (mark) {
       // Чуть крупнее прежнего: с них начинается глава, и на телефоне метка в
       // восемь пикселей читалась как пылинка.
-      const arc = Math.max(10, R * 0.07) / 2 / R;  // its radius, in surface radians
+      // Нижний предел идет вместе с планетой: на подлете она в двадцать раз
+      // мельче себя, и метка, которой всегда достается хотя бы десять
+      // пикселей, закрыла бы собой весь шар.
+      const arc = Math.max(10 * far, R * 0.07) / 2 / R;  // its radius, in surface radians
       const D = 0.4;                               // degrees, to read the lie of the ground
       // Which way east and north run on the screen — read once, in the middle
       // of the four, and used for all of them. The lie of the ground is a
@@ -1066,9 +1122,10 @@ export function init(root) {
     fit();
     resize();
     ctx.clearRect(0, 0, W, H);
-    drawStars();
     drawGlobe();
-    drawHome(homeK);
+    // Кольцо вокруг четырех городов — только у пришедшей планеты: у точки в
+    // глубине неба оно вышло бы больше нее самой.
+    drawHome(homeK * Math.max(0, Math.min(1, (farK - 0.6) / 0.4)));
 
     // Имена собираются по дороге и ставятся после всех: каждое из них должно
     // знать, где уже стоят соседи.
@@ -1403,7 +1460,7 @@ export function init(root) {
     // On a phone the story is told by the scroll, and the reader can come back
     // to the middle of it: the run says where they are, and the block is put
     // back to that, not to the beginning of the story.
-    if (narrow.matches) follow(true);
+    if (narrow.matches) { approach(); follow(true); }
     paint();
   }
 
@@ -1539,6 +1596,51 @@ export function init(root) {
   let told = -1;
   const LAST = meta.steps - 1;
 
+  // Сколько планете осталось лететь — по дороге, которую прошла прибитая
+  // колонка. Пока раздел не пришел, колонка стоит на своем месте в потоке, под
+  // открытием: от верха секции до нее ровно столько, сколько занимает
+  // открытие. Прокрутка съедает это расстояние, колонка прибивается к верху
+  // окна — и планета пришла.
+  //
+  // Холст на это время встает туда, где он окажется прибитым: планета не едет
+  // вместе со страницей, а стоит на месте и растет. Снизу вверх — потому что
+  // точка в глубине должна читаться, а середина экрана занята словами
+  // переходного экрана; на свое место она поднимается вместе с ростом.
+  function approach() {
+    const was = farK;
+    if (!narrow.matches || still || !colEl || !host) {
+      farK = 1;
+      canvas.style.transform = '';
+      canvas.style.pointerEvents = '';
+      if (was !== 1) paint();
+      return;
+    }
+    // Кадр нужен посчитанным: отсюда берется радиус планеты, а первый раз
+    // эта проверка случается раньше первой отрисовки.
+    fit();
+    const box = host.getBoundingClientRect();
+    const col = colEl.getBoundingClientRect().top;
+    const span = Math.max(1, col - box.top);
+    farK = Math.max(0, Math.min(1, 1 - col / span));
+    // Трогать холст имеет смысл только пока идет открытие — то есть пока
+    // секция на экране, а колонка до верха окна еще не дошла. До того секция
+    // стоит ниже окна, и поднятая планета повисла бы над чужим разделом:
+    // холсту нечем себя обрезать, тело блока держит только раскладку. Пришла
+    // она или нет, спрашивается с тем же допуском, с каким это считает
+    // каркас: прокрутка на айфоне дробная, и верх секции и в покое стоит на
+    // треть пикселя ниже окна.
+    if (farK < 1 && box.top <= 24 && box.bottom > 0) {
+      canvas.style.transform = `translateY(${((1 - farK) * R0 - col).toFixed(1)}px)`;
+      // И касаний он в это время не берет: холст лежит поверх заголовка и
+      // переходного экрана, а каркас считает жест по нему поворотом планеты.
+      canvas.style.pointerEvents = 'none';
+    } else {
+      canvas.style.transform = '';
+      canvas.style.pointerEvents = '';
+    }
+    if (Math.abs(farK - was) > 0.0005) paint();
+  }
+
   function follow(force) {
     // The picture is pinned to the top of the screen while the run goes by
     // under it — but only until the end of the run comes up to meet it, and
@@ -1558,8 +1660,9 @@ export function init(root) {
   }
 
   if (narrow.matches) {
-    window.addEventListener('scroll', () => follow(), { passive: true });
-    window.addEventListener('resize', () => follow());
+    window.addEventListener('scroll', () => { approach(); follow(); }, { passive: true });
+    window.addEventListener('resize', () => { approach(); follow(); });
+    approach();
     follow(true);
   }
 
