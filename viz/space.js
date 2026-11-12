@@ -300,6 +300,14 @@ export function init(root) {
         -webkit-box-decoration-break: clone;
       }
 
+      /* Холст шире своей коробки — его левый верхний угол и размер ставит
+         spread() в коде. Общее правило прибивает холст ко всем четырем
+         краям (inset: 0 в layout.css), и правый с нижним тут лишние. */
+      .space-card .canvas-wrap canvas {
+        right: auto;
+        bottom: auto;
+      }
+
       /* The globe can be held and turned with the mouse. */
       .space-card canvas {
         cursor: grab;
@@ -682,6 +690,10 @@ export function init(root) {
   // последнем такте она наезжает, и все, что ниже, рисуется уже по
   // наехавшему (см. lens()).
   let W = 0, H = 0;
+  // Холст и кадр — больше не одно и то же: холст растянут до краев окна, а
+  // кадр стоит там же, где стоял, — см. spread(). CW и CH это холст целиком,
+  // FX и FY — где внутри него начинается кадр.
+  let CW = 0, CH = 0, FX = 0, FY = 0, FW = 0, FH = 0;
   let CX0 = 0, CY0 = 0, R0 = 0, RO0 = 0;
   let CX = 0, CY = 0, R = 0, RO = 0, S = 1;
   // Высота строки над сценой. Меряется, а не считается: строк в ней то одна,
@@ -697,14 +709,74 @@ export function init(root) {
     bottom: narrow.matches ? 72 : 0
   });
 
+  // ---------- Холст шире своего места ----------
+  // На последнем такте камера наезжает, и планета вырастает за края коробки,
+  // в которой стоит. Пока под картинкой была белая карточка, этот край
+  // читался ее рамкой; теперь под ней небо во весь экран, и шар, обрезанный
+  // прямой линией слева и снизу, читается сломанной картинкой.
+  //
+  // Поэтому холст растянут до краев окна, а кадр — где стоит планета, какого
+  // она размера и куда целится наезд — по-прежнему меряется по своей коробке.
+  // Композиция от этого не двигается ни на пиксель, у нее просто появляется
+  // запас по сторонам.
+  //
+  // Запас меряется расстояниями внутри раскладки, а не местом коробки на
+  // экране: коробка едет вместе со страницей, и холст, померенный по ней,
+  // менялся бы в размере на каждом кадре прокрутки — а смена размера холста
+  // это каждый раз новый буфер под картинку.
+  //
+  // Вбок мерка одна на оба экрана — своя секция: она во всю ширину окна, и
+  // до ее краев коробке ровно поля страницы. Вниз и вверх на широком экране
+  // мерка та же: секция там ровно в экран и прибита к нему. На телефоне
+  // секция в тысячи пикселей, и мерить нужно по колонке — она прибита к
+  // верху окна, так что от ее верха до края окна ровно столько, на сколько
+  // она прибита, а дальше идет высота окна.
+  const wrapEl = $('wrap');
+  const colEl = root.querySelector('.col-right');
+  let laid = '';
+  function spread() {
+    const box = wrapEl.getBoundingClientRect();
+    const out = (host || wrapEl).getBoundingClientRect();
+    const w = Math.round(box.width);
+    const h = Math.round(box.height);
+    if (!w || !h) return;
+    const l = Math.max(0, Math.round(box.left - out.left));
+    const r = Math.max(0, Math.round(out.right - box.right));
+    let t;
+    let b;
+    if (narrow.matches && colEl) {
+      const col = colEl.getBoundingClientRect();
+      const stuck = parseFloat(getComputedStyle(colEl).top) || 0;
+      t = Math.max(0, Math.round(box.top - col.top + stuck));
+      b = Math.max(0, Math.round(window.innerHeight - stuck - (box.bottom - col.top)));
+    } else {
+      t = Math.max(0, Math.round(box.top - out.top));
+      b = Math.max(0, Math.round(out.bottom - box.bottom));
+    }
+    FX = l;
+    FY = t;
+    FW = w;
+    FH = h;
+    CW = w + l + r;
+    CH = h + t + b;
+    const want = `${l} ${t} ${CW} ${CH}`;
+    if (want === laid) return;
+    laid = want;
+    canvas.style.left = `${-l}px`;
+    canvas.style.top = `${-t}px`;
+    canvas.style.width = `${CW}px`;
+    canvas.style.height = `${CH}px`;
+  }
+
   function fit() {
-    const w = canvas.clientWidth || 900;
-    const h = canvas.clientHeight || 520;
+    spread();
+    const w = FW || canvas.clientWidth || 900;
+    const h = FH || canvas.clientHeight || 520;
     if (w !== W || h !== H) { W = w; H = h; measure(); }
     const b = band();
     const free = Math.max(80, H - b.top - b.bottom);
-    CX0 = W / 2;
-    CY0 = b.top + free / 2;
+    CX0 = FX + W / 2;
+    CY0 = FY + b.top + free / 2;
     // Кадрирование у телефона свое: экран там узкий и высокий, и шар в нем
     // меряется шириной, а не меньшей стороной — иначе планета, главный
     // предмет главы, занимала бы треть высоты посреди пустого неба.
@@ -890,7 +962,7 @@ export function init(root) {
 
   function resize() {
     const d = Math.min(window.devicePixelRatio || 1, 2);
-    const w = Math.round(W * d), h = Math.round(H * d);
+    const w = Math.round(CW * d), h = Math.round(CH * d);
     if (canvas.width !== w || canvas.height !== h) {
       canvas.width = w;
       canvas.height = h;
@@ -1136,8 +1208,8 @@ export function init(root) {
     if (R < 110 || !list.length) return;
     const size = Math.round(11 * S + 1);
     const pad = 6;
-    const top = band().top + size * 0.7;
-    const low = H - pad - size * 0.7;
+    const top = FY + band().top + size * 0.7;
+    const low = FY + H - pad - size * 0.7;
     const hold = (v) => Math.max(top, Math.min(low, v));
     const near = 13 * S;
     ctx.save();
@@ -1156,13 +1228,13 @@ export function init(root) {
       const ux = (x - CX) / d, uy = (y - CY) / d;
       // Имя стоит с той стороны аппарата, в которую тот смотрит от середины
       // планеты: так оно уходит от шара, а не ложится на него.
-      let lx = Math.max(pad, Math.min(W - pad - w, x + ux * 17 * S - (ux >= 0 ? 0 : w)));
+      let lx = Math.max(FX + pad, Math.min(FX + W - pad - w, x + ux * 17 * S - (ux >= 0 ? 0 : w)));
       let ly = hold(y + uy * 17 * S);
       // Загнанная в кадр строка могла лечь на сам аппарат — тогда она отходит
       // от него по вертикали, вниз от верхней половины кадра и вверх от
       // нижней: подпись называет аппарат, а не закрывает его.
       if (Math.abs(ly - y) < near && lx < x + near && lx + w > x - near) {
-        ly = hold(y + (y < H / 2 ? 1 : -1) * (near + size * 0.8));
+        ly = hold(y + (y < FY + H / 2 ? 1 : -1) * (near + size * 0.8));
       }
       // И не на чужое имя: две орбиты то и дело сходятся на экране, и два
       // названия ложились одно поверх другого в нечитаемую кашу.
@@ -1224,7 +1296,7 @@ export function init(root) {
   function paint() {
     fit();
     resize();
-    ctx.clearRect(0, 0, W, H);
+    ctx.clearRect(0, 0, CW, CH);
     drawGlobe();
     // Кольцо вокруг четырех городов — только у пришедшей планеты: у точки в
     // глубине неба оно вышло бы больше нее самой.
@@ -1489,7 +1561,7 @@ export function init(root) {
       // И стоит аппарат выше середины: под ним остается Земля, а над ним
       // только небо — кадр, поставленный ровно по центру, выходил пустым
       // сверху.
-      sy: b.top + free * 0.33
+      sy: FY + b.top + free * 0.33
     };
   }
 
@@ -1702,7 +1774,6 @@ export function init(root) {
   // one more step. Scrolling back takes the satellites down again, the way
   // going back a beat does.
   const runEl = $('run');
-  const colEl = root.querySelector('.col-right');
   let told = -1;
   const LAST = meta.steps - 1;
 
