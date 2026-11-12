@@ -859,6 +859,22 @@ export function init(root) {
   // it is usually the only one — and the rest as they come.
   let walk = null;
 
+  // Найденная раскладка помнится по размеру коробки.
+  //
+  // Подбор — это несколько полных раскладок всех 44 плиток, и возвращаться к
+  // размеру, на котором ответ уже был найден, незачем: читатель, сложивший и
+  // снова растянувший окно, или вернувшийся в раздел, получает тот же ответ
+  // сразу. Ключ — целые пиксели коробки и кегль, от которого зависят переносы.
+  const found = new Map();
+  const sizeKey = () => `${Math.round(wrap.clientWidth)}x${Math.round(wrap.clientHeight)}`
+    + `|${getComputedStyle(grid).fontSize}`;
+
+  const remember = (key, scroll) => found.set(key, {
+    n: grid.style.columnCount,
+    k: grid.style.getPropertyValue('--prof-fit'),
+    scroll
+  });
+
   function fit() {
     if (walk) walk.stopped = true;
     walk = null;
@@ -866,6 +882,15 @@ export function init(root) {
     if (stacked.matches) {
       grid.style.columnCount = '';       // one long column, scrolling with the page
       grid.style.removeProperty('--prof-fit');
+      return;
+    }
+    const key = sizeKey();
+    const known = found.get(key);
+    if (known) {
+      grid.style.columnCount = known.n;
+      grid.style.setProperty('--prof-fit', known.k);
+      grid.style.position = known.scroll ? 'static' : '';
+      wrap.style.overflowY = known.scroll ? 'auto' : '';
       return;
     }
     const from = Math.max(3, Math.floor(grid.clientWidth / COLUMN));
@@ -879,7 +904,7 @@ export function init(root) {
       if (state.stopped) return;
       grid.style.columnCount = state.n;
       grid.style.setProperty('--prof-fit', state.left.shift());
-      if (grid.scrollWidth <= grid.clientWidth + 1) { walk = null; return; }
+      if (grid.scrollWidth <= grid.clientWidth + 1) { walk = null; remember(key, false); return; }
 
       if (!state.left.length) {
         state.n = Math.max(state.n + 1, columnsNeeded());
@@ -899,6 +924,7 @@ export function init(root) {
         grid.style.position = 'static';
         wrap.style.overflowY = 'auto';
         walk = null;
+        remember(key, true);
         return;
       }
       idle(trial, { timeout: 120 });
@@ -930,7 +956,16 @@ export function init(root) {
   // Only a change of whole pixels counts. A re-fit starts over from the
   // biggest tiles and shrinks them back trial by trial — a fraction of a pixel
   // of the card is not worth the wall visibly jumping under the pointer.
+  //
+  // И не на каждом кадре. Коробка меняется не только когда читатель тянет
+  // окно: пока садится титульная карточка, заголовок уменьшается кадр за
+  // кадром, и каждый кадр — это новый размер. Подбор при этом шел заново
+  // шестьдесят раз в секунду, и каждый начинался с полной раскладки всех 44
+  // плиток. А нужен он один раз и по тому размеру, которым дело кончится, —
+  // поэтому переподбор ждет, пока коробка перестанет двигаться.
+  const STILL = 120;                     // мс покоя, после которых меряем
   let pending = false;
+  let later = 0;
   let box = '';
   new ResizeObserver(() => {
     if (pending) return;
@@ -940,7 +975,8 @@ export function init(root) {
       const size = `${Math.round(wrap.clientWidth)}x${Math.round(wrap.clientHeight)}`;
       if (size === box) return;
       box = size;
-      fit();
+      clearTimeout(later);
+      later = setTimeout(fit, STILL);
     });
   }).observe(wrap);
 

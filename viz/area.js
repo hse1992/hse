@@ -2,7 +2,7 @@
 
 import { CITIES, AREA_TOTAL, STUDENTS, STAFF } from '../data/hse.js';
 import { nf, plural } from '../lib/format.js';
-import { mountCanvas, onResize, stepAhead } from '../lib/ui.js';
+import { mountCanvas, onResize, sizeCanvas, stepAhead } from '../lib/ui.js';
 import { mountTownMap } from '../lib/town-map.js';
 
 // Сколько у блока тактов, решает ширина: на телефоне фигуры идут по одной на
@@ -888,13 +888,7 @@ export function init(root) {
   }
 
   function paint() {
-    const cssW = canvas.clientWidth || 900;
-    const cssH = canvas.clientHeight || 600;
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    canvas.width = Math.round(cssW * dpr);
-    canvas.height = Math.round(cssH * dpr);
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.clearRect(0, 0, cssW, cssH);
+    const { w: cssW, h: cssH } = sizeCanvas(canvas, ctx);
 
     if (shown === null) shown = selectedArea() / unit().m2;
 
@@ -941,13 +935,8 @@ export function init(root) {
   // The single pitch and the single block of the first two steps, each on its
   // own little canvas — drawn by the same hand as the ones on the schema.
   const fitCanvas = (pair) => {
-    const c = pair.canvas, g = pair.ctx;
-    const w = c.clientWidth || 1, h = c.clientHeight || 1;
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    c.width = Math.round(w * dpr);
-    c.height = Math.round(h * dpr);
-    g.setTransform(dpr, 0, 0, dpr, 0, 0);
-    g.clearRect(0, 0, w, h);
+    const g = pair.ctx;
+    const { w, h } = sizeCanvas(pair.canvas, g);
     return { g, w, h };
   };
 

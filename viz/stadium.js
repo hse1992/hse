@@ -2,7 +2,7 @@
 
 import { CITIES, LYCEUM, LYCEUM_COLOR, ADMITTED } from '../data/hse.js';
 import { nf, pct, plural } from '../lib/format.js';
-import { mountCanvas, onResize, stepAhead } from '../lib/ui.js';
+import { mountCanvas, onResize, sizeCanvas, stepAhead } from '../lib/ui.js';
 
 // Seats in the arena — the figure the subtitle and the meter both quote.
 const TOTAL = 81000;
@@ -579,7 +579,48 @@ export function init(root) {
     edges[0].forEach((f) => exits.push({ f, k1: kLow, k2: kLow, r1x: lowOut + 9, r1y: lowOutY + 9, r2x: lowOut + 22, r2y: lowOutY + 22, w: 5 }));
     edges[1].forEach((f) => exits.push({ f, k1: kTop, k2: kTop, r1x: outRx + 6, r1y: outRy + 6, r2x: outRx + 19, r2y: outRy + 19, w: 5 }));
 
-    bowlCache = { stripes, exits, legend, outRx, outRy, shellRx, shellRy, W: shellRx * 2 + 24, H: shellRy * 2 + 24 };
+    // Контуры строятся один раз и дальше только обводятся.
+    //
+    // Восемьсот полос, в каждой до полусотни точек, и каждая точка — это
+    // суперэллипс, то есть пара степеней и пара тригонометрий. Считалось это
+    // заново в каждом кадре заполнения и поворота — двадцать тысяч точек
+    // шестьдесят раз в секунду ради картинки, которая от кадра к кадру меняет
+    // только цвет. А ни масштаб, ни поворот геометрии не касаются: и то и
+    // другое живет в трансформации холста, а полоса нарисована в единицах
+    // схемы. Значит, ее можно построить один раз.
+    stripes.forEach((s) => {
+      const a = s.t1, b = s.t2 >= s.t1 ? s.t2 : s.t2 + Math.PI * 2;
+      const n = Math.max(3, Math.ceil((b - a) / 0.02));
+      const path = new Path2D();
+      for (let i = 0; i <= n; i++) {
+        const p = sePoint(s.rx, s.ry, a + (b - a) * (i / n), s.k);
+        if (i === 0) path.moveTo(p[0], p[1]); else path.lineTo(p[0], p[1]);
+      }
+      s.path = path;
+    });
+
+    // Выходы с трибун все одной толщины — значит, это один контур и одна
+    // обводка вместо сотни.
+    const exitPath = new Path2D();
+    exits.forEach((e) => {
+      const t = e.f * Math.PI * 2;
+      const p1 = sePoint(e.r1x, e.r1y, t, e.k1);
+      const p2 = sePoint(e.r2x, e.r2y, t, e.k2);
+      exitPath.moveTo(p1[0], p1[1]);
+      exitPath.lineTo(p2[0], p2[1]);
+    });
+
+    // Кромка поля — те же 240 точек, и те же константы.
+    const pitchPath = new Path2D();
+    const px = PITCH.rx + TIERS[0].r0 - 13, py = PITCH.ry + TIERS[0].r0 - 13, pk = kOf(0);
+    for (let i = 0; i <= 240; i++) {
+      const p = sePoint(px, py, (i / 240) * Math.PI * 2, pk);
+      if (i === 0) pitchPath.moveTo(p[0], p[1]); else pitchPath.lineTo(p[0], p[1]);
+    }
+    pitchPath.closePath();
+
+    bowlCache = { stripes, exits, exitPath, pitchPath, exitW: exits.length ? exits[0].w : 5,
+      legend, outRx, outRy, shellRx, shellRy, W: shellRx * 2 + 24, H: shellRy * 2 + 24 };
     return bowlCache;
   }
 
@@ -640,8 +681,10 @@ export function init(root) {
   function drawStadium(target, colors, zoom = 1) {
     const ctx = target.getContext('2d');
     const B = buildBowl();
-    const cssW = target.clientWidth || 900;
-    const cssH = target.clientHeight || 600;
+    // Размер холста трогаем только тогда, когда он правда другой: запись в
+    // width выбрасывает картинку и сбрасывает контекст, а арена
+    // перерисовывается в каждом кадре заполнения и поворота — см. sizeCanvas.
+    const { w: cssW, h: cssH, dpr, resized } = sizeCanvas(target, ctx, { clear: false });
     // A quarter turn, somewhere between none and all of it. The bowl is half
     // again as wide as it is tall, and a phone is the other way round: laid
     // flat in a tall box it is held back by the width and leaves three hundred
@@ -654,11 +697,9 @@ export function init(root) {
     const needW = B.W * ca + B.H * sa;
     const needH = B.W * sa + B.H * ca;
     const scale = Math.min(cssW / needW, cssH / needH) * zoom;
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    target.width = Math.round(cssW * dpr);
-    target.height = Math.round(cssH * dpr);
     ctx.setTransform(dpr * scale, 0, 0, dpr * scale, dpr * cssW / 2, dpr * cssH / 2);
-    ctx.clearRect(-cssW / (2 * scale), -cssH / (2 * scale), cssW / scale, cssH / scale);
+    // Пересозданный холст и так пуст.
+    if (!resized) ctx.clearRect(-cssW / (2 * scale), -cssH / (2 * scale), cssW / scale, cssH / scale);
     if (a) ctx.rotate(-a);
 
     // outer shell
@@ -668,19 +709,12 @@ export function init(root) {
     ctx.fill();
 
     // pitch
-    const px = PITCH.rx + TIERS[0].r0 - 13, py = PITCH.ry + TIERS[0].r0 - 13, pk = kOf(0);
-    ctx.beginPath();
-    for (let i = 0; i <= 240; i++) {
-      const p = sePoint(px, py, (i / 240) * Math.PI * 2, pk);
-      if (i === 0) ctx.moveTo(p[0], p[1]); else ctx.lineTo(p[0], p[1]);
-    }
-    ctx.closePath();
     ctx.fillStyle = GRASS;
-    ctx.fill();
+    ctx.fill(B.pitchPath);
 
     const fw = PITCH.rx * 0.80, fh = PITCH.ry * 0.76;
     ctx.save();
-    ctx.clip();
+    ctx.clip(B.pitchPath);
     ctx.fillStyle = 'rgba(255,255,255,0.13)';
     for (let i = -8; i < 8; i += 2) ctx.fillRect(i * fw / 8, -PITCH.ry - 12, fw / 8, (PITCH.ry + 12) * 2);
     ctx.restore();
@@ -706,41 +740,31 @@ export function init(root) {
     ctx.strokeRect(fw * 0.84, -fh * 0.42, fw * 0.16, fh * 0.84);
 
     // stripes
+    //
+    // Полосы одного цвета и одной толщины — это одна обводка: готовые контуры
+    // складываются в общий, и восемьсот вызовов становятся полудюжиной. Цвет и
+    // толщина — единственное, что отличает их друг от друга на холсте, так что
+    // ключ корзины из них и набран.
     const buckets = new Map();
     B.stripes.forEach((s, i) => {
-      const c = colors[i] || EMPTY;
-      if (!buckets.has(c)) buckets.set(c, []);
-      buckets.get(c).push(s);
+      const color = colors[i] || EMPTY;
+      const key = `${color}|${s.lw}`;
+      let bucket = buckets.get(key);
+      if (!bucket) { bucket = { color, lw: s.lw, path: new Path2D() }; buckets.set(key, bucket); }
+      bucket.path.addPath(s.path);
     });
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
-    buckets.forEach((list, color) => {
-      ctx.strokeStyle = color;
-      list.forEach((s) => {
-        ctx.lineWidth = s.lw;
-        const a = s.t1, b = s.t2 >= s.t1 ? s.t2 : s.t2 + Math.PI * 2;
-        const n = Math.max(3, Math.ceil((b - a) / 0.02));
-        ctx.beginPath();
-        for (let i = 0; i <= n; i++) {
-          const p = sePoint(s.rx, s.ry, a + (b - a) * (i / n), s.k);
-          if (i === 0) ctx.moveTo(p[0], p[1]); else ctx.lineTo(p[0], p[1]);
-        }
-        ctx.stroke();
-      });
+    buckets.forEach((bucket) => {
+      ctx.strokeStyle = bucket.color;
+      ctx.lineWidth = bucket.lw;
+      ctx.stroke(bucket.path);
     });
 
     // vomitories
     ctx.strokeStyle = EXIT;
-    B.exits.forEach((e) => {
-      const t = e.f * Math.PI * 2;
-      const p1 = sePoint(e.r1x, e.r1y, t, e.k1);
-      const p2 = sePoint(e.r2x, e.r2y, t, e.k2);
-      ctx.lineWidth = e.w;
-      ctx.beginPath();
-      ctx.moveTo(p1[0], p1[1]);
-      ctx.lineTo(p2[0], p2[1]);
-      ctx.stroke();
-    });
+    ctx.lineWidth = B.exitW;
+    ctx.stroke(B.exitPath);
     return scale;
   }
 

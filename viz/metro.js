@@ -4,7 +4,7 @@
 
 import { CITIES, ADMITTED } from '../data/hse.js';
 import { nf, plural } from '../lib/format.js';
-import { mountCanvas, onResize } from '../lib/ui.js';
+import { mountCanvas, onResize, sizeCanvas } from '../lib/ui.js';
 import { loadMark } from '../lib/hse-mark.js';
 
 // Facts about the transport itself — they live here, not in data/hse.js, which
@@ -664,6 +664,9 @@ export function init(root) {
     const from = {};
     CITIES.forEach((c) => { from[c.key] = how === 'fill' ? 0 : (shown[c.key] || 0); });
     tween = { from, to: target, t0: performance.now() };
+    // Цикл мог быть запаркован — при «меньше движения» он стоит, пока ничего
+    // не меняется. Переход и есть перемена, ради которой его заводят.
+    start();
   }
 
   // Moves `shown` towards the target — called once per painted frame.
@@ -1199,13 +1202,7 @@ export function init(root) {
 
   function paint(now) {
     const t = typeof now === 'number' ? now : performance.now();
-    const cssW = canvas.clientWidth || 900;
-    const cssH = canvas.clientHeight || 600;
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    canvas.width = Math.round(cssW * dpr);
-    canvas.height = Math.round(cssH * dpr);
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.clearRect(0, 0, cssW, cssH);
+    const { w: cssW, h: cssH } = sizeCanvas(canvas, ctx);
 
     tick(t);
     updateScore();
@@ -1278,9 +1275,15 @@ export function init(root) {
   // The trains never stop, so the loop runs while the track is on the screen
   // and is parked as soon as it scrolls away.
   let frame = null;
+  // При «меньше движения» поезда и автобусы стоят: дрейф там равен нулю, и
+  // кадр за кадром рисуется ровно одна и та же картинка. Крутить ради нее
+  // цикл незачем — он доигрывает последний переход и останавливается, а
+  // заводится снова от любой перемены: переключили город, сменили вид,
+  // пришла картинка марки, изменился размер.
+  const moving = () => !still || tween !== null;
   const loop = (now) => {
     paint(now);
-    frame = requestAnimationFrame(loop);
+    frame = moving() ? requestAnimationFrame(loop) : null;
   };
   const start = () => { if (frame === null) frame = requestAnimationFrame(loop); };
   const stop = () => { if (frame !== null) { cancelAnimationFrame(frame); frame = null; } };
