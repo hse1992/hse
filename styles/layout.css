@@ -962,6 +962,14 @@ button { font-family: inherit; }
   opacity: var(--intro-body, 1);
 }
 
+/* Прозрачный блок кликов не берет. Виден он или нет, для попадания пальца не
+   значит ничего: блок без титульной карточки ждет своей очереди в шестнадцати
+   пикселях от места, прямо поверх переходного экрана, — и шкала с кнопками
+   вопроса оказывались под ним. Класс ставит paint() в lib/page.js. */
+.viz-section.body-shut .viz-body {
+  pointer-events: none;
+}
+
 /* Where the whole section is pinned, the block does not turn up behind the
    heading on its way out: it waits below the fold and comes up from there as
    the heading goes to the top. On a narrow screen the block already scrolls up
