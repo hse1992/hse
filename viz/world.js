@@ -1610,18 +1610,26 @@ export function init(root) {
       return;
     }
 
+    // Экран ответа — про все 128 стран: это ответ на заданный вопрос, а не
+    // счет выбранных кампусов. Переключатели принадлежат стене, и снятый на
+    // ней город остается ей: шагом назад читатель застает тот же ответ,
+    // который уже получил, а не 72 рядом со своей догадкой. Там, где ответ и
+    // стена приходят одним кадром — прокрутка, «меньше движения», — стена уже
+    // стоит, и счет, как и раньше, следует за городами.
+    const wall = !!walled;
     const set = selected();
+    const size = wall ? set.size : ACTUAL;
     meterTitle.textContent = 'Стран, откуда приняты студенты';
-    animateCountTo(set.size);
-    noteEl.textContent = `из ${nf(WORLD)} стран мира — ${pct(set.size, WORLD)}`;
-    barSeg.style.width = `${(set.size / WORLD) * 100}%`;
+    animateCountTo(size);
+    noteEl.textContent = `из ${nf(WORLD)} стран мира — ${pct(size, WORLD)}`;
+    barSeg.style.width = `${(size / WORLD) * 100}%`;
     // Строка про догадку сказана про ответ — про все 128. Как только читатель
     // снял город, крупное число рядом с ней уже другое, и «в 2 раза больше,
     // чем казалось» стоит рядом с 72, от которых догадка 60 отличается на
     // пятую часть. Поэтому строка держится, пока на экране ответ, и уходит,
     // когда читатель взял переключатели в свои руки; вернул все города —
     // вернулась и она.
-    const whole = set.size === ACTUAL;
+    const whole = !wall || set.size === ACTUAL;
     verdictEl.classList.toggle('is-kept', guess !== null);
     verdictEl.innerHTML = guess === null || !whole
       ? ''
@@ -1888,6 +1896,10 @@ export function init(root) {
     // Сложенная колонка не берет ни таб, ни диктора — ширина у нее ноль, но
     // кнопки в ней живые.
     if (leftCol) leftCol.inert = !on;
+    // Счет на карточке читается по-разному на стене и на экране ответа — см.
+    // paintMeter. Экран ответа про все 128 стран, стена про выбранные города,
+    // и смена одного другим переписывает карточку.
+    paintMeter();
     follow();
     grow();
     // Стена встала в раскладку — считаем размер плитки по тому месту, в
@@ -1898,7 +1910,7 @@ export function init(root) {
 
   // Стена приходит и уходит: на широком экране — вместе с ответом, на
   // телефоне — своим кадром, следующим за ним.
-  function setWall(on) {
+  function setWall(on, quiet) {
     if (on === walled) return;
     // Первое состояние просто ставится, а не играется — как и в setAsking.
     // И при «меньше движения» тоже: там страница не рассказывает историю, а
@@ -1907,7 +1919,9 @@ export function init(root) {
     const first = walled === null;
     walled = on;
     swapStop();
-    if (first || !walks() || still.matches) { setState(on); return; }
+    // Тихо — значит «просто будь в этом состоянии»: читатель вернулся сюда из
+    // другого места, и смену композиции он уже видел.
+    if (first || quiet || !walks() || still.matches) { setState(on); return; }
 
     // Пока идет смена, все прежние переходы выключены: кегль цифры, фон
     // карточки, ширина колонки кампусов, волна по группам флагов. Иначе новая
@@ -1935,13 +1949,13 @@ export function init(root) {
     }, FADE_OUT);
   }
 
-  function setAsking(on) {
+  function setAsking(on, quiet) {
     if (on === asking) return;
     const first = asking === null;
     asking = on;
     // Only a change the reader watches is played; the first state is simply
     // set, and so is everything on a page that scrolls.
-    const plays = !first && walks();
+    const plays = !first && walks() && !quiet;
     const from = root.getBoundingClientRect().top;
     if (plays) section.classList.add('world-turning');
 
@@ -1949,7 +1963,7 @@ export function init(root) {
     section.classList.toggle('world-answered', !on);
     // Где ответ и стена — один кадр, стена идет за ответом; где два, ею
     // распоряжается свой кадр.
-    if (!SPLIT()) setWall(!on);
+    if (!SPLIT()) setWall(!on, quiet);
     // Заголовком распоряжается стена, а не ответ — см. setWall.
     follow();
     scale.setAttribute('aria-disabled', on ? 'false' : 'true');
@@ -2030,6 +2044,14 @@ export function init(root) {
   // ноль, записанный ей поперек, она перетирает обратно.
   return {
     step,
+    // «Будь в состоянии i», а не «сыграй кадр i»: читатель пришел сюда шагом
+    // назад или прыжком по полоске, и смотреть смену композиции заново он не
+    // просил. Догадка и выключенные города при этом остаются — они его.
+    restore: (i) => {
+      if (!walks()) { step(i); return; }
+      setAsking(i < 1, true);
+      setWall(i >= 2, true);
+    },
     hold,
     open: () => {
       toTop(grid);

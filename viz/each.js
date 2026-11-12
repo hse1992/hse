@@ -1216,7 +1216,7 @@ export function init(root) {
     settled();
   }
 
-  function play(i) {
+  function play(i, quiet) {
     clearLater();
     done = false;
     if (!L) relayout();
@@ -1238,7 +1238,7 @@ export function init(root) {
       photo(true);
       noDigits();
       placeSum(L.end[0], { dur: 0, show: false, text: '1', color: HSE, scale: 0.88 });
-      apply(tiles.map((t, k) => ({ ...L.board[k], a: 1 })), { dur: asked ? 620 : 0 });
+      apply(tiles.map((t, k) => ({ ...L.board[k], a: 1 })), { dur: asked && !quiet ? 620 : 0 });
       paint(asked);
       return;
     }
@@ -1249,8 +1249,12 @@ export function init(root) {
     // was. Splitting this across beats made the reader ask for the answer to
     // a question the screen had already finished asking; it is one thought,
     // so it is one movement, and nothing waits on the wheel again.
+    // Такт кончается вместе со сборкой, а не по записанному в `span` числу:
+    // единица собирается три с половиной секунды, а потолок такта — две с
+    // половиной, и колесо, пущенное в этот зазор, уносило страницу с сумм,
+    // которые еще складывались. См. «Такт длиннее обычного» в CLAUDE.md.
     hush(true);
-    finish(() => { done = true; });
+    return new Promise((resolve) => finish(() => { done = true; resolve(); }));
   }
 
   // ---------- Wiring ----------
@@ -1301,7 +1305,20 @@ export function init(root) {
     ahead,
     step(i) {
       shown = i;
-      play(i);
+      return play(i);
+    },
+    // «Будь в состоянии i», а не «сыграй шаг i». Читатель пришел сюда из
+    // другого места — шагом назад из подписи внизу, прыжком по полоске, —
+    // и собирать единицу заново он не просил: это три с половиной секунды,
+    // которые он уже видел. Состояние ставится мигом, цифры, из которых
+    // единица собиралась, остаются скрытыми, а таймеры сборки не заводятся.
+    restore(i) {
+      shown = i;
+      clearLater();
+      if (!L) relayout();
+      if (narrow.matches) { phone(true); return; }
+      if (i >= 2) { done = true; settled(); return; }
+      play(i, true);
     },
     // The closing beat runs some five seconds, far longer than the shell will
     // hold the wheel for: it is given the most there is, and plays the rest

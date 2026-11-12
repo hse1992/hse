@@ -152,6 +152,14 @@
       // The picture it hands over as well, if any — see lib/stepper.js.
       carry: () => (api && api.carry) || null,
       setStep: (i) => api && api.step && api.step(i),
+      // «Будь в состоянии i», а не «сыграй шаг i». Читатель пришел сюда из
+      // другого места — шагом назад, прыжком по полоске, возвратом из футера, —
+      // и смотреть заново то, что уже видел, не просил. Блок, который умеет
+      // различать эти два случая, говорит об этом своим restore(); остальные
+      // по-прежнему играют шаг, как и раньше.
+      setState: (i) => (api && api.restore
+        ? api.restore(i)
+        : (api && api.step && api.step(i))),
       // How far the next state of the story is, in pixels of scroll — the
       // block says it itself, because only it knows how its travel is cut up.
       // Nought when there is nothing ahead. See «Далее» in lib/stepper.js.
