@@ -405,10 +405,18 @@ export function init(root) {
         }
       }
 
+      /* Рамку фокуса берет полоса, а не коробка: коробка шкалы — это и
+         полоса, и линейка под ней, и обведенная целиком она вставала
+         прямоугольником вокруг всего вопроса. Приходит фокус сюда не только
+         табом: его берет подсказка (nudge) — то есть тот, кто попросил идти
+         дальше без метки. */
       .world-scale:focus-visible {
+        outline: none;
+      }
+
+      .world-scale:focus-visible .meter-bar {
         outline: 2px solid var(--hse-blue);
-        outline-offset: 6px;
-        border-radius: 4px;
+        outline-offset: 4px;
       }
 
       /* Bar, mark and ruler share one box: the mark is placed against the bar

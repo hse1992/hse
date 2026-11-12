@@ -295,10 +295,19 @@ const LEAD_STYLE = `<style>
     touch-action: none;
   }
 
+  /* Рамку фокуса берет полоса, а не коробка. Коробка шкалы — это и полоса, и
+     линейка с подписями под ней, и поля вокруг: обведенная целиком, она
+     вставала прямоугольником вокруг всего вопроса. А приходит этот фокус не
+     только табом — его берет подсказка (nudge), то есть читатель, который
+     попросил идти дальше, не поставив метку, получал эту рамку в ответ. Так
+     же сделано у того же вопроса в «Странах». */
   .study-scale:focus-visible {
+    outline: none;
+  }
+
+  .study-scale:focus-visible .study-scale-bar {
     outline: 2px solid var(--hse-blue);
-    outline-offset: 6px;
-    border-radius: 4px;
+    outline-offset: 4px;
   }
 
   /* The screen itself stands on the page ground, so the bar cannot be that
