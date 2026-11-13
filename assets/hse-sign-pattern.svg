@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
+     width="560" height="480" viewBox="0 0 560 480">
+  <title>HSE geometric pattern — understated editorial grid</title>
+  <desc>Бесшовный прозрачный геометрический паттерн: неизменённый знак, матрицы точек, небольшие прямоугольники, короткие угловые маркеры.</desc>
+  <defs>
+    <symbol id="original-sign" viewBox="0 0 283.47 283.47">
+      <circle fill-rule="evenodd" clip-rule="evenodd" fill="#102D69" cx="141.73" cy="141.74" r="141.73"/>
+      <path fill-rule="evenodd" clip-rule="evenodd" fill="#FFFFFF" d="M135.6,133.32c32.26,0,44.81,21.45,44.81,60.69v29.51h-20.69v-63.35h-23.9v63.42h-18.28V53.65h18.78
+	c7.03,0,17.71,1.58,25.25,10.95c3.93,4.73,6.34,11.04,7.19,17.38h-32.94v9.35h33.23c-0.27,6.04-1.49,12.8-7.42,19.97
+	c-5.2,6.51-13.76,12.56-25.83,12.56c-0.06,0-0.13,0-0.2,0V133.32 M206.41,197.55c0-34.86-11.26-58.29-40.45-68.6
+	c9.21-3.77,14.82-9.58,18.49-13.99c7.01-8.06,9.88-17.96,9.88-27.31c0-7.56-2.08-22.65-15.35-33.04
+	c-9.1-7.04-17.16-10.43-36.43-10.43h-9.75c-0.3-0.01-0.6-0.01-0.96-0.01H91.65v189.79h114.76V197.55z"/>
+    </symbol>
+
+    <!-- Regular small circles form a quiet data matrix, not decorative flourishes. -->
+    <g id="micro-dots" fill="#5C82B8">
+      <circle cx="0" cy="0" r="2.5"/><circle cx="18" cy="0" r="2.5"/><circle cx="36" cy="0" r="2.5"/><circle cx="54" cy="0" r="2.5"/>
+      <circle cx="0" cy="18" r="2.5"/><circle cx="18" cy="18" r="2.5"/><circle cx="36" cy="18" r="2.5"/><circle cx="54" cy="18" r="2.5"/>
+      <circle cx="0" cy="36" r="2.5"/><circle cx="18" cy="36" r="2.5"/><circle cx="36" cy="36" r="2.5"/><circle cx="54" cy="36" r="2.5"/>
+      <circle cx="0" cy="54" r="2.5"/><circle cx="18" cy="54" r="2.5"/><circle cx="36" cy="54" r="2.5"/><circle cx="54" cy="54" r="2.5"/>
+    </g>
+  </defs>
+
+  <!-- Motifs occupy clear, separate islands with lots of visual breathing room. -->
+  <use xlink:href="#micro-dots" x="359" y="87" opacity="0.19"/>
+  <g fill="#6285BB" opacity="0.20">
+    <rect x="98" y="333" width="5" height="5"/>
+    <rect x="116" y="333" width="5" height="5"/>
+    <rect x="134" y="333" width="5" height="5"/>
+    <rect x="98" y="351" width="5" height="5"/>
+    <rect x="116" y="351" width="5" height="5"/>
+    <rect x="134" y="351" width="5" height="5"/>
+    <rect x="98" y="369" width="5" height="5"/>
+    <rect x="116" y="369" width="5" height="5"/>
+    <rect x="134" y="369" width="5" height="5"/>
+  </g>
+
+  <!-- Two miniature registration brackets: strictly straight, short segments. -->
+  <g stroke="#7898C4" stroke-width="1.6" fill="none" opacity="0.22" stroke-linecap="square">
+    <path d="M248 196 h24 M248 196 v24"/>
+    <path d="M296 246 h-24 M296 246 v-24"/>
+  </g>
+
+  <!-- The original sign is not redrawn; only its display size and opacity change. -->
+  <use xlink:href="#original-sign" x="91" y="90" width="62" height="62" opacity="0.085"/>
+  <use xlink:href="#original-sign" x="391" y="318" width="62" height="62" opacity="0.085"/>
+</svg>

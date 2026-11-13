@@ -28,8 +28,18 @@ html {
   text-size-adjust: 100%;
 }
 
+/* Фирменный рисунок на полях. Один фон на всю страницу, а не свой у каждой
+   секции: повторение не начинается заново на стыках, и разделы читаются
+   одним полотном. Прозрачность задана внутри самого файла — здесь рисунок
+   ничем не ослабляется, иначе от него не осталось бы ничего.
+
+   Модуль кладется в своих пропорциях (560 на 480) и повторяется. Ни cover,
+   ни fixed: от первого рисунок растянулся бы на страницу одной картинкой и
+   менял бы масштаб вместе с ее длиной, от второго — ездил бы относительно
+   содержимого и на телефоне прыгал бы вместе с панелью браузера. */
 body {
-  background: var(--bg);
+  background: var(--bg) url('../assets/hse-sign-pattern.svg') repeat;
+  background-size: 560px 480px;
   color: var(--text);
   font-family: 'HSE Sans', -apple-system, Helvetica, sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -519,6 +529,60 @@ button { font-family: inherit; }
   animation-delay: 840ms;
 }
 
+/* Кнопка на обложке: единственный на странице элемент, залитый фирменным
+   синим, — она тут одна, и искать ее глазами не нужно.
+
+   Ширина по содержимому: колонка шапки тянет детей во всю ширину, и кнопка
+   без этого растягивалась бы на полтора экрана.
+
+   Отступ сверху меньше, чем шаг колонки: сорок пикселей между абзацем и
+   кнопкой отрывали ее от текста, к которому она относится. Вычитаем до
+   двадцати восьми — на телефоне шаг и так подходящий, там вычитать нечего. */
+.btn.cover-start {
+  align-self: flex-start;
+  margin-top: -12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 50px;
+  padding: 12px 24px;
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--card);
+  background: var(--hse-blue);
+  border-color: var(--hse-blue);
+  /* Приходит последней в той же лесенке, что заголовок и абзац: сначала
+     читают, потом решают. Один раз, без пульсации и подпрыгивания. */
+  animation: rise-in 620ms cubic-bezier(0.215, 0.61, 0.355, 1) backwards;
+  animation-delay: 980ms;
+}
+
+.btn.cover-start svg {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  transition: transform 160ms ease;
+}
+
+@media (hover: hover) {
+  .btn.cover-start:hover {
+    background: var(--hse-blue-deep);
+    border-color: var(--hse-blue-deep);
+    color: var(--card);
+  }
+
+  /* Стрелка показывает, куда поедет страница, — но только под курсором:
+     на телефоне наведение не уходит, и она осталась бы сдвинутой навсегда. */
+  .btn.cover-start:hover svg {
+    transform: translateY(2px);
+  }
+}
+
+.btn.cover-start:focus-visible {
+  outline: 2px solid var(--hse-blue);
+  outline-offset: 3px;
+}
+
 /* ---------- Scroll hint ---------- */
 
 /* The strip at the foot of the screen the hint stands in, and that the blocks
@@ -711,6 +775,20 @@ button { font-family: inherit; }
              scale(var(--lead-squeeze, 1));
   will-change: transform;
   pointer-events: none;
+}
+
+/* Фирменный рисунок на фоне доходит и до переходного экрана, а тот — не
+   карточка: цифра, строка и шкала угадайки стоят прямо на странице. Под
+   делениями шкалы — мелкими серыми числами — знак на фоне читался хуже
+   самих чисел. Поэтому под экраном рисунок гасится мягким пятном цвета
+   страницы: к краям оно сходит на нет, границы у него нет, и рисунок рядом
+   с экраном остается на месте.
+
+   Кроме экранов, под которыми стоит перешедшая из прошлого блока картинка:
+   там гасить нечего — пятно закрыло бы саму картинку. */
+.viz-section:not(.has-backdrop) .viz-lead {
+  background: radial-gradient(ellipse 68% 62% at 50% 50%,
+    var(--bg) 0%, var(--bg) 46%, transparent 80%);
 }
 
 /* The screen itself takes no clicks: it flies over the page and would swallow
@@ -1299,6 +1377,11 @@ html {
   text-align: center;
   font-size: 0.7812rem;
   color: var(--text-caption);
+  /* Подпись об источнике — самый мелкий текст на странице, и стоит он прямо
+     на фоне. Рисунок под ним гасится тем же мягким пятном, что и под
+     переходными экранами: к краям оно сходит на нет, границы не видно. */
+  background: radial-gradient(ellipse 60% 70% at 50% 60%,
+    var(--bg) 0%, var(--bg) 50%, transparent 85%);
 }
 
 /* What there is to do for a reader who got to the end. It stands above the
@@ -1457,6 +1540,15 @@ html {
    the screen, so the picture stays visible while the controls scroll under it.
    Sections stop being screen-height — they are as tall as their content. */
 @media (max-width: 860px) {
+  /* Модуль фона меньше: в ширину экрана телефона 560 пикселей не влезают, и
+     на экран попадал один знак да край точечной матрицы — рисунка не
+     читалось, читалась случайная обрезка. 420 на 360 — те же пропорции и та
+     же геометрия, просто модуль целиком помещается в ширину. Мельче нельзя:
+     частая сетка из знаков — это уже не поля, а обои. */
+  body {
+    background-size: 420px 360px;
+  }
+
   /* Обложка. Заголовок на телефоне упирался в нижнюю границу clamp и выходил
      56 пикселей — вдвое меньше, чем позволяет ширина, и страница про размер
      начиналась с мелкой строчки. Теперь он занимает ширину почти целиком, а
@@ -1487,6 +1579,16 @@ html {
 
   .page-header-inner {
     gap: 20px;
+  }
+
+  /* Шаг колонки здесь и есть нужный отступ — вычитать из него нечего.
+     Кнопка чуть ниже ростом и уже: палец ее берет и такой, а на телефоне
+     высота экрана дороже. */
+  .btn.cover-start {
+    margin-top: 0;
+    min-height: 48px;
+    padding: 12px 20px;
+    font-size: 1rem;
   }
 
   .page-header h1 {
@@ -1931,6 +2033,14 @@ html {
 
   .page-header-text {
     font-size: 1rem;
+  }
+
+  /* Телефон на боку: высоты четыре сотни пикселей на всю обложку. Кнопка
+     ужимается до минимума, который палец еще берет уверенно, — ниже 48
+     пикселей она не опускается нигде. */
+  .btn.cover-start {
+    min-height: 48px;
+    padding: 11px 18px;
   }
 
   .scroll-hint {
