@@ -210,11 +210,22 @@ export function init(root) {
 
       /* Everything the story shows — the town and the steps over it — lies in
          one stage above the visualisation, so on a phone the two can be pinned
-         to the screen together while the travel below scrolls under them. */
+         to the screen together while the travel below scrolls under them.
+
+         И касаний сцена не берет вовсе. Лежит она поверх калькулятора на всю
+         его высоту, и когда история рассказана и блок отдан читателю, вся эта
+         высота оставалась у нее: клик по карточке города, по переключателю
+         или по «Снять все» попадал в пустую сцену над ними. Проходил один
+         только белый кружок тумблера — он сдвинут трансформацией, а она
+         поднимает его в тот же слой, в котором лежит сцена, и кружок в нем
+         выше. Отсюда и выглядело, будто нажимается только кружок. Сцене
+         касания не нужны ни на одном такте: все, что она показывает, —
+         картинка. */
       .area-stage,
       .area-tell {
         position: absolute;
         inset: 0;
+        pointer-events: none;
       }
 
       .area-run { display: none; }
@@ -402,9 +413,46 @@ export function init(root) {
         font-weight: 600;
       }
 
-      /* Nothing here is coloured by city, so the switches are plain green. */
-      .area-inner .city-card .toggle.on {
+      /* Карточка города — кнопка, и у кнопки свой вид, который тут не нужен:
+         рамка, кегль и выравнивание по центру. Остальное — из общих стилей,
+         карточка выглядит так же, как выглядела. */
+      .area-inner .city-card {
+        appearance: none;
+        -webkit-appearance: none;
+        border: none;
+        font: inherit;
+        color: inherit;
+        text-align: left;
+        width: 100%;
+        cursor: pointer;
+      }
+
+      /* Включен кампус или нет, говорит класс на самой карточке: она и есть
+         переключатель, а тумблер внутри — только его вид. Цветом города тут
+         ничего не красится, поэтому тумблер просто зеленый. */
+      .area-inner .city-card.on .toggle {
         background: var(--toggle-on);
+      }
+
+      .area-inner .city-card.on .toggle-knob {
+        transform: translateX(20px);
+      }
+
+      /* Нажатие достается всей карточке — нажали-то ее. Общее правило гасит
+         тумблер, но тумблер тут не кнопка, и палец по имени города не отвечал
+         ничем. */
+      .area-inner .city-card:active {
+        opacity: 0.55;
+      }
+
+      @media (hover: hover) {
+        .area-inner .city-card:hover .toggle {
+          background: var(--check-inactive-border);
+        }
+
+        .area-inner .city-card.on:hover .toggle {
+          background: var(--toggle-on);
+        }
       }
 
       .area-score {
@@ -1026,24 +1074,31 @@ export function init(root) {
 
   const cityEls = {};
   CITIES.forEach((c) => {
-    const card = document.createElement('div');
+    // Нажимается вся карточка, а не один переключатель на ее краю. Палец на
+    // телефоне целится в город, а не в пятьдесят точек справа от него: имя,
+    // числа и переключатель — это один ответ на один вопрос, включен кампус
+    // или нет. Поэтому сама карточка и есть переключатель (кнопка с
+    // role="switch"), а то, что похоже на тумблер, — только его вид.
+    // Вложенной кнопки внутри кнопки быть не может, и она тут не нужна.
+    const card = document.createElement('button');
+    card.type = 'button';
     card.className = 'city-card';
+    card.setAttribute('role', 'switch');
     card.innerHTML = `
-      <div class="city-info">
-        <div class="city-name">${phone.matches ? c.short : c.name}</div>
-        <div class="city-stats">
+      <span class="city-info">
+        <span class="city-name">${phone.matches ? c.short : c.name}</span>
+        <span class="city-stats">
           <span class="city-stat"><span class="city-dot" style="background:${c.color}"></span><span class="city-stat-text"></span></span>
-        </div>
-      </div>
-      <button type="button" class="toggle" role="switch"><span class="toggle-knob"></span></button>
+        </span>
+      </span>
+      <span class="toggle"><span class="toggle-knob"></span></span>
     `;
-    const toggleBtn = card.querySelector('.toggle');
-    toggleBtn.addEventListener('click', () => {
+    card.addEventListener('click', () => {
       state.active[c.key] = !state.active[c.key];
       render();
     });
     cityList.appendChild(card);
-    cityEls[c.key] = { toggle: toggleBtn, text: card.querySelector('.city-stat-text') };
+    cityEls[c.key] = { card, text: card.querySelector('.city-stat-text') };
   });
 
   // Both switches work the same way: the knob sits on the side of the option
@@ -1095,7 +1150,7 @@ export function init(root) {
 
     CITIES.forEach((c) => {
       const on = !!state.active[c.key];
-      cityEls[c.key].toggle.classList.toggle('on', on);
+      cityEls[c.key].card.classList.toggle('on', on);
       cityEls[c.key].text.textContent = `${nf(cityArea(c))} м²`;
     });
 
