@@ -1629,14 +1629,6 @@ html {
     --hint-room: max(12px, env(safe-area-inset-bottom, 0px));
   }
 
-  /* «Откуда цифры» на телефоне уходит: ссылка у нее та же, что у подписи
-     строкой ниже — «© Дирекция по аналитике и управлению данными НИУ ВШЭ», —
-     и две кнопки в ряд на узком экране едва помещаются. Остается «Прочитать
-     сначала»: единственное, что читателю тут и правда может понадобиться. */
-  .page-end-source {
-    display: none;
-  }
-
   /* The bar only reports here. A slot is four pixels tall and the page scrolls
      on its own, so making it a target would cost more mis-taps at the top edge
      of the screen than it saves. */
