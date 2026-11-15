@@ -466,10 +466,8 @@ export function init(root) {
 
   const turn = document.createElement('div');
   turn.className = 'each-turn';
-  // Подводка короче прежней: ее читают за миг до того, как цифры сорвутся с
-  // мест, и все, что в ней было о масштабе, доска уже сказала сама.
-  turn.innerHTML = 'А теперь посмотри, '
-    + '<span class="each-mark">кто стоит за всеми этими цифрами</span>';
+  turn.innerHTML = 'Но несмотря на весь масштаб Вышки и количество показателей, есть '
+    + '<span class="each-mark">одна самая главная цифра</span>';
   // On a wide screen the question comes up in the place of the heading. On a
   // phone the heading is above the travel the pinned card rides through, and
   // is long gone by the time the question is due — so there it belongs to the
