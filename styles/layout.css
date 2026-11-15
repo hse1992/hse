@@ -348,6 +348,12 @@ button { font-family: inherit; }
   position: relative;
   min-height: 100dvh;
   padding: 24px;
+  /* Приглушение рисунка под подзаголовком выходит за колонку текста в
+     стороны (см. .page-header-text::before), и там, где колонка доходит до
+     края окна, оно вылезало бы за экран: страница становилась шире окна, а
+     телефон отвечал на это, раздвигая раскладку. По вертикали не режем
+     ничего — слова заголовка въезжают снизу. */
+  overflow-x: clip;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -503,11 +509,38 @@ button { font-family: inherit; }
    Line length is held to something readable: across the full width of the page
    the lines would run past a hundred characters. */
 .page-header-text {
+  position: relative;
   display: flex;
   flex-direction: column;
   max-width: 46rem;
   font-size: 1.625rem;
   gap: 1.3em;
+}
+
+/* Под подзаголовком фирменный рисунок тише: знаки за строкой спорили с ней.
+   Не плашка — края у приглушения нет: оно сходит на нет за пределами колонки
+   по обеим осям (фон тает сверху и снизу, маска — по бокам, на экране их
+   произведение), так что у краев экрана рисунок такой же, как везде. Коробка
+   — сама колонка текста, поэтому зона растет вместе с переносами строк.
+   Ничего не размывается и не пересчитывается по кадрам: это два статичных
+   градиента.
+
+   Лежит под всем, что есть на обложке: z-index: -1 без своего контекста
+   наложения у предков кладет его прямо над фоном страницы (то есть над
+   рисунком), но под свечением шапки и под текстом. На телефоне рисунка нет
+   вовсе, и слоя там тоже нет (см. ветку до 860px). */
+.page-header-text::before {
+  content: "";
+  position: absolute;
+  inset: -2em -3em;
+  z-index: -1;
+  pointer-events: none;
+  background: linear-gradient(to bottom,
+    transparent, var(--bg-hush) 2em, var(--bg-hush) calc(100% - 2em), transparent);
+  -webkit-mask-image: linear-gradient(to right,
+    transparent, #000 3em, #000 calc(100% - 3em), transparent);
+  mask-image: linear-gradient(to right,
+    transparent, #000 3em, #000 calc(100% - 3em), transparent);
 }
 
 .page-header p {
@@ -1623,6 +1656,11 @@ html {
   /* One number scales the whole ladder: the paragraphs are sized off it. */
   .page-header-text {
     font-size: 1.375rem;
+  }
+
+  /* Рисунка на телефоне нет — и приглушать нечего. */
+  .page-header-text::before {
+    display: none;
   }
 
   /* Полоса внизу принадлежала подсказке, а подсказка на телефоне живет только
