@@ -3,7 +3,7 @@
 import { CITIES, STUDENTS, FOREIGN } from '../data/hse.js';
 import { COUNTRIES, REGIONS, BY_CITY } from '../data/countries.js';
 import { nf, pct, plural } from '../lib/format.js';
-import { onResize, toTop } from '../lib/ui.js';
+import { onResize, toTop, placeTips } from '../lib/ui.js';
 
 // The world to compare against: 193 UN members plus 2 observer states, split
 // by part of the world the same way the countries above are (UN M49, so the
@@ -233,6 +233,26 @@ export function init(root) {
         height: 100%;
         border-radius: inherit;
         object-fit: cover;
+        opacity: 0;
+        transition: opacity 160ms ease;
+      }
+
+      /* Флаг проявляется на своей плашке, когда он готов, — а до того на ее
+         месте стоит серая плитка того же размера. Готовые к открытию стены
+         флаги стоят сразу: переход у элемента в display: none не играет. */
+      .world-tile.is-ready img {
+        opacity: 1;
+      }
+
+      /* Файл не пришел или не разобрался: остается плашка, без значка
+         битой картинки. Имя страны у плитки свое (aria-label и подпись),
+         так что и такой флаг называется наведением, касанием и фокусом. */
+      .world-tile.is-broken img {
+        visibility: hidden;
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .world-tile img { transition: none; }
       }
 
       .world-tile.off {
@@ -496,6 +516,71 @@ export function init(root) {
 
       .world-guess.is-set {
         opacity: 1;
+      }
+
+      /* Число у метки. Пока читатель выбирает, над меткой стоит его число —
+         над полосой, а не под ней: палец на телефоне ложится на полосу
+         снизу, и подпись под ней он бы закрыл. После ответа рядом встает
+         правильный ответ, в цвете залитой части: догадка и ответ на одной
+         шкале, каждая подпись над своей точкой. Близкие подписи расходятся,
+         у края прижимаются внутрь (placeTips в lib/ui.js). Место под них
+         шкала держит с самого начала — см. ее верхнее поле ниже, — иначе
+         первое же касание сдвигало бы весь вопрос вниз. */
+      .guess-tip {
+        position: absolute;
+        left: 0;
+        bottom: calc(100% + 6px);
+        padding: 3px 8px;
+        border-radius: 6px;
+        font-size: calc(0.875rem * var(--ask-k, 1));
+        font-weight: 700;
+        line-height: 1.2;
+        white-space: nowrap;
+        font-variant-numeric: tabular-nums;
+        color: var(--card);
+        background: var(--text);
+        pointer-events: none;
+        /* Едет вместе с меткой и с той же скоростью: клик по шкале двигает
+           метку за 160мс, и число, прыгнувшее раньше нее, стояло бы над
+           пустым местом. */
+        transition: left 160ms ease;
+      }
+
+      .guess-tip[hidden] {
+        display: none;
+      }
+
+      .guess-tip.is-true {
+        background: var(--hse-blue);
+        animation: world-tip-in 260ms ease 360ms both;
+      }
+
+      @keyframes world-tip-in {
+        from { opacity: 0; transform: translateY(4px); }
+        to { opacity: 1; transform: none; }
+      }
+
+      /* Поле над полосой — под подписи. Отрицательный отступ возвращает
+         только поле для касания, как и было, а место под подписи шкала
+         занимает честно. */
+      .world-body:not(.world-walled) .world-scale {
+        padding-top: calc(9px + 1.05rem * var(--ask-k) + 16px);
+      }
+
+      /* Итог, к которому уходит фокус, когда нажатая кнопка исчезает. */
+      .world-body .meter-card:focus {
+        outline: none;
+      }
+
+      .world-body .meter-card:focus-visible {
+        outline: 2px solid var(--hse-blue);
+        outline-offset: 6px;
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .guess-tip { transition: none; }
+        .guess-tip.is-true { animation: none; }
+        .world-bar-seg { transition: none; }
       }
 
       /* Asked to go on without a mark: the page stays, and the bar says where
@@ -1036,24 +1121,29 @@ export function init(root) {
     </div>
 
     <div class="col-right world-right">
-      <div class="meter-card">
+      <div class="meter-card" data-el="meterCard">
         <div class="meter-title" data-el="meterTitle"></div>
-        <div class="world-score">
+        <div class="world-score" aria-hidden="true">
           <span class="world-score-value" data-el="count"></span>
           <span class="world-score-note" data-el="note"></span>
         </div>
+        <span class="sr-only" data-el="scoreSay"></span>
         <div class="world-scale" data-el="scale" role="slider" tabindex="0"
-             aria-label="Сколько стран, по-твоему" aria-valuemin="0" aria-valuemax="${WORLD}">
-          <div class="world-track">
+             aria-label="Сколько стран, по-твоему" aria-valuemin="0" aria-valuemax="${WORLD}"
+             aria-valuetext="Ответ еще не выбран">
+          <div class="world-track" data-el="track">
             <div class="meter-bar">
               <div class="meter-bar-seg world-bar-seg" data-el="barSeg"></div>
             </div>
             <div class="world-guess" data-el="guess"></div>
+            <span class="guess-tip is-yours" data-el="tipGuess" aria-hidden="true" hidden></span>
+            <span class="guess-tip is-true" data-el="tipTrue" aria-hidden="true" hidden></span>
           </div>
           <div class="world-ruler" data-el="ruler" aria-hidden="true"></div>
         </div>
-        <div class="world-verdict" data-el="verdict" aria-live="polite"></div>
-        <div class="world-send">
+        <div class="world-verdict" data-el="verdict" aria-hidden="true"></div>
+        <span class="sr-only" role="status" data-el="said"></span>
+        <div class="world-send" data-el="send">
           <button type="button" class="btn world-check" data-el="check">Ответить</button>
           <button type="button" class="btn world-skip" data-el="skip">Показать ответ</button>
         </div>
@@ -1092,6 +1182,8 @@ export function init(root) {
   // помечено этим классом. Стена — как раз такое место: ее листают пальцем.
   if (phone.matches) grid.classList.add('page-scrolls');
   const tiles = new Map();
+  const srcOf = new Map();          // плитка -> адрес ее флага
+  const order0 = () => [...tiles.values()];
   let index = 0;
 
   const groupCountEls = {};
@@ -1134,15 +1226,14 @@ export function init(root) {
       // The wave crosses the whole wall in about the same time a repaint takes
       // elsewhere on the page.
       tile.style.setProperty('--d', `${Math.round(index * (340 / COUNTRIES.length))}ms`);
-      // On a phone the wall is reached by scrolling, flag after flag, so they
-      // are loaded as they are reached: a hundred and twenty-eight of them are
-      // nearly a megabyte, and that is most of the page arriving before the
-      // reader has got anywhere near it. Where the page is read beat by beat
-      // the whole wall appears in one movement instead, and a flag that starts
-      // loading on the frame it appears is a flag that appears empty — there
-      // they are asked for as the block is built, a beat ahead.
-      tile.innerHTML = `<img src="assets/flags/${code}.svg" alt="" decoding="async"`
-        + `${phone.matches ? ' loading="lazy"' : ''}>`;
+      // Картинка без адреса: адрес она получает в свою очередь, порцией (см.
+      // «Флаги порциями» ниже). Место под флаг держит сама плитка — ширина
+      // из --tile и пропорция 4:3, — так что пришедший флаг ничего вокруг
+      // себя не сдвигает, а не пришедший стоит серой плашкой своего размера.
+      // Путь записан целиком, одной строкой: по ней сборщик автономной копии
+      // подставляет вместо файла сам рисунок (BY_NAME в build-standalone.py).
+      tile.innerHTML = '<img alt="" decoding="async">';
+      srcOf.set(tile, `assets/flags/${code}.svg`);
       flags.appendChild(tile);
       tiles.set(code, tile);
       index++;
@@ -1274,28 +1365,161 @@ export function init(root) {
     });
   }
 
-  // The block is built a screen before it is shown, and then the whole wall
-  // arrives in one movement. A flag left to be decoded on the frame it appears
-  // is one of 128 doing the same thing at once — so they are decoded here,
-  // while the reader is still reading the title card. On a phone there is
-  // nothing to decode yet: the flags are left to load as they are reached.
+  // ---------- Флаги порциями ----------
+  // Раньше флаги просились все разом: на широком экране — при сборке блока,
+  // на телефоне — в обработчике «Ответить». Сто двадцать восемь запросов и
+  // сто двадцать восемь decode() одним махом — это семь миллисекунд прямо в
+  // нажатии и следом два куска разбора SVG по три десятка миллисекунд на
+  // Mac (на телефоне втрое-впятеро дольше), ровно поверх анимации ответа. А
+  // на медленной сети телефон все равно открывал стену с серыми плитками:
+  // за секунду между ответом и стеной успевала прийти треть флагов.
   //
-  // На телефоне то же самое, только позже. Там флаги помечены `lazy`, а
-  // закрытая стена стоит в display: none — значит, до раскрытия браузер не
-  // грузит ни одного, и вся сотня приходит ровно в тот кадр, в котором стена
-  // появляется. Поэтому на телефоне их просят не при сборке блока, а когда
-  // читатель ответил: кадр до стены, пока он смотрит на свой промах.
-  let warmed = false;
-  function warmFlags() {
-    if (warmed) return;
-    warmed = true;
-    grid.querySelectorAll('img').forEach((img) => {
-      img.removeAttribute('loading');
-      // Один не загрузившийся флаг не держит ни стену, ни остальных.
-      if (img.decode) img.decode().catch(() => {});
+  // Теперь флаги готовятся заранее и понемногу: в свободное время, не
+  // больше PORTION за раз и не больше IN_FLIGHT в пути. Разбор каждого
+  // приходится на свою минуту, а не на один кадр. Порядок — порядок стены:
+  // сверху вниз, то есть сначала то, что окажется на экране первым.
+  //
+  // Ни один флаг другие не держит. Пришедший с ошибкой гаснет до плашки, а
+  // медленный через SLOW освобождает свое место в очереди и догружается сам,
+  // пока очередь идет дальше.
+  //
+  // Очередь трогает только сами картинки: адрес, «готов», «битый». Ни стену,
+  // ни выбор кампусов она не знает, так что запоздавшая порция, пришедшая
+  // после того, как читатель ушел назад, не откроет стену и не вернет старый
+  // фильтр — ей просто нечем.
+  const PORTION = 4;                 // сколько флагов просить за одну свободную минуту
+  const IN_FLIGHT = 6;               // сколько может быть в пути одновременно
+  const SLOW = 4000;                 // мс: дольше — флаг перестает занимать место
+  const queue = [];
+  const asked = new Set();
+  let flying = 0;
+  let pumping = null;
+
+  // Свободная минута — но не дольше WAIT: на странице, где поток занят без
+  // передышки, очередь иначе стояла бы, и стена открылась бы серой. Порция
+  // все равно маленькая, так что взятая без спроса минута стоит недорого.
+  // В Safari requestIdleCallback нет — там та же отсрочка таймером.
+  const WAIT = 120;
+  const idleSoon = (fn) => (window.requestIdleCallback
+    ? requestIdleCallback(fn, { timeout: WAIT })
+    : setTimeout(() => fn(null), 32));
+
+  function settle(tile, ok) {
+    tile.classList.toggle('is-ready', ok);
+    tile.classList.toggle('is-broken', !ok);
+  }
+
+  function fetchFlag(tile) {
+    const img = tile.firstElementChild;
+    let freed = false;
+    const free = () => {
+      if (freed) return;
+      freed = true;
+      clearTimeout(late);
+      flying -= 1;
+      pump();
+    };
+    const late = setTimeout(free, SLOW);
+    img.addEventListener('load', () => {
+      // decode() — чтобы разбор и растр флага случились сейчас, в его
+      // порции, а не в кадре, в котором стена появляется. Отказ decode()
+      // у пришедшего файла не повод прятать флаг: браузер нарисует его и так.
+      const ready = () => { settle(tile, true); free(); };
+      if (img.decode) img.decode().then(ready, ready);
+      else ready();
+    }, { once: true });
+    img.addEventListener('error', () => { settle(tile, false); free(); }, { once: true });
+    flying += 1;
+    img.src = srcOf.get(tile);
+  }
+
+  function pump() {
+    if (pumping !== null || !queue.length) return;
+    pumping = idleSoon((deadline) => {
+      pumping = null;
+      let n = 0;
+      while (queue.length && flying < IN_FLIGHT && n < PORTION) {
+        // Минута кончилась — остаток порции подождет следующей. Если же
+        // минуту не дали вовсе (didTimeout), порция берется целиком.
+        if (deadline && !deadline.didTimeout && deadline.timeRemaining() < 2 && n > 0) break;
+        fetchFlag(queue.shift());
+        n += 1;
+      }
+      if (queue.length && flying < IN_FLIGHT) pump();
     });
   }
-  if (!phone.matches) warmFlags();
+
+  function ask(list) {
+    list.forEach((tile) => {
+      if (asked.has(tile)) return;
+      asked.add(tile);
+      queue.push(tile);
+    });
+    pump();
+  }
+
+  // Сколько флагов окажется на экране, когда стена откроется на телефоне.
+  // Считается тем же счетом, что и раскладка: колонок столько, сколько
+  // плиток TILE_PHONE влезает в ширину, ряд — три четверти плитки и зазор,
+  // у каждой части света подпись. Высоту открытой стены знает grow(); пока
+  // стена закрыта, его число — про закрытую (над ней тогда стоит вопрос во
+  // весь рост), и берется две трети окна: на 393x711 открытой стене
+  // достается 474 из 711. Ширину до открытия дает колонка — стена встает
+  // в нее с полями карточки. Сверху еще ряд про запас: лишний флаг в первой
+  // порции дешевле серой плашки в первом кадре.
+  function firstScreen() {
+    const w = grid.clientWidth || Math.max(0, rightCol.clientWidth - 16);
+    const h = walled && wallH > 0 ? wallH : Math.round(window.innerHeight * 0.67);
+    const cols = Math.max(1, Math.floor((w + GAP) / (TILE_PHONE + GAP)));
+    const row = (TILE_PHONE * 3) / 4 + GAP;
+    const reach = h + row;
+    let y = 0;
+    let count = 0;
+    for (const region of REGIONS) {
+      y += HEAD;
+      const n = region.codes.length;
+      for (let k = 0; k < n; k += cols) {
+        if (y >= reach) return count;
+        count += Math.min(cols, n - k);
+        y += row;
+      }
+      y += GROUP_GAP - GAP;
+    }
+    return count;
+  }
+
+  // Остальное на телефоне просится по мере приближения: стена листается
+  // внутри себя, и флаг, до которого остался ее экран, — следующий в
+  // очереди. Пока стена закрыта (display: none), наблюдатель молчит.
+  const near = ('IntersectionObserver' in window)
+    ? new IntersectionObserver((list) => {
+      const come = list.filter((e) => e.isIntersecting).map((e) => e.target);
+      come.forEach((tile) => near.unobserve(tile));
+      ask(come);
+    }, { root: grid, rootMargin: '0px 0px 100% 0px' })
+    : null;
+  if (near) order0().forEach((tile) => near.observe(tile));
+
+  // Подготовка стены. На широком экране стена видна почти целиком, и
+  // готовится она вся, порциями, пока читатель отвечает на вопрос. На
+  // телефоне — сначала первый экран, остальное по приближению (near выше).
+  //
+  // Зовут ее из обработчиков — открытия блока, ответа, смены стены, — и
+  // сама она в них ничего не делает: расчет первого экрана читает ширину
+  // колонки, а чтение геометрии сразу после смены классов — это пересчет
+  // раскладки прямо в нажатии. Поэтому и счет, и очередь — в свободную
+  // минуту, а обработчик только ставит отметку.
+  let warming = false;
+  function warmFlags() {
+    if (warming || asked.size === tiles.size) return;
+    warming = true;
+    idleSoon(() => {
+      warming = false;
+      const all = order0();
+      if (!phone.matches || !near) { ask(all); return; }
+      ask(all.slice(0, firstScreen()));
+    });
+  }
 
   // Наблюдателей за размером трое — карточка счета, экран и сама стена
   // меняются в одном и том же кадре, — а пересчет нужен один. Своего кадра
@@ -1347,6 +1571,13 @@ export function init(root) {
       tip.style.top = `${Math.round(y)}px`;
     };
 
+    // Когда и чем назван флаг. Касание пальцем приходит двумя событиями:
+    // сначала флаг берет фокус (и тем самым называется), потом приходит сам
+    // клик. Клик по уже названному флагу имя убирает — и без этой отметки
+    // он убирал имя, которое фокус поставил полсекунды назад: касание по
+    // флагу на телефоне не называло ничего.
+    let byFocusAt = -1;
+
     const show = (tile) => {
       if (tile === shown) return;
       if (shown) shown.classList.remove('is-named');
@@ -1381,8 +1612,10 @@ export function init(root) {
       grid.addEventListener('click', (e) => {
         const tile = e.target.closest('.world-tile');
         clearTimeout(пора);
-        if (!tile || tile === shown) { hide(); return; }
+        const justFocused = tile && tile === shown && performance.now() - byFocusAt < 600;
+        if (!tile || (tile === shown && !justFocused)) { hide(); return; }
         show(tile);
+        byFocusAt = -1;
         пора = setTimeout(hide, 2600);
       });
     }
@@ -1390,7 +1623,10 @@ export function init(root) {
     // С клавиатуры — фокусом: на каком флаге стоит читатель, тот и назван.
     grid.addEventListener('focusin', (e) => {
       const tile = e.target.closest('.world-tile');
-      if (tile) { rove(tile); show(tile); }
+      if (!tile) return;
+      rove(tile);
+      if (tile !== shown) byFocusAt = performance.now();
+      show(tile);
     });
     grid.addEventListener('focusout', (e) => {
       if (!e.relatedTarget || !grid.contains(e.relatedTarget)) hide();
@@ -1474,10 +1710,15 @@ export function init(root) {
   const barSeg = $('barSeg');
   let shown = null;
   let animFrame = null;
+  let settlingNow = false;          // блок ставится в состояние, а не играет его
 
   function animateCountTo(target) {
     if (animFrame) cancelAnimationFrame(animFrame);
-    if (shown === null) { shown = target; countEl.textContent = target; return; }
+    // Кто попросил меньше движения, получает ответ сразу, а не набегающими
+    // числами. Спрашивается здесь, при каждом счете: настройка может
+    // поменяться и посреди чтения.
+    const calm = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (shown === null || calm || settlingNow) { shown = target; countEl.textContent = target; return; }
     const from = shown;
     if (from === target) return;
     const dur = 620, t0 = performance.now();
@@ -1540,6 +1781,13 @@ export function init(root) {
   // and the gap between them is seen rather than read.
   const ACTUAL = COUNTRIES.length;
   const scale = $('scale');
+  const track = $('track');
+  const tipGuess = $('tipGuess');
+  const tipTrue = $('tipTrue');
+  const said = $('said');
+  const scoreSay = $('scoreSay');
+  const meterCard = $('meterCard');
+  const sendRow = $('send');
   const bar = scale.querySelector('.meter-bar');
   const guessEl = $('guess');
   const verdictEl = $('verdict');
@@ -1603,7 +1851,7 @@ export function init(root) {
   // side gets the most words.
   function verdict(g) {
     const diff = ACTUAL - g;
-    if (diff === 0) return 'В точку!';
+    if (diff === 0) return 'Точно!';
     if (Math.abs(diff) <= Math.round(ACTUAL * 0.1)) return 'Почти в точку';
     if (g === 0) return `Ни одной? А их ${nf(ACTUAL)}`;
     if (diff > 0) {
@@ -1627,11 +1875,13 @@ export function init(root) {
       shown = guess === null ? 0 : guess;
       noteEl.textContent = `из ${nf(WORLD)} стран мира`;
       barSeg.style.width = '0%';
+      scoreSay.textContent = '';
       if (!verdictEl.classList.contains('is-nudged')) {
         verdictEl.textContent = guess === null
-          ? 'Нажми на полосу или потяни метку'
+          ? hint()
           : `Твоя догадка — ${nf(guess)}`;
       }
+      paintTips();
       // «Ответить» ждет метку, «Показать ответ» — нет: угадывать никто не
       // обязан, и выход из вопроса виден с самого начала, а не только тогда,
       // когда читатель уже что-то поставил. Поставил — и второй кнопки
@@ -1667,9 +1917,92 @@ export function init(root) {
       // Неразрывный пробел перед числом: на телефоне строка переносится, и
       // «60» оставалось стоять отдельной строкой под «твоя догадка».
       : `<b>${verdict(guess)}</b> — твоя догадка&nbsp;${nf(guess)}`;
+    // Крупное число набегает кадрами, и диктору оно спрятано целиком: читать
+    // «61, 74, 98…» незачем. Вместо него — та же строка готовым итогом,
+    // без набегания, и не вслух сама по себе: ее читают, когда до нее дошли.
+    scoreSay.textContent = `${nf(size)} из ${nf(WORLD)} стран мира — ${pct(size, WORLD)}`;
+    paintTips();
+  }
+
+  // ---------- Числа на шкале ----------
+  // Четыре состояния вопроса, и шкала у каждого своя. Ничего не выбрано —
+  // над полосой пусто, крупно стоит «?». Читатель ставит метку — над ней
+  // его число, и оно едет вместе с ней. Ответ подтвержден — рядом с его
+  // числом встает правильный, над концом залитой части; совпали — подпись
+  // одна, «Точно!». Ответ открыт без догадки — подпись тоже одна, ответ:
+  // метки читателя нет, ее никто не ставил.
+  function paintTips() {
+    const answered = !asking && !walled;
+    const mine = guess !== null && (asking || answered);
+    const exact = answered && guess === ACTUAL;
+    tipGuess.hidden = !mine || exact;
+    tipTrue.hidden = !answered;
+    if (mine) tipGuess.textContent = nf(guess);
+    if (answered) tipTrue.textContent = exact ? 'Точно!' : nf(ACTUAL);
+    placeTips(track.offsetWidth, [
+      { el: tipGuess, at: (guess || 0) / WORLD },
+      { el: tipTrue, at: ACTUAL / WORLD }
+    ]);
+  }
+  onResize(track, paintTips);
+
+  // Подсказка, пока ничего не выбрано. Пришедшему табом говорить «нажми»
+  // нечего — у него стрелки; подсказка меняется, когда шкала взяла фокус с
+  // клавиатуры, и возвращается, когда фокус ушел.
+  const HINT_TOUCH = 'Нажми на шкалу, чтобы выбрать число';
+  const HINT_KEYS = 'Выбери число стрелками';
+  let byKeys = false;
+  const hint = () => (byKeys ? HINT_KEYS : HINT_TOUCH);
+  scale.addEventListener('focus', () => {
+    byKeys = scale.matches(':focus-visible');
+    if (asking && guess === null && !verdictEl.classList.contains('is-nudged')) paintMeter();
+  });
+  scale.addEventListener('blur', () => {
+    byKeys = false;
+    if (asking && guess === null && !verdictEl.classList.contains('is-nudged')) paintMeter();
+  });
+
+  // Итог словами — один раз, тому, кто его не видит. Число и подписи на
+  // шкале для диктора спрятаны, так что здесь сказано все сразу: ответ,
+  // догадка и насколько она далека.
+  function resultText() {
+    const truth = `Правильный ответ — ${nf(ACTUAL)} ${countries(ACTUAL)} из ${nf(WORLD)}.`;
+    if (guess === null) return truth;
+    if (guess === ACTUAL) return `Точно! ${truth}`;
+    return `${truth} Твоя догадка — ${nf(guess)}. ${verdict(guess)}.`;
+  }
+
+  // Кнопка, которой отправили ответ, — она же исчезает с ответом. Фокус
+  // тогда уходит не в никуда (браузер сбросил бы его в начало документа),
+  // а на итог: карточку со счетом, которая на этот момент называется самим
+  // итогом. Экран при этом стоит на месте — preventScroll. Озвучивается
+  // итог одним из двух путей, не обоими: фокусом, если он переехал, или
+  // строкой состояния, если ответ пришел тактом, без кнопки.
+  let pressed = null;
+  function tell(quiet) {
+    said.textContent = '';
+    // Шаг назад к вопросу: итога больше нет, и фокус, стоявший на нем,
+    // возвращается на шкалу — туда, где читатель сейчас и нужен.
+    const back = asking && document.activeElement === meterCard;
+    meterCard.removeAttribute('role');
+    meterCard.removeAttribute('aria-label');
+    meterCard.removeAttribute('tabindex');
+    if (back) scale.focus({ preventScroll: true });
+    if (asking) return;
+    const text = resultText();
+    meterCard.setAttribute('role', 'group');
+    meterCard.setAttribute('aria-label', text);
+    meterCard.tabIndex = -1;
+    if (quiet) { pressed = null; return; }
+    const lost = pressed && (document.activeElement === pressed
+      || document.activeElement === document.body || !document.activeElement);
+    pressed = null;
+    if (lost) meterCard.focus({ preventScroll: true });
+    else said.textContent = text;
   }
 
   function setGuess(v) {
+    v = Math.round(Math.min(WORLD, Math.max(0, v)));
     if (v === guess) return;
     guess = v;
     guessEl.style.left = `${(v / WORLD) * 100}%`;
@@ -1698,24 +2031,43 @@ export function init(root) {
     if (!asking) return;
     e.preventDefault();
     scale.setPointerCapture(e.pointerId);
+    scale.classList.add('is-picking');
     setGuess(valueAt(e.clientX));
   });
   scale.addEventListener('pointermove', (e) => {
     if (asking && scale.hasPointerCapture(e.pointerId)) setGuess(valueAt(e.clientX));
   });
+  const dropped = () => scale.classList.remove('is-picking');
+  scale.addEventListener('pointerup', dropped);
+  scale.addEventListener('pointercancel', dropped);
+  // Клавиши — как у обычного ползунка: стрелки на одну страну, с Shift и
+  // PageUp/PageDown на десять, Home и End — к краям шкалы. Первое же
+  // нажатие выбирает целое число на шкале: стрелка от нуля, Home и End —
+  // свой край. Каркас эти клавиши у шкалы с фокусом не забирает.
   scale.addEventListener('keydown', (e) => {
     if (!asking) return;
-    const by = { ArrowRight: 1, ArrowUp: 1, ArrowLeft: -1, ArrowDown: -1 }[e.key];
-    if (!by) return;
-    e.preventDefault();
     const from = guess === null ? 0 : guess;
-    setGuess(Math.min(WORLD, Math.max(0, from + by * (e.shiftKey ? 10 : 1))));
+    const big = 10;
+    const to = {
+      ArrowRight: from + (e.shiftKey ? big : 1),
+      ArrowUp: from + (e.shiftKey ? big : 1),
+      ArrowLeft: from - (e.shiftKey ? big : 1),
+      ArrowDown: from - (e.shiftKey ? big : 1),
+      PageUp: from + big,
+      PageDown: from - big,
+      Home: 0,
+      End: WORLD
+    }[e.key];
+    if (to === undefined) return;
+    e.preventDefault();
+    setGuess(to);
   });
 
   // The button sends the guess. Read beat by beat, the page is asked for its
   // next beat, and that beat brings the answer; where the page scrolls there
   // is no beat to ask for, and the answer is shown right here.
-  const answer = () => {
+  const answer = (e) => {
+    pressed = e && e.currentTarget instanceof Element ? e.currentTarget : null;
     if (walks()) {
       root.dispatchEvent(new CustomEvent('story:next', { bubbles: true }));
       return;
@@ -1727,9 +2079,9 @@ export function init(root) {
 
   // Тот же ответ, только без догадки. Такт его не придерживает: читатель
   // попросил ответ прямо, и ждать от него метку после этого незачем.
-  skip.addEventListener('click', () => {
+  skip.addEventListener('click', (e) => {
     skipped = true;
-    answer();
+    answer(e);
   });
 
   // Asked to go on without a mark: the page stays where it is, and the bar
@@ -1739,7 +2091,7 @@ export function init(root) {
     void scale.offsetWidth;            // the same animation again, from its start
     scale.classList.add('is-nudged');
     verdictEl.classList.add('is-nudged');
-    verdictEl.textContent = 'Сначала поставь метку на полосе';
+    verdictEl.textContent = 'Сначала выбери число на шкале';
     scale.focus({ preventScroll: true });
   }
 
@@ -1937,6 +2289,9 @@ export function init(root) {
     // котором она и останется. Здесь же, а не кадром позже: кадр позже — это
     // кадр, в котором стена уже видна и еще не разложена.
     if (on) layout();
+    // Прыжок по полоске прямо на стену минует и вопрос, и ответ — флаги
+    // тогда просятся отсюда. Повторная просьба ничего не стоит.
+    if (on) warmFlags();
   }
 
   // Стена приходит и уходит: на широком экране — вместе с ответом, на
@@ -1999,35 +2354,56 @@ export function init(root) {
     follow();
     scale.setAttribute('aria-disabled', on ? 'false' : 'true');
     scale.tabIndex = on ? 0 : -1;
-    check.tabIndex = on ? 0 : -1;
-    skip.tabIndex = on ? 0 : -1;
-    // The mark is kept, the scale is not a control any more: no focus ring
-    // left standing round the answer.
-    if (!on && [scale, check, skip].includes(document.activeElement)) document.activeElement.blur();
+    // Строка с кнопками складывается под ответом, но в документе остается —
+    // и диктор читал бы кнопки, которых на экране нет, а таб приводил бы к
+    // ним. inert убирает строку и оттуда, и оттуда, не трогая складывания.
+    sendRow.inert = !on;
+    // The mark is kept, the scale is not a control any more. Если фокус
+    // стоял на шкале или на кнопке, которая сейчас исчезнет, он переезжает
+    // на итог (см. tell): Enter на шкале тоже отправляет ответ.
+    if (!on && [scale, check, skip].includes(document.activeElement)) {
+      pressed = pressed || document.activeElement;
+      document.activeElement.blur();
+    }
     paintMeter();
+    tell(quiet || first);
     // С ответом в блоке прибавилось: карточка счета подросла, а на широком
     // экране пришли еще и кампусы — стене осталось меньше. Меряем сразу,
     // иначе до первого движения она стоит во всю высоту и вылезает за край.
     if (!on) grow();
-    // И флаги просим здесь же: до стены остался кадр, и за него сотня
-    // картинок успевает дойти и раскодироваться — а не начать это делать
-    // в тот самый кадр, в котором стена появляется.
+    // Флаги к этому моменту обычно уже в пути — их просит open(), пока
+    // читатель отвечает. Здесь только страховка для того, кто сюда пришел
+    // не через открытие блока. Ответ эту работу не ждет: warmFlags() здесь
+    // только ставит отметку, а счет и адреса флагам раздает свободное время.
     if (!on) warmFlags();
 
     if (plays) glide(from);
   }
 
   // ---------- Render ----------
+  const offNow = new Set();          // страны, чьи флаги сейчас погашены
   function render() {
     CITIES.forEach((c) => {
       cityEls[c.key].toggle.classList.toggle('on', !!state.active[c.key]);
     });
 
+    // Стена не пересобирается: флаги стоят на своих местах, и меняется
+    // только то, что поменялось, — плитки стран, которые сняты или вернулись
+    // этим нажатием, и счет у тех частей света, где он стал другим.
+    // Остальным плиткам и подписям запись не достается вовсе.
     const set = selected();
-    tiles.forEach((tile, code) => tile.classList.toggle('off', !set.has(code)));
+    tiles.forEach((tile, code) => {
+      const off = !set.has(code);
+      if (off === offNow.has(code)) return;
+      tile.classList.toggle('off', off);
+      if (off) offNow.add(code);
+      else offNow.delete(code);
+    });
 
     REGIONS.forEach((region) => {
-      groupCountEls[region.key].textContent = region.codes.filter((code) => set.has(code)).length;
+      const n = String(region.codes.filter((code) => set.has(code)).length);
+      const el = groupCountEls[region.key];
+      if (el.textContent !== n) el.textContent = n;
     });
 
     paintMeter();
@@ -2079,12 +2455,40 @@ export function init(root) {
     // назад или прыжком по полоске, и смотреть смену композиции заново он не
     // просил. Догадка и выключенные города при этом остаются — они его.
     restore: (i) => {
-      if (!walks()) { step(i); return; }
-      setAsking(i < 1, true);
-      setWall(i >= 2, true);
+      // Счет на карточке тоже не набегает заново: читатель пришел к уже
+      // виденному итогу, а не смотрит, как он складывается.
+      if (animFrame) { cancelAnimationFrame(animFrame); animFrame = null; }
+      shown = null;
+      settlingNow = true;
+      try {
+        if (!walks()) { step(i); return; }
+        setAsking(i < 1, true);
+        setWall(i >= 2, true);
+      } finally {
+        settlingNow = false;
+      }
     },
     hold,
+    // Читатель переходит через границу узкого и широкого экрана — страница
+    // при этом перечитывается заново (см. keep() в lib/stepper.js), и все,
+    // что он здесь сделал, отдается каркасу и возвращается после: метка на
+    // шкале, просьба показать ответ без нее и выбранные кампусы — пустой
+    // выбор тоже выбор. Где он стоял в истории — вопрос, ответ, стена, —
+    // каркас помнит сам, по шагу.
+    remember: () => ({ guess, skipped, checked, active: { ...state.active } }),
+    recall: (data) => {
+      if (!data) return;
+      if (data.active) CITIES.forEach((c) => { state.active[c.key] = !!data.active[c.key]; });
+      skipped = !!data.skipped;
+      checked = !!data.checked;
+      if (Number.isInteger(data.guess)) setGuess(data.guess);
+      render();
+    },
     open: () => {
+      // Блок на экране — значит, до стены остался вопрос и ответ, и это
+      // время уходит на флаги: на широком экране на все, на телефоне на
+      // первый экран стены.
+      warmFlags();
       toTop(grid);
       // И ход по стене с клавиатуры — туда же, к первому флагу: читатель,
       // вернувшийся в раздел, застает ее с начала целиком.

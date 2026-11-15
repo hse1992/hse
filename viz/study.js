@@ -4,7 +4,7 @@
 import { CITIES } from '../data/hse.js';
 import { HISTORY } from '../data/history.js';
 import { nf, plural } from '../lib/format.js';
-import { onResize } from '../lib/ui.js';
+import { onResize, placeTips } from '../lib/ui.js';
 
 // Facts about the curriculum itself — they live here, not in data/hse.js,
 // which only knows about the people. A bachelor's or a specialist's degree
@@ -167,6 +167,7 @@ const LEAD_CARD = `
     <span class="study-since">Начинать пришлось бы</span>
     <span class="study-lead-year"><span class="study-lead-year-unit">в</span><b>${START}</b><span class="study-lead-year-unit">году</span></span>
     <span class="study-event">${toldAs(FIRST, START)}</span>
+    <span class="study-yours" data-el="yours"></span>
   </span>
 `;
 
@@ -290,7 +291,7 @@ const LEAD_STYLE = `<style>
     position: relative;
     max-width: 720px;
     margin: 0 auto;
-    padding: 14px 0 4px;
+    padding: calc(14px + 1.05rem * var(--intro-k, 1.55) + 14px) 0 4px;
     cursor: pointer;
     touch-action: none;
   }
@@ -349,6 +350,61 @@ const LEAD_STYLE = `<style>
   }
 
   .study-scale-mark.is-set { opacity: 1; }
+
+  /* Число у метки — то же, что у вопроса про страны: над полосой, чтобы
+     палец на телефоне его не закрывал, в цвете метки. После ответа рядом
+     встает правильный, в цвете залитой части; совпали — подпись одна,
+     «Точно!». Места под подписи шкала держит с самого начала (поле сверху),
+     иначе первое касание сдвигало бы весь экран. Расставляет их placeTips
+     из lib/ui.js: внутри шкалы и не друг на друге. Набраны от --intro-k,
+     как и весь экран: на заголовочном кегле они растут вместе с ним. */
+  .study-tip {
+    position: absolute;
+    left: 0;
+    bottom: calc(100% + 14px);
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: calc(0.875rem * var(--intro-k, 1.55));
+    font-weight: 700;
+    line-height: 1.2;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+    color: var(--card);
+    background: var(--text);
+    pointer-events: none;
+    /* Едет вместе с меткой — та переезжает за 160мс. */
+    transition: left 160ms ease;
+  }
+
+  .study-tip[hidden] { display: none; }
+
+  .study-tip.is-true {
+    background: var(--hse-blue);
+    animation: study-tip-in 260ms ease 200ms both;
+  }
+
+  @keyframes study-tip-in {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: none; }
+  }
+
+  /* Итог, к которому уходит фокус, когда нажатая кнопка исчезает. */
+  .study-lead-guess-in:focus { outline: none; }
+  .study-lead-guess-in:focus-visible {
+    outline: 2px solid var(--hse-blue);
+    outline-offset: 6px;
+    border-radius: 6px;
+  }
+
+  /* Догадка на исторической карточке: в каком году пришлось бы начинать по
+     ней. Карточка говорит про ответ, эта строка — про то, что думал
+     читатель, и тише остального. Пустая — ее нет вовсе. */
+  .study-yours {
+    display: block;
+    color: var(--text-secondary);
+  }
+
+  .study-yours:empty { display: none; }
 
   /* The ruler under the bar — the same one the question about countries has,
      so the two questions of the page are read the same way. It starts clear
@@ -485,6 +541,8 @@ const LEAD_STYLE = `<style>
     .study-scale.is-nudged .study-scale-bar { animation: none; }
     .study-scale-mark,
     .study-scale-fill { transition: none; }
+    .study-tip { transition: none; }
+    .study-tip.is-true { animation: none; }
   }
 
   /* The same figure the block itself opens with, so the screen and the
@@ -621,6 +679,7 @@ const LEAD_STYLE = `<style>
   }
   .study-lead-card .study-since { font-size: min(calc(1rem * var(--intro-k, 1.55)), 2.8vh); color: var(--text-secondary); }
   .study-lead-card .study-event { font-size: min(calc(1rem * var(--intro-k, 1.55)), 2.8vh); }
+  .study-lead-card .study-yours { font-size: min(calc(0.875rem * var(--intro-k, 1.55)), 2.4vh); margin-top: 0.3em; }
 
   /* The line of the screen carries a patch that runs over more than one
      line, and the headline leading of the shell would have the patches
@@ -718,7 +777,10 @@ const LEAD_STYLE = `<style>
        Над вопросом на этом такте пустая треть экрана, и цифра с подписью
        растут в нее, ничего не отнимая. Платит за себя только шкала с кнопкой:
        они стоят под коробкой, и каждый их пиксель — пиксель общей высоты. */
-    .study-scale { padding: 18px 0 4px; }
+    /* Сверху — место под число у метки: метка выше полосы на тринадцать
+       пикселей, подпись стоит над ней. */
+    .study-scale { padding: 46px 0 4px; }
+    .study-tip { font-size: 1.125rem; }
     .study-scale-bar { height: 16px; }
     .study-scale-mark { width: 6px; height: 42px; }
     .study-guess-ruler { height: 1.9em; margin-top: 18px; }
@@ -765,6 +827,7 @@ const LEAD_STYLE = `<style>
     .study-lead-card .study-lead-col { align-items: center; gap: 10px; }
     .study-lead-card .study-since { font-size: 1.75rem; }
     .study-lead-card .study-event { font-size: 1.6875rem; }
+    .study-lead-card .study-yours { font-size: 1.375rem; }
     .study-lead-card .study-lead-year { font-size: 3rem; }
     .study-lead-outro { font-size: 1.375rem; }
 
@@ -823,7 +886,7 @@ export const meta = {
       // unknown, and one line asking for it. The scale to put a mark on is
       // under the screen — see below.
       + '<span class="study-lead-beat intro-stage" data-stage="2"><span class="study-lead-ask">'
-      +   '<span class="study-lead-years"><span data-el="guessValue">?</span>'
+      +   '<span class="study-lead-years" aria-hidden="true"><span data-el="guessValue">?</span>'
       +     '<span class="study-lead-years-unit" data-el="guessUnit">лет</span>'
       +   '</span>'
       +   '<span class="study-lead-say">уйдет, чтобы пройти их все одну за другой. '
@@ -848,14 +911,17 @@ export const meta = {
       // mark the reader put down stays where it was while the answer lands
       // beside it, and the two are read against each other.
       + '<span class="study-lead-guess intro-stage" data-stage="2"><span class="study-lead-guess-in">'
-      +   `<span class="study-scale" data-el="scale" role="slider" tabindex="0" aria-label="Сколько лет, по-твоему" aria-valuemin="0" aria-valuemax="${GUESS_MAX}">`
-      +     '<span class="study-scale-bar">'
+      +   `<span class="study-scale" data-el="scale" role="slider" tabindex="0" aria-label="Сколько лет, по-твоему" aria-valuemin="0" aria-valuemax="${GUESS_MAX}" aria-valuetext="Ответ еще не выбран">`
+      +     '<span class="study-scale-bar" data-el="track">'
       +       '<span class="study-scale-fill" data-el="fill"></span>'
       +       '<span class="study-scale-mark" data-el="markGuess"></span>'
+      +       '<span class="study-tip is-yours" data-el="tipGuess" aria-hidden="true" hidden></span>'
+      +       '<span class="study-tip is-true" data-el="tipTrue" aria-hidden="true" hidden></span>'
       +     '</span>'
       +     RULER
       +   '</span>'
-      +   '<span class="study-lead-verdict" data-el="verdict">Нажми на полосу или потяни метку</span>'
+      +   '<span class="study-lead-verdict" data-el="verdict" aria-hidden="true">Нажми на шкалу, чтобы выбрать число</span>'
+      +   '<span class="sr-only" role="status" data-el="said"></span>'
       +   '<span class="study-lead-send">'
       +     '<button type="button" class="btn study-lead-check" data-el="check" disabled>Ответить</button>'
       +     '<button type="button" class="btn study-lead-skip" data-el="skip">Показать ответ</button>'
@@ -1426,10 +1492,26 @@ export function init(root) {
   const skipEl = atLead('skip');
   const askTailEl = atLead('askTail');
   const guessBoxEl = section && section.querySelector('.study-lead-guess');
+  const guessInEl = section && section.querySelector('.study-lead-guess-in');
+  const trackEl = atLead('track');
+  const tipGuessEl = atLead('tipGuess');
+  const tipTrueEl = atLead('tipTrue');
+  const saidEl = atLead('said');
+  const yoursEl = atLead('yours');
 
   // A screen with no scale on it is a screen the shell has not drawn — there
   // is nothing to ask and nothing to wait for.
-  if (!scaleEl) return {};
+  if (!scaleEl) {
+    return {
+      remember: () => ({ active: { ...state.active }, levels: { ...state.levels } }),
+      recall: (data) => {
+        if (!data) return;
+        if (data.active) CITIES.forEach((c) => { state.active[c.key] = !!data.active[c.key]; });
+        if (data.levels) LEVELS.forEach((l) => { state.levels[l.key] = !!data.levels[l.key]; });
+        render(true);
+      }
+    };
+  }
 
   // ---------- Ответ и год на одном экране ----------
   // На телефоне ответ остается, когда приходит карточка года, и они стоят
@@ -1484,7 +1566,7 @@ export function init(root) {
   // everyone guesses low.
   function verdict(v) {
     const diff = YEARS_TOTAL - v;
-    if (diff === 0) return 'В точку!';
+    if (diff === 0) return 'Точно!';
     if (Math.abs(diff) <= Math.round(YEARS_TOTAL * 0.1)) return 'Почти в точку';
     if (!v) return `Ни года? А их ${nf(YEARS_TOTAL)}`;
     if (diff > 0) {
@@ -1511,8 +1593,17 @@ export function init(root) {
         : `<b>${verdict(guess)}</b> — твоя догадка ${nf(guess)}`;
     } else if (!scaleEl.classList.contains('is-nudged')) {
       verdictEl.textContent = guess === null
-        ? 'Нажми на полосу или потяни метку'
+        ? hint()
         : `Твоя догадка — ${nf(guess)} ${years(guess)}`;
+    }
+    paintTips();
+    // Догадка на исторической карточке — та же связка, что у ответа: сколько
+    // лет и в каком году пришлось бы начинать. Только после ответа и только
+    // у того, кто угадывал: на пути «Показать ответ» строки нет.
+    if (yoursEl) {
+      yoursEl.textContent = !told || guess === null ? ''
+        : guess === YEARS_TOTAL ? 'Точно как в твоей догадке'
+          : `По твоей догадке, ${nf(guess)} ${years(guess)}, начинать пришлось бы в ${NOW - guess} году`;
     }
     // Where the page waits for a mark, the button waits with it; where it
     // scrolls on regardless, there is no beat to ask for and no button.
@@ -1530,7 +1621,80 @@ export function init(root) {
     if (PHONE) reserve(guessBoxEl);
   }
 
+  // ---------- Числа на шкале ----------
+  // Четыре состояния вопроса — как у вопроса про страны. Ничего не выбрано:
+  // крупно «?», над полосой пусто. Читатель ставит метку: над ней его число.
+  // Ответ подтвержден: рядом правильный, над концом залитой части, а совпали —
+  // одна подпись, «Точно!». Ответ открыт без догадки: подпись одна, ответ.
+  function paintTips() {
+    if (!trackEl) return;
+    const exact = told && guess === YEARS_TOTAL;
+    tipGuessEl.hidden = guess === null || exact;
+    tipTrueEl.hidden = !told;
+    if (guess !== null) tipGuessEl.textContent = nf(guess);
+    if (told) tipTrueEl.textContent = exact ? 'Точно!' : nf(YEARS_TOTAL);
+    // offsetWidth, а не прямоугольник: экран сжат масштабом.
+    placeTips(trackEl.offsetWidth, [
+      { el: tipGuessEl, at: (guess || 0) / GUESS_MAX },
+      { el: tipTrueEl, at: YEARS_TOTAL / GUESS_MAX }
+    ]);
+  }
+
+  if (trackEl) onResize(trackEl, paintTips);
+
+  // Подсказка, пока ничего не выбрано: пришедшему табом — про стрелки.
+  const HINT_TOUCH = 'Нажми на шкалу, чтобы выбрать число';
+  const HINT_KEYS = 'Выбери число стрелками';
+  let byKeys = false;
+  const hint = () => (byKeys ? HINT_KEYS : HINT_TOUCH);
+  scaleEl.addEventListener('focus', () => {
+    byKeys = scaleEl.matches(':focus-visible');
+    if (!told && guess === null && !scaleEl.classList.contains('is-nudged')) paintGuess();
+  });
+  scaleEl.addEventListener('blur', () => {
+    byKeys = false;
+    if (!told && guess === null && !scaleEl.classList.contains('is-nudged')) paintGuess();
+  });
+
+  // Итог словами, один раз. Путь тот же, что у стран: исчезла нажатая
+  // кнопка — фокус переезжает на итог (коробку со шкалой, которая на это
+  // время называется им) и экран стоит на месте; ответ пришел тактом —
+  // итог говорит строка состояния. Прыжок по полоске в прочитанную главу
+  // итог не повторяет: о нем не просили.
+  let pressed = null;
+  let asked = false;          // читатель сам попросил ответ: кнопкой или ходом
+  function resultText() {
+    const truth = `Правильный ответ — ${nf(YEARS_TOTAL)} ${years(YEARS_TOTAL)}.`;
+    if (guess === null) return truth;
+    if (guess === YEARS_TOTAL) return `Точно! ${truth}`;
+    return `${truth} Твоя догадка — ${nf(guess)} ${years(guess)}. ${verdict(guess)}.`;
+  }
+  function tell() {
+    saidEl.textContent = '';
+    // Шаг назад к вопросу: фокус с итога возвращается на шкалу.
+    const back = !told && document.activeElement === guessInEl;
+    guessInEl.removeAttribute('role');
+    guessInEl.removeAttribute('aria-label');
+    guessInEl.removeAttribute('tabindex');
+    scaleEl.setAttribute('aria-disabled', told ? 'true' : 'false');
+    scaleEl.tabIndex = told ? -1 : 0;
+    if (back) scaleEl.focus({ preventScroll: true });
+    if (!told) return;
+    const text = resultText();
+    guessInEl.setAttribute('role', 'group');
+    guessInEl.setAttribute('aria-label', text);
+    guessInEl.tabIndex = -1;
+    const spoke = asked;
+    asked = false;
+    const lost = pressed && (document.activeElement === pressed
+      || document.activeElement === document.body || !document.activeElement);
+    pressed = null;
+    if (lost) guessInEl.focus({ preventScroll: true });
+    else if (spoke) saidEl.textContent = text;
+  }
+
   function setGuess(v) {
+    v = Math.round(Math.min(GUESS_MAX, Math.max(0, v)));
     if (v === guess || told) return;
     guess = v;
     markGuessEl.style.left = along(v);
@@ -1557,26 +1721,42 @@ export function init(root) {
     if (told) return;
     e.preventDefault();
     scaleEl.setPointerCapture(e.pointerId);
+    scaleEl.classList.add('is-picking');
     setGuess(valueAt(e.clientX));
   });
   scaleEl.addEventListener('pointermove', (e) => {
     if (!told && scaleEl.hasPointerCapture(e.pointerId)) setGuess(valueAt(e.clientX));
   });
+  const dropped = () => scaleEl.classList.remove('is-picking');
+  scaleEl.addEventListener('pointerup', dropped);
+  scaleEl.addEventListener('pointercancel', dropped);
+  // Клавиши — как у обычного ползунка и как у вопроса про страны: стрелки
+  // на год, с Shift и PageUp/PageDown на десять (тысяча лет одними
+  // стрелками — долгий путь), Home и End — к краям шкалы.
   scaleEl.addEventListener('keydown', (e) => {
     if (told) return;
-    const by = { ArrowRight: 1, ArrowUp: 1, ArrowLeft: -1, ArrowDown: -1 }[e.key];
-    if (!by) return;
-    e.preventDefault();
     const from = guess === null ? 0 : guess;
-    // A year at a time, ten with Shift: a thousand of them by arrow alone
-    // would be a long walk.
-    const step = e.shiftKey ? 10 : STEP;
-    setGuess(Math.min(GUESS_MAX, Math.max(0, from + by * step)));
+    const big = 10;
+    const to = {
+      ArrowRight: from + (e.shiftKey ? big : STEP),
+      ArrowUp: from + (e.shiftKey ? big : STEP),
+      ArrowLeft: from - (e.shiftKey ? big : STEP),
+      ArrowDown: from - (e.shiftKey ? big : STEP),
+      PageUp: from + big,
+      PageDown: from - big,
+      Home: 0,
+      End: GUESS_MAX
+    }[e.key];
+    if (to === undefined) return;
+    e.preventDefault();
+    setGuess(to);
   });
 
   // The button sends the mark: the page is asked for its next beat, and that
   // beat is the one that brings the answer.
   checkEl.addEventListener('click', () => {
+    pressed = checkEl;
+    asked = true;
     root.dispatchEvent(new CustomEvent('story:next', { bubbles: true }));
   });
 
@@ -1584,6 +1764,8 @@ export function init(root) {
   // читатель попросил ответ прямо, и ждать от него метку после этого незачем.
   if (skipEl) skipEl.addEventListener('click', () => {
     skipped = true;
+    pressed = skipEl;
+    asked = true;
     root.dispatchEvent(new CustomEvent('story:next', { bubbles: true }));
   });
 
@@ -1593,7 +1775,7 @@ export function init(root) {
     scaleEl.classList.remove('is-nudged');
     void scaleEl.offsetWidth;            // the same animation again, from its start
     scaleEl.classList.add('is-nudged');
-    verdictEl.textContent = 'Сначала поставь метку на полосе';
+    verdictEl.textContent = 'Сначала выбери число на шкале';
     scaleEl.focus({ preventScroll: true });
   }
 
@@ -1659,7 +1841,14 @@ export function init(root) {
     const at = parseFloat(section.style.getPropertyValue('--lead-stage-3')) || 0;
     if ((at > 0.5) === told) return;
     told = at > 0.5;
+    // Фокус на шкале или на кнопке, которая сейчас исчезнет, — тоже повод
+    // перевести его на итог: Enter на шкале отправляет ответ, как и кнопка.
+    if (told && [scaleEl, checkEl, skipEl].includes(document.activeElement)) {
+      pressed = pressed || document.activeElement;
+      asked = true;
+    }
     paintGuess();
+    tell();
   };
   new MutationObserver(followAnswer)
     .observe(section, { attributes: true, attributeFilter: ['style'] });
@@ -1668,7 +1857,25 @@ export function init(root) {
 
   // Only the beat that opens the answer waits, and only until there is a mark.
   return {
+    // Через границу узкого и широкого экрана страница перечитывается заново
+    // (keep() в lib/stepper.js) — метка на шкале, «Показать ответ» без нее,
+    // выбранные города и уровни переезжают вместе с читателем. Пустой выбор
+    // тоже выбор. Такт экрана — вопрос, ответ, год — каркас помнит сам.
+    remember: () => ({
+      guess, skipped, active: { ...state.active }, levels: { ...state.levels }
+    }),
+    recall: (data) => {
+      if (!data) return;
+      if (data.active) CITIES.forEach((c) => { state.active[c.key] = !!data.active[c.key]; });
+      if (data.levels) LEVELS.forEach((l) => { state.levels[l.key] = !!data.levels[l.key]; });
+      render(true);
+      skipped = !!data.skipped;
+      if (Number.isInteger(data.guess)) setGuess(data.guess);
+    },
     holdIntro: (stage, { quiet = false } = {}) => {
+      // Ход читателя к ответу (колесом, клавишей, пальцем) — тоже просьба
+      // об итоге: его скажет строка состояния, когда ответ придет.
+      if (stage === 3 && !quiet && (guess !== null || skipped)) asked = true;
       if (stage !== 3 || guess !== null || skipped) return false;
       if (!quiet) nudge();
       return true;

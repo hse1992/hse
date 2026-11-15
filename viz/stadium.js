@@ -1248,5 +1248,24 @@ export function init(root) {
   // Кадрами каркас зовет step() сам, так что отдается настоящий шаг. Там, где
   // историю ведет прокрутка, каркасу отдается пустышка: его единственный вызов
   // «покажи итог» перебил бы ход.
-  return { step: phone.matches && !tapped ? () => {} : step, carry, ahead: () => ahead() };
+  return {
+    step: phone.matches && !tapped ? () => {} : step,
+    carry,
+    ahead: () => ahead(),
+    // Через границу узкого и широкого экрана страница перечитывается заново
+    // (keep() в lib/stepper.js), и выбор читателя переезжает вместе с ним.
+    // Пустой выбор кампусов — тоже выбор.
+    // Пока стадион рассказывает историю, кампусы ведет она, и запоминать
+    // нечего; запоминается то, что читатель выбрал сам, взяв арену в руки.
+    remember: () => (userDrives
+      ? { active: { ...state.active }, kinds: { ...state.kinds } }
+      : null),
+    recall: (data) => {
+      if (!data) return;
+      userDrives = true;
+      if (data.active) CITIES.forEach((c) => { state.active[c.key] = !!data.active[c.key]; });
+      if (data.kinds) KIND_DEFS.forEach((k) => { state.kinds[k.key] = !!data.kinds[k.key]; });
+      render();
+    }
+  };
 }

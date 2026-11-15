@@ -1399,6 +1399,17 @@ export function init(root) {
   }
 
   return {
+    // Через границу узкого и широкого экрана страница перечитывается заново
+    // (keep() в lib/stepper.js), и выбор читателя переезжает вместе с ним.
+    // Пустой выбор кампусов — тоже выбор.
+    remember: () => ({ metric: state.metric, unit: state.unit, active: { ...state.active } }),
+    recall: (data) => {
+      if (!data) return;
+      if (METRICS.some((m) => m.key === data.metric)) state.metric = data.metric;
+      if (UNITS.some((u) => u.key === data.unit)) state.unit = data.unit;
+      if (data.active) CITIES.forEach((c) => { state.active[c.key] = !!data.active[c.key]; });
+      render('fill');
+    },
     // On a phone the scroll above tells the story, and the shell must not cut
     // in: it plays the last step once, right after init, and that would hand
     // the reader the calculator while the travel still says step one.

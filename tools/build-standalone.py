@@ -276,6 +276,14 @@ html = f"""<!DOCTYPE html>
   // over rather than dropping the reader where they had scrolled to.
   if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
   window.scrollTo(0, 0);
+  // И так же, как там: страница, перечитанная после смены раскладки, спрятана,
+  // пока не встанет на место читателя (keep() в lib/stepper.js).
+  try {{
+    if (sessionStorage.getItem('нсб-раздел') !== null) {{
+      document.documentElement.classList.add('is-returning');
+      setTimeout(() => document.documentElement.classList.remove('is-returning'), 3000);
+    }}
+  }} catch (err) {{ /* без хранилища возвращаться и не к чему */ }}
 </script>
 <main>
 {header}

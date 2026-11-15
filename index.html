@@ -7,6 +7,18 @@
 <link rel="stylesheet" href="styles/fonts.css" />
 <link rel="stylesheet" href="styles/tokens.css" />
 <link rel="stylesheet" href="styles/layout.css" />
+<script>
+  // Страница перечитывается после смены раскладки (keep() в lib/stepper.js) и
+  // сейчас поедет на место читателя. До того она спрятана — иначе мелькнула
+  // бы обложка, с которой она поднимается. Снимает это каркас, когда читатель
+  // на месте; через три секунды — в любом случае.
+  try {
+    if (sessionStorage.getItem('нсб-раздел') !== null) {
+      document.documentElement.classList.add('is-returning');
+      setTimeout(() => document.documentElement.classList.remove('is-returning'), 3000);
+    }
+  } catch (err) { /* без хранилища возвращаться и не к чему */ }
+</script>
 </head>
 <body>
 <script>
@@ -138,7 +150,7 @@
     if (opening) opening.run(0);
 
     let api = null;
-    return {
+    const entry = {
       section,
       opening,
       steps: mod.meta.steps || 0,
@@ -188,11 +200,25 @@
         // The switches of the block say what they switch and whether they are
         // on — read off the markup they are already in, see lib/ui.js.
         nameSwitches(section);
+        // Выбор читателя, привезенный через границу узкого и широкого экрана
+        // (keep() в lib/stepper.js), — сразу, как блок собран, и один раз.
+        if (entry.pending) {
+          const data = entry.pending;
+          entry.pending = null;
+          if (api.recall) {
+            try { api.recall(data); } catch (err) { console.error('Выбор блока не вернулся', err); }
+          }
+        }
       },
+      // То, что читатель выбрал в блоке, — чтобы пережить перечитывание
+      // страницы при смене раскладки. Блок отвечает сам, через remember().
+      remember: () => (api && api.remember ? api.remember() : null),
+      pending: null,
       // And whenever it comes onto the screen — first time or coming back — the
       // picture inside it starts from the beginning. See lib/stepper.js.
       open: () => api && api.open && api.open()
     };
+    return entry;
   });
 
   const progress = mountProgress(

@@ -1534,6 +1534,16 @@ export function init(root) {
   paint();
 
   return {
+    // Через границу узкого и широкого экрана страница перечитывается заново
+    // (keep() в lib/stepper.js), и выбор читателя переезжает вместе с ним.
+    // Пустой выбор кампусов — тоже выбор.
+    remember: () => ({ mode: state.mode, active: { ...state.active } }),
+    recall: (data) => {
+      if (!data) return;
+      if (MODES.some((m) => m.key === data.mode)) state.mode = data.mode;
+      if (data.active) CITIES.forEach((c) => { state.active[c.key] = !!data.active[c.key]; });
+      render('fill');
+    },
     // The page opens this block — the reader has just arrived at it, or come
     // back to it. The trains start their ride over, so that whoever looks at
     // the track sees the first of them come in from the right rather than a
