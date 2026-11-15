@@ -6,6 +6,23 @@ import { nf, plural } from '../lib/format.js';
 import { mountLogo } from '../lib/logo.js';
 import { toTop } from '../lib/ui.js';
 
+// Узкий экран решается один раз на загрузку: подзаголовок собирается в meta,
+// до всякого init, а смена ширины через границу страницу перечитывает.
+const PHONE = window.matchMedia('(max-width: 860px)').matches;
+
+// Второй путь через раздел. Сорок четыре профессии — это семь экранов пальцем,
+// и читать их все не обязательно: несколько примеров, и можно дальше. Ссылка
+// ведет туда же и тем же ходом, что и полоска сверху (index.html, data-go):
+// полоска, фокус и шаг назад остаются согласованными. Только на телефоне —
+// на широком экране вся стена и так на одном экране. Стиль инлайном: каркас
+// рисует карточку раньше, чем приедут стили блока.
+const SKIP = PHONE
+  ? '<span style="display: block; margin-top: 0.9em">'
+    + '<a class="prof-skip" href="#space" data-go="space" style="color: var(--link);'
+    + ' font-weight: 600; text-decoration: underline; text-underline-offset: 3px;'
+    + ' padding: 6px 0">К спутникам ↓</a></span>'
+  : '';
+
 // Every specialization the table lists under a profession. The lead-in of the
 // section speaks of them, so the figure is counted rather than written down.
 const KINDS_TOTAL = PROFESSIONS.reduce(
@@ -158,7 +175,7 @@ export const meta = {
   // Что за стена под карточкой — приходит тем же тактом, которым логотип
   // раскрывает кольцо и впускает в него «не только»: одна мысль, одно
   // движение. Отдельного такта эта строка не просит — текст без картинки.
-  subtitle: `<span class="prof-lead intro-stage" data-stage="1" style="display: block">В Вышке можно стать кем угодно. ${mark(`${nf(KINDS_TOTAL)} ${plural(KINDS_TOTAL, 'специализация', 'специализации', 'специализаций')}`)}, где раскроется любой талант. Укрупненно из них можно выделить ${mark(`${PROFESSIONS.length} профессии`)}</span>`,
+  subtitle: `<span class="prof-lead intro-stage" data-stage="1" style="display: block">В Вышке можно стать кем угодно. ${mark(`${nf(KINDS_TOTAL)} ${plural(KINDS_TOTAL, 'специализация', 'специализации', 'специализаций')}`)}, где раскроется любой талант. Укрупненно из них можно выделить ${mark(`${PROFESSIONS.length} профессии`)}${SKIP}</span>`,
   intro: true,
   // Two beats before the block: the logo as it is, and the logo opening up
   // with the line about the wall under it.
@@ -732,7 +749,10 @@ export function init(root) {
   // Before the reader has pointed at anything the card holds the logo and the
   // invitation, and says nothing else: the figures it used to carry are all in
   // the line above the card anyway.
-  const REST_NOTE = 'Наведи на любую профессию, чтобы увидеть, кем именно можно стать';
+  // «Выбери», а не «наведи»: карточку открывает и курсор, и фокус с
+  // клавиатуры, и касание на широком планшете (см. pick ниже) — наведения
+  // у двух из трех нет.
+  const REST_NOTE = 'Выбери профессию, чтобы увидеть, кем именно можно стать';
 
   let shown = null;
 

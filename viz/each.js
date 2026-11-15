@@ -5,7 +5,7 @@
 // whole scene is the numbers themselves, set in the same face as the rest of
 // the page.
 
-import { CITIES, LYCEUM, STAFF, STUDENTS, FOREIGN, HSE_TOTAL, ADMITTED, AREA_TOTAL } from '../data/hse.js';
+import { CITIES, LYCEUM, STAFF, STUDENTS, FOREIGN, HSE_TOTAL, ADMITTED, AREA_TOTAL, YEAR } from '../data/hse.js';
 import { COUNTRIES } from '../data/countries.js';
 import { ORBIT_KM, INCLINE, SATELLITES } from '../data/satellites.js';
 import { nf, dec, plural } from '../lib/format.js';
@@ -21,14 +21,11 @@ const AREA_STUDY = CITIES.reduce((n, c) => n + c.areaStudy, 0);
 const BUILDINGS = 196;      // buildings — the floor area section
 const PROGRAMS = 329;       // programmes — the studies section
 
-// The day the shot was taken is the day it is looked at: the frame along the
-// edge says «now», whenever the reader's now happens to be. Written out here
-// rather than through toLocaleDateString, which the page keeps out of modules.
-const today = () => {
-  const d = new Date();
-  const pad = (n) => (n < 10 ? `0${n}` : `${n}`);
-  return `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()}`;
-};
+// Подпись у нижнего края кадра — не дата съемки. Сегодняшний день, который
+// стоял тут раньше, читался как дата настоящего снимка, а это не снимок, а
+// доска показателей: она за тот год, за который верны цифры страницы, и
+// год берется оттуда же, откуда и они (YEAR в data/hse.js).
+const PRINT = `Вышка в цифрах — ${YEAR}`;
 
 // The satellites are not quoted like the rest: «Космос» draws them and this
 // block captions the picture they took, so both read the same data file and
@@ -446,7 +443,7 @@ export function init(root) {
           <i class="each-corner bl"></i><i class="each-corner br"></i>
           <div class="each-meta tl" data-el="metaTop"><b>${CAMERA}</b><span>Объект съемки: НИУ ВШЭ</span></div>
           <div class="each-meta tr"><span>высота ${nf(ORBIT_KM)} км</span><span>наклонение ${dec(INCLINE)}°</span></div>
-          <div class="each-meta bl" data-el="metaBottom"><span>Дата снимка: ${today()}</span></div>
+          <div class="each-meta bl" data-el="metaBottom"><span>${PRINT}</span></div>
           <div class="each-meta br"><span>кадр 1</span></div>
         </div>
         <div class="each-line each-end" data-el="end">
@@ -469,8 +466,10 @@ export function init(root) {
 
   const turn = document.createElement('div');
   turn.className = 'each-turn';
-  turn.innerHTML = 'Но несмотря на весь масштаб Вышки и количество показателей, есть '
-    + '<span class="each-mark">одна самая главная цифра</span>';
+  // Подводка короче прежней: ее читают за миг до того, как цифры сорвутся с
+  // мест, и все, что в ней было о масштабе, доска уже сказала сама.
+  turn.innerHTML = 'А теперь посмотри, '
+    + '<span class="each-mark">кто стоит за всеми этими цифрами</span>';
   // On a wide screen the question comes up in the place of the heading. On a
   // phone the heading is above the travel the pinned card rides through, and
   // is long gone by the time the question is due — so there it belongs to the
@@ -1023,8 +1022,22 @@ export function init(root) {
 
   // ---------- The scene ----------
   const timers = [];
+  // Пока финал складывается, кнопки подвала ждут: на телефоне страница
+  // листается свободно, и читатель, промахнувший единицу одним движением,
+  // видел «Прочитать сначала» раньше, чем «Это ты». Листать при этом никто
+  // не мешает — прячутся только сами кнопки, и только пока идет поворот.
+  // Решает это каркас (index.html), блок только говорит, идет ли поворот.
+  let turnOn = false;
+  const turning = (on) => {
+    if (on === turnOn) return;
+    turnOn = on;
+    root.dispatchEvent(new CustomEvent('story:turning', { bubbles: true, detail: { on } }));
+  };
+
   const later = (fn, ms) => { timers.push(setTimeout(fn, still ? 0 : ms)); };
-  const clearLater = () => timers.splice(0).forEach(clearTimeout);
+  // Оборванный поворот (шаг назад, прыжок, новая раскладка) — тоже конец
+  // поворота: кнопки подвала больше ждать нечего.
+  const clearLater = () => { timers.splice(0).forEach(clearTimeout); turning(false); };
 
   // Arrivals run on this curve: the gaps between them get shorter as it goes,
   // so the screen fills up — and adds up — quicker and quicker.
@@ -1051,8 +1064,8 @@ export function init(root) {
   // is two smaller turns.
   const GATHER = 1100;        // the figures fly in and take their places
   const LOOK = 1000;          // and stand there long enough to be read as a one
-  const BECOME = 760;         // the shape gives way to the figure
-  const ALONE = 680;          // the one by itself before it is told what it is
+  const BECOME = 760;         // the shape gives way to the figure, told what it is
+
 
   // Everything the photograph was made of, put back the way it was: the frame,
   // the print it is on, and the word after every figure.
@@ -1088,6 +1101,7 @@ export function init(root) {
 
   function finish(onDone) {
     if (still) { settled(); onDone(); return; }
+    turning(true);
 
     // On a wide screen the question stands where the heading was and can stay
     // until it is answered. On a phone it is said over the board itself, in
@@ -1126,11 +1140,15 @@ export function init(root) {
         a: 0
       } : null)), { dur: BECOME, fade: 560 });
       placeSum(L.end[0], { dur: BECOME, show: true, scale: 1 });
+      // Единица и две строки под ней приходят вместе и вместе встают: раньше
+      // строки ждали, пока единица постоит одна, — еще две трети секунды, за
+      // которые читатель на телефоне успевал долистать до кнопок подвала.
+      say('end');
 
       later(() => {
-        say('end');
+        turning(false);
         onDone();
-      }, BECOME + ALONE);
+      }, BECOME);
     }, GATHER + LOOK);
   }
 
@@ -1295,7 +1313,11 @@ export function init(root) {
     if (!narrow.matches) return 0;
     const box = host.getBoundingClientRect();
     const travel = box.height - (document.documentElement.clientHeight || window.innerHeight);
-    if (travel <= 8 || box.top > 0) return 0;
+    // Доля пикселя ниже верха — это все еще «блок на месте». Вспышка ставит
+    // страницу к финалу с прокруткой, дробной на айфоне и в эмуляции: верх
+    // блока оказывался на 0,4px ниже окна, ответ был «впереди ничего», и
+    // первый же мах проносил мимо вопроса прямо к единице.
+    if (travel <= 8 || box.top > 2) return 0;
     const p = phonePart();
     const line = AHEAD.find((m) => p < m);
     return line === undefined ? 0 : Math.ceil((line - p) * travel) + 2;

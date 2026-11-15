@@ -240,6 +240,27 @@
   // and the narrow slot at its head returns to the title screen.
   progress.pick(story.toBlock, story.rewind);
 
+  // Ссылки внутри разделов, ведущие в другой раздел (`data-go="space"`), —
+  // тот же ход, что и выбор в полоске сверху: toBlock каркаса. Поэтому
+  // полоска, место читателя и шаг назад после такого перехода те же, что и
+  // после полоски. Адрес у ссылки настоящий (#space) — на случай, если
+  // скрипт не дошел, — но по нему страница не прыгает: прыжок мимо машины
+  // чтения оставил бы ее думать, что читатель все еще наверху. Фокус уходит
+  // на заголовок раздела, куда пришли, — экран при этом не трогается.
+  document.addEventListener('click', (e) => {
+    const link = e.target.closest && e.target.closest('a[data-go]');
+    if (!link || !story.toBlock) return;
+    const i = MODULES.findIndex((m) => m.meta.id === link.dataset.go);
+    if (i < 0) return;
+    e.preventDefault();
+    story.toBlock(i);
+    const head = plan[i].section.querySelector('.viz-header h2');
+    if (head) {
+      head.tabIndex = -1;
+      head.focus({ preventScroll: true });
+    }
+  });
+
   // Кнопка на обложке. Делает ровно то же, что первое движение колеса или
   // пальца: отдает странице один ход от титульного экрана. Поэтому раздел
   // начинается с начала — сперва переходный экран и объяснение, и только
@@ -261,7 +282,11 @@
   // на него, а не на следующий.
   const start = document.querySelector('[data-el="coverStart"]');
   if (start) {
-    let went = 0;
+    // Не ноль: performance.now() считается от открытия страницы, и с нулем
+    // проверка «второе нажатие подряд» глотала все нажатия первых 1,2 секунды
+    // — на быстрой сети и с теплым кэшем кнопка готова уже на 0,15 секунды, а
+    // уводила со страницы только с 1,3.
+    let went = -Infinity;
     start.addEventListener('click', () => {
       const now = performance.now();
       if (now - went < 1200) return;
@@ -285,6 +310,21 @@
   // начале полоски, — одна дорога назад на всю страницу.
   const again = document.querySelector('[data-el="again"]');
   if (again) again.addEventListener('click', () => story.rewind());
+
+  // Пока финал складывает единицу, кнопки подвала ждут (`story:turning` из
+  // viz/each.js): «Прочитать сначала» не должно прийти раньше, чем «Это ты».
+  // Ждут только кнопки — страница листается как листалась. И не дольше
+  // шести секунд: поворот, оборванный ошибкой, не оставит подвал без них.
+  const endRow = document.querySelector('.page-end');
+  let endCap = 0;
+  const endWait = (on) => {
+    if (!endRow) return;
+    clearTimeout(endCap);
+    endRow.classList.toggle('is-waiting', on);
+    endRow.inert = on;
+    if (on) endCap = setTimeout(() => endWait(false), 6000);
+  };
+  document.addEventListener('story:turning', (e) => endWait(!!(e.detail && e.detail.on)));
 
   // «Поделиться» показывается только там, где ему есть чем поделиться:
   // у автономной копии адрес вида file:// , и слать его некому.

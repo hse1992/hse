@@ -1399,6 +1399,18 @@ html {
   justify-content: center;
   gap: 8px;
   margin-bottom: 18px;
+  transition: opacity 260ms ease;
+}
+
+/* Финал еще складывает единицу — кнопки подождут его (index.html). Место
+   они держат: подвал не прыгает, когда они приходят. */
+.page-end.is-waiting {
+  opacity: 0;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-end { transition: none; }
 }
 
 /* A thumb, not a cursor: the twenty-four pixels every other target on a phone

@@ -434,6 +434,12 @@ export function init(root) {
           color: var(--card);
           background: var(--hse-blue);
           border-color: var(--hse-blue);
+          /* В одну строку. Кнопка стоит от середины (left: 50%), и ширины ей
+             по умолчанию достается половина карточки — «Снять Вышку со
+             спутника» ломалась на две строки. Поля от краев экрана держит
+             max-width. */
+          white-space: nowrap;
+          max-width: calc(100% - 32px);
         }
 
         .space-shot[hidden] { display: none; }
@@ -483,7 +489,7 @@ export function init(root) {
           <div class="space-note-line" data-el="note"></div>
           <div class="space-note-sub" data-el="sub"></div>
         </div>
-        <button type="button" class="btn space-shot" data-el="shot" hidden>Сделать снимок</button>
+        <button type="button" class="btn space-shot" data-el="shot" hidden>Снять Вышку со спутника</button>
       </div>
     </div>
     <div class="space-run" data-el="run" aria-hidden="true"></div>
@@ -515,6 +521,7 @@ export function init(root) {
   // На телефоне снимок делает читатель — кнопкой на последнем такте.
   const shotEl = $('shot');
   let snapped = false;
+  let glint = 0;                    // блик на линзе, за которым придет вспышка
   // What the picture holds, for whoever is read to rather than shown: the
   // line under it tells the story beat by beat, so this says only the things
   // that are nowhere in words — the planet, the rings round it, and the marks
@@ -1747,7 +1754,7 @@ export function init(root) {
 
     // Кнопка приходит с последним тактом и уходит со снимком. Назад, к
     // прошлым тактам, уходит и сам снимок — значит, просить о нем можно снова.
-    if (i < SHOT) snapped = false;
+    if (i < SHOT) { snapped = false; clearTimeout(glint); glint = 0; }
     if (shotEl) shotEl.hidden = !narrow.matches || i < SHOT || snapped;
 
     shown = i;
@@ -1770,6 +1777,17 @@ export function init(root) {
   // переход сокращается до отклика на нажатие: занавес каркас там не играет
   // вовсе, и ждать полсекунды читателю не за чем.
   const GLINT_MS = still ? 160 : 560;
+  // Между бликом и вспышкой полсекунды, и читатель может уйти со сцены
+  // именно в них. Тогда вспышки нет: финал, пришедший сам собой, увез бы
+  // его со страницы, на которую он только что вернулся. Отменяет ее и
+  // шаг назад (step() выше), и уход раздела с экрана. Таймер — glint, рядом
+  // со snapped.
+  const onScene = () => {
+    if (!host) return true;
+    const box = host.getBoundingClientRect();
+    const mid = window.innerHeight / 2;
+    return box.top <= mid && box.bottom >= mid;
+  };
   if (shotEl) shotEl.addEventListener('click', () => {
     if (snapped) return;
     snapped = true;
@@ -1782,7 +1800,10 @@ export function init(root) {
     // При «меньше движения» цикл отрисовки не идет вовсе, и кадр со вспышкой
     // некому нарисовать: рисуем его сами, один раз.
     paint();
-    setTimeout(() => {
+    clearTimeout(glint);
+    glint = setTimeout(() => {
+      glint = 0;
+      if (!snapped || !onScene()) return;
       root.dispatchEvent(new CustomEvent('story:flash', { bubbles: true }));
     }, GLINT_MS);
   });
