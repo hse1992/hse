@@ -453,6 +453,27 @@ export function init(root) {
            down and pull it back up again mid-story. */
         .space-note { min-height: 104px; }
 
+        /* Подпись стоит не вплотную под полосой прогресса, а с просветом:
+           первая строка касалась полосы, а между подписью и орбитой
+           оставалось свободное место. --space-note-top — расстояние от верха
+           окна до верха подписи: полоса (4px, layout.css) и 32px просвета.
+           Безопасной зоны сверху у страницы нет (viewport-fit не задан), так
+           что прибавлять ее не к чему.
+
+           Двигается только подпись, и не отступом, а положением: место под
+           шар band() считает по высоте подписи (offsetHeight), а top в нее не
+           входит — Земля, орбиты и кнопка снимка остаются, где стояли. Верх
+           у всех подписей общий, так что первая строка начинается на одной
+           высоте, сколько бы строк ни было у заголовка. */
+        .space-section { --space-note-top: 36px; }
+        .space-note { top: var(--space-note-top); }
+
+        /* Низкий экран и телефон на боку: высоты мало, и длинной подписи над
+           шаром нужно больше места, чем просвету. */
+        @media (max-height: 600px) {
+          .space-section { --space-note-top: 22px; }
+        }
+
         /* On a phone the page scrolls instead of stepping, and the globe with
            its line is pinned to the top there. This is the travel that goes
            under them: a stretch for the empty Earth, one for each satellite
