@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Карточка превью ссылки: снимок tools/og-card.html в assets/og-card.jpg.
+"""Карточка превью ссылки: снимок tools/og-card.html в assets/og-card-cover.jpg.
 
     python3 tools/build-og-card.py
 
@@ -9,7 +9,8 @@ Chrome без окна. Страница на нее только ссылает
 браузер читателя ее не скачивает.
 
 Перерисовывать карточку нужно, когда меняется обложка: заголовок, цвета,
-шрифт. После этого — закоммитить assets/og-card.jpg. Мессенджеры кэшируют
+шрифт. После этого — закоммитить снимок. Новая карточка — новое имя файла (и в <head> тоже):
+мессенджеры держат картинку по адресу, и старый адрес отдавал бы им старую. Мессенджеры кэшируют
 превью надолго; у Telegram его обновляет @WebpageBot.
 
 Нужен установленный Google Chrome, а для перевода снимка в JPEG — Pillow
@@ -26,7 +27,7 @@ import threading
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-OUT = ROOT / "assets" / "og-card.jpg"
+OUT = ROOT / "assets" / "og-card-cover.jpg"
 # JPEG, а не PNG: свечение и рисунок на фоне PNG сжимает плохо (без малого
 # 300 КБ), а WhatsApp превью тяжелее примерно 300 КБ не показывает вовсе.
 QUALITY = 88
