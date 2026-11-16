@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<title>Карточка превью</title>
+<!-- Карточка превью ссылки: 1200 на 630, то, что мессенджер показывает под
+     ссылкой на страницу. Это не часть страницы — ее снимают один раз в
+     assets/og-card.jpg (tools/build-og-card.py), а страница ссылается на
+     снимок только из метаданных в <head>. Браузер читателя ее не грузит.
+
+     Стиль — обложки: тот же фон со свечением, тот же заголовок со знаком
+     Вышки вместо «о». Вагон внизу и орбита наверху — начало и конец истории,
+     дуга между ними — сама история. Единицы и «Это ты» здесь нет: это ответ
+     страницы, а карточка только задает вопрос.
+
+     Поля: все важное стоит не ближе 64 пикселей к краю — мессенджеры
+     скругляют углы и иногда подрезают карточку. -->
+<link rel="stylesheet" href="../styles/fonts.css" />
+<link rel="stylesheet" href="../styles/tokens.css" />
+<style>
+  html, body { margin: 0; }
+  body {
+    width: 1200px;
+    height: 630px;
+    overflow: hidden;
+    font-family: 'HSE Sans', -apple-system, Helvetica, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    color: var(--text);
+  }
+
+  .card {
+    position: relative;
+    width: 1200px;
+    height: 630px;
+    overflow: hidden;
+    /* Фон страницы с фирменным рисунком — тише, чем на самой странице: в
+       миниатюре величиной с ноготь рисунок становится рябью. */
+    background:
+      linear-gradient(rgba(242, 243, 245, 0.7), rgba(242, 243, 245, 0.7)),
+      var(--bg) url('../assets/hse-sign-pattern.svg') repeat;
+    background-size: auto, 560px 480px;
+  }
+
+  /* Свечение обложки: облако за заголовком и слабое — в дальнем углу. */
+  .card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(70% 90% at 18% 30%, var(--header-glow), transparent 64%),
+      radial-gradient(60% 80% at 92% 78%, var(--header-glow-soft), transparent 66%);
+  }
+
+  .title {
+    position: absolute;
+    left: 80px;
+    top: 64px;
+    margin: 0;
+    font-size: 176px;
+    font-weight: 700;
+    line-height: 0.96;
+    letter-spacing: -0.04em;
+  }
+  .title .line { display: block; }
+
+  /* Знак Вышки вместо «о» и ударение — как на обложке (styles/layout.css). */
+  .hse-o {
+    width: 0.479em;
+    height: 0.479em;
+    margin: 0 0.031em;
+    vertical-align: -0.014em;
+  }
+  .hse-o-disc { fill: var(--hse-blue); }
+  .hse-o-mark { fill: #FFFFFF; }
+  .stressed { position: relative; display: inline-block; line-height: 1; }
+  .stressed i {
+    position: absolute;
+    left: 50%;
+    bottom: 0.62em;
+    width: 0.075em;
+    height: 0.2em;
+    border-radius: 0.04em;
+    background: currentColor;
+    transform: translateX(-50%) rotate(20deg);
+  }
+
+  .sub {
+    position: absolute;
+    left: 84px;
+    top: 422px;
+    margin: 0;
+    font-size: 38px;
+    line-height: 1.2;
+    color: var(--text-lead);
+  }
+
+  .route { position: absolute; inset: 0; }
+
+  .car {
+    position: absolute;
+    left: 80px;
+    top: 494px;
+    width: 236px;
+  }
+</style>
+</head>
+<body>
+<div class="card">
+  <!-- Дуга: от носа вагона к спутнику на орбите. -->
+  <svg class="route" viewBox="0 0 1200 630" aria-hidden="true">
+    <!-- рельс под вагоном -->
+    <line x1="64" y1="561" x2="372" y2="561" stroke="var(--brand-grey-mid)" stroke-width="4" stroke-linecap="round" />
+    <path d="M 340 536 C 760 548, 1010 410, 1064 132" fill="none"
+          stroke="var(--brand-blue)" stroke-width="4" stroke-linecap="round"
+          stroke-dasharray="2 14" opacity="0.75" />
+    <!-- спутник: корпус и две панели, повернут вдоль дуги -->
+    <g transform="translate(1072 104) rotate(-12)">
+      <rect x="-50" y="-11" width="34" height="22" rx="3" fill="var(--brand-blue)" />
+      <rect x="16" y="-11" width="34" height="22" rx="3" fill="var(--brand-blue)" />
+      <line x1="-16" y1="0" x2="16" y2="0" stroke="var(--hse-blue)" stroke-width="4" />
+      <rect x="-12" y="-16" width="24" height="32" rx="5" fill="var(--hse-blue)" />
+      <circle cx="0" cy="22" r="5" fill="var(--hse-blue)" />
+    </g>
+  </svg>
+
+  <h1 class="title">
+    <span class="line">На сколько</span>
+    <span class="line">б<svg class="hse-o" viewBox="0 0 283.47 283.47" aria-hidden="true"><circle class="hse-o-disc" cx="141.73" cy="141.74" r="141.73"/><path class="hse-o-mark" d="M135.6,133.32c32.26,0,44.81,21.45,44.81,60.69v29.51h-20.69v-63.35h-23.9v63.42h-18.28V53.65h18.78c7.03,0,17.71,1.58,25.25,10.95c3.93,4.73,6.34,11.04,7.19,17.38h-32.94v9.35h33.23c-0.27,6.04-1.49,12.8-7.42,19.97c-5.2,6.51-13.76,12.56-25.83,12.56c-0.06,0-0.13,0-0.2,0V133.32 M206.41,197.55c0-34.86-11.26-58.29-40.45-68.6c9.21-3.77,14.82-9.58,18.49-13.99c7.01-8.06,9.88-17.96,9.88-27.31c0-7.56-2.08-22.65-15.35-33.04c-9.1-7.04-17.16-10.43-36.43-10.43h-9.75c-0.3-0.01-0.6-0.01-0.96-0.01H91.65v189.79h114.76V197.55z"/></svg>льш<span class="stressed">а<i></i></span>я</span>
+  </h1>
+  <p class="sub">от вагона метро до орбиты Земли</p>
+
+  <img class="car" src="../assets/vagon.svg" alt="" />
+</div>
+</body>
+</html>

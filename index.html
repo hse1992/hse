@@ -3,7 +3,33 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>На сколько большая</title>
+<title>На сколько большая Вышка — от вагона метро до орбиты Земли</title>
+<!-- Превью ссылки. Мессенджер читает только этот <head> и JavaScript не
+     исполняет, поэтому все здесь — готовый текст и абсолютные адреса.
+     Адрес — то, где страницу публикует GitHub Pages для репозитория
+     hse1992/hse (.github/workflows/pages.yml); своего домена у страницы
+     нет. Переедет — меняются все адреса ниже разом, и <link rel=canonical>
+     тоже. Картинку рисует tools/build-og-card.py; браузер читателя ее не
+     скачивает — на нее ссылаются только эти строки. -->
+<meta name="description" content="Интерактивная история о масштабе Вышки. Узнай, сколько поездов нужно первокурсникам, поместится ли университет в Лужниках и как он выглядит с орбиты." />
+<link rel="canonical" href="https://hse1992.github.io/hse/" />
+<meta property="og:type" content="website" />
+<meta property="og:locale" content="ru_RU" />
+<meta property="og:site_name" content="На сколько большая Вышка" />
+<meta property="og:url" content="https://hse1992.github.io/hse/" />
+<meta property="og:title" content="На сколько большая Вышка — от вагона метро до орбиты Земли" />
+<meta property="og:description" content="Интерактивная история о масштабе Вышки. Узнай, сколько поездов нужно первокурсникам, поместится ли университет в Лужниках и как он выглядит с орбиты." />
+<meta property="og:image" content="https://hse1992.github.io/hse/assets/og-card.jpg" />
+<meta property="og:image:secure_url" content="https://hse1992.github.io/hse/assets/og-card.jpg" />
+<meta property="og:image:type" content="image/jpeg" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="Надпись «На сколько большая» со знаком Вышки вместо буквы «о», вагон метро и пунктир орбиты к спутнику" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="На сколько большая Вышка — от вагона метро до орбиты Земли" />
+<meta name="twitter:description" content="Интерактивная история о масштабе Вышки. Узнай, сколько поездов нужно первокурсникам, поместится ли университет в Лужниках и как он выглядит с орбиты." />
+<meta name="twitter:image" content="https://hse1992.github.io/hse/assets/og-card.jpg" />
+<meta name="twitter:image:alt" content="Надпись «На сколько большая» со знаком Вышки вместо буквы «о», вагон метро и пунктир орбиты к спутнику" />
 <link rel="stylesheet" href="styles/fonts.css" />
 <link rel="stylesheet" href="styles/tokens.css" />
 <link rel="stylesheet" href="styles/layout.css" />
@@ -80,6 +106,8 @@
     <div class="page-end">
       <button type="button" class="btn page-end-act" data-el="again">Прочитать сначала</button>
       <button type="button" class="btn page-end-act" data-el="share" hidden>Поделиться</button>
+      <!-- Что сделала кнопка — вслух, для экранного диктора. -->
+      <span class="sr-only" role="status" data-el="shareSaid"></span>
     </div>
     <span data-el="year">Показатели за 2025 год</span>
     <a href="https://data.hse.ru" target="_blank" rel="noopener">© Дирекция по аналитике и управлению данными НИУ ВШЭ</a>
@@ -345,26 +373,79 @@
 
   // «Поделиться» показывается только там, где ему есть чем поделиться:
   // у автономной копии адрес вида file:// , и слать его некому.
+  //
+  // Делимся адресом страницы из <link rel="canonical">, а не тем, что в
+  // строке адреса: там бывает ?debug, якорь раздела или адрес стенда, и
+  // превью у такой ссылки чужое или никакое.
+  //
+  // Сначала — системное окно «Поделиться» (телефоны, Safari, Chrome на
+  // Windows). Отмена в нем — это ответ читателя, а не поломка: молчим. Окно,
+  // которое не открылось по другой причине, и браузер без такого окна —
+  // копируем ссылку. «Ссылка скопирована» говорим только когда она правда
+  // в буфере.
   const share = document.querySelector('[data-el="share"]');
-  if (share && location.protocol !== 'file:') {
-    const sheet = navigator.share ? 'окно' : navigator.clipboard ? 'буфер' : null;
-    if (sheet) {
-      share.hidden = false;
-      share.addEventListener('click', async () => {
-        const what = { title: document.title, url: location.href };
-        try {
-          if (sheet === 'окно') await navigator.share(what);
-          else {
-            await navigator.clipboard.writeText(location.href);
-            const was = share.textContent;
-            share.textContent = 'Ссылка скопирована';
-            setTimeout(() => { share.textContent = was; }, 2000);
+  const said = document.querySelector('[data-el="shareSaid"]');
+  const canonical = document.querySelector('link[rel="canonical"]');
+  const link = canonical ? canonical.href : location.origin + location.pathname;
+  const what = { title: document.title, url: link };
+  const sheet = !!navigator.share
+    && (!navigator.canShare || navigator.canShare(what));
+  const canCopy = !!(navigator.clipboard && navigator.clipboard.writeText)
+    || !!(document.queryCommandSupported && document.queryCommandSupported('copy'));
+
+  // Буфер обмена: обычный способ, а где его нет или он отказал (старый
+  // Safari, страница без https) — старый, через выделенное поле.
+  const copy = async (text) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch (err) { /* пробуем по-старому */ }
+    const field = document.createElement('textarea');
+    field.value = text;
+    field.setAttribute('readonly', '');
+    field.style.cssText = 'position:fixed;top:0;left:0;opacity:0;pointer-events:none';
+    document.body.appendChild(field);
+    field.select();
+    let ok = false;
+    try { ok = document.execCommand('copy'); } catch (err) { ok = false; }
+    field.remove();
+    share.focus({ preventScroll: true });
+    return ok;
+  };
+
+  if (share && location.protocol !== 'file:' && (sheet || canCopy)) {
+    share.hidden = false;
+    const label = share.textContent;
+    let busy = false;
+    let back = 0;
+    const tell = (text) => {
+      clearTimeout(back);
+      share.textContent = text;
+      if (said) said.textContent = text;
+      back = setTimeout(() => {
+        share.textContent = label;
+        if (said) said.textContent = '';
+      }, 2000);
+    };
+    share.addEventListener('click', async () => {
+      // Второе нажатие, пока окно открыто, браузер считает ошибкой.
+      if (busy) return;
+      busy = true;
+      try {
+        if (sheet) {
+          try {
+            await navigator.share(what);
+            return;
+          } catch (err) {
+            if (err && err.name === 'AbortError') return;   // передумал
+            // Окно не открылось — значит, копируем.
           }
-        } catch (err) {
-          // Отказ в системном окне — это ответ, а не поломка.
         }
-      });
-    }
+        if (canCopy && await copy(link)) tell('Ссылка скопирована');
+      } finally {
+        busy = false;
+      }
+    });
   }
 
   // Dev-only: numbers on screen for walking the page on a real phone.
