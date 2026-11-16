@@ -1891,6 +1891,28 @@ export function init(root) {
     moved();
   }
 
+  // Где читатель на телефоне: сколько пройдено от верха блока (w) и от начала
+  // пути под прибитой картинкой (g), и какое это состояние истории.
+  //
+  // Шар один на две вещи: под титульной карточкой он уже стоит с кольцом
+  // вокруг четырех городов — это шаг 0. Раньше этот же шаг держался и дальше,
+  // от верха блока до начала пути: страница доезжала до блока, карточка
+  // уходила вверх, и на экране оставались одна Земля, метки и кольцо — то,
+  // что только что было под карточкой. Читать там нечего, а остановкой это
+  // место было в обе стороны: верх блока — последняя остановка открытия.
+  // Теперь блок приходит сразу с первым спутником: шаг 1 начинается у верха
+  // блока, а остальные делят путь между собой. Шаг 0 остается открытию.
+  const ПРИШЕЛ = 24;                   // = ДОПУСК в lib/page.js: секция на месте
+  const where = () => ({
+    w: -root.getBoundingClientRect().top,
+    g: -runEl.getBoundingClientRect().top
+  });
+  const stateAt = ({ w, g }, span) => {
+    if (w < -ПРИШЕЛ) return 0;
+    if (g < 0) return 1;
+    return Math.min(LAST, 1 + Math.floor(g / (span / LAST)));
+  };
+
   function follow(force) {
     // The picture is pinned to the top of the screen while the run goes by
     // under it — but only until the end of the run comes up to meet it, and
@@ -1899,11 +1921,9 @@ export function init(root) {
     // it takes it.
     const span = runEl.offsetHeight - colEl.offsetHeight;
     if (span <= 0) return;
-    const gone = -runEl.getBoundingClientRect().top;
-    const p = Math.min(1, Math.max(0, gone / span));
     // The last stretch belongs to the picture being taken, and so does
     // everything past the end of the travel.
-    const i = Math.min(LAST, Math.floor(p * (LAST + 1)));
+    const i = stateAt(where(), span);
     if (i === told && !force) return;
     told = i;
     step(i);
@@ -1940,13 +1960,18 @@ export function init(root) {
   // первый спутник — лежит за началом пути. Без этой остановки каркасу некуда
   // было вести, и такт уходил на полтора экрана: планета, а следом сразу два
   // спутника, через голову первого.
+  //
+  // До прихода блока следующее состояние — сам блок с первым спутником: туда
+  // ведет и последняя остановка открытия, ответ тот же. От верха блока до
+  // начала пути — первый спутник, и следующий за ним лежит за началом пути.
   const ahead = () => {
     if (!narrow.matches) return 0;
     const span = runEl.offsetHeight - colEl.offsetHeight;
     if (!(span > 0)) return 0;
-    const gone = -runEl.getBoundingClientRect().top;
-    const first = stepAhead(0, span, LAST + 1);
-    return gone < 0 ? Math.ceil(-gone) + first : stepAhead(gone, span, LAST + 1);
+    const { w, g } = where();
+    if (w < -1) return Math.ceil(-w);
+    if (g < 0) return Math.ceil(-g) + stepAhead(0, span, LAST);
+    return stepAhead(g, span, LAST);
   };
 
   // И назад — до предыдущего состояния, по тем же отрезкам. Без своего числа
@@ -1957,14 +1982,16 @@ export function init(root) {
     if (!narrow.matches) return 0;
     const span = runEl.offsetHeight - colEl.offsetHeight;
     if (!(span > 0)) return 0;
-    const walked = -runEl.getBoundingClientRect().top;
-    const stretch = span / (LAST + 1);
-    const i = Math.min(LAST, Math.floor(walked / stretch));
-    // С первого спутника назад — к приходу блока, а не к началу пути: шар на
-    // экране и там и там, и такт между ними не менял бы ничего. Туда дорогу
-    // знает открытие, его последняя остановка — верх блока.
+    const at = where();
+    const i = stateAt(at, span);
+    // С первого спутника назад — в открытие, к титульной карточке: дорогу
+    // туда знает оно само. Пустой остановки между ними больше нет — верх
+    // блока и есть первый спутник.
     if (i <= 1) return 0;
-    return Math.max(0, Math.round(walked - ((i - 1) * stretch + 1)));
+    // Со второго — к первому, то есть к верху блока.
+    if (i === 2) return Math.max(0, Math.round(at.w));
+    const stretch = span / LAST;
+    return Math.max(0, Math.round(at.g - ((i - 2) * stretch + 1)));
   };
 
   paint();
