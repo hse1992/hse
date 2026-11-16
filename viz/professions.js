@@ -4,24 +4,16 @@
 import { PROFESSIONS } from '../data/professions.js';
 import { nf, plural } from '../lib/format.js';
 import { mountLogo } from '../lib/logo.js';
-import { toTop } from '../lib/ui.js';
 
-// Узкий экран решается один раз на загрузку: подзаголовок собирается в meta,
-// до всякого init, а смена ширины через границу страницу перечитывает.
-const PHONE = window.matchMedia('(max-width: 860px)').matches;
-
-// Второй путь через раздел. Сорок четыре профессии — это семь экранов пальцем,
-// и читать их все не обязательно: несколько примеров, и можно дальше. Ссылка
-// ведет туда же и тем же ходом, что и полоска сверху (index.html, data-go):
-// полоска, фокус и шаг назад остаются согласованными. Только на телефоне —
-// на широком экране вся стена и так на одном экране. Стиль инлайном: каркас
-// рисует карточку раньше, чем приедут стили блока.
-const SKIP = PHONE
-  ? '<span style="display: block; margin-top: 0.9em">'
-    + '<a class="prof-skip" href="#space" data-go="space" style="color: var(--link);'
-    + ' font-weight: 600; text-decoration: underline; text-underline-offset: 3px;'
-    + ' padding: 6px 0">К спутникам ↓</a></span>'
-  : '';
+// На телефоне стена начинается не со всех сорока четырех, а с пяти: сорок
+// четыре профессии — это семь экранов пальцем, и читать их подряд никто не
+// обязан. Пять подобраны под заголовок раздела: сначала та, которую ждешь от
+// Высшей школы экономики, а следом технологии, естественные науки, сцена и
+// город. Остальные раскрываются кнопкой под ними, в том же разделе.
+//
+// Ключ — `icon`: он у каждой профессии свой и не зависит ни от написания
+// названия, ни от порядка в таблице.
+const PICKS = ['economist', 'programmer', 'biologist', 'actor', 'urbanist'];
 
 // Every specialization the table lists under a profession. The lead-in of the
 // section speaks of them, so the figure is counted rather than written down.
@@ -175,7 +167,7 @@ export const meta = {
   // Что за стена под карточкой — приходит тем же тактом, которым логотип
   // раскрывает кольцо и впускает в него «не только»: одна мысль, одно
   // движение. Отдельного такта эта строка не просит — текст без картинки.
-  subtitle: `<span class="prof-lead intro-stage" data-stage="1" style="display: block">В Вышке можно стать кем угодно. ${mark(`${nf(KINDS_TOTAL)} ${plural(KINDS_TOTAL, 'специализация', 'специализации', 'специализаций')}`)}, где раскроется любой талант. Укрупненно из них можно выделить ${mark(`${PROFESSIONS.length} профессии`)}${SKIP}</span>`,
+  subtitle: `<span class="prof-lead intro-stage" data-stage="1" style="display: block">В Вышке можно стать кем угодно. ${mark(`${nf(KINDS_TOTAL)} ${plural(KINDS_TOTAL, 'специализация', 'специализации', 'специализаций')}`)}, где раскроется любой талант. Укрупненно из них можно выделить ${mark(`${PROFESSIONS.length} профессии`)}</span>`,
   intro: true,
   // Two beats before the block: the logo as it is, and the logo opening up
   // with the line about the wall under it.
@@ -529,21 +521,19 @@ export function init(root) {
 
         .prof-body .col-right::after { display: none; }
 
-        /* Стена листается сама, а не отщелкивается тактами. Сорок четыре
-           карточки — не кадры истории: это список, и палец должен вести по
-           нему, а не просить каркас сдвинуть страницу на экран. Поэтому у
-           карточки своя высота в экран, а у стены внутри нее — своя
-           прокрутка; класс page-scrolls говорит каркасу не отнимать ее.
-           Прокрутка остановится на своем краю и дальше страницу не потянет
-           (overscroll-behavior), так что ход к следующему разделу
-           по-прежнему просит отдельного движения. */
+        /* Стена на телефоне — часть страницы, а не коробка со своей
+           прокруткой. Свернутая, она — пять карточек и кнопка, и карточка
+           раздела ровно такой высоты: после кнопки нет ни пустого экрана, ни
+           невидимого хвоста, который пришлось бы пролистывать, и обычный ход
+           ведет сразу к следующей главе. Раскрытая, она растет в потоке
+           страницы, и дочитывается тем же ходом, что и все остальное. */
         .prof-body .canvas-card {
-          height: calc(100dvh - var(--hint-room) - 16px);
+          height: auto;
           min-height: 0;
         }
 
         .prof-body .canvas-wrap {
-          flex: 1;
+          flex: none;
           min-height: 0;
           height: auto;
         }
@@ -551,9 +541,85 @@ export function init(root) {
         .prof-grid {
           position: static;
           column-count: auto;
-          height: 100%;
-          overflow-y: auto;
-          overscroll-behavior: contain;
+          height: auto;
+          overflow: visible;
+        }
+
+        /* Подборка из пяти — один компактный список, без подписи
+           направления: над одиночными карточками она была бы заголовком к
+           каждой. Направления есть у остальных тридцати девяти. */
+        .prof-picks { margin-bottom: 6px; }
+
+        /* Кнопка раскрытия: вся строка нажимается — текст, пустое место и
+           галка у правого края. Подпись может переноситься, галка стоит
+           отдельно и на текст не наезжает. */
+        .prof-more-btn {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          width: 100%;
+          min-height: 48px;
+          margin: 0 0 10px;
+          padding: 12px 14px;
+          border: 1px solid var(--btn-border);
+          border-radius: 12px;
+          background: var(--card);
+          color: var(--link);
+          font: inherit;
+          font-size: 0.9375rem;
+          font-weight: 600;
+          line-height: 1.3;
+          text-align: left;
+          cursor: pointer;
+          transition: background 160ms ease;
+        }
+
+        .prof-more-btn:active { background: var(--bg); }
+
+        .prof-more-btn:focus-visible {
+          outline: 2px solid var(--link);
+          outline-offset: 2px;
+        }
+
+        .prof-more-chevron {
+          flex: none;
+          width: 9px;
+          height: 9px;
+          margin: -4px 4px 0 auto;
+          border: solid currentColor;
+          border-width: 0 1.75px 1.75px 0;
+          transform: rotate(45deg);
+          transition: transform 260ms ease;
+        }
+
+        .prof-more-btn[aria-expanded="true"] .prof-more-chevron {
+          margin-top: 4px;
+          transform: rotate(-135deg);
+        }
+
+        /* Остальные раскрываются под кнопкой одним коротким движением, без
+           карточек, приходящих по очереди. Свернутые — hidden: их нет ни в
+           обходе табом, ни у экранного диктора (см. setMore). */
+        .prof-more {
+          display: grid;
+          grid-template-rows: 0fr;
+          opacity: 0;
+          transition: grid-template-rows 260ms ease, opacity 260ms ease;
+        }
+
+        .prof-more.open {
+          grid-template-rows: 1fr;
+          opacity: 1;
+        }
+
+        .prof-more > div {
+          min-height: 0;
+          overflow: hidden;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .prof-more,
+          .prof-more-chevron { transition: none; }
         }
 
         .prof-group {
@@ -639,6 +705,10 @@ export function init(root) {
         .prof-item.on .prof-item-more {
           transform: translateY(3px) rotate(-135deg);
         }
+      }
+
+      @media (max-width: 860px) and (hover: hover) {
+        .prof-more-btn:hover { background: var(--bg); }
       }
     </style>
 
@@ -735,9 +805,6 @@ export function init(root) {
   const kindsTitleEl = $('kindsTitle');
   const noteEl = $('note');
   const grid = $('grid');
-  // Каркас на телефоне отнимает прокрутку у всей страницы, кроме того, что
-  // помечено этим классом. Стена — как раз такое место: ее листают пальцем.
-  if (window.matchMedia('(max-width: 860px)').matches) grid.classList.add('page-scrolls');
 
   // ---------- The card ----------
   // The logo the section has just opened, standing still with «не только» in
@@ -1011,58 +1078,146 @@ export function init(root) {
     show(p);
   }
 
-  AREAS.forEach(({ area, items }) => {
+  function makeItem(p) {
+    const item = document.createElement('button');
+    item.type = 'button';
+    item.className = 'prof-item';
+    item.innerHTML = `
+      <img class="prof-item-art" src="assets/professions/${p.icon}.svg" alt="" aria-hidden="true">
+      <span class="prof-item-text">
+        <span class="prof-item-name"></span>
+        <span class="prof-item-kinds"><span></span></span>
+      </span>
+      <span class="prof-item-more" aria-hidden="true"></span>
+    `;
+    item.querySelector('.prof-item-name').textContent = p.name;
+    item.querySelector('.prof-item-kinds > span').textContent = kindsOf(p).join(', ');
+
+    if (stacked.matches) {
+      // На телефоне карточки с подробностями нет, и плитка открывается
+      // сама. Открыта всегда одна: сорок четыре раскрытых профессии — это
+      // ровно тот список, от которого тап и спасает. Повторный тап
+      // закрывает — иначе однажды открытое уже никак не убрать.
+      item.setAttribute('aria-expanded', 'false');
+      item.addEventListener('click', () => {
+        const open = current !== item;
+        if (current) {
+          current.classList.remove('on');
+          current.setAttribute('aria-expanded', 'false');
+        }
+        current = open ? item : null;
+        item.classList.toggle('on', open);
+        item.setAttribute('aria-expanded', String(open));
+      });
+    } else {
+      // The card follows the pointer and the keyboard alike, and keeps the
+      // last profession when the pointer leaves the wall: it is there to be
+      // read, not to blink.
+      item.addEventListener('pointerenter', () => pick(item, p));
+      item.addEventListener('focus', () => pick(item, p));
+      item.addEventListener('click', () => pick(item, p));
+    }
+    return item;
+  }
+
+  // Группа направления; без названия — для подборки на телефоне.
+  function makeGroup(area, items, into) {
+    if (!items.length) return;           // пустую группу не выводим вовсе
     const group = document.createElement('div');
     group.className = 'prof-group';
-    group.innerHTML = '<div class="prof-group-title"></div><div class="prof-group-items"></div>';
-    group.querySelector('.prof-group-title').textContent = area;
-    const box = group.querySelector('.prof-group-items');
+    const box = document.createElement('div');
+    box.className = 'prof-group-items';
+    if (area) {
+      const title = document.createElement('div');
+      title.className = 'prof-group-title';
+      title.textContent = area;
+      group.appendChild(title);
+    } else {
+      group.classList.add('prof-picks');
+    }
+    group.appendChild(box);
+    items.forEach((p) => box.appendChild(makeItem(p)));
+    into.appendChild(group);
+  }
 
-    items.forEach((p) => {
-      const item = document.createElement('button');
-      item.type = 'button';
-      item.className = 'prof-item';
-      item.innerHTML = `
-        <img class="prof-item-art" src="assets/professions/${p.icon}.svg" alt="" aria-hidden="true">
-        <span class="prof-item-text">
-          <span class="prof-item-name"></span>
-          <span class="prof-item-kinds"><span></span></span>
-        </span>
-        <span class="prof-item-more" aria-hidden="true"></span>
-      `;
-      item.querySelector('.prof-item-name').textContent = p.name;
-      item.querySelector('.prof-item-kinds > span').textContent = kindsOf(p).join(', ');
+  // На широком экране — вся стена, как была. На телефоне — пять из подборки,
+  // кнопка и остальные под ней, в своих направлениях и в своем порядке.
+  let more = false;
+  let moreBtn = null;
+  let moreBox = null;
+  let moreLabel = null;
+  let moreCount = 0;
+  let settle = 0;
 
-      if (stacked.matches) {
-        // На телефоне карточки с подробностями нет, и плитка открывается
-        // сама. Открыта всегда одна: сорок четыре раскрытых профессии — это
-        // ровно тот список, от которого тап и спасает. Повторный тап
-        // закрывает — иначе однажды открытое уже никак не убрать.
-        item.setAttribute('aria-expanded', 'false');
-        item.addEventListener('click', () => {
-          const open = current !== item;
-          if (current) {
-            current.classList.remove('on');
-            current.setAttribute('aria-expanded', 'false');
-          }
-          current = open ? item : null;
-          item.classList.toggle('on', open);
-          item.setAttribute('aria-expanded', String(open));
-        });
-      } else {
-        // The card follows the pointer and the keyboard alike, and keeps the
-        // last profession when the pointer leaves the wall: it is there to be
-        // read, not to blink.
-        item.addEventListener('pointerenter', () => pick(item, p));
-        item.addEventListener('focus', () => pick(item, p));
-        item.addEventListener('click', () => pick(item, p));
-      }
+  const moreText = (open) => `${open ? 'Скрыть' : 'Посмотреть'} остальные `
+    + `${nf(moreCount)} ${plural(moreCount, 'профессию', 'профессии', 'профессий')}`;
 
-      box.appendChild(item);
-    });
+  // Свернуть или раскрыть. Раскрытие растет под кнопкой, так что сама кнопка
+  // и все над ней остаются на месте, и прокрутку двигать не нужно. Свернутое
+  // прячется целиком (hidden) — после того как доиграет движение: без этого
+  // свернутые карточки оставались бы в обходе табом и у экранного диктора.
+  function setMore(open, instant) {
+    if (!moreBox) return;
+    more = open;
+    moreBtn.setAttribute('aria-expanded', String(open));
+    moreLabel.textContent = moreText(open);
+    clearTimeout(settle);
+    const still = instant || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (open) {
+      moreBox.hidden = false;
+      if (!still) void moreBox.offsetHeight;   // от нуля, а не сразу открытым
+      moreBox.classList.add('open');
+      return;
+    }
+    if (current && moreBox.contains(current)) {
+      current.classList.remove('on');
+      current.setAttribute('aria-expanded', 'false');
+      current = null;
+    }
+    moreBox.classList.remove('open');
+    if (still) { moreBox.hidden = true; return; }
+    settle = setTimeout(() => { if (!more) moreBox.hidden = true; }, 300);
+  }
 
-    grid.appendChild(group);
-  });
+  if (stacked.matches) {
+    const byIcon = new Map(PROFESSIONS.map((p) => [p.icon, p]));
+    const picks = PICKS.map((icon) => byIcon.get(icon)).filter(Boolean);
+    const chosen = new Set(picks.map((p) => p.icon));
+    makeGroup('', picks, grid);
+
+    const rest = AREAS.map(({ area, items }) => ({
+      area,
+      items: items.filter((p) => !chosen.has(p.icon))
+    }));
+    moreCount = rest.reduce((n, g) => n + g.items.length, 0);
+
+    if (moreCount) {
+      moreBtn = document.createElement('button');
+      moreBtn.type = 'button';
+      moreBtn.className = 'prof-more-btn';
+      moreBtn.setAttribute('aria-controls', 'prof-more-list');
+      moreLabel = document.createElement('span');
+      moreLabel.className = 'prof-more-label';
+      const chevron = document.createElement('span');
+      chevron.className = 'prof-more-chevron';
+      chevron.setAttribute('aria-hidden', 'true');
+      moreBtn.append(moreLabel, chevron);
+      grid.appendChild(moreBtn);
+
+      moreBox = document.createElement('div');
+      moreBox.className = 'prof-more';
+      moreBox.id = 'prof-more-list';
+      const inner = document.createElement('div');
+      rest.forEach(({ area, items }) => makeGroup(area, items, inner));
+      moreBox.appendChild(inner);
+      grid.appendChild(moreBox);
+
+      moreBtn.addEventListener('click', () => setMore(!more));
+      setMore(false, true);
+    }
+  } else {
+    AREAS.forEach(({ area, items }) => makeGroup(area, items, grid));
+  }
 
   show(null);
   // Laying the wall out is the expensive part of this module, and nobody is
@@ -1071,22 +1226,82 @@ export function init(root) {
   // that brings it in, and the one that carries the page to it, stay smooth.
   idle(measure, { timeout: 500 });
 
-  // На телефоне стену листают пальцем, и то, где она остановилась, — такое же
-  // положение картинки, как поворот планеты или место поезда на кольце.
-  // Поэтому читатель, вернувшийся в раздел, застает стену с первой строки, а
-  // не там, где бросил ее в прошлый раз. Раскрытая плитка закрывается вместе
-  // с этим: открытой осталась бы та, до которой отсюда уже не видно.
+  // Раскрыт список или нет — выбор читателя, а не положение картинки: ушел
+  // в следующую главу и вернулся — застает его таким, каким оставил. Этот
+  // выбор переживает и перечитывание страницы при смене раскладки
+  // (remember/recall, см. keep() в lib/stepper.js).
   //
-  // Возвращает стену toTop(), а не простое обнуление: на айфоне мах оставляет
-  // после себя инерцию, и ноль, записанный ей поперек, она перетирает обратно.
+  // А раскрытая плитка закрывается: открытой осталась бы та, до которой
+  // отсюда может быть уже не видно.
+  // Ход по раскрытому списку. Своих тактов у списка нет, и без ответа каркас
+  // вел бы к ближайшей границе — началу следующей главы, а до нее несколько
+  // экранов, и ход брал свой предел в полтора экрана: половина карточек
+  // проносилась, не показавшись. Поэтому список ведется экранами, и экран
+  // кончается на краю карточки: следующий начинается с первой, которую
+  // прошлый не показал целиком, — ничего не пропадает и не режется пополам.
+  // Свернутый список в экран умещается, и отвечать ему нечего.
+  const TOP_GAP = 16;                    // под полосой прогресса
+  const SCREEN = 0.82;                   // не дальше этой доли экрана за такт
+  const bodyEl = root;
+  const anchors = () => [...grid.querySelectorAll('.prof-item, .prof-more-btn, .prof-group')]
+    .filter((el) => !el.closest('[hidden]'))
+    .map((el) => el.getBoundingClientRect());
+
+  const ahead = () => {
+    if (!stacked.matches) return 0;
+    const body = bodyEl.getBoundingClientRect();
+    const room = window.innerHeight - (parseFloat(getComputedStyle(document.documentElement)
+      .getPropertyValue('--hint-room')) || 12);
+    if (body.top > 24 || body.bottom <= room + 2) return 0;
+    const most = Math.round(window.innerHeight * SCREEN);
+    // Первая карточка, которую экран показывает не целиком, встает наверх.
+    const cut = anchors()
+      .filter((r) => r.top > TOP_GAP + 2 && r.bottom > room + 1)
+      .sort((a, b) => a.top - b.top)[0];
+    const toBottom = Math.ceil(body.bottom - room);
+    // Хвост в пару десятков пикселей — это поле карточки, а не кадр: такт на
+    // него ничего бы не показал. Его забирает такт к следующей главе, а
+    // если он остается за этим тактом — этот такт и доезжает до низа.
+    const TAIL = 48;
+    if (toBottom <= TAIL) return 0;
+    let step = cut ? Math.floor(cut.top - TOP_GAP) : most;
+    if (step < 40) step = most;          // карточка выше экрана — просто экран
+    step = Math.min(step, most);
+    // Остаток до низа меньше четверти экрана — этот такт доезжает до низа
+    // сам: следующий такт иначе сдвинул бы страницу на полоску.
+    if (toBottom - step < Math.max(TAIL, window.innerHeight * 0.25)) step = toBottom;
+    return Math.max(1, Math.min(step, toBottom));
+  };
+
+  const behind = () => {
+    if (!stacked.matches) return 0;
+    const body = bodyEl.getBoundingClientRect();
+    if (body.top > -2) return 0;
+    const most = Math.round(window.innerHeight * SCREEN);
+    const room = window.innerHeight - (parseFloat(getComputedStyle(document.documentElement)
+      .getPropertyValue('--hint-room')) || 12);
+    // Назад — так, чтобы карточка, стоящая сейчас наверху, ушла вниз экрана,
+    // а над ней встала та, с которой начинался прошлый экран.
+    const reach = room - TOP_GAP;
+    const up = anchors()
+      .filter((r) => r.top < TOP_GAP - 2 && r.top >= TOP_GAP - reach)
+      .sort((a, b) => a.top - b.top)[0];
+    let step = up ? Math.ceil(TOP_GAP - up.top) : most;
+    if (step < 40) step = most;
+    return Math.max(1, Math.min(step, most, Math.ceil(-body.top)));
+  };
+
   return {
+    ahead,
+    behind,
     open() {
-      toTop(grid);
       if (current && stacked.matches) {
         current.classList.remove('on');
         current.setAttribute('aria-expanded', 'false');
         current = null;
       }
-    }
+    },
+    remember: () => (moreBox ? { more } : null),
+    recall: (data) => { if (data && moreBox) setMore(!!data.more, true); }
   };
 }
