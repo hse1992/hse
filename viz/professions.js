@@ -7,13 +7,12 @@ import { mountLogo } from '../lib/logo.js';
 
 // На телефоне стена начинается не со всех сорока четырех, а с пяти: сорок
 // четыре профессии — это семь экранов пальцем, и читать их подряд никто не
-// обязан. Пять подобраны под заголовок раздела: сначала та, которую ждешь от
-// Высшей школы экономики, а следом технологии, естественные науки, сцена и
-// город. Остальные раскрываются кнопкой под ними, в том же разделе.
+// обязан. Пять подобраны под заголовок раздела — «не только экономики»:
+// математика, технологии, естественные науки, сцена и город. Остальные раскрываются кнопкой под ними, в том же разделе.
 //
 // Ключ — `icon`: он у каждой профессии свой и не зависит ни от написания
 // названия, ни от порядка в таблице.
-const PICKS = ['economist', 'programmer', 'biologist', 'actor', 'urbanist'];
+const PICKS = ['mathematician', 'programmer', 'biologist', 'actor', 'urbanist'];
 
 // Every specialization the table lists under a profession. The lead-in of the
 // section speaks of them, so the figure is counted rather than written down.
@@ -47,6 +46,10 @@ const insideOf = (p) => {
 // arrive.
 const mark = (text) =>
   `<span class="prof-mark" style="font-weight: 900; color: var(--text)">${text}</span>`;
+
+// Строка под заголовком раздела. На телефоне она же встает заголовком над
+// списком, когда карточка садится (см. leadCopy в init).
+const LEAD = `В Вышке можно стать кем угодно. ${mark(`${nf(KINDS_TOTAL)} ${plural(KINDS_TOTAL, 'специализация', 'специализации', 'специализаций')}`)}, где раскроется любой талант. Укрупненно из них можно выделить ${mark(`${PROFESSIONS.length} профессии`)}`;
 
 // The styles of the card itself travel with the heading, not with the block:
 // the shell draws the heading and the line under it several beats before the
@@ -167,7 +170,7 @@ export const meta = {
   // Что за стена под карточкой — приходит тем же тактом, которым логотип
   // раскрывает кольцо и впускает в него «не только»: одна мысль, одно
   // движение. Отдельного такта эта строка не просит — текст без картинки.
-  subtitle: `<span class="prof-lead intro-stage" data-stage="1" style="display: block">В Вышке можно стать кем угодно. ${mark(`${nf(KINDS_TOTAL)} ${plural(KINDS_TOTAL, 'специализация', 'специализации', 'специализаций')}`)}, где раскроется любой талант. Укрупненно из них можно выделить ${mark(`${PROFESSIONS.length} профессии`)}</span>`,
+  subtitle: `<span class="prof-lead intro-stage" data-stage="1" style="display: block">${LEAD}</span>`,
   intro: true,
   // Two beats before the block: the logo as it is, and the logo opening up
   // with the line about the wall under it.
@@ -544,6 +547,25 @@ export function init(root) {
           height: auto;
           overflow: visible;
         }
+
+        /* Строка с карточки — заголовком над списком. На телефоне подзаголовок
+           складывается вместе с карточкой (layout.css, --intro-body), и экран
+           со списком начинался без слов: пять плиток и кнопка. Здесь та же
+           строка встает наверху экрана, когда приходит блок. Для диктора она
+           скрыта: подзаголовок карточки остается в разметке и читается там. */
+        .prof-lead-copy {
+          margin: 14px 4px 14px;
+          font-size: 1.0625rem;
+          line-height: 1.4;
+          color: var(--text-secondary);
+          text-wrap: pretty;
+        }
+
+        /* Космос под списком не выглядывает: блок на телефоне не ниже экрана
+           (--win — высота окна, lib/page.js). Ход останавливается на верху
+           блока, и до низа окна лежит этот раздел, а не следующий; вниз
+           ведет следующий мах. 32px — нижнее поле секции. */
+        .prof-body { min-height: calc(var(--win, 100svh) - 32px); }
 
         /* Подборка из пяти — один компактный список, без подписи
            направления: над одиночными карточками она была бы заголовком к
@@ -1180,6 +1202,13 @@ export function init(root) {
   }
 
   if (stacked.matches) {
+    const leadCopy = document.createElement('p');
+    leadCopy.className = 'prof-lead-copy';
+    leadCopy.setAttribute('aria-hidden', 'true');
+    leadCopy.innerHTML = LEAD;
+    const cardEl = root.querySelector('.canvas-card');
+    cardEl.parentElement.insertBefore(leadCopy, cardEl);
+
     const byIcon = new Map(PROFESSIONS.map((p) => [p.icon, p]));
     const picks = PICKS.map((icon) => byIcon.get(icon)).filter(Boolean);
     const chosen = new Set(picks.map((p) => p.icon));
@@ -1269,7 +1298,8 @@ export function init(root) {
     step = Math.min(step, most);
     // Остаток до низа меньше четверти экрана — этот такт доезжает до низа
     // сам: следующий такт иначе сдвинул бы страницу на полоску.
-    if (toBottom - step < Math.max(TAIL, window.innerHeight * 0.25)) step = toBottom;
+    // Но не дальше предела такта: иначе карточки между ними проскочили бы.
+    if (toBottom - step < Math.max(TAIL, window.innerHeight * 0.25) && toBottom <= most) step = toBottom;
     return Math.max(1, Math.min(step, toBottom));
   };
 
