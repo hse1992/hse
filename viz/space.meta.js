@@ -56,7 +56,10 @@ export const meta = {
   intro: true,
   // The empty Earth arrives with the block, then one satellite a beat, a
   // beat for the one still flying, and the last one for the picture it takes.
-  steps: 6,
+  // На широком экране снимок — свой такт: спутник доворачивается к Вышке и
+  // ждет, а снимает следующее движение колеса или кнопка «Снять Вышку со
+  // спутника». На телефоне снимает только кнопка, и такта для снимка там нет.
+  steps: window.matchMedia('(max-width: 860px)').matches ? 6 : 7,
   opensOnStep: true,
   // The block ends on a photograph about to be taken, and the next one comes
   // in the flash of it — the shell draws the flash, see «Вспышка на стыке».

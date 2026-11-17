@@ -78,8 +78,8 @@ const STORY = [
     sub: 'Третий на орбите до сих пор'
   },
   {
-    // Спутник доворачивается к Вышке и на этом же такте снимает — строка над
-    // картинкой одна на оба движения.
+    // Спутник доворачивается к Вышке и снимает — строка над картинкой одна на
+    // оба движения (на широком экране это два такта, см. HOLD и SHOT).
     line: SEEN_FROM_ORBIT,
     sub: ''
   }
@@ -90,11 +90,14 @@ const STORY = [
 // down to the Earth — the picture it takes is the flash the next block
 // arrives in (meta.flash).
 const BURN = SATS.length + 1;
-// Снимок делается тем же тактом, что и поворот: порознь эти два такта несли
-// одну и ту же строку над картинкой, и второй из них читался как остановка
-// без нового кадра. Спутник доворачивается, и за ним щелкает затвор.
+// Спутник доворачивается к Вышке на HOLD, а снимает на SHOT. На телефоне это
+// один шаг: снимает там кнопка, и шаг только отдает ее. На широком экране —
+// два такта: доворот останавливается на кадре с кнопкой «Снять Вышку со
+// спутника», и снимок — следующий такт, который просят колесом или этой
+// кнопкой. Он же приносит финал во вспышке (meta.flash): каркас склеивает
+// последний такт блока с приходом следующего.
 const HOLD = BURN + 1;
-const SHOT = HOLD;
+const SHOT = HOLD + (window.matchMedia('(max-width: 860px)').matches ? 0 : 1);
 
 // Метаданные раздела живут в space.meta.js — каркасу они нужны при старте,
 // а этот файл грузится по требованию.
@@ -325,9 +328,44 @@ export function init(root) {
 
       .space-run { display: none; }
 
-      /* Снимок делает читатель — но только на телефоне: на широком экране
-         спутник снимает сам, тактом, и вспышка приходит за ним. */
-      .space-shot { display: none; }
+      /* Кнопка стоит на самой картинке, у нижнего края: снимает спутник,
+         и просить об этом логично там, где он летит, а не строкой ниже.
+         Выше подсказки «Листай» — та стоит в своей полосе у самого низа
+         (--hint-room), и кнопка, прижатая к краю, легла бы на нее. На
+         широком экране снимает и колесо: кнопка — второй путь к тому же
+         такту. */
+      .space-shot {
+        display: block;
+        position: absolute;
+        left: 50%;
+        bottom: calc(var(--hint-room, 12px) + 20px);
+        transform: translateX(-50%);
+        font-size: 0.9375rem;
+        font-weight: 600;
+        padding: 12px 26px;
+        color: var(--card);
+        background: var(--hse-blue);
+        border-color: var(--hse-blue);
+        /* В одну строку. Кнопка стоит от середины (left: 50%), и ширины ей
+           по умолчанию достается половина карточки — «Снять Вышку со
+           спутника» ломалась на две строки. Поля от краев экрана держит
+           max-width. */
+        white-space: nowrap;
+        max-width: calc(100% - 32px);
+      }
+
+      .space-shot[hidden] { display: none; }
+
+      /* Под курсором — как «Начать» на обложке: синий темнеет, буквы остаются
+         белыми. Общее наведение у кнопок красит буквы в цвет текста, и на
+         синей кнопке они пропадали. */
+      @media (hover: hover) {
+        .btn.space-shot:hover {
+          background: var(--hse-blue-deep);
+          border-color: var(--hse-blue-deep);
+          color: var(--card);
+        }
+      }
 
       @media (max-width: 860px) {
         /* Сцена держит весь экран: колонка прибита к его верху, и в ней
@@ -366,32 +404,6 @@ export function init(root) {
           height: auto;
           min-height: 0;
         }
-
-        /* Кнопка стоит на самой картинке, у нижнего края: снимает спутник,
-           и просить об этом логично там, где он летит, а не строкой ниже.
-           Выше подсказки «Листай» — та стоит в своей полосе у самого низа
-           (--hint-room), и кнопка, прижатая к краю, легла бы на нее. */
-        .space-shot {
-          display: block;
-          position: absolute;
-          left: 50%;
-          bottom: calc(var(--hint-room, 12px) + 20px);
-          transform: translateX(-50%);
-          font-size: 0.9375rem;
-          font-weight: 600;
-          padding: 12px 26px;
-          color: var(--card);
-          background: var(--hse-blue);
-          border-color: var(--hse-blue);
-          /* В одну строку. Кнопка стоит от середины (left: 50%), и ширины ей
-             по умолчанию достается половина карточки — «Снять Вышку со
-             спутника» ломалась на две строки. Поля от краев экрана держит
-             max-width. */
-          white-space: nowrap;
-          max-width: calc(100% - 32px);
-        }
-
-        .space-shot[hidden] { display: none; }
 
         .space-note-line { font-size: 1.125rem; }
         .space-note-sub { font-size: 0.9375rem; }
@@ -491,6 +503,7 @@ export function init(root) {
   // На телефоне снимок делает читатель — кнопкой на последнем такте.
   const shotEl = $('shot');
   let snapped = false;
+  let reveal = 0;                   // кнопка снимка на широком экране — после доворота
   let glint = 0;                    // блик на линзе, за которым придет вспышка
   // What the picture holds, for whoever is read to rather than shown: the
   // line under it tells the story beat by beat, so this says only the things
@@ -1746,8 +1759,10 @@ export function init(root) {
   let shown = -1;
 
   function say(i) {
-    noteEl.innerHTML = STORY[i].line;
-    subEl.textContent = STORY[i].sub;
+    // Строка над снимком та же, что над доворотом: это одна фраза на оба.
+    const at = STORY[Math.min(i, STORY.length - 1)];
+    noteEl.innerHTML = at.line;
+    subEl.textContent = at.sub;
     // Строка стоит в самой сцене, и кадр для шара считается по ней: сколько
     // в ней строк — столько сверху и занято.
     measure();
@@ -1759,6 +1774,14 @@ export function init(root) {
   // it, and the Earth has been turning all that while — set back, it meets them
   // with the side of it the university is on.
   function open() {
+    // Шаг истории, на котором блок стоял, когда его открыли. Спутники, камера
+    // и снимок ниже возвращаются к началу — а на широком экране открыть блок
+    // может и прыжок по полоске, который ставит главе ее итоговый шаг раньше,
+    // чем объявляет ее открытой. Шага за таким открытием никто не играет, и
+    // глава вставала пустой: подпись про снимок, а спутника над Вышкой нет.
+    // Поэтому шаг возвращается тут же, мигом, — тот же самый: открыть блок
+    // дважды значит ровно то же, что открыть один раз.
+    const was = shown;
     spin = 45;
     steer = null;
     // A flick of the hand carries the globe on and dies out in half a second —
@@ -1797,6 +1820,7 @@ export function init(root) {
     skyAt = performance.now();
     paintSky();
     if (narrow.matches) follow(true);
+    else if (was >= 0) step(was);
     paint();
   }
 
@@ -1860,7 +1884,9 @@ export function init(root) {
       // На телефоне снимок делает читатель: такт приводит спутник к Вышке и
       // отдает кнопку, а снимает она (см. shoot ниже).
       const shoots = aims && i >= SHOT && (!narrow.matches || snapped);
-      if (shoots && sat.shot === null) sat.shot = instant ? clock - 600 : clock + AIM_MS;
+      // Затвор щелкает, когда доворот кончился: на телефоне он с этим же шагом
+      // и начался, на широком экране был тактом раньше.
+      if (shoots && sat.shot === null) sat.shot = instant ? clock - 600 : Math.max(clock, sat.aim.t0 + AIM_MS);
       if (!shoots) sat.shot = null;
     });
 
@@ -1881,7 +1907,14 @@ export function init(root) {
     // Кнопка приходит с последним тактом и уходит со снимком. Назад, к
     // прошлым тактам, уходит и сам снимок — значит, просить о нем можно снова.
     if (i < SHOT) { snapped = false; clearTimeout(glint); glint = 0; }
-    if (shotEl) shotEl.hidden = !narrow.matches || i < SHOT || snapped;
+    // На широком экране кнопка приходит, когда спутник довернулся: пока
+    // играет такт, страница движений не принимает, и нажатие посреди
+    // доворота пропало бы.
+    clearTimeout(reveal);
+    if (shotEl) shotEl.hidden = i < HOLD || snapped || (!narrow.matches && (i >= SHOT || !instant));
+    if (shotEl && !narrow.matches && i === HOLD && !instant && !snapped) {
+      reveal = setTimeout(() => { if (shown === HOLD) shotEl.hidden = false; }, AIM_MS);
+    }
 
     shown = i;
     say(i);
@@ -1890,11 +1923,11 @@ export function init(root) {
   }
 
   // ---------- Снимок рукой ----------
-  // На широком экране спутник снимает сам: последний такт разворачивает его
-  // объективом к Земле, и вспышка этого снимка — занавес, в котором приходит
-  // финал. На телефоне тактов нет, историю ведет прокрутка — а прокрутка не
-  // умеет остановиться на кадре и не умеет закрыть занавес. Поэтому снимает
-  // читатель: такт приводит спутник к Вышке и отдает кнопку.
+  // Такт приводит спутник к Вышке и отдает кнопку. На широком экране снимок —
+  // следующий такт: его просит и колесо, и кнопка, а вспышка этого снимка —
+  // занавес, в котором приходит финал. На телефоне тактов нет, историю ведет
+  // прокрутка — а прокрутка не умеет остановиться на кадре и не умеет закрыть
+  // занавес. Поэтому там снимает только кнопка.
   //
   // Дальше все то же самое, только по очереди: круглая вспышка на линзе —
   // та же, что и на широком экране, — а за ней белый экран и финал,
@@ -1915,6 +1948,12 @@ export function init(root) {
     return box.top <= mid && box.bottom >= mid;
   };
   if (shotEl) shotEl.addEventListener('click', () => {
+    // На широком экране снимок — следующий такт, тот же, что от колеса:
+    // блик на линзе, вспышка и финал в ней играют каркас и step().
+    if (!narrow.matches) {
+      root.dispatchEvent(new CustomEvent('story:next', { bubbles: true }));
+      return;
+    }
     if (snapped) return;
     snapped = true;
     shotEl.hidden = true;
@@ -2156,8 +2195,9 @@ export function init(root) {
       // 2200 while that line counted its laps up — with the counting gone,
       // holding the wheel that long would be holding it on a still picture.
       if (i === BURN) return 1400;
-      // Доворот и за ним снимок — один такт, и держать колесо нужно оба.
-      if (i === HOLD) return AIM_MS + 600;
+      // Доворот — свой такт, снимок — свой: блик на линзе, и за ним вспышка.
+      if (i === HOLD) return AIM_MS;
+      if (i === SHOT) return 600;
       return ARRIVE_MS;
     }
   };
