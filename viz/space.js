@@ -869,90 +869,253 @@ export function init(root) {
   // — they are joined along the edge of the disc instead of across it.
   const wrap180 = (d) => d - Math.round(d / 360) * 360;
 
-  function crossing(a, b) {
+  // What of a ring does not change as the Earth turns: the latitude of every
+  // point, and with it the half of the sums below that depends on latitude
+  // alone. Only the longitude moves, so a frame pays one cosine per point to
+  // tell which side it is on and two more to put it on the screen — instead
+  // of three for the side, asked twice over, and four for the place. The
+  // products are the same ones at() and facingUs() form, in the same order,
+  // so every point comes out to the same last bit.
+  function prepare(n, phiOf) {
+    const P = {
+      n,
+      phi: new Float64Array(n),
+      psi: new Float64Array(n),     // this frame's longitudes, as seen from here
+      zs: new Float64Array(n),      // sinL * sin φ
+      zc: new Float64Array(n),      // cosL * cos φ
+      cf: new Float64Array(n),      // cos φ
+      A: new Float64Array(n),       // cosL * sin φ
+      B: new Float64Array(n),       // sinL * cos φ
+      edges: new Array(n).fill(null)
+    };
+    for (let i = 0; i < n; i++) {
+      const phi = phiOf(i);
+      const f = phi * RAD;
+      const cf = Math.cos(f), sf = Math.sin(f);
+      P.phi[i] = phi;
+      P.zs[i] = sinL * sf;
+      P.zc[i] = cosL * cf;
+      P.cf[i] = cf;
+      P.A[i] = cosL * sf;
+      P.B[i] = sinL * cf;
+    }
+    return P;
+  }
+
+  // A ring of the coast. Its longitudes are unwrapped from the first one on,
+  // so that a ring crossing the date line stays in one piece; the steps
+  // between them are the same whichever way the Earth has turned.
+  const shoreOf = (ring) => {
+    const n = ring.length / 2;
+    const P = prepare(n, (i) => ring[i * 2 + 1]);
+    P.lon0 = ring[0];
+    P.d = new Float64Array(n);
+    for (let i = 1; i < n; i++) P.d[i] = wrap180(ring[i * 2] - ring[i * 2 - 2]);
+    return P;
+  };
+  const SHORES = PIECES.map((piece) => piece.rings.map(shoreOf));
+  // The ice caps are written in the coordinates of the view already.
+  const CAPS = [CAP_N, CAP_S].map((cap) => {
+    const P = prepare(cap.length, (i) => cap[i][1]);
+    cap.forEach((p, i) => { P.psi[i] = p[0]; });
+    return P;
+  });
+
+  // Longitudes relative to the middle of the disc, carried as a whole to
+  // where the middle of the ring is on the screen.
+  //
+  // One copy, and only one. A ring that reaches round the world — Eurasia
+  // does, from the date line to the date line — used to be tried a turn
+  // earlier and a turn later as well, in case part of it showed from the
+  // other side. But a turn of longitude is the same place on the globe, and
+  // everything below reads longitude through a sine or a cosine, so those
+  // copies came out exactly on top of this one. Drawn twice, they told the
+  // fill that a lake inside the ring was land after all — and the Caspian
+  // filled in with the rest of Eurasia while the Earth turned.
+  function turnRing(P, spin) {
+    const { n, d, psi: out } = P;
+    let psi = wrap180(P.lon0 - spin);
+    let lo = psi, hi = psi;
+    out[0] = psi;
+    for (let i = 1; i < n; i++) {
+      psi += d[i];
+      lo = Math.min(lo, psi);
+      hi = Math.max(hi, psi);
+      out[i] = psi;
+    }
+    const home = -Math.round((lo + hi) / 2 / 360) * 360;
+    if (home) for (let i = 0; i < n; i++) out[i] = out[i] + home;
+  }
+
+  // ---------- Clipping a ring to the half of the world facing us ----------
+  // Nothing here knows about the shape of the edge: a point is in if it faces
+  // us, and where a stretch of coast crosses over, the crossing is found by
+  // halving the step until it sits on the edge. A point found that way is
+  // marked, and two marked points in a row mean the ring went round the back
+  // — they are joined along the edge of the disc instead of across it.
+  //
+  // The ring that shows is written into one scratch, read by traceCut() right
+  // after and written over by the next ring: nothing holds on to it.
+  const MOST = Math.max(...SHORES.flat().map((P) => P.n), ...CAPS.map((P) => P.n));
+  const cPsi = new Float64Array(MOST * 2);
+  const cPhi = new Float64Array(MOST * 2);
+  const cIdx = new Int32Array(MOST * 2);      // the point of the ring, or -1 on the edge
+  const faces = new Float64Array(MOST);   // which side each point is on
+
+  function crossing(aPsi, aPhi, bPsi, bPhi, m) {
     let lo = 0, hi = 1;
     for (let k = 0; k < 14; k++) {
       const t = (lo + hi) / 2;
-      const psi = a[0] + (b[0] - a[0]) * t;
-      const phi = a[1] + (b[1] - a[1]) * t;
+      const psi = aPsi + (bPsi - aPsi) * t;
+      const phi = aPhi + (bPhi - aPhi) * t;
       if (facingUs(phi, psi) >= 0) lo = t; else hi = t;
     }
     const t = (lo + hi) / 2;
-    return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, true];
+    cPsi[m] = aPsi + (bPsi - aPsi) * t;
+    cPhi[m] = aPhi + (bPhi - aPhi) * t;
+    cIdx[m] = -1;
   }
 
-  function clipToFace(pts) {
-    const out = [];
-    for (let i = 0; i < pts.length; i++) {
-      const a = pts[i], b = pts[(i + 1) % pts.length];
-      const inA = facingUs(a[1], a[0]) >= 0;
-      const inB = facingUs(b[1], b[0]) >= 0;
-      if (inA) out.push(a);
-      if (inA !== inB) out.push(inA ? crossing(a, b) : crossing(b, a));
+  // How many points of the ring show, the crossings with the edge included.
+  function clipRing(P) {
+    const { n, psi, phi, zs, zc } = P;
+    for (let i = 0; i < n; i++) faces[i] = zs[i] + zc[i] * Math.cos(psi[i] * RAD);
+    let m = 0;
+    for (let i = 0; i < n; i++) {
+      const j = (i + 1) % n;
+      const inA = faces[i] >= 0;
+      const inB = faces[j] >= 0;
+      if (inA) { cPsi[m] = psi[i]; cPhi[m] = phi[i]; cIdx[m] = i; m++; }
+      if (inA !== inB) {
+        if (inA) crossing(psi[i], phi[i], psi[j], phi[j], m);
+        else crossing(psi[j], phi[j], psi[i], phi[i], m);
+        m++;
+      }
     }
-    return out;
+    return m;
   }
 
-  // Every piece of one ring that shows, given how far the Earth has turned.
-  function facing(ring, spin) {
-    const n = ring.length / 2;
-    const pts = new Array(n);
-    // Longitudes relative to the middle of the disc, unwrapped so that a ring
-    // crossing the date line stays in one piece, and then carried as a whole
-    // to where the middle of it is on the screen.
-    let psi = wrap180(ring[0] - spin);
-    let lo = psi, hi = psi;
-    pts[0] = [psi, ring[1]];
-    for (let i = 1; i < n; i++) {
-      psi += wrap180(ring[i * 2] - ring[i * 2 - 2]);
-      lo = Math.min(lo, psi);
-      hi = Math.max(hi, psi);
-      pts[i] = [psi, ring[i * 2 + 1]];
+  // The latitudes a long stretch of coast is cut into. They are the same on
+  // every frame — what the turn changes is the longitude — so they are worked
+  // out once for each stretch and kept with the ring.
+  function edgeOf(P, i, n, aPhi, dPhi) {
+    const was = P.edges[i];
+    if (was && was.n === n) return was;
+    const e = { n, cf: new Float64Array(n), A: new Float64Array(n), B: new Float64Array(n) };
+    for (let k = 0; k < n; k++) {
+      const f = (aPhi + dPhi * (k / n)) * RAD;
+      const cf = Math.cos(f), sf = Math.sin(f);
+      e.cf[k] = cf;
+      e.A[k] = cosL * sf;
+      e.B[k] = sinL * cf;
     }
-    const home = -Math.round((lo + hi) / 2 / 360) * 360;
-
-    // One copy, and only one. A ring that reaches round the world — Eurasia
-    // does, from the date line to the date line — used to be tried a turn
-    // earlier and a turn later as well, in case part of it showed from the
-    // other side. But a turn of longitude is the same place on the globe, and
-    // everything below reads longitude through a sine or a cosine, so those
-    // copies came out exactly on top of this one. Drawn twice, they told the
-    // fill that a lake inside the ring was land after all — and the Caspian
-    // filled in with the rest of Eurasia while the Earth turned.
-    const moved = home ? pts.map((p) => [p[0] + home, p[1]]) : pts;
-    const cut = clipToFace(moved);
-    return cut.length > 2 ? [cut] : [];
+    P.edges[i] = e;
+    return e;
   }
 
-  // Traces a ring of the sphere, cutting every long edge into shorter ones so
-  // that it follows the curve instead of stepping across it. The two ends of
-  // a cut are joined along the edge of the disc, a little outside it — what
-  // hangs over is taken off by the clip on the globe.
-  function trace(pts, r) {
-    const path = [];
-    const angleOf = (p) => Math.atan2(p.y - CY, p.x - CX);
-    for (let i = 0; i < pts.length; i++) {
-      const a = pts[i], b = pts[(i + 1) % pts.length];
-      if (a[2] && b[2]) {
-        const pa = put(a[1], a[0], r), pb = put(b[1], b[0], r);
-        const t0 = angleOf(pa);
-        let d = angleOf(pb) - t0;
+  // Traces the part of a ring that shows, cutting every long edge into
+  // shorter ones so that it follows the curve instead of stepping across it.
+  // The two ends of a cut are joined along the edge of the disc, a little
+  // outside it — what hangs over is taken off by the clip on the globe.
+  let traced = 0;
+  let pen = null;                 // the context itself, or a Path2D kept for later
+  const emit = (x, y) => { if (traced++) pen.lineTo(x, y); else pen.moveTo(x, y); };
+
+  function traceCut(P, m, r) {
+    traced = 0;
+    for (let i = 0; i < m; i++) {
+      const b = (i + 1) % m;
+      if (cIdx[i] < 0 && cIdx[b] < 0) {
+        const pa = put(cPhi[i], cPsi[i], r), pb = put(cPhi[b], cPsi[b], r);
+        const t0 = Math.atan2(pa.y - CY, pa.x - CX);
+        let d = Math.atan2(pb.y - CY, pb.x - CX) - t0;
         d -= Math.round(d / (Math.PI * 2)) * Math.PI * 2;      // the short way round
         const n = Math.max(1, Math.ceil(Math.abs(d) / 0.12));
         for (let k = 0; k < n; k++) {
           const t = t0 + d * (k / n);
-          path.push({ x: CX + Math.cos(t) * r * 1.3, y: CY + Math.sin(t) * r * 1.3 });
+          emit(CX + Math.cos(t) * r * 1.3, CY + Math.sin(t) * r * 1.3);
         }
         continue;
       }
-      const n = Math.max(1, Math.ceil(Math.max(Math.abs(b[0] - a[0]), Math.abs(b[1] - a[1])) / 4));
+      const aPsi = cPsi[i], aPhi = cPhi[i];
+      const dPsi = cPsi[b] - aPsi, dPhi = cPhi[b] - aPhi;
+      const n = Math.max(1, Math.ceil(Math.max(Math.abs(dPsi), Math.abs(dPhi)) / 4));
+      const ia = cIdx[i];
+      const edge = ia >= 0 && cIdx[b] === (ia + 1) % P.n ? edgeOf(P, ia, n, aPhi, dPhi) : null;
       for (let k = 0; k < n; k++) {
         const t = k / n;
-        path.push(put(a[1] + (b[1] - a[1]) * t, a[0] + (b[0] - a[0]) * t, r));
+        let cf, A, B;
+        if (edge) {
+          cf = edge.cf[k]; A = edge.A[k]; B = edge.B[k];
+        } else {
+          const f = (aPhi + dPhi * t) * RAD;
+          cf = Math.cos(f);
+          const sf = Math.sin(f);
+          A = cosL * sf;
+          B = sinL * cf;
+        }
+        // at() and put(), written out: the same sums in the same order.
+        const l = (aPsi + dPsi * t) * RAD;
+        const cl = Math.cos(l);
+        const X = r * cf * Math.sin(l);
+        const Y = -r * (A - B * cl);
+        emit(CX + (X * cosT - Y * sinT), CY + (X * sinT + Y * cosT));
       }
     }
-    path.forEach((p, i) => { if (i) ctx.lineTo(p.x, p.y); else ctx.moveTo(p.x, p.y); });
-    ctx.closePath();
+    pen.closePath();
+  }
+
+  // Every fill of the coast in turn: the ice caps, then each piece of land
+  // that shows. `begin()` gives the pen a fill is traced with, `done(ice)`
+  // fills it.
+  function coastFills(begin, done) {
+    pen = begin();
+    CAPS.forEach((P) => {
+      const m = clipRing(P);
+      if (m > 2) traceCut(P, m, R);
+    });
+    done(true);
+    PIECES.forEach((piece, k) => {
+      pen = begin();
+      let any = false;
+      SHORES[k].forEach((P) => {
+        turnRing(P, spin);
+        const m = clipRing(P);
+        if (m > 2) { traceCut(P, m, R); any = true; }
+      });
+      if (any) done(piece.ice);
+    });
+    pen = null;
+  }
+
+  // The coast as it lies on the screen depends on the turn of the globe, the
+  // middle of the disc and its size — and through them on the camera, the
+  // planet on its way in and the size of the box — and on nothing else. From
+  // the beat the satellite comes round over the campuses all of them stand
+  // still, and the same coast was worked out sixty times a second. So a frame
+  // that finds them as they were on the last one traces the coast once more,
+  // into Path2Ds, and the frames after it fill those, until any of them moves.
+  let coastKey = '';
+  let coast = null;
+
+  function drawCoast() {
+    const key = `${spin} ${CX} ${CY} ${R}`;
+    if (key !== coastKey) {
+      coastKey = key;
+      coast = null;
+      coastFills(() => { ctx.beginPath(); return ctx; },
+        (ice) => { ctx.fillStyle = ice ? C.ice : C.land; ctx.fill(); });
+      return;
+    }
+    if (!coast) {
+      const fills = [];
+      coastFills(() => new Path2D(), (ice) => { fills.push({ path: pen, ice }); });
+      coast = fills;
+    }
+    coast.forEach(({ path, ice }) => {
+      ctx.fillStyle = ice ? C.ice : C.land;
+      ctx.fill(path);
+    });
   }
 
   // ---------- Drawing ----------
@@ -977,24 +1140,7 @@ export function init(root) {
     ctx.fill();
     ctx.clip();
 
-    ctx.fillStyle = C.ice;
-    ctx.beginPath();
-    [CAP_N, CAP_S].forEach((cap) => {
-      const cut = clipToFace(cap);
-      if (cut.length > 2) trace(cut, R);
-    });
-    ctx.fill();
-
-    PIECES.forEach((piece) => {
-      ctx.beginPath();
-      let any = false;
-      piece.rings.forEach((ring) => {
-        facing(ring, spin).forEach((part) => { trace(part, R); any = true; });
-      });
-      if (!any) return;
-      ctx.fillStyle = piece.ice ? C.ice : C.land;
-      ctx.fill();
-    });
+    drawCoast();
 
     // And the four campuses on it, stuck to the surface like transfers: each
     // one is drawn in the frame of the ground it lies on, so it turns with
