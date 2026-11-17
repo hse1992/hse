@@ -10,6 +10,7 @@ import { COUNTRIES } from '../data/countries.js';
 import { ORBIT_KM, INCLINE, SATELLITES } from '../data/satellites.js';
 import { nf, dec, plural } from '../lib/format.js';
 import { onResize } from '../lib/ui.js';
+import { meta } from './each.meta.js';
 
 // The teaching part of the floor area — data/hse.js keeps it campus by campus.
 const AREA_STUDY = CITIES.reduce((n, c) => n + c.areaStudy, 0);
@@ -33,26 +34,9 @@ const PRINT = `Вышка в цифрах — ${YEAR}`;
 // shot is the last to go up — the one still flying, whose laps are counted.
 const CAMERA = SATELLITES[SATELLITES.length - 1].name;
 
-export const meta = {
-  id: 'each',
-  // Short enough for the strip at the top of a phone — see meta.short in CLAUDE.md.
-  short: 'Все цифры',
-  // The section arrives out of the white of a satellite's flash, like a photo
-  // developing — and the heading is the caption to that shot: the whole
-  // university in one frame.
-  title: 'Вышка такая большая, что ее можно увидеть только со спутника',
-  subtitle: '',
-  // No title card: the flash opens straight onto the photograph, figures and
-  // all. A heading waiting alone in the middle of the screen would be one more
-  // beat between the camera going off and the picture it took.
-  // The board is what the section arrives with, rather than an empty field
-  // that spends a beat of the reader's on filling it.
-  opensOnStep: true,
-  // The board is there, the question comes up over it — and then the whole
-  // end plays out in one beat: the figures add up into one number, that number
-  // falls to one, and the one is told what it is.
-  steps: 3
-};
+// Метаданные раздела живут в each.meta.js — каркасу они нужны при старте,
+// а этот файл грузится по требованию.
+export { meta };
 
 export function init(root) {
   'use strict';

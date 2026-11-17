@@ -213,6 +213,12 @@ tables = "\n".join(tables)
 mods = []
 for name in NAMES:
     src = strip_module((ROOT / f"viz/{name}.js").read_text(encoding="utf-8"))
+    # Раздел, вынесенный из начальной загрузки страницы, держит meta в
+    # отдельном файле (viz/<name>.meta.js) и импортирует ее оттуда. Здесь
+    # импортов нет — файл встает перед модулем, в ту же область видимости.
+    meta_file = ROOT / f"viz/{name}.meta.js"
+    if meta_file.exists():
+        src = strip_module(meta_file.read_text(encoding="utf-8")) + "\n" + src
     for _, (_, pattern, replacement) in BY_NAME.items():
         src = src.replace(pattern, replacement)
     src = inline_assets(src)

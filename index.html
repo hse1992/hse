@@ -121,8 +121,16 @@
   import * as area from './viz/area.js';
   import * as study from './viz/study.js';
   import * as professions from './viz/professions.js';
-  import * as space from './viz/space.js';
-  import * as each from './viz/each.js';
+  // Две дальние главы грузятся не со страницей, а по требованию: их код —
+  // треть всего, что телефон качает до кнопки «Начать историю», а нужен он
+  // главами позже. При старте каркасу хватает их метаданных (заголовки,
+  // полоска, число шагов, переходы) — они лежат отдельным маленьким файлом,
+  // и сам модуль берет их оттуда же. Как и когда грузится код — см. codeOf()
+  // и build() ниже.
+  import { meta as spaceMeta } from './viz/space.meta.js';
+  import { meta as eachMeta } from './viz/each.meta.js';
+  const space = { meta: spaceMeta, load: () => import('./viz/space.js') };
+  const each = { meta: eachMeta, load: () => import('./viz/each.js') };
   import { mountProgress, introRunner, mountTitleMark, mountWindowSize } from './lib/page.js';
   import { nameSwitches } from './lib/ui.js';
   import { YEAR } from './data/hse.js';
@@ -189,6 +197,13 @@
     if (opening) opening.run(0);
 
     let api = null;
+    // Пока код раздела в пути, каркас уже может просить о нем: поставить шаг,
+    // открыть картинку. Последняя такая просьба запоминается и исполняется,
+    // как только раздел собран, — чтобы он пришел в том состоянии, в котором
+    // его ждут, а не в начальном.
+    let want = null;
+    let wantOpen = false;
+    let retry = 0;
     const entry = {
       section,
       opening,
@@ -207,15 +222,19 @@
       curtain: index > 0 && MODULES[index - 1].meta.flash ? 'flash' : null,
       // The picture it hands over as well, if any — see lib/stepper.js.
       carry: () => (api && api.carry) || null,
-      setStep: (i) => api && api.step && api.step(i),
+      setStep: (i) => {
+        if (!api) { want = i; return undefined; }
+        return api.step && api.step(i);
+      },
       // «Будь в состоянии i», а не «сыграй шаг i». Читатель пришел сюда из
       // другого места — шагом назад, прыжком по полоске, возвратом из футера, —
       // и смотреть заново то, что уже видел, не просил. Блок, который умеет
       // различать эти два случая, говорит об этом своим restore(); остальные
       // по-прежнему играют шаг, как и раньше.
-      setState: (i) => (api && api.restore
-        ? api.restore(i)
-        : (api && api.step && api.step(i))),
+      setState: (i) => {
+        if (!api) { want = i; return undefined; }
+        return api.restore ? api.restore(i) : (api.step && api.step(i));
+      },
       // How far the next state of the story is, in pixels of scroll — the
       // block says it itself, because only it knows how its travel is cut up.
       // Nought when there is nothing ahead. See «Далее» in lib/stepper.js.
@@ -233,11 +252,28 @@
       span: (i) => (api && api.span ? api.span(i) : 0),
       // A section is built on its way onto the screen, not before: whatever it
       // animates on start then plays in front of the reader.
+      //
+      // Код раздела, вынесенного из начальной загрузки, к этому моменту обычно
+      // уже здесь: его тянут заранее (fetch ниже). Если еще нет, сборка ждет
+      // его и случается, как только он придет, — с тем шагом, о котором
+      // каркас успел попросить (want). Если сеть подвела — пробует снова, а
+      // страница тем временем листается дальше.
       build: () => {
         if (api) return;
+        if (!mod.init) {
+          codeOf(mod).then(late, () => {
+            clearTimeout(retry);
+            retry = setTimeout(entry.build, 3000);
+            window.addEventListener('online', entry.build, { once: true });
+          });
+          return;
+        }
         api = mod.init(section.querySelector('.viz-body')) || {};
         // Сразу, а не по наблюдателю: блок может мерить свой текст следом.
         bindShortWords(section);
+        // Раздел собирается на главу раньше, чем до него дойдут; код главы за
+        // ним в это время и тянем — на две главы вперед.
+        if (plan[index + 1]) plan[index + 1].fetch();
         // The switches of the block say what they switch and whether they are
         // on — read off the markup they are already in, see lib/ui.js.
         nameSwitches(section);
@@ -257,10 +293,47 @@
       pending: null,
       // And whenever it comes onto the screen — first time or coming back — the
       // picture inside it starts from the beginning. See lib/stepper.js.
-      open: () => api && api.open && api.open()
+      open: () => {
+        if (!api) { wantOpen = true; return; }
+        if (api.open) api.open();
+      },
+      // Загрузить код раздела заранее, не собирая его.
+      fetch: () => { codeOf(mod).catch(() => {}); }
+    };
+
+    // Сборка раздела, код которого пришел позже, чем о нем попросили. Читатель
+    // за это время мог уйти дальше — тогда раздел, выросший над ним, сдвинул
+    // бы страницу под ним, и его нужно вернуть на то же место: импорт, который
+    // кончился позже, никуда читателя не уводит.
+    const late = () => {
+      if (api) return;
+      const above = section.getBoundingClientRect().bottom <= 0;
+      const ref = above && plan.find((e) => e.section.getBoundingClientRect().bottom > 0);
+      const was = ref ? ref.section.getBoundingClientRect().top : 0;
+      entry.build();
+      if (want !== null) { const i = want; want = null; entry.setState(i); }
+      if (wantOpen) { wantOpen = false; entry.open(); }
+      if (ref) {
+        const moved = ref.section.getBoundingClientRect().top - was;
+        if (Math.abs(moved) > 0.5) window.scrollBy(0, moved);
+      }
     };
     return entry;
   });
+
+  // Один запрос и одна загрузка на модуль, сколько бы раз о нем ни спросили.
+  // Сорвавшаяся загрузка забывается — следующая просьба начнет ее заново.
+  // Раздел, загруженный вместе со страницей, отвечает сразу.
+  function codeOf(mod) {
+    if (mod.init) return Promise.resolve(mod);
+    if (!mod.loading) {
+      mod.loading = mod.load().then(
+        (m) => { mod.init = m.init; return mod; },
+        (err) => { mod.loading = null; throw err; }
+      );
+    }
+    return mod.loading;
+  }
 
   // Все остальное — шапка, подвал, полоска разделов — и то, что блоки
   // допишут на ходу: подсказки, ответы, карточки.
@@ -283,7 +356,13 @@
   });
   // The progress bar doubles as the way back: a click on a block goes there,
   // and the narrow slot at its head returns to the title screen.
-  progress.pick(story.toBlock, story.rewind);
+  // Прыжок по полоске: код раздела, куда идут, и всех до него (их прыжок
+  // собирает по дороге) начинает грузиться сразу, а не когда до них дойдет.
+  const jump = (i, ...rest) => {
+    plan.slice(0, i + 1).forEach((e) => e.fetch());
+    return story.toBlock(i, ...rest);
+  };
+  progress.pick(story.toBlock ? jump : story.toBlock, story.rewind);
 
   // Ссылки внутри разделов, ведущие в другой раздел (`data-go="space"`), —
   // тот же ход, что и выбор в полоске сверху: toBlock каркаса. Поэтому
@@ -298,7 +377,7 @@
     const i = MODULES.findIndex((m) => m.meta.id === link.dataset.go);
     if (i < 0) return;
     e.preventDefault();
-    story.toBlock(i);
+    jump(i);
     const head = plan[i].section.querySelector('.viz-header h2');
     if (head) {
       head.tabIndex = -1;
@@ -447,6 +526,17 @@
       }
     });
   }
+
+  // Когда первый экран готов и страница отдышалась, код вынесенных глав
+  // догружается в фоне — только код, без сборки: так прыжок по полоске в
+  // дальнюю главу и быстрое чтение не застают ее пустой. До этого момента
+  // ничего лишнего не грузится — сеть отдана обложке.
+  const calm = (fn) => (window.requestIdleCallback
+    ? requestIdleCallback(fn, { timeout: 4000 })
+    : setTimeout(fn, 1500));
+  const prefetch = () => calm(() => plan.forEach((e) => e.fetch()));
+  if (document.readyState === 'complete') prefetch();
+  else window.addEventListener('load', prefetch, { once: true });
 
   // Dev-only: numbers on screen for walking the page on a real phone.
   if (location.search.includes('debug')) import('./tools/debug-hud.js').catch(() => {});
