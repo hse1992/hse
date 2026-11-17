@@ -1253,6 +1253,7 @@ export function init(root) {
       // общую клетку картинки, и клетка раскрывается только с первым
       // сравнением (.has-fig): до него пара стоит прямо под вводной строкой.
       townEl.classList.toggle('on', told && i === 0);
+      townMap.show(told && i === 0);
       fieldsStepEl.parentElement.classList.toggle('has-fig', told && i >= 2);
       titleEl.classList.toggle('on', told && i >= 1);
       questionEl.classList.toggle('on', told && i >= 1);
@@ -1268,6 +1269,7 @@ export function init(root) {
       return;
     }
     townEl.classList.toggle('on', told && i === 0);
+    townMap.show(told && i === 0);
     titleEl.classList.toggle('on', told && i >= 1);
     fieldsStepEl.classList.toggle('on', told && i >= 1);
     housesStepEl.classList.toggle('on', told && i >= 2);

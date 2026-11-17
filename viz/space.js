@@ -1518,14 +1518,24 @@ export function init(root) {
   canvas.addEventListener('pointerup', letGo);
   canvas.addEventListener('pointercancel', letGo);
 
-  // Nothing turns while the block is off the screen.
-  let near = false;
-  const watch = new IntersectionObserver((rows) => {
-    near = rows.some((row) => row.isIntersecting);
-    run(near && started);
-  }, { rootMargin: '200px 0px' });
-  watch.observe(root.closest('.viz-section') || root);
-  document.addEventListener('visibilitychange', () => run(near && started && !document.hidden));
+  // Nothing turns while the block is off the screen. The section next to the
+  // reader's lies just past the edge for as long as they read the last beat
+  // of the one before, and turning the globe there was a whole picture a frame
+  // that nobody saw. Close by, it is painted once, so that the edge it comes
+  // in by is today's picture; it turns from its first pixel on the screen.
+  const section = root.closest('.viz-section') || root;
+  let seen = false;
+  new IntersectionObserver((rows) => {
+    if (rows.some((row) => row.isIntersecting) && !seen) paint();
+  }, { rootMargin: '200px 0px' }).observe(section);
+  // A pixel in from the edge: on the wide screen the next section stands flush
+  // against the bottom of the window, and a box that only touches the edge
+  // counts as crossing it.
+  new IntersectionObserver((rows) => {
+    seen = rows.some((row) => row.isIntersecting);
+    run(seen && started && !document.hidden);
+  }, { rootMargin: '-1px 0px' }).observe(section);
+  document.addEventListener('visibilitychange', () => run(seen && started && !document.hidden));
 
   // Where a satellite stands when it is right over the campuses: the point of
   // its orbit at their latitude, on the half of the pass that goes north, and
@@ -1729,7 +1739,7 @@ export function init(root) {
 
     shown = i;
     say(i);
-    if (!started) { started = true; run(near); }
+    if (!started) { started = true; run(seen && !document.hidden); }
     if (still) paint();
   }
 
