@@ -1170,6 +1170,22 @@ export function init(root) {
   let moreLabel = null;
   let moreCount = 0;
   let settle = 0;
+  // Остальные профессии до первого раскрытия существуют только как данные:
+  // тридцать девять кнопок с обработчиками и картинками при входе в главу
+  // строились бы для читателя, который их, может, и не откроет, — а каждая
+  // картинка с настоящим src — это свой запрос, даже в спрятанном списке.
+  // Строятся они при первом раскрытии, тем же makeItem, все разом.
+  let rest = [];
+  let filled = false;
+  let moreInner = null;
+
+  function fill() {
+    if (filled || !moreInner) return;
+    filled = true;
+    const batch = document.createDocumentFragment();
+    rest.forEach(({ area, items }) => makeGroup(area, items, batch));
+    moreInner.appendChild(batch);
+  }
 
   const moreText = (open) => `${open ? 'Скрыть' : 'Посмотреть'} остальные `
     + `${nf(moreCount)} ${plural(moreCount, 'профессию', 'профессии', 'профессий')}`;
@@ -1186,6 +1202,7 @@ export function init(root) {
     clearTimeout(settle);
     const still = instant || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (open) {
+      fill();
       moreBox.hidden = false;
       if (!still) void moreBox.offsetHeight;   // от нуля, а не сразу открытым
       moreBox.classList.add('open');
@@ -1214,7 +1231,7 @@ export function init(root) {
     const chosen = new Set(picks.map((p) => p.icon));
     makeGroup('', picks, grid);
 
-    const rest = AREAS.map(({ area, items }) => ({
+    rest = AREAS.map(({ area, items }) => ({
       area,
       items: items.filter((p) => !chosen.has(p.icon))
     }));
@@ -1236,9 +1253,9 @@ export function init(root) {
       moreBox = document.createElement('div');
       moreBox.className = 'prof-more';
       moreBox.id = 'prof-more-list';
-      const inner = document.createElement('div');
-      rest.forEach(({ area, items }) => makeGroup(area, items, inner));
-      moreBox.appendChild(inner);
+      // Контейнер с id для aria-controls есть с самого начала, пустой.
+      moreInner = document.createElement('div');
+      moreBox.appendChild(moreInner);
       grid.appendChild(moreBox);
 
       moreBtn.addEventListener('click', () => setMore(!more));
