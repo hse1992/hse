@@ -1902,7 +1902,25 @@ export function init(root) {
   // Приход планеты считается по положению страницы — и тактами ее двигают
   // или пальцем, положение это меняется прокруткой. Историю по пути читает
   // только телефон: на широком экране ее ведет step() от каркаса.
-  const walked = () => { approach(); if (narrow.matches) follow(); };
+  //
+  // На телефоне прокрутка идет все чтение, а «Космос» — одна глава из восьми.
+  // Пока он далеко от экрана и с той же стороны, что и в прошлый раз, мерить
+  // нечего: и приход планеты, и шаг истории там те же, что в прошлый раз.
+  // Последний раз, уходя (или прыжком через всю главу на другую сторону),
+  // он меряется как обычно — так при возврате застает верный кадр.
+  let side = 0;
+  const walked = (e) => {
+    if (narrow.matches && host && e && e.type === 'scroll') {
+      const box = host.getBoundingClientRect();
+      const h = window.innerHeight;
+      const now = box.bottom < -h ? -1 : box.top > 2 * h ? 1 : 0;
+      const same = now !== 0 && now === side;
+      side = now;
+      if (same) return;
+    }
+    approach();
+    if (narrow.matches) follow();
+  };
   window.addEventListener('scroll', walked, { passive: true });
   window.addEventListener('resize', walked);
   // Но прокрутки для прихода планеты мало, и на обоих экранах по-своему. На
