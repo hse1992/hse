@@ -213,6 +213,9 @@
       // целиком — см. «Чтение кадрами» в lib/stepper.js.
       taps: !!mod.meta.taps,
       opensOnStep: !!mod.meta.opensOnStep,
+      // И следующий шаг — тем же тактом, что посадка карточки: см. «Карточка
+      // и первый шаг одним тактом» в CLAUDE.md.
+      joinsCard: !!mod.meta.joinsCard,
       // The figure this block ends on, handed over to the next — see lib/stepper.js.
       handoff: mod.meta.handoff || null,
       // How the block arrives, if not by the page travelling to it — see

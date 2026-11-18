@@ -61,6 +61,11 @@ export const meta = {
   // спутника». На телефоне снимает только кнопка, и такта для снимка там нет.
   steps: window.matchMedia('(max-width: 860px)').matches ? 6 : 7,
   opensOnStep: true,
+  // Шаг 0 — Земля с кольцом вокруг четырех городов — стоит под карточкой, пока
+  // она едет, и отдельным тактом после ее посадки был бы тем же кадром: первый
+  // спутник прилетает тем же тактом, которым карточка садится. На телефоне то
+  // же самое делает путь сцены (stateAt() в viz/space.js).
+  joinsCard: true,
   // The block ends on a photograph about to be taken, and the next one comes
   // in the flash of it — the shell draws the flash, see «Вспышка на стыке».
   flash: true
