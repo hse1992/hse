@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Карточка превью ссылки: снимок tools/og-card.html в assets/og-card-cover.jpg.
+"""Карточка превью ссылки: снимок tools/og-card.html в assets/og-card-cover-2.jpg.
 
     python3 tools/build-og-card.py
 
@@ -27,7 +27,7 @@ import threading
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-OUT = ROOT / "assets" / "og-card-cover.jpg"
+OUT = ROOT / "assets" / "og-card-cover-2.jpg"
 # JPEG, а не PNG: свечение и рисунок на фоне PNG сжимает плохо (без малого
 # 300 КБ), а WhatsApp превью тяжелее примерно 300 КБ не показывает вовсе.
 QUALITY = 88
