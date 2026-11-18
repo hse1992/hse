@@ -567,10 +567,22 @@ export function init(root) {
            ведет следующий мах. 32px — нижнее поле секции. */
         .prof-body { min-height: calc(var(--win, 100svh) - 32px); }
 
-        /* Подборка из пяти — один компактный список, без подписи
-           направления: над одиночными карточками она была бы заголовком к
-           каждой. Направления есть у остальных тридцати девяти. */
+        /* Но окно — это не весь экран. Панель Safari на айфоне прозрачная и
+           стоит поверх страницы, и под ней видно то, что лежит ниже окна, —
+           около сотни пикселей. Там начиналось темное небо «Космоса». Блок
+           выше окна делать нельзя: каркас встал бы еще и на его низу, такт
+           без нового кадра. Поэтому растет нижнее поле секции — на ту полосу,
+           которой у окна нет, а у экрана есть (--prof-under, считается в
+           коде). Под панелью тогда поле этого же раздела. */
+        .prof-section { padding-bottom: calc(32px + var(--prof-under, 0px)); }
+
+        /* Подборка из пяти — один компактный список с подписью «Примеры
+           профессий» той же строкой, что у направлений: без нее пять плиток
+           читались как весь список. */
         .prof-picks { margin-bottom: 6px; }
+
+        /* Профессия без специализаций — просто строка: раскрывать нечего. */
+        .prof-item.is-plain { cursor: default; }
 
         /* Кнопка раскрытия: вся строка нажимается — текст, пустое место и
            галка у правого края. Подпись может переноситься, галка стоит
@@ -1101,20 +1113,25 @@ export function init(root) {
   }
 
   function makeItem(p) {
-    const item = document.createElement('button');
-    item.type = 'button';
-    item.className = 'prof-item';
+    // На телефоне плитка раскрывает специализации. У четырех профессий их в
+    // таблице нет — раскрывать нечего, и галка обещала бы то, чего нет. Такая
+    // плитка там просто строка: без галки и без нажатия.
+    const plain = stacked.matches && !kindsOf(p).length;
+    const item = document.createElement(plain ? 'div' : 'button');
+    if (!plain) item.type = 'button';
+    item.className = plain ? 'prof-item is-plain' : 'prof-item';
     item.innerHTML = `
       <img class="prof-item-art" src="assets/professions/${p.icon}.svg" alt="" aria-hidden="true">
       <span class="prof-item-text">
         <span class="prof-item-name"></span>
         <span class="prof-item-kinds"><span></span></span>
       </span>
-      <span class="prof-item-more" aria-hidden="true"></span>
+      ${plain ? '' : '<span class="prof-item-more" aria-hidden="true"></span>'}
     `;
     item.querySelector('.prof-item-name').textContent = p.name;
     item.querySelector('.prof-item-kinds > span').textContent = kindsOf(p).join(', ');
 
+    if (plain) return item;
     if (stacked.matches) {
       // На телефоне карточки с подробностями нет, и плитка открывается
       // сама. Открыта всегда одна: сорок четыре раскрытых профессии — это
@@ -1142,8 +1159,8 @@ export function init(root) {
     return item;
   }
 
-  // Группа направления; без названия — для подборки на телефоне.
-  function makeGroup(area, items, into) {
+  // Группа направления; `picks` — подборка из пяти на телефоне.
+  function makeGroup(area, items, into, picks = false) {
     if (!items.length) return;           // пустую группу не выводим вовсе
     const group = document.createElement('div');
     group.className = 'prof-group';
@@ -1154,9 +1171,8 @@ export function init(root) {
       title.className = 'prof-group-title';
       title.textContent = area;
       group.appendChild(title);
-    } else {
-      group.classList.add('prof-picks');
     }
+    if (picks) group.classList.add('prof-picks');
     group.appendChild(box);
     items.forEach((p) => box.appendChild(makeItem(p)));
     into.appendChild(group);
@@ -1187,7 +1203,7 @@ export function init(root) {
     moreInner.appendChild(batch);
   }
 
-  const moreText = (open) => `${open ? 'Скрыть' : 'Посмотреть'} остальные `
+  const moreText = (open) => `${open ? 'Скрыть остальные' : 'Посмотреть еще'} `
     + `${nf(moreCount)} ${plural(moreCount, 'профессию', 'профессии', 'профессий')}`;
 
   // Свернуть или раскрыть. Раскрытие растет под кнопкой, так что сама кнопка
@@ -1219,6 +1235,25 @@ export function init(root) {
   }
 
   if (stacked.matches) {
+    // Сколько экрана лежит ниже окна — см. .prof-section в стилях. Экран
+    // браузер отдает в книжной ориентации и при повороте не меняет, поэтому
+    // сторона берется по тому, как стоит окно. Больше двухсот пикселей
+    // панелей не бывает: такое число — это уже не панель, а что-то другое.
+    section.classList.add('prof-section');
+    let underWas = -1;
+    const under = () => {
+      const long = Math.max(screen.width, screen.height);
+      const short = Math.min(screen.width, screen.height);
+      const side = window.innerHeight > window.innerWidth ? long : short;
+      const px = Math.max(0, Math.min(200, Math.round(side - window.innerHeight)));
+      if (px === underWas) return;
+      underWas = px;
+      section.style.setProperty('--prof-under', `${px}px`);
+    };
+    under();
+    window.addEventListener('resize', under);
+    if (window.visualViewport) window.visualViewport.addEventListener('resize', under);
+
     const leadCopy = document.createElement('p');
     leadCopy.className = 'prof-lead-copy';
     leadCopy.setAttribute('aria-hidden', 'true');
@@ -1229,7 +1264,9 @@ export function init(root) {
     const byIcon = new Map(PROFESSIONS.map((p) => [p.icon, p]));
     const picks = PICKS.map((icon) => byIcon.get(icon)).filter(Boolean);
     const chosen = new Set(picks.map((p) => p.icon));
-    makeGroup('', picks, grid);
+    // Подпись той же строкой, что у направлений ниже: пять плиток без нее
+    // читались как весь список, и кнопка под ними — как его хвост.
+    makeGroup('Примеры профессий', picks, grid, true);
 
     rest = AREAS.map(({ area, items }) => ({
       area,
