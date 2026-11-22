@@ -4,7 +4,7 @@
 import { CITIES } from '../data/hse.js';
 import { HISTORY } from '../data/history.js';
 import { nf, plural } from '../lib/format.js';
-import { onResize, placeTips } from '../lib/ui.js';
+import { onResize, placeTips, choices } from '../lib/ui.js';
 
 // Facts about the curriculum itself — they live here, not in data/hse.js,
 // which only knows about the people. A bachelor's or a specialist's degree
@@ -1172,160 +1172,10 @@ export function init(root) {
         #study .city-stats { display: none; }
       }
 
-      /* ---------- Уровни образования ----------
-         Две плашки с чекбоксом над карточками городов. Состояние видно сразу
-         тремя признаками — галочкой, заливкой и рамкой; рамка одной толщины в
-         обоих состояниях и насыщенность текста та же, так что переключение не
-         двигает ни плашку, ни соседей. На широком экране плашка шириной в
-         свою подпись и встают рядом, пока помещаются; на узком — во всю
-         ширину, друг под другом, а где обе подписи влезают в строку (планшет),
-         снова рядом: решает место, а не ширина экрана. */
-      #study .study-levels {
-        min-width: 0;
-        margin: 0;
-        padding: 0;
-        border: 0;
-      }
-
-      #study .study-levels-row {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: stretch;
-        gap: 10px;
-      }
-
-      #study .study-level {
-        box-sizing: border-box;
-        flex: 0 1 auto;
-        max-width: 100%;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        min-height: 48px;
-        padding: 11px 15px;
-        border: 1px solid var(--choice-off-border);
-        border-radius: 11px;
-        background: var(--choice-off-bg);
-        color: var(--text);
-        font-size: 0.9375rem;
-        font-weight: 500;
-        line-height: 1.35;
-        cursor: pointer;
-        -webkit-tap-highlight-color: transparent;
-        transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease;
-      }
-
-      #study .study-level.on {
-        background: var(--choice-on-bg);
-        border-color: var(--choice-on-border);
-        color: var(--choice-on-text);
-      }
-
-      /* Длинная подпись переносится в своей колонке, справа от квадратика. */
-      #study .study-level-label {
-        min-width: 0;
-      }
-
-      /* Квадратик — сам чекбокс, только нарисованный заново: фокус, пробел и
-         «отмечено» у диктора остаются его собственными. Галочка — рамка
-         псевдоэлемента, диктор ее не читает. */
-      #study .study-level-input {
-        -webkit-appearance: none;
-        appearance: none;
-        flex: none;
-        box-sizing: border-box;
-        width: 20px;
-        height: 20px;
-        margin: 0;
-        display: grid;
-        place-content: center;
-        border: 1.5px solid var(--choice-box-off);
-        border-radius: 5px;
-        background: var(--card);
-        cursor: pointer;
-        transition: background-color 140ms ease, border-color 140ms ease;
-      }
-
-      #study .study-level-input::before {
-        content: '';
-        width: 10px;
-        height: 5px;
-        border-left: 2px solid #FFFFFF;
-        border-bottom: 2px solid #FFFFFF;
-        transform: translateY(-1px) rotate(-45deg);
-        opacity: 0;
-      }
-
-      #study .study-level-input:checked {
-        background: var(--choice-box-on);
-        border-color: var(--choice-box-on);
-      }
-
-      #study .study-level-input:checked::before {
-        opacity: 1;
-      }
-
-      /* Фокус с клавиатуры обводит всю плашку, с отступом от края. */
-      #study .study-level-input:focus {
-        outline: none;
-      }
-
-      #study .study-level:has(.study-level-input:focus-visible) {
-        outline: 2px solid var(--link);
-        outline-offset: 2px;
-      }
-
-      @supports not selector(:has(*)) {
-        #study .study-level-input:focus-visible {
-          outline: 2px solid var(--link);
-          outline-offset: 2px;
-        }
-      }
-
-      @media (hover: hover) {
-        #study .study-level:hover {
-          background: var(--choice-off-hover-bg);
-          border-color: var(--choice-off-hover-border);
-        }
-
-        #study .study-level.on:hover {
-          background: var(--choice-on-hover-bg);
-          border-color: var(--choice-on-border);
-        }
-      }
-
-      @media (prefers-reduced-motion: reduce) {
-        #study .study-level,
-        #study .study-level-input { transition: none; }
-      }
-
-      /* На широком экране колонка с городами — 340 пикселей, а две плашки с
-         полными подписями — около 430: в колонке они встали бы друг под
-         другом, вдвое выше прежней строки, и список городов уходил бы в
-         прокрутку уже на 1280 на 720. Место над правой колонкой и так пустое —
-         ее сдвигают вниз ровно на высоту этой группы (alignColumns), — поэтому
-         группа выходит за край колонки вправо, на ширину всего блока. Не
-         помещаются и так — плашки встают друг под другом. */
-      @media (min-width: 861px) {
-        #study .study-levels {
-          width: max-content;
-          max-width: var(--levels-room, 100%);
-        }
-      }
-
-      @media (max-width: 860px) {
-        #study .study-levels-row { gap: 8px; }
-        /* Во всю ширину; две в строку — только когда обе подписи в ней
-           помещаются целиком (17rem — плашка с «Бакалавриат и специалитет»). */
-        #study .study-level { flex: 1 1 17rem; }
-      }
     </style>
 
     <div class="col-left">
-      <fieldset class="study-levels" data-el="kindRow">
-        <legend class="sr-only">Уровни образования</legend>
-        <div class="study-levels-row" data-el="levelRow"></div>
-      </fieldset>
+      <div data-el="kindRow"></div>
       <div class="city-list" data-el="cityList"></div>
       <div class="actions">
         <button type="button" class="btn" data-el="clearAll">Снять все</button>
@@ -1495,32 +1345,18 @@ export function init(root) {
   }
 
   // ---------- DOM rendering ----------
-  const kindRow = $('kindRow');
+  let kindRow = $('kindRow');
   const cityList = $('cityList');
   const bar = $('bar');
 
-  // Уровни — две плашки: настоящий чекбокс внутри своей подписи. Нажимается
-  // вся плашка — label передает нажатие чекбоксу, — а клавиатура, фокус и
-  // «отмечено / не отмечено» у диктора те, что у чекбокса и так есть. Одно
-  // изменение — один пересчет: change приходит один раз на нажатие, и по
-  // плашке, и по самому квадратику, и пробелом.
-  const levelRow = $('levelRow');
-  const kindEls = {};
-  LEVELS.forEach((level) => {
-    const item = document.createElement('label');
-    item.className = 'study-level';
-    item.innerHTML = `
-      <input type="checkbox" class="study-level-input">
-      <span class="study-level-label">${level.label}</span>
-    `;
-    const input = item.querySelector('input');
-    input.addEventListener('change', () => {
-      state.levels[level.key] = input.checked;
-      render();
-    });
-    levelRow.appendChild(item);
-    kindEls[level.key] = { item, input };
+  // Уровни — плашки с чекбоксом, общие для всей страницы (choices() в
+  // lib/ui.js). Одно изменение — один пересчет.
+  const levels = choices('Уровни образования', LEVELS, (key, on) => {
+    state.levels[key] = on;
+    render();
   });
+  kindRow.replaceWith(levels.el);
+  kindRow = levels.el;
 
   const cityEls = {};
   CITIES.forEach((c) => {
@@ -1584,11 +1420,7 @@ export function init(root) {
   function render(instant) {
     // Плашка показывает то, что на самом деле в фильтре: после возврата в
     // раздел (recall) и после «Снять все» / «Вернуть все» тоже.
-    LEVELS.forEach((l) => {
-      const on = !!state.levels[l.key];
-      kindEls[l.key].input.checked = on;
-      kindEls[l.key].item.classList.toggle('on', on);
-    });
+    LEVELS.forEach((l) => levels.set(l.key, !!state.levels[l.key]));
 
     CITIES.forEach((c) => {
       const els = cityEls[c.key];
@@ -1626,9 +1458,8 @@ export function init(root) {
       colRight.style.paddingTop = '';   // one column: nothing to line up with
       return;
     }
-    // Плашки уровней могут занять всю ширину блока — см. .study-levels.
-    const room = `${Math.round(root.clientWidth)}px`;
-    if (kindRow.style.getPropertyValue('--levels-room') !== room) kindRow.style.setProperty('--levels-room', room);
+    // Плашки уровней могут занять всю ширину блока — см. .choice-group.
+    levels.room(root.clientWidth);
     const gap = parseFloat(getComputedStyle(colLeft).rowGap) || 0;
     colRight.style.paddingTop = `${kindRow.offsetHeight + gap}px`;
   }

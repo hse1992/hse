@@ -1197,70 +1197,166 @@ button { font-family: inherit; }
   min-height: 0;
 }
 
-/* ---------- Category checkboxes ---------- */
+/* ---------- Плашки с чекбоксом ----------
+   Фильтры «что считать» — уровни образования в «Учиться…», кто на трибунах у
+   стадиона. Собирает их choices() в lib/ui.js: настоящий чекбокс внутри своей
+   подписи, группа — fieldset со скрытым legend. Нажимается вся плашка, фокус,
+   пробел и «отмечено / не отмечено» у диктора — свои у чекбокса.
 
-.kind-row {
-  display: flex;
-  gap: 14px 18px;
-  flex-wrap: wrap;
-  align-items: center;
-}
-
-.kind-item {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  cursor: pointer;
-  user-select: none;
-  background: none;
-  border: none;
+   Состояние видно сразу тремя признаками — галочкой, заливкой и рамкой; рамка
+   одной толщины в обоих состояниях и насыщенность текста та же, так что
+   переключение не двигает ни плашку, ни соседей. Цвета — токены --choice-*. */
+.choice-group {
+  min-width: 0;
+  margin: 0;
   padding: 0;
+  border: 0;
 }
 
-.kind-box {
-  width: 15px;
-  height: 15px;
-  border-radius: 4px;
+.choice-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 10px;
+}
+
+.choice {
+  box-sizing: border-box;
+  flex: 0 1 auto;
+  max-width: 100%;
   display: flex;
   align-items: center;
-  justify-content: center;
-  border: 1.5px solid var(--check-inactive-border);
-  background: #FFFFFF;
-  transition: all 160ms ease;
-}
-
-.kind-check {
-  width: 7px;
-  height: 4px;
-  border-left: 1.5px solid #fff;
-  border-bottom: 1.5px solid #fff;
-  transform: rotate(-45deg) translate(1px, -1px);
-  opacity: 0;
-  transition: opacity 160ms ease;
-}
-
-.kind-label {
-  font-size: 0.8125rem;
+  gap: 10px;
+  min-height: 48px;
+  padding: 11px 15px;
+  border: 1px solid var(--choice-off-border);
+  border-radius: 11px;
+  background: var(--choice-off-bg);
+  color: var(--text);
+  font-size: 0.9375rem;
   font-weight: 500;
-  color: var(--check-inactive-label);
+  line-height: 1.35;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease;
 }
 
-.kind-item.active .kind-box {
-  border-color: var(--check-active);
-  background: var(--check-active);
+.choice.on {
+  background: var(--choice-on-bg);
+  border-color: var(--choice-on-border);
+  color: var(--choice-on-text);
 }
 
-.kind-item.active .kind-check {
+/* Длинная подпись переносится в своей колонке, справа от квадратика. */
+.choice-label {
+  min-width: 0;
+}
+
+/* Квадратик — сам чекбокс, только нарисованный заново. Галочка — рамка
+   псевдоэлемента, диктор ее не читает. */
+.choice-input {
+  -webkit-appearance: none;
+  appearance: none;
+  flex: none;
+  box-sizing: border-box;
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  display: grid;
+  place-content: center;
+  border: 1.5px solid var(--choice-box-off);
+  border-radius: 5px;
+  background: var(--card);
+  cursor: pointer;
+  transition: background-color 140ms ease, border-color 140ms ease;
+}
+
+.choice-input::before {
+  content: '';
+  width: 10px;
+  height: 5px;
+  border-left: 2px solid #FFFFFF;
+  border-bottom: 2px solid #FFFFFF;
+  transform: translateY(-1px) rotate(-45deg);
+  opacity: 0;
+}
+
+.choice-input:checked {
+  background: var(--choice-box-on);
+  border-color: var(--choice-box-on);
+}
+
+.choice-input:checked::before {
   opacity: 1;
 }
 
-.kind-item.active .kind-label {
-  color: var(--text-secondary);
+/* Фокус с клавиатуры обводит всю плашку, с отступом от края. */
+.choice-input:focus {
+  outline: none;
 }
 
-.kind-item.lyceum.active .kind-box {
-  border-color: var(--lyceum);
-  background: var(--lyceum);
+.choice:has(.choice-input:focus-visible) {
+  outline: 2px solid var(--link);
+  outline-offset: 2px;
+}
+
+@supports not selector(:has(*)) {
+  .choice-input:focus-visible {
+    outline: 2px solid var(--link);
+    outline-offset: 2px;
+  }
+}
+
+@media (hover: hover) {
+  .choice:hover {
+    background: var(--choice-off-hover-bg);
+    border-color: var(--choice-off-hover-border);
+  }
+
+  .choice.on:hover {
+    background: var(--choice-on-hover-bg);
+    border-color: var(--choice-on-border);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .choice,
+  .choice-input { transition: none; }
+}
+
+/* На широком экране колонка с городами — 340 пикселей, а плашки с полными
+   подписями шире: в колонке они встали бы друг под другом и вытолкнули бы
+   список городов в прокрутку уже на 1280 на 720. Место над правой колонкой и
+   так пустое — блок сдвигает ее вниз ровно на высоту этой группы, — поэтому
+   группа выходит за край колонки вправо, на ширину всего блока (--choice-room
+   пишет блок, room() у choices()). Не помещаются и так — плашки встают друг
+   под другом. */
+@media (min-width: 861px) {
+  .choice-group {
+    width: max-content;
+    max-width: var(--choice-room, 100%);
+    /* Над правой колонкой: ее пустой верхний отступ лежит позже в разметке
+       и иначе забирал бы нажатия у плашек, которые в него заходят. */
+    position: relative;
+    z-index: 2;
+  }
+}
+
+/* На узком — во всю ширину, друг под другом; в строку встают, только когда
+   в нее помещаются все подписи целиком, — решает место самой группы, а не
+   ширина экрана. Обеим группам страницы для этого нужно около 27rem: «Студенты,
+   Сотрудники, Лицей» — 407 пикселей, «Бакалавриат и специалитет» с
+   «Магистратурой» — 428. На телефоне это столбик, на планшете строка.
+   Контейнер — только на узком: на широком группа меряется по содержимому
+   (max-content), а size-контейнер содержимому меряться не дает. */
+@media (max-width: 860px) {
+  .choice-group { container-type: inline-size; }
+  .choice-row { gap: 8px; }
+  .choice { flex: 1 1 100%; }
+}
+
+@container (min-width: 27rem) {
+  .choice-row > .choice { flex: 1 1 0; }
 }
 
 /* ---------- City cards ---------- */
@@ -1398,7 +1494,7 @@ html {
 
 .btn:active,
 .toggle:active,
-.kind-item:active,
+.choice:active,
 .page-progress-slot:enabled:active {
   opacity: 0.55;
 }
@@ -2211,15 +2307,11 @@ html {
    wide as it ever was, and 51 by 31 is what the phones use for their own — and
    what grows is the part that answers the tap, which is invisible either way.
    Measured on a phone: the row of kinds came out 83 by 19, less than the
-   smallest square a standard will call a target.
+   smallest square a standard will call a target — since then they are
+   plaques of 48 (.choice), and need no help.
    Last in the file and named by two classes on purpose: the blocks bring their
    own stylesheets with them, and those arrive after this one. */
 @media (max-width: 860px) {
-  .viz-section .kind-item {
-    padding: 11px 2px;
-    margin: -11px -2px;
-  }
-
   .viz-section .btn {
     padding: 12px 15px;
   }

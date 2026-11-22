@@ -2,7 +2,7 @@
 
 import { CITIES, LYCEUM, LYCEUM_COLOR, ADMITTED } from '../data/hse.js';
 import { nf, pct, plural } from '../lib/format.js';
-import { mountCanvas, onResize, sizeCanvas, stepAhead } from '../lib/ui.js';
+import { mountCanvas, onResize, sizeCanvas, stepAhead, choices } from '../lib/ui.js';
 
 // Seats in the arena — the figure the subtitle and the meter both quote.
 const TOTAL = 81000;
@@ -390,7 +390,7 @@ export function init(root) {
     <div class="stadium-run" data-el="run" aria-hidden="true"></div>
 
     <div class="col-left">
-      <div class="kind-row" data-el="kindRow"></div>
+      <div data-el="kindRow"></div>
       <div class="city-list" data-el="cityList"></div>
       <div class="actions">
         <button type="button" class="btn" data-el="clearAll">Убрать всех</button>
@@ -792,29 +792,21 @@ export function init(root) {
   }
 
   // ---------- DOM rendering ----------
-  const kindRow = $('kindRow');
+  let kindRow = $('kindRow');
   const cityList = $('cityList');
   const bar = $('bar');
   const filledLabelEl = $('filled');
   const pctLabelEl = $('pct');
 
-  const kindEls = {};
-  KIND_DEFS.forEach((def) => {
-    const item = document.createElement('button');
-    item.type = 'button';
-    item.className = 'kind-item' + (def.lyceum ? ' lyceum' : '');
-    item.innerHTML = `
-      <span class="kind-box"><span class="kind-check"></span></span>
-      <span class="kind-label">${def.label}</span>
-    `;
-    item.addEventListener('click', () => {
-      takeOver();
-      state.kinds[def.key] = !state.kinds[def.key];
-      render();
-    });
-    kindRow.appendChild(item);
-    kindEls[def.key] = item;
+  // Кто на трибунах — те же плашки с чекбоксом, что и у уровней образования
+  // (choices() в lib/ui.js).
+  const kinds = choices('Кто на трибунах', KIND_DEFS, (key, on) => {
+    takeOver();
+    state.kinds[key] = on;
+    render();
   });
+  kindRow.replaceWith(kinds.el);
+  kindRow = kinds.el;
 
   const cityEls = {};
   CITIES.forEach((c) => {
@@ -876,9 +868,7 @@ export function init(root) {
 
   function render(instant) {
     // category checkboxes
-    KIND_DEFS.forEach((def) => {
-      kindEls[def.key].classList.toggle('active', !!state.kinds[def.key]);
-    });
+    KIND_DEFS.forEach((def) => kinds.set(def.key, !!state.kinds[def.key]));
 
     // city cards
     CITIES.forEach((c) => {
@@ -927,6 +917,8 @@ export function init(root) {
   // and the right one with whatever the scene left behind, and both change
   // height with the text size.
   function alignColumns() {
+    // Плашки могут занять всю ширину блока — см. .choice-group.
+    if (!stacked.matches) kinds.room(root.clientWidth);
     // One column, or the controls are away telling the story: nothing to line
     // the meter up with.
     if (stacked.matches || root.classList.contains('is-telling')) {
@@ -959,6 +951,7 @@ export function init(root) {
   headAside();
 
   onResize(kindRow, alignColumns);
+  onResize(root, alignColumns);
   stacked.addEventListener('change', alignColumns);
   // The left column arrives with a transition; measure once it has settled.
   colLeft.addEventListener('transitionend', (e) => {
