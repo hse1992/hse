@@ -1342,21 +1342,86 @@ button { font-family: inherit; }
   }
 }
 
-/* На узком — во всю ширину, друг под другом; в строку встают, только когда
-   в нее помещаются все подписи целиком, — решает место самой группы, а не
-   ширина экрана. Обеим группам страницы для этого нужно около 27rem: «Студенты,
-   Сотрудники, Лицей» — 407 пикселей, «Бакалавриат и специалитет» с
-   «Магистратурой» — 428. На телефоне это столбик, на планшете строка.
+/* На телефоне — все плашки группы в одну строку, на любой ширине от 320
+   пикселей: столбиком три плашки стадиона занимали 160 пикселей под и так
+   небольшой ареной. Для этого плашка на узком экране компактнее — кегль 14,
+   поля по 10, квадратик 18, — а высота та же, 48. Ширина плашек по подписи;
+   длинная подпись («Бакалавриат и специалитет») переносится внутри своей
+   плашки, а не уводит соседку на новую строку. Где места хватает (планшет,
+   группа шире 34rem), плашка снова обычного размера.
    Контейнер — только на узком: на широком группа меряется по содержимому
    (max-content), а size-контейнер содержимому меряться не дает. */
 @media (max-width: 860px) {
   .choice-group { container-type: inline-size; }
-  .choice-row { gap: 8px; }
-  .choice { flex: 1 1 100%; }
+  .choice-row {
+    flex-wrap: nowrap;
+    gap: 6px;
+  }
+  /* Плашка не уже своего самого длинного слова: «Магистратура» не
+     сжимается в соседку, переносится длинная подпись рядом. */
+  .choice {
+    flex: 1 1 auto;
+    min-width: auto;
+    gap: 7px;
+    padding: 6px 10px;
+    font-size: 0.875rem;
+    line-height: 1.25;
+  }
+  .choice-label { min-width: auto; }
+  .choice-input {
+    width: 18px;
+    height: 18px;
+  }
+  .choice-input::before {
+    width: 9px;
+    height: 4.5px;
+  }
 }
 
-@container (min-width: 27rem) {
-  .choice-row > .choice { flex: 1 1 0; }
+/* Самые узкие телефоны: на 360 «Студенты, Сотрудники, Лицей» в кегле 14 —
+   344 пикселя при 328 доступных, на 320 — при 288. Плашки там еще плотнее. */
+@container (max-width: 339.98px) {
+  .choice-row { gap: 5px; }
+  .choice-row > .choice {
+    gap: 5px;
+    padding: 6px 8px;
+    font-size: 0.8125rem;
+  }
+  .choice-row .choice-input {
+    width: 16px;
+    height: 16px;
+  }
+  .choice-row .choice-input::before {
+    width: 8px;
+    height: 4px;
+    border-width: 0 0 1.5px 1.5px;
+  }
+}
+
+@container (max-width: 299.98px) {
+  .choice-row > .choice {
+    padding: 6px 6px;
+    font-size: 0.75rem;
+  }
+}
+
+@container (min-width: 34rem) {
+  .choice-row { gap: 8px; }
+  .choice-row > .choice {
+    flex: 1 1 0;
+    gap: 10px;
+    padding: 11px 15px;
+    font-size: 0.9375rem;
+    line-height: 1.35;
+  }
+  .choice-row .choice-input {
+    width: 20px;
+    height: 20px;
+  }
+  .choice-row .choice-input::before {
+    width: 10px;
+    height: 5px;
+  }
 }
 
 /* ---------- City cards ---------- */
