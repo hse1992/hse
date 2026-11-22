@@ -264,7 +264,8 @@
       build: () => {
         if (api) return;
         if (!mod.init) {
-          codeOf(mod).then(late, () => {
+          codeOf(mod).then(late, (err) => {
+            if (stale(err)) return;
             clearTimeout(retry);
             retry = setTimeout(entry.build, 3000);
             window.addEventListener('online', entry.build, { once: true });
@@ -327,6 +328,36 @@
   // Один запрос и одна загрузка на модуль, сколько бы раз о нем ни спросили.
   // Сорвавшаяся загрузка забывается — следующая просьба начнет ее заново.
   // Раздел, загруженный вместе со страницей, отвечает сразу.
+  // Устаревшая вкладка. Адреса файлов от публикации к публикации те же, и
+  // вкладка, открытая до новой, могла еще не скачать главу, вынесенную из
+  // начальной загрузки: новый viz/space.js встречает тогда старые lib/, уже
+  // загруженные страницей, и просит у них то, чего в них нет. Это ошибка
+  // связывания (SyntaxError), а не сети, и браузер запоминает ее за адресом:
+  // повтор через три секунды получал бы ее снова, и глава не собралась бы
+  // никогда. Поэтому страница освежает в кэше браузера все скрипты и стили,
+  // которые успела загрузить, и перечитывается с того же места
+  // (story.reread). Не чаще раза в минуту: свежая копия, упавшая так же, — это
+  // уже не устаревшая вкладка, и перезагрузка по кругу ничего бы не дала.
+  const STALE = 'нсб-обновлена';
+  function stale(err) {
+    if (!(err instanceof SyntaxError)) return false;
+    // Каркас объявлен ниже: до его сборки перечитывать нечем.
+    let again;
+    try { again = story && story.reread; } catch (e) { return false; }
+    if (!again) return false;
+    try {
+      const was = Number(sessionStorage.getItem(STALE)) || 0;
+      if (Date.now() - was < 60000) return false;
+      sessionStorage.setItem(STALE, String(Date.now()));
+    } catch (e) { return false; }
+    const ours = performance.getEntriesByType('resource')
+      .map((r) => r.name)
+      .filter((u) => u.startsWith(location.origin) && /\.(js|css)$/.test(u.split(/[?#]/)[0]));
+    Promise.all(ours.map((u) => fetch(u, { cache: 'reload' }).catch(() => null)))
+      .then(() => again());
+    return true;
+  }
+
   function codeOf(mod) {
     if (mod.init) return Promise.resolve(mod);
     if (!mod.loading) {
