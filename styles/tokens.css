@@ -39,6 +39,19 @@
   --toggle-off: #D6D9DF;
   --toggle-on: #34C759;     /* neutral "on" for switches that carry no colour */
 
+  /* Плашки с чекбоксом (уровни образования в «Учиться…»). Контраст на белом
+     и на --bg: текст включенной 11.2 : 1, рамки и квадратик не ниже 3 : 1. */
+  --choice-on-bg: #E6EDFA;
+  --choice-on-hover-bg: #DCE5F7;
+  --choice-on-border: var(--brand-blue);
+  --choice-on-text: var(--hse-blue);
+  --choice-off-bg: var(--card);
+  --choice-off-hover-bg: #F5F8FD;
+  --choice-off-border: #808A9E;      /* 3.5 : 1 к белому, 3.1 : 1 к --bg */
+  --choice-off-hover-border: #66718A;
+  --choice-box-off: #6B7589;         /* 4.6 : 1 */
+  --choice-box-on: var(--brand-blue);
+
   /* Neutral fills used inside canvases */
   --empty: #D3D7DE;
   --shell: #E7E9ED;
