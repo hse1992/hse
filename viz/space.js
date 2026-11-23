@@ -278,7 +278,7 @@ export function init(root) {
         .space-turn-hint span {
           display: block;
           position: absolute;
-          left: calc(94.444% + 6px);
+          left: calc(94.444% + 14px);
           top: 8.571%;
           transform: translateY(-50%);
           font-size: 0.875rem;
@@ -514,7 +514,7 @@ export function init(root) {
         <div class="space-turn-hint" data-el="turn-hint" aria-hidden="true">
           <div class="space-turn-arrow">
             <svg viewBox="0 0 180 140" fill="none" aria-hidden="true">
-              <path d="M170 12 C100 26 51 59 24 119 M17 102 L24 119 L41 112"
+              <path d="M170 12 C100 26 51 59 24 119 M20 109 L24 119 L34 115"
                     stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" />
             </svg>
             <span>Можно покрутить</span>
@@ -857,7 +857,7 @@ export function init(root) {
     // Leave room for the label to the right of the arrow on narrower screens.
     if (!narrow.matches) {
       const width = Math.min(190, Math.max(120, R0 * 0.58));
-      const room = W - width * 170 / 180 - 6 - hintLabelWidth - 8;
+      const room = W - width * 170 / 180 - 14 - hintLabelWidth - 8;
       const left = Math.max(0, Math.min(room, W / 2 + R0 * 0.95));
       const top = Math.max(noteH - 28, CY0 - FY - R0 * 1.15 - 20);
       const place = `${Math.round(left)} ${Math.round(top)} ${Math.round(width)}`;
