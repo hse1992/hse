@@ -241,6 +241,21 @@ export function init(root) {
 
       .stadium-run { display: none; }
 
+      /* The filters now share the meter's row; make room for the city cards
+         on a short desktop screen without hiding the last card or buttons. */
+      @media (min-width: 861px) and (max-height: 760px) {
+        .stadium-body .city-card { padding-top: 6px; padding-bottom: 6px; }
+        .stadium-body .city-list { gap: 6px; }
+      }
+
+      @media (min-width: 861px) and (max-height: 680px) {
+        .stadium-body .col-left { gap: 8px; }
+        .stadium-body .city-card { padding-top: 4px; padding-bottom: 4px; }
+        .stadium-body .city-info { gap: 2px; }
+        .stadium-body .city-stats { gap: 0; min-height: 0; }
+        .stadium-body .city-list { gap: 4px; }
+      }
+
       /* On a phone the page scrolls, so the story is told by scrolling: the
          arena, the meter and the line above them are already pinned to the top
          there, and this gives the block the travel to go under them — a
@@ -903,32 +918,32 @@ export function init(root) {
   }
 
   // ---------- Column alignment ----------
-  // Only the left column starts with the filter row, so without this the meter
-  // card sits higher than the first city card. Measured rather than hard-coded:
-  // the row grows with the text size and can wrap on narrow screens.
   const colLeft = root.querySelector('.col-left');
   const colRight = root.querySelector('.col-right');
   const stacked = window.matchMedia('(max-width: 860px)');
 
   const meterCard = root.querySelector('.meter-card');
+  const actions = root.querySelector('.actions');
 
-  // Lines the top of the meter up with the top of the first city card.
-  // Measured rather than derived: the left column starts with the filter row
-  // and the right one with whatever the scene left behind, and both change
-  // height with the text size.
+  // Lower the filters to the meter's former position where the screen allows,
+  // then align the meter with them. Leave room for every city and the buttons.
   function alignColumns() {
     // Плашки могут занять всю ширину блока — см. .choice-group.
     if (!stacked.matches) kinds.room(root.clientWidth);
     // One column, or the controls are away telling the story: nothing to line
     // the meter up with.
     if (stacked.matches || root.classList.contains('is-telling')) {
+      kindRow.style.marginTop = '';
       colRight.style.paddingTop = '';
       return;
     }
-    const card = cityList.querySelector('.city-card');
-    if (!card) return;
+    const gap = parseFloat(getComputedStyle(colLeft).rowGap) || 0;
+    const room = colLeft.clientHeight - kindRow.offsetHeight - cityList.scrollHeight
+      - actions.offsetHeight - gap * 2;
+    const offset = `${Math.max(0, Math.min(kindRow.offsetHeight + gap, room))}px`;
+    if (kindRow.style.marginTop !== offset) kindRow.style.marginTop = offset;
     colRight.style.paddingTop = '0px';
-    const delta = card.getBoundingClientRect().top - meterCard.getBoundingClientRect().top;
+    const delta = kindRow.getBoundingClientRect().top - meterCard.getBoundingClientRect().top;
     colRight.style.paddingTop = `${Math.max(0, Math.round(delta))}px`;
   }
 
@@ -951,6 +966,7 @@ export function init(root) {
   headAside();
 
   onResize(kindRow, alignColumns);
+  onResize(cityList, alignColumns);
   onResize(root, alignColumns);
   stacked.addEventListener('change', alignColumns);
   // The left column arrives with a transition; measure once it has settled.

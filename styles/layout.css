@@ -1203,9 +1203,8 @@ button { font-family: inherit; }
    подписи, группа — fieldset со скрытым legend. Нажимается вся плашка, фокус,
    пробел и «отмечено / не отмечено» у диктора — свои у чекбокса.
 
-   Состояние видно сразу тремя признаками — галочкой, заливкой и рамкой; рамка
-   одной толщины в обоих состояниях и насыщенность текста та же, так что
-   переключение не двигает ни плашку, ни соседей. Цвета — токены --choice-*. */
+   На телефоне состояние видно галочкой, заливкой и рамкой; на широком экране
+   обычные чекбоксы с подписями стоят в общей белой карточке. Цвета — токены. */
 .choice-group {
   min-width: 0;
   margin: 0;
@@ -1324,21 +1323,57 @@ button { font-family: inherit; }
   .choice-input { transition: none; }
 }
 
-/* На широком экране колонка с городами — 340 пикселей, а плашки с полными
-   подписями шире: в колонке они встали бы друг под другом и вытолкнули бы
-   список городов в прокрутку уже на 1280 на 720. Место над правой колонкой и
-   так пустое — блок сдвигает ее вниз ровно на высоту этой группы, — поэтому
-   группа выходит за край колонки вправо, на ширину всего блока (--choice-room
-   пишет блок, room() у choices()). Не помещаются и так — плашки встают друг
-   под другом. */
+/* На широком экране колонка с городами — 340 пикселей. В «Учиться» подписи
+   длиннее колонки, поэтому группа может выйти за ее край вправо (--choice-room
+   пишет блок, room() у choices()). Не помещаются и так — подписи переносятся. */
 @media (min-width: 861px) {
   .choice-group {
+    box-sizing: border-box;
+    min-width: 100%;
     width: max-content;
     max-width: var(--choice-room, 100%);
+    padding: 0 16px;
+    border-radius: var(--r-card);
+    background: var(--card);
+    box-shadow: var(--card-shadow);
     /* Над правой колонкой: ее пустой верхний отступ лежит позже в разметке
        и иначе забирал бы нажатия у плашек, которые в него заходят. */
     position: relative;
     z-index: 2;
+  }
+
+  /* Keep the controls quiet on desktop, with the browser's own checkbox. */
+  .choice-row { gap: 12px; }
+
+  .choice,
+  .choice.on {
+    gap: 8px;
+    padding: 8px 0;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--text);
+    font-weight: 400;
+  }
+
+  .choice-input,
+  .choice-input:checked {
+    -webkit-appearance: auto;
+    appearance: auto;
+    display: block;
+    width: 16px;
+    height: 16px;
+    border: revert;
+    border-radius: revert;
+    background: revert;
+    accent-color: var(--brand-blue);
+  }
+
+  .choice-input::before { content: none; }
+
+  @media (hover: hover) {
+    .choice:hover,
+    .choice.on:hover { background: transparent; }
   }
 }
 
