@@ -6,7 +6,7 @@
 // planet. Only the satellites themselves are drawn larger than life — to
 // scale they would be smaller than a pixel.
 
-import { mountCanvas, stepAhead } from '../lib/ui.js';
+import { mountCanvas, onResize, stepAhead } from '../lib/ui.js';
 import { loadMark } from '../lib/hse-mark.js';
 import { CITIES } from '../data/hse.js';
 import { LAND } from '../data/earth.js';
@@ -272,12 +272,15 @@ export function init(root) {
 
         .space-turn-hint.is-visible { opacity: var(--intro-body, 1); }
 
+        .space-turn-arrow { position: relative; }
+
+        /* Start the label at the upper end of the line in the SVG viewBox. */
         .space-turn-hint span {
           display: block;
           position: absolute;
-          top: calc(100% - 4px);
-          left: 0;
-          text-align: left;
+          left: calc(94.444% + 6px);
+          top: 8.571%;
+          transform: translateY(-50%);
           font-size: 0.875rem;
           line-height: 1.3;
           white-space: nowrap;
@@ -509,11 +512,13 @@ export function init(root) {
           <div class="space-note-sub" data-el="sub"></div>
         </div>
         <div class="space-turn-hint" data-el="turn-hint" aria-hidden="true">
-          <span>Можно покрутить</span>
-          <svg viewBox="0 0 180 140" fill="none" aria-hidden="true">
-            <path d="M170 12 C100 26 51 59 24 119 M17 102 L24 119 L41 112"
-                  stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-          </svg>
+          <div class="space-turn-arrow">
+            <svg viewBox="0 0 180 140" fill="none" aria-hidden="true">
+              <path d="M170 12 C100 26 51 59 24 119 M17 102 L24 119 L41 112"
+                    stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+            <span>Можно покрутить</span>
+          </div>
         </div>
         <button type="button" class="btn space-shot" data-el="shot" hidden>Снять Вышку со спутника</button>
       </div>
@@ -545,6 +550,7 @@ export function init(root) {
   const subEl = $('sub');
   const noteBox = $('note-box');
   const turnHint = $('turn-hint');
+  const turnLabel = turnHint.querySelector('span');
   // На телефоне снимок делает читатель — кнопкой на последнем такте.
   const shotEl = $('shot');
   let snapped = false;
@@ -791,6 +797,14 @@ export function init(root) {
   const colEl = root.querySelector('.col-right');
   let laid = '';
   let hintPlace = '';
+  let hintLabelWidth = turnLabel.offsetWidth;
+  onResize(turnLabel, () => {
+    const width = turnLabel.offsetWidth;
+    if (width === hintLabelWidth) return;
+    hintLabelWidth = width;
+    hintPlace = '';
+    if (!narrow.matches) paint();
+  });
   function spread() {
     const box = wrapEl.getBoundingClientRect();
     const out = (host || wrapEl).getBoundingClientRect();
@@ -840,10 +854,11 @@ export function init(root) {
     R0 = narrow.matches
       ? Math.min(W * 0.40, free * 0.42)
       : Math.min(W * 0.34, free * 0.46);
-    // Keep the arrow by the planet as its radius changes with the window.
+    // Leave room for the label to the right of the arrow on narrower screens.
     if (!narrow.matches) {
       const width = Math.min(190, Math.max(120, R0 * 0.58));
-      const left = Math.min(W - width - 8, W / 2 + R0 * 0.95);
+      const room = W - width * 170 / 180 - 6 - hintLabelWidth - 8;
+      const left = Math.max(0, Math.min(room, W / 2 + R0 * 0.95));
       const top = Math.max(noteH - 28, CY0 - FY - R0 * 1.15 - 20);
       const place = `${Math.round(left)} ${Math.round(top)} ${Math.round(width)}`;
       if (place !== hintPlace) {
