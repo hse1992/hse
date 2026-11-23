@@ -345,7 +345,7 @@ export function init(root) {
         padding: 12px 26px;
         color: var(--card);
         background: var(--hse-blue);
-        border-color: var(--hse-blue);
+        border-color: var(--card);
         /* В одну строку. Кнопка стоит от середины (left: 50%), и ширины ей
            по умолчанию достается половина карточки — «Снять Вышку со
            спутника» ломалась на две строки. Поля от краев экрана держит
@@ -362,7 +362,7 @@ export function init(root) {
       @media (hover: hover) {
         .btn.space-shot:hover {
           background: var(--hse-blue-deep);
-          border-color: var(--hse-blue-deep);
+          border-color: var(--card);
           color: var(--card);
         }
       }
