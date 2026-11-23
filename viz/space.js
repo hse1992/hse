@@ -222,6 +222,8 @@ export function init(root) {
         color: var(--space-label);
       }
 
+      .space-turn-hint { display: none; }
+
       /* The heading does not fly in from the side. The shell walks a title
          card in from the right while the lead-in leaves, but here the two
          belong together: the heading comes up from below in the same movement
@@ -255,6 +257,37 @@ export function init(root) {
         .space-section .viz-lead {
           position: absolute;
           z-index: 4;
+        }
+
+        .space-turn-hint {
+          display: block;
+          position: absolute;
+          z-index: 2;
+          color: var(--space-label);
+          opacity: 0;
+          transition: opacity 260ms ease;
+          pointer-events: none;
+        }
+
+        .space-turn-hint.is-visible { opacity: var(--intro-body, 1); }
+
+        .space-turn-hint span {
+          display: block;
+          text-align: right;
+          font-size: 0.875rem;
+          line-height: 1.3;
+          white-space: nowrap;
+        }
+
+        .space-turn-hint svg {
+          display: block;
+          width: 100%;
+          height: auto;
+          overflow: visible;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .space-turn-hint { transition: none; }
         }
       }
 
@@ -471,6 +504,13 @@ export function init(root) {
           <div class="space-note-line" data-el="note"></div>
           <div class="space-note-sub" data-el="sub"></div>
         </div>
+        <div class="space-turn-hint" data-el="turn-hint" aria-hidden="true">
+          <span>Можно покрутить</span>
+          <svg viewBox="0 0 180 140" fill="none" aria-hidden="true">
+            <path d="M170 12 C100 26 51 59 24 119 M17 102 L24 119 L41 112"
+                  stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </div>
         <button type="button" class="btn space-shot" data-el="shot" hidden>Снять Вышку со спутника</button>
       </div>
     </div>
@@ -500,6 +540,7 @@ export function init(root) {
   const noteEl = $('note');
   const subEl = $('sub');
   const noteBox = $('note-box');
+  const turnHint = $('turn-hint');
   // На телефоне снимок делает читатель — кнопкой на последнем такте.
   const shotEl = $('shot');
   let snapped = false;
@@ -745,6 +786,7 @@ export function init(root) {
   const wrapEl = $('wrap');
   const colEl = root.querySelector('.col-right');
   let laid = '';
+  let hintPlace = '';
   function spread() {
     const box = wrapEl.getBoundingClientRect();
     const out = (host || wrapEl).getBoundingClientRect();
@@ -794,6 +836,19 @@ export function init(root) {
     R0 = narrow.matches
       ? Math.min(W * 0.40, free * 0.42)
       : Math.min(W * 0.34, free * 0.46);
+    // Keep the arrow by the planet as its radius changes with the window.
+    if (!narrow.matches) {
+      const width = Math.min(190, Math.max(120, R0 * 0.58));
+      const left = Math.min(W - width - 8, W / 2 + R0 * 0.95);
+      const top = Math.max(noteH - 28, CY0 - FY - R0 * 1.15 - 20);
+      const place = `${Math.round(left)} ${Math.round(top)} ${Math.round(width)}`;
+      if (place !== hintPlace) {
+        hintPlace = place;
+        turnHint.style.left = `${Math.round(left)}px`;
+        turnHint.style.top = `${Math.round(top)}px`;
+        turnHint.style.width = `${Math.round(width)}px`;
+      }
+    }
     // True to scale the orbit runs eight per cent above the surface — a dozen
     // pixels here. Never closer than room enough to make out what is flying.
     RO0 = Math.max(R0 * (1 + ORBIT_KM / EARTH_KM), R0 + 20);
@@ -1903,6 +1958,9 @@ export function init(root) {
     // про то, что летает над ними.
     homeTo = i === 0 ? 1 : 0;
     if (instant) homeK = homeTo;
+
+    // The first satellite arrives with the planet's first full-size frame.
+    turnHint.classList.toggle('is-visible', i === 1);
 
     // Кнопка приходит с последним тактом и уходит со снимком. Назад, к
     // прошлым тактам, уходит и сам снимок — значит, просить о нем можно снова.
