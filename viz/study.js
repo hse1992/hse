@@ -955,6 +955,42 @@ export function init(root) {
   // styles live here and not in layout.css.
   root.innerHTML = `
     <style>
+      /* The filter card shares the row with the meter. Keep it inside the
+         city column and allow the full level names to wrap if needed. */
+      @media (min-width: 861px) {
+        #study .choice-group { width: 100%; max-width: 100%; }
+        #study .choice-row { flex-wrap: nowrap; }
+        #study .choice { min-width: 0; }
+        #study .choice:last-child { flex: 0 0 auto; }
+      }
+
+      /* Leave space for the whole city list and its buttons on short screens. */
+      @media (min-width: 861px) and (max-height: 760px) {
+        #study .city-card { padding-top: 6px; padding-bottom: 6px; }
+        #study .city-list { gap: 6px; }
+        #study .study-stage { gap: 6px; padding: 4px; }
+        #study .study-years { font-size: clamp(3rem, 13vh, 6rem); }
+        #study .study-history { gap: 12px; margin-top: 10px; padding: 10px 16px; }
+        #study .study-stage .study-art { width: 56px; height: 56px; }
+        #study .study-timeline { margin-top: 10px; }
+        #study .study-track { height: 30px; }
+        #study .study-note { padding: 2px 8px; }
+      }
+
+      @media (min-width: 861px) and (max-height: 680px) {
+        #study .col-left { gap: 8px; }
+        #study .city-card { padding-top: 4px; padding-bottom: 4px; }
+        #study .city-info { gap: 2px; }
+        #study .city-stats { gap: 0; min-height: 0; }
+        #study .city-list { gap: 4px; }
+        #study .study-stage { gap: 4px; padding: 0; }
+        #study .study-years { font-size: clamp(3rem, 10vh, 4.5rem); }
+        #study .study-history { margin-top: 6px; padding: 8px 12px; }
+        #study .study-stage .study-art { width: 48px; height: 48px; }
+        #study .study-timeline { margin-top: 6px; }
+        #study .study-track { height: 24px; }
+      }
+
       .study-stage {
         flex: 1;
         min-height: 0;
@@ -1455,23 +1491,28 @@ export function init(root) {
   }
 
   // ---------- Column alignment ----------
-  // Only the left column starts with the filter row, so without this the meter
-  // card sits higher than the first city card.
   const colLeft = root.querySelector('.col-left');
   const colRight = root.querySelector('.col-right');
+  const actions = root.querySelector('.actions');
 
   function alignColumns() {
     if (stacked.matches) {
-      colRight.style.paddingTop = '';   // one column: nothing to line up with
+      kindRow.style.marginTop = '';
+      colRight.style.paddingTop = '';
       return;
     }
-    // Плашки уровней могут занять всю ширину блока — см. .choice-group.
-    levels.room(root.clientWidth);
+    // Lower the filters to the meter's former position while leaving room for
+    // every city and the buttons; both cards begin at the same height.
     const gap = parseFloat(getComputedStyle(colLeft).rowGap) || 0;
-    colRight.style.paddingTop = `${kindRow.offsetHeight + gap}px`;
+    const room = colLeft.clientHeight - kindRow.offsetHeight - cityList.scrollHeight
+      - actions.offsetHeight - gap * 2;
+    const offset = `${Math.max(0, Math.min(kindRow.offsetHeight + gap, room))}px`;
+    if (kindRow.style.marginTop !== offset) kindRow.style.marginTop = offset;
+    if (colRight.style.paddingTop !== offset) colRight.style.paddingTop = offset;
   }
 
   onResize(kindRow, alignColumns);
+  onResize(cityList, alignColumns);
   onResize(root, alignColumns);
   stacked.addEventListener('change', alignColumns);
 

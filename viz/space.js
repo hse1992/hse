@@ -263,6 +263,7 @@ export function init(root) {
           display: block;
           position: absolute;
           z-index: 2;
+          padding-top: 1.125rem;
           color: var(--space-label);
           opacity: 0;
           transition: opacity 260ms ease;
@@ -273,7 +274,10 @@ export function init(root) {
 
         .space-turn-hint span {
           display: block;
-          text-align: right;
+          position: absolute;
+          top: calc(100% - 4px);
+          left: 0;
+          text-align: left;
           font-size: 0.875rem;
           line-height: 1.3;
           white-space: nowrap;
