@@ -21,16 +21,20 @@ import { meta } from './space.meta.js';
 // than to the satellites stays here.
 const EARTH_KM = 6371;   // the planet they go round
 
-// Where the four campuses stand on the globe, degrees north and east. On a
-// planet this size they come out a finger apart — which is the point: the
-// whole university fits into one corner of one continent, and its satellites
-// go round all of it.
+// The four Russian campuses define the first-frame ring and the camera aim.
 const CITY_AT = {
   msk: [55.75, 37.62],
   spb: [59.94, 30.31],
   nn: [56.33, 44.00],
   perm: [58.01, 56.25]
 };
+
+// Other HSE locations belong on the globe, not in the four-campus totals.
+const OTHER_CITY_AT = [
+  [28.61, 77.21],    // Delhi, India
+  [24.45, 54.38],    // Abu Dhabi, UAE
+  [-7.26, 112.75]    // Surabaya, Indonesia
+];
 
 // The middle of the four: the marks all stand the way the ground lies there,
 // so that they stay parallel to one another.
@@ -566,7 +570,8 @@ export function init(root) {
   // standing where the university does.
   const { canvas, ctx } = mountCanvas($('wrap'), () => paint(),
     'Земля из космоса, вокруг нее орбиты вышкинских спутников, '
-    + 'а на ней значки Вышки в четырех городах');
+    + 'а на ней значки Вышки в Москве, Санкт-Петербурге, Нижнем Новгороде, '
+    + 'Перми, Дели, Абу-Даби и Сурабае');
 
   // Canvas needs plain strings, so the palette is read once from the tokens.
   const token = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -688,7 +693,7 @@ export function init(root) {
     if (skyRun > 0 && !skyWait) skyWait = requestAnimationFrame(() => { skyWait = 0; flew(); });
   }
 
-  // The mark of the university, for the four places it stands in. It is read
+  // The mark of the university, for the places shown on the globe. It is read
   // from the file, so it arrives a moment after everything else — until then
   // the globe simply goes without it.
   let mark = null;
@@ -1233,10 +1238,7 @@ export function init(root) {
 
     drawCoast();
 
-    // And the four campuses on it, stuck to the surface like transfers: each
-    // one is drawn in the frame of the ground it lies on, so it turns with
-    // the globe, flattens towards the edge and goes round with everything
-    // else. The mark keeps the colours it wears everywhere on the page.
+    // Marks sit on the surface, turn with the globe and flatten at the edge.
     if (mark) {
       // Чуть крупнее прежнего: с них начинается глава, и на телефоне метка в
       // восемь пикселей читалась как пылинка.
@@ -1245,26 +1247,23 @@ export function init(root) {
       // пикселей, закрыла бы собой весь шар.
       const arc = Math.max(10 * far, R * 0.07) / 2 / R;  // its radius, in surface radians
       const D = 0.4;                               // degrees, to read the lie of the ground
-      // Which way east and north run on the screen — read once, in the middle
-      // of the four, and used for all of them. The lie of the ground is a
-      // little different in every place, and marks that each stood by their
-      // own would read as a scatter; sharing it keeps their left edges
-      // parallel, and they still lean and flatten together as the globe turns.
-      const psi0 = MIDDLE[1] - spin;
-      const p0 = put(MIDDLE[0], psi0, R);
-      const e0 = put(MIDDLE[0], psi0 + D, R);
-      const n0 = put(MIDDLE[0] + D, psi0, R);
-      const kx = arc / (Math.cos(MIDDLE[0] * RAD) * D * RAD) / mark.r;
-      const ky = arc / (D * RAD) / mark.r;
-      // North is up on the ground and down in the file, hence the minus.
-      const lie = [(e0.x - p0.x) * kx, (e0.y - p0.y) * kx,
-                   -(n0.x - p0.x) * ky, -(n0.y - p0.y) * ky];
-
-      CITIES.forEach((city) => {
-        const at = CITY_AT[city.key];
-        if (!at) return;
+      const ground = (at, p) => {
+        const psi = at[1] - spin;
+        const east = put(at[0], psi + D, R);
+        const north = put(at[0] + D, psi, R);
+        const kx = arc / (Math.cos(at[0] * RAD) * D * RAD) / mark.r;
+        const ky = arc / (D * RAD) / mark.r;
+        // North is up on the ground and down in the file, hence the minus.
+        return [(east.x - p.x) * kx, (east.y - p.y) * kx,
+                -(north.x - p.x) * ky, -(north.y - p.y) * ky];
+      };
+      // Keep the nearby Russian marks parallel; distant ones follow their own
+      // local ground so they do not flip or distort as the globe turns.
+      const clusterLie = ground(MIDDLE, put(MIDDLE[0], MIDDLE[1] - spin, R));
+      const drawMark = (at, cluster) => {
         const p = put(at[0], at[1] - spin, R);
         if (p.z <= 0) return;
+        const lie = cluster ? clusterLie : ground(at, p);
         ctx.save();
         // Nothing pops in at the edge: a mark coming round fades in over the
         // last of its way.
@@ -1276,7 +1275,12 @@ export function init(root) {
         ctx.fillStyle = '#FFFFFF';
         ctx.fill(mark.mark);
         ctx.restore();
+      };
+      CITIES.forEach((city) => {
+        const at = CITY_AT[city.key];
+        if (at) drawMark(at, true);
       });
+      OTHER_CITY_AT.forEach((at) => drawMark(at, false));
     }
 
     // A ball, not a disc: the light comes from up and to the left and the
@@ -1592,7 +1596,8 @@ export function init(root) {
 
   // ---------- Time ----------
   let clock = 0;
-  let spin = 45;              // European Russia faces us to start with
+  const START_SPIN = 70;      // Russia and the three additional cities face us
+  let spin = START_SPIN;
   // Кольцо вокруг четырех городов: единица на первом кадре, ноль дальше.
   let homeK = 0;
   let homeTo = 0;
@@ -1836,6 +1841,8 @@ export function init(root) {
 
   let started = false;
   let shown = -1;
+  // Once the first frame has been passed, its hint stays gone on the way back.
+  let hintPassed = false;
 
   function say(i) {
     // Строка над снимком та же, что над доворотом: это одна фраза на оба.
@@ -1861,8 +1868,7 @@ export function init(root) {
     // Поэтому шаг возвращается тут же, мигом, — тот же самый: открыть блок
     // дважды значит ровно то же, что открыть один раз.
     const was = shown;
-    turnHint.classList.remove('is-turned');
-    spin = 45;
+    spin = START_SPIN;
     steer = null;
     // A flick of the hand carries the globe on and dies out in half a second —
     // but only while the block is on the screen, and nothing turns here while
@@ -1905,6 +1911,7 @@ export function init(root) {
   }
 
   function step(i) {
+    if (i > 1) hintPassed = true;
     const jumped = i !== shown + 1 && shown !== -1;
     const instant = still || shown === -1 || jumped;
     const last = i >= BURN;
@@ -1985,7 +1992,7 @@ export function init(root) {
     if (instant) homeK = homeTo;
 
     // The first satellite arrives with the planet's first full-size frame.
-    turnHint.classList.toggle('is-visible', i === 1);
+    turnHint.classList.toggle('is-visible', i === 1 && !hintPassed);
 
     // Кнопка приходит с последним тактом и уходит со снимком. Назад, к
     // прошлым тактам, уходит и сам снимок — значит, просить о нем можно снова.
@@ -2119,7 +2126,9 @@ export function init(root) {
     const box = host.getBoundingClientRect();
     const col = colEl.getBoundingClientRect().top;
     const span = Math.max(1, col - box.top);
-    farK = Math.max(0, Math.min(1, 1 - col / span));
+    // Прокрутка может остановиться на долю пикселя раньше верхнего края.
+    // Считаем, что планета уже пришла: иначе холст не принимает касания.
+    farK = col <= 1 ? 1 : Math.max(0, Math.min(1, 1 - col / span));
     // Трогать холст имеет смысл только пока идет открытие — то есть пока
     // секция на экране, а колонка до верха окна еще не дошла. До того секция
     // стоит ниже окна, и поднятая планета повисла бы над чужим разделом:
@@ -2269,6 +2278,13 @@ export function init(root) {
     open,
     ahead,
     behind,
+    remember: () => ({ hintPassed, hintTurned: turnHint.classList.contains('is-turned') }),
+    recall: (data) => {
+      if (!data) return;
+      hintPassed = !!data.hintPassed;
+      turnHint.classList.toggle('is-turned', !!data.hintTurned);
+      turnHint.classList.toggle('is-visible', shown === 1 && !hintPassed);
+    },
     // A satellite drawing its own orbit takes longer than a beat, the two that
     // come down take their time burning up, and the last one takes its time
     // turning to the ground.
