@@ -274,7 +274,7 @@ export function init(root) {
           pointer-events: none;
         }
 
-        .space-turn-hint.is-visible { opacity: var(--intro-body, 1); }
+        .space-turn-hint.is-visible:not(.is-turned) { opacity: var(--intro-body, 1); }
 
         .space-turn-arrow { position: relative; }
 
@@ -288,10 +288,7 @@ export function init(root) {
           font-size: 0.875rem;
           line-height: 1.3;
           white-space: nowrap;
-          transition: opacity 260ms ease;
         }
-
-        .space-turn-hint.is-turned span { opacity: 0; }
 
         .space-turn-hint svg {
           display: block;
@@ -301,8 +298,7 @@ export function init(root) {
         }
 
         @media (prefers-reduced-motion: reduce) {
-          .space-turn-hint,
-          .space-turn-hint span { transition: none; }
+          .space-turn-hint { transition: none; }
         }
       }
 
