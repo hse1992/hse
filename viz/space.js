@@ -23,17 +23,17 @@ const EARTH_KM = 6371;   // the planet they go round
 
 // The four Russian campuses define the first-frame ring and the camera aim.
 const CITY_AT = {
-  msk: [55.75, 37.62],
-  spb: [59.94, 30.31],
-  nn: [56.33, 44.00],
-  perm: [58.01, 56.25]
+  msk: [55.75, 37.62, 'Кампус в Москве'],
+  spb: [59.94, 30.31, 'Кампус в Санкт-Петербурге'],
+  nn: [56.33, 44.00, 'Кампус в Нижнем Новгороде'],
+  perm: [58.01, 56.25, 'Кампус в Перми']
 };
 
 // Other HSE locations belong on the globe, not in the four-campus totals.
 const OTHER_CITY_AT = [
-  [28.61, 77.21],    // Delhi, India
-  [24.45, 54.38],    // Abu Dhabi, UAE
-  [-7.26, 112.75]    // Surabaya, Indonesia
+  [28.61, 77.21, 'Представительство в г. Дели'],
+  [24.45, 54.38, 'Представительство в г. Абу-Даби'],
+  [-7.26, 112.75, 'Представительство в г. Сурабая']
 ];
 
 // The middle of the four: the marks all stand the way the ground lies there,
@@ -226,7 +226,7 @@ export function init(root) {
         color: var(--space-label);
       }
 
-      .space-turn-hint { display: none; }
+      .space-turn-hint, .space-city-tip { display: none; }
 
       /* The heading does not fly in from the side. The shell walks a title
          card in from the right while the lead-in leaves, but here the two
@@ -276,6 +276,30 @@ export function init(root) {
 
         .space-turn-hint.is-visible:not(.is-turned) { opacity: var(--intro-body, 1); }
 
+        /* The name belongs to the mark under the cursor, not the whole globe. */
+        .space-city-tip {
+          display: block;
+          position: absolute;
+          z-index: 3;
+          left: 0;
+          top: 0;
+          padding: 5px 11px;
+          border-radius: 999px;
+          background: var(--hint-veil);
+          -webkit-backdrop-filter: blur(8px);
+          backdrop-filter: blur(8px);
+          box-shadow: var(--card-shadow);
+          color: var(--text);
+          font-size: 0.875rem;
+          line-height: 1.2;
+          white-space: nowrap;
+          opacity: 0;
+          transition: opacity 140ms ease;
+          pointer-events: none;
+        }
+
+        .space-city-tip.is-here { opacity: 1; }
+
         .space-turn-arrow { position: relative; }
 
         /* Start the label at the upper end of the line in the SVG viewBox. */
@@ -298,7 +322,7 @@ export function init(root) {
         }
 
         @media (prefers-reduced-motion: reduce) {
-          .space-turn-hint { transition: none; }
+          .space-turn-hint, .space-city-tip { transition: none; }
         }
       }
 
@@ -510,7 +534,9 @@ export function init(root) {
 
     <div class="col-right">
       <div class="canvas-card space-card">
-        <div class="canvas-wrap" data-el="wrap"></div>
+        <div class="canvas-wrap" data-el="wrap">
+          <div class="space-city-tip" data-el="city-tip" aria-hidden="true"></div>
+        </div>
         <div class="space-note" data-el="note-box">
           <div class="space-note-line" data-el="note"></div>
           <div class="space-note-sub" data-el="sub"></div>
@@ -555,6 +581,7 @@ export function init(root) {
   const noteBox = $('note-box');
   const turnHint = $('turn-hint');
   const turnLabel = turnHint.querySelector('span');
+  const cityTip = $('city-tip');
   // На телефоне снимок делает читатель — кнопкой на последнем такте.
   const shotEl = $('shot');
   let snapped = false;
@@ -565,9 +592,9 @@ export function init(root) {
   // that are nowhere in words — the planet, the rings round it, and the marks
   // standing where the university does.
   const { canvas, ctx } = mountCanvas($('wrap'), () => paint(),
-    'Земля из космоса, вокруг нее орбиты вышкинских спутников, '
-    + 'а на ней значки Вышки в Москве, Санкт-Петербурге, Нижнем Новгороде, '
-    + 'Перми, Дели, Абу-Даби и Сурабае');
+    'Земля из космоса, вокруг нее орбиты вышкинских спутников. '
+    + 'Значки отмечают кампусы в Москве, Санкт-Петербурге, Нижнем Новгороде и Перми '
+    + 'и представительства в Дели, Абу-Даби и Сурабае.');
 
   // Canvas needs plain strings, so the palette is read once from the tokens.
   const token = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -1212,6 +1239,74 @@ export function init(root) {
 
   // ---------- Drawing ----------
   let dpr = 1;
+  const cityMarks = [];       // the visible marks in canvas coordinates
+  let cityPointer = null;     // the hovering pointer in viewport coordinates
+  let namedCity = '';
+  let tipWidth = 0, tipHeight = 0, tipLeft = null, tipTop = null;
+  let cityTipShown = false;
+
+  const hideCityTip = () => {
+    if (!cityTipShown) return;
+    cityTipShown = false;
+    cityTip.classList.remove('is-here');
+  };
+
+  const clearCityHover = () => {
+    cityPointer = null;
+    hideCityTip();
+  };
+
+  function updateCityTip() {
+    if (!cityPointer || narrow.matches || !CW || !CH) { hideCityTip(); return; }
+    const rect = canvas.getBoundingClientRect();
+    if (!rect.width || !rect.height) { hideCityTip(); return; }
+    const sx = rect.width / CW, sy = rect.height / CH;
+    const x = (cityPointer.x - rect.left) / sx;
+    const y = (cityPointer.y - rect.top) / sy;
+    if (x < 0 || x > CW || y < 0 || y > CH) { hideCityTip(); return; }
+
+    // The four Russian marks are close: the nearest center wins where their
+    // small hit areas overlap. Marks on the far side are absent from the list.
+    let hit = null, nearest = Infinity;
+    cityMarks.forEach((city) => {
+      const distance = Math.hypot(x - city.x, y - city.y);
+      if (distance <= city.radius && distance < nearest) { hit = city; nearest = distance; }
+    });
+    if (!hit) { hideCityTip(); return; }
+
+    if (namedCity !== hit.label) {
+      namedCity = hit.label;
+      cityTip.textContent = namedCity;
+      tipWidth = cityTip.offsetWidth;
+      tipHeight = cityTip.offsetHeight;
+    }
+    const section = (host || wrapEl).getBoundingClientRect();
+    const left = Math.max(8, section.left + 8);
+    const right = Math.min(window.innerWidth - 8, section.right - 8);
+    const top = Math.max(8, section.top + 8);
+    const bottom = Math.min(window.innerHeight - 8, section.bottom - 8);
+    const mx = rect.left + hit.x * sx, my = rect.top + hit.y * sy;
+    const above = my - hit.radius * sy - tipHeight - 8;
+    const below = my + hit.radius * sy + 8;
+    const screenX = Math.max(left, Math.min(right - tipWidth, mx - tipWidth / 2));
+    const clampY = (y) => Math.max(top, Math.min(bottom - tipHeight, y));
+    const upper = clampY(above), lower = clampY(below);
+    // Do not cover a neighboring mark if the other side has room for the name.
+    const overlaps = (y) => cityMarks.reduce((count, city) => {
+      const px = rect.left + city.x * sx, py = rect.top + city.y * sy;
+      const rx = city.radius * sx, ry = city.radius * sy;
+      return count + (screenX < px + rx && screenX + tipWidth > px - rx
+        && y < py + ry && y + tipHeight > py - ry ? 1 : 0);
+    }, 0);
+    const screenY = above < top || overlaps(lower) < overlaps(upper) ? lower : upper;
+    // The canvas extends beyond its wrapper; the tip is positioned in the
+    // wrapper, so subtract its origin before writing CSS coordinates.
+    const nextLeft = Math.round((screenX - rect.left) / sx - FX);
+    const nextTop = Math.round((screenY - rect.top) / sy - FY);
+    if (nextLeft !== tipLeft) { tipLeft = nextLeft; cityTip.style.left = `${nextLeft}px`; }
+    if (nextTop !== tipTop) { tipTop = nextTop; cityTip.style.top = `${nextTop}px`; }
+    if (!cityTipShown) { cityTipShown = true; cityTip.classList.add('is-here'); }
+  }
 
   function resize() {
     const d = Math.min(window.devicePixelRatio || 1, 2);
@@ -1225,6 +1320,7 @@ export function init(root) {
   }
 
   function drawGlobe() {
+    cityMarks.length = 0;
     ctx.save();
     ctx.beginPath();
     ctx.arc(CX, CY, R, 0, Math.PI * 2);
@@ -1260,6 +1356,10 @@ export function init(root) {
         const p = put(at[0], at[1] - spin, R);
         if (p.z <= 0) return;
         const lie = cluster ? clusterLie : ground(at, p);
+        if (!narrow.matches) {
+          const radius = mark.r * Math.max(Math.hypot(lie[0], lie[2]), Math.hypot(lie[1], lie[3]));
+          cityMarks.push({ x: p.x, y: p.y, radius: Math.max(6, radius), label: at[2] });
+        }
         ctx.save();
         // Nothing pops in at the edge: a mark coming round fades in over the
         // last of its way.
@@ -1588,6 +1688,7 @@ export function init(root) {
       if (!dying) names.push({ sat, x: p.x, y: p.y, alpha: hidden(p) ? 0.45 : 1 });
     });
     drawLabels(names);
+    updateCityTip();
   }
 
   // ---------- Time ----------
@@ -1708,6 +1809,7 @@ export function init(root) {
   };
 
   canvas.addEventListener('pointerdown', (e) => {
+    clearCityHover();
     const палец = e.pointerType !== 'mouse';
     if (!палец && e.button !== 0) return;
     if (!палец) e.preventDefault();
@@ -1716,7 +1818,13 @@ export function init(root) {
   });
 
   canvas.addEventListener('pointermove', (e) => {
-    if (!drag) return;
+    if (!drag) {
+      if (!narrow.matches && e.pointerType !== 'touch') {
+        cityPointer = { x: e.clientX, y: e.clientY };
+        updateCityTip();
+      }
+      return;
+    }
     if (drag.ждет) {
       const пошел = e.clientX - drag.x;
       const вниз = e.clientY - drag.y;
@@ -1753,9 +1861,15 @@ export function init(root) {
     drag = null;
     canvas.classList.remove('is-dragging');
     if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
+    if (e.type === 'pointerup' && !narrow.matches && e.pointerType !== 'touch') {
+      cityPointer = { x: e.clientX, y: e.clientY };
+      updateCityTip();
+    }
   };
   canvas.addEventListener('pointerup', letGo);
   canvas.addEventListener('pointercancel', letGo);
+  canvas.addEventListener('pointerleave', clearCityHover);
+  window.addEventListener('blur', clearCityHover);
 
   // Nothing turns while the block is off the screen. The section next to the
   // reader's lies just past the edge for as long as they read the last beat
