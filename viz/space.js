@@ -284,7 +284,10 @@ export function init(root) {
           font-size: 0.875rem;
           line-height: 1.3;
           white-space: nowrap;
+          transition: opacity 260ms ease;
         }
+
+        .space-turn-hint.is-turned span { opacity: 0; }
 
         .space-turn-hint svg {
           display: block;
@@ -294,7 +297,8 @@ export function init(root) {
         }
 
         @media (prefers-reduced-motion: reduce) {
-          .space-turn-hint { transition: none; }
+          .space-turn-hint,
+          .space-turn-hint span { transition: none; }
         }
       }
 
@@ -1727,6 +1731,7 @@ export function init(root) {
     const dx = e.clientX - drag.x;
     const now = performance.now();
     spin -= dx * perPx;
+    if (dx) turnHint.classList.add('is-turned');
     const v = (-dx * perPx) / Math.max(1, now - drag.t);
     drag.v = drag.v * 0.6 + v * 0.4;
     drag.x = e.clientX;
@@ -1856,6 +1861,7 @@ export function init(root) {
     // Поэтому шаг возвращается тут же, мигом, — тот же самый: открыть блок
     // дважды значит ровно то же, что открыть один раз.
     const was = shown;
+    turnHint.classList.remove('is-turned');
     spin = 45;
     steer = null;
     // A flick of the hand carries the globe on and dies out in half a second —
