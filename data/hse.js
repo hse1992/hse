@@ -1,8 +1,8 @@
 // Shared HSE figures. Every visualisation reads its numbers from here so the
 // whole page can never disagree with itself.
 
-// Most figures are for YEAR; the admission campaign has its own year. The
-// page names both in the credits and alongside the admission figures.
+// Reporting years are kept as metadata, not displayed without a request.
+// Keep both exports for visitors whose browser has cached an older script.
 export const YEAR = 2025;
 export const ADMISSION_YEAR = 2026;
 

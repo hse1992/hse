@@ -44,6 +44,26 @@
       setTimeout(() => document.documentElement.classList.remove('is-returning'), 3000);
     }
   } catch (err) { /* без хранилища возвращаться и не к чему */ }
+
+  // Модуль страницы может не запуститься вовсе, если новая разметка встретит
+  // сохраненный браузером старый JS без нужного экспорта. Тогда сам модуль не
+  // может вызвать stale() ниже. Этот обычный скрипт успевает раньше: освежает
+  // уже запрошенные файлы и один раз перечитывает страницу.
+  window.addEventListener('error', (event) => {
+    if (!/^https?:$/.test(location.protocol) || !(event.error instanceof SyntaxError)
+        || document.querySelector('#page .viz-section')) return;
+    try {
+      if (event.filename && new URL(event.filename, location.href).origin !== location.origin) return;
+      const key = 'нсб-обновлена';
+      if (Date.now() - (Number(sessionStorage.getItem(key)) || 0) < 60000) return;
+      sessionStorage.setItem(key, String(Date.now()));
+    } catch (err) { return; }
+    const urls = performance.getEntriesByType('resource').map((r) => r.name)
+      .filter((url) => new URL(url).origin === location.origin && /\.(js|css)$/.test(url.split(/[?#]/)[0]));
+    urls.push(location.href);
+    Promise.all([...new Set(urls)].map((url) => fetch(url, { cache: 'reload' }).catch(() => null)))
+      .then(() => location.reload());
+  });
 </script>
 </head>
 <body>
@@ -109,13 +129,14 @@
       <!-- Что сделала кнопка — вслух, для экранного диктора. -->
       <span class="sr-only" role="status" data-el="shareSaid"></span>
     </div>
-    <span data-el="year">Показатели за 2025 год, прием — за 2026 год</span>
     <a href="https://data.hse.ru" target="_blank" rel="noopener">© Дирекция по аналитике и управлению данными НИУ ВШЭ</a>
   </footer>
 </main>
 
 <script type="module">
-  import * as metro from './viz/metro.js';
+  // Новые адреса этих двух файлов не дадут старым подписям из кэша вернуться
+  // после обновления страницы. При следующем изменении файла меняется и v.
+  import * as metro from './viz/metro.js?v=2';
   import * as stadium from './viz/stadium.js';
   import * as world from './viz/world.js';
   import * as area from './viz/area.js';
@@ -130,10 +151,13 @@
   import { meta as spaceMeta } from './viz/space.meta.js';
   import { meta as eachMeta } from './viz/each.meta.js';
   const space = { meta: spaceMeta, load: () => import('./viz/space.js') };
-  const each = { meta: eachMeta, load: () => import('./viz/each.js') };
+  const each = { meta: eachMeta, load: () => import('./viz/each.js?v=2') };
   import { mountProgress, introRunner, mountTitleMark, mountWindowSize } from './lib/page.js';
   import { nameSwitches } from './lib/ui.js';
-  import { YEAR, ADMISSION_YEAR } from './data/hse.js';
+  // Старый файл данных не содержит этого экспорта и его цифры уже устарели.
+  // Сам год на странице не показывается; проверка нужна для восстановления
+  // из кэша через обработчик в <head>.
+  import { ADMISSION_YEAR } from './data/hse.js';
   import { mountStepper } from './lib/stepper.js';
   import { bindShortWords, keepBound } from './lib/typo.js';
 
@@ -146,12 +170,6 @@
   mountWindowSize();
 
   const page = document.getElementById('page');
-
-  // The admission campaign can be newer than the other figures. Name both
-  // years when they differ, and keep the credit in step with data/hse.js.
-  const yearEl = document.querySelector('[data-el="year"]');
-  if (yearEl) yearEl.textContent = `Показатели за ${YEAR} год`
-    + (ADMISSION_YEAR === YEAR ? '' : `, прием — за ${ADMISSION_YEAR} год`);
 
   // The page is read beat by beat: the shell lays the sections out and hands
   // the stepper what each of them can play — see lib/stepper.js.

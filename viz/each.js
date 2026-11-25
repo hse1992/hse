@@ -5,7 +5,7 @@
 // whole scene is the numbers themselves, set in the same face as the rest of
 // the page.
 
-import { CITIES, LYCEUM, STAFF, STUDENTS, FOREIGN, HSE_TOTAL, ADMITTED, AREA_TOTAL, YEAR, ADMISSION_YEAR } from '../data/hse.js';
+import { CITIES, LYCEUM, STAFF, STUDENTS, FOREIGN, HSE_TOTAL, ADMITTED, AREA_TOTAL } from '../data/hse.js';
 import { COUNTRIES } from '../data/countries.js';
 import { ORBIT_KM, INCLINE, SATELLITES } from '../data/satellites.js';
 import { nf, dec, plural } from '../lib/format.js';
@@ -22,11 +22,8 @@ const AREA_STUDY = CITIES.reduce((n, c) => n + c.areaStudy, 0);
 const BUILDINGS = 196;      // buildings — the floor area section
 const PROGRAMS = 329;       // programmes — the studies section
 
-// Подпись у нижнего края кадра — не дата съемки. Сегодняшний день, который
-// стоял тут раньше, читался как дата настоящего снимка, а это не снимок, а
-// доска показателей. Годы берутся оттуда же, откуда и цифры, — прием может
-// относиться к более позднему году, чем остальные показатели.
-const PRINT = `Вышка в цифрах — ${YEAR}${ADMISSION_YEAR === YEAR ? '' : `–${ADMISSION_YEAR}`}`;
+// Подпись у нижнего края кадра — не дата съемки, а название доски показателей.
+const PRINT = 'Вышка в цифрах';
 
 // The satellites are not quoted like the rest: «Космос» draws them and this
 // block captions the picture they took, so both read the same data file and
@@ -82,7 +79,7 @@ export function init(root) {
     fig(STUDENTS, 1.5, of(STUDENTS, 'студент', 'студента', 'студентов')),
     fig(STAFF, 1.05, of(STAFF, 'сотрудник', 'сотрудника', 'сотрудников')),
     fig(LYCEUM, 0.75, of(LYCEUM, 'лицеист', 'лицеиста', 'лицеистов')),
-    fig(ADMITTED, 1.2, `${of(ADMITTED, 'первокурсник', 'первокурсника', 'первокурсников')} в ${ADMISSION_YEAR} году`),
+    fig(ADMITTED, 1.2, of(ADMITTED, 'первокурсник', 'первокурсника', 'первокурсников')),
     fig(COUNTRIES.length, 0.9, of(COUNTRIES.length, 'страна', 'страны', 'стран')),
     fig(FOREIGN, 0.85, of(FOREIGN, 'иностранец', 'иностранца', 'иностранцев'), `${nf(FOREIGN)}+`),
     fig(BUILDINGS, 1.05, of(BUILDINGS, 'здание', 'здания', 'зданий')),

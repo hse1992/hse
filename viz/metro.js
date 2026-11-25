@@ -2,7 +2,7 @@
 // They snake down the screen from the top left corner and disappear into the
 // tunnel at the bottom right, only to come out of the first one again.
 
-import { CITIES, ADMITTED, ADMISSION_YEAR } from '../data/hse.js';
+import { CITIES, ADMITTED } from '../data/hse.js';
 import { nf, plural } from '../lib/format.js';
 import { mountCanvas, onResize, sizeCanvas } from '../lib/ui.js';
 import { loadMark } from '../lib/hse-mark.js';
@@ -108,7 +108,7 @@ function busPicture(id, cls, attrs = '') {
 // number of first-years first, then what it takes to carry them by bus, then
 // the same by metro — each with the thing itself and how many of them.
 const SAID = [
-  `Вышка зачислила ${nf(ADMITTED)} ${plural(ADMITTED, 'первокурсника', 'первокурсника', 'первокурсников')} в ${ADMISSION_YEAR} году.`,
+  `За одну приемную кампанию Вышка зачислила ${nf(ADMITTED)} ${plural(ADMITTED, 'первокурсника', 'первокурсника', 'первокурсников')}.`,
   `Чтобы увезти их всех разом, нужно ${nf(BUSES_TOTAL)} ${plural(BUSES_TOTAL, 'электробус', 'электробуса', 'электробусов')}.`,
   `А на метро — ${nf(CARS_TOTAL)} ${plural(CARS_TOTAL, 'вагон', 'вагона', 'вагонов')}, то есть ${TRAINS} ${plural(TRAINS, 'полный поезд', 'полных поезда', 'полных поездов')}${extraCars ? ` и еще ${extraCars}` : ''}`
 ];

@@ -41,9 +41,8 @@ const YEARS_TOTAL = CITIES.reduce(
 // day they are reading on: the scale ends with this year and every year it
 // names moves with it, in the page and in a copy opened years later.
 //
-// It is deliberately not YEAR from data/hse.js, which says what the figures
-// are for and stands in the credits: the figures are of a reporting year, the
-// counting back is from today, and the two are different statements. The
+// It is deliberately not YEAR from data/hse.js, which records the reporting
+// year: counting back is from today, and the two are different statements. The
 // events in data/history.js were written against a start of 1114, so as the
 // years go by the card says how far off the closest of them is — see
 // eventOf() and toldAs() below.
