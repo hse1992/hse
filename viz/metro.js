@@ -2,7 +2,7 @@
 // They snake down the screen from the top left corner and disappear into the
 // tunnel at the bottom right, only to come out of the first one again.
 
-import { CITIES, ADMITTED } from '../data/hse.js';
+import { CITIES, ADMITTED, ADMISSION_YEAR } from '../data/hse.js';
 import { nf, plural } from '../lib/format.js';
 import { mountCanvas, onResize, sizeCanvas } from '../lib/ui.js';
 import { loadMark } from '../lib/hse-mark.js';
@@ -20,6 +20,8 @@ const busesOf = (c) => Math.ceil(c.admitted / PER_BUS);
 const CARS_TOTAL = CITIES.reduce((n, c) => n + carsOf(c), 0);
 const BUSES_TOTAL = CITIES.reduce((n, c) => n + busesOf(c), 0);
 const TRAINS = Math.floor(CARS_TOTAL / TRAIN);
+const EXTRA_CARS = CARS_TOTAL % TRAIN;
+const extraCars = EXTRA_CARS ? `${nf(EXTRA_CARS)} ${plural(EXTRA_CARS, 'вагон', 'вагона', 'вагонов')}` : '';
 
 // The two ways to carry the same people. `of` is how many vehicles a city
 // needs, the rest is what the cards and the legend say about them. The first
@@ -106,9 +108,9 @@ function busPicture(id, cls, attrs = '') {
 // number of first-years first, then what it takes to carry them by bus, then
 // the same by metro — each with the thing itself and how many of them.
 const SAID = [
-  `За одну приемную кампанию Вышка зачислила ${nf(ADMITTED)} ${plural(ADMITTED, 'первокурсника', 'первокурсника', 'первокурсников')}.`,
+  `Вышка зачислила ${nf(ADMITTED)} ${plural(ADMITTED, 'первокурсника', 'первокурсника', 'первокурсников')} в ${ADMISSION_YEAR} году.`,
   `Чтобы увезти их всех разом, нужно ${nf(BUSES_TOTAL)} ${plural(BUSES_TOTAL, 'электробус', 'электробуса', 'электробусов')}.`,
-  `А на метро — ${nf(CARS_TOTAL)} ${plural(CARS_TOTAL, 'вагон', 'вагона', 'вагонов')}, то есть ${TRAINS} ${plural(TRAINS, 'полный поезд', 'полных поезда', 'полных поездов')}`
+  `А на метро — ${nf(CARS_TOTAL)} ${plural(CARS_TOTAL, 'вагон', 'вагона', 'вагонов')}, то есть ${TRAINS} ${plural(TRAINS, 'полный поезд', 'полных поезда', 'полных поездов')}${extraCars ? ` и еще ${extraCars}` : ''}`
 ];
 
 export const meta = {
@@ -121,7 +123,7 @@ export const meta = {
   // по строке к уже сказанному.
   introStages: 1,
   // The number of first-year students carries over into the next block's
-  // lead-in, «~22 000», rather than disappearing with this one.
+  // lead-in, «~21 000», rather than disappearing with this one.
   handoff: 'people',
   // The word before the name depends on what the reader is riding, so the
   // module changes it when the mode is switched. It starts as the station of
@@ -161,7 +163,7 @@ export const meta = {
           <img class="metro-brief-train" style="max-width: 100%"
                src="assets/poezd.svg" alt="" aria-hidden="true">
           <span class="metro-brief-times">&times;&nbsp;<span
-            class="metro-times-wide">${TRAINS}</span><span
+            class="metro-times-wide">${TRAINS}${extraCars ? ` + ${extraCars}` : ''}</span><span
             class="metro-times-phone" style="display: none">${nf(CARS_TOTAL)}</span></span>
         </span>
       </span>
@@ -535,10 +537,10 @@ export function init(root) {
            оставалась треть экрана. Остальное мелко повторяло сказанное.
 
            Поезд во всю ширину под легендой уходит: ровно те же вагоны едут
-           по дорожкам под ним, только их там сто тридцать четыре. */
+           по дорожкам под ним. */
         .metro-train { display: none; }
 
-        /* Числа под каждым городом — «16 803 принятых, 102 вагона» — тоже:
+        /* Числа под каждым городом — «15 573 принятых, 95 вагонов» — тоже:
            сверху уже сказано, сколько принятых и сколько вагонов, а в карточке
            важно, какой это город и включен ли он. */
         .metro-inner .city-stats { display: none; }
@@ -586,7 +588,7 @@ export function init(root) {
             <div class="meter-title" data-el="scoreTitle"></div>
             <div class="metro-score">
               <span class="metro-score-value" data-el="count"></span>
-              <span class="metro-score-note">на <span data-el="people"></span> принятых студентов</span>
+              <span class="metro-score-note">на <span data-el="people"></span> <span data-el="peopleNoun"></span></span>
             </div>
           </div>
 
@@ -1237,8 +1239,8 @@ export function init(root) {
     // trains: the whole chain of cars, city after city, cut into eights.
     // Cars of one train are coupled; between trains there is just a gap.
     // Laid out back to front, so that Perm leads and Moscow brings up the rear.
-    // The city in front rides a whole train: the cars it does not fill go
-    // grey and empty at the head of the column.
+    // The last train can be shorter than eight cars; only occupied cars are
+    // drawn and counted.
     const chain = [];
     TAIL_FIRST.forEach((c) => {
       for (let left = shown[c.key] || 0; left > 0.02; left -= 1) {
@@ -1262,8 +1264,8 @@ export function init(root) {
       drawCar(s, end, car);
       s = end + gap;
       prev = end;
-      // Trains are counted from the head, so a train short of eight cars
-      // would be the last one — with the grey cars there is none.
+      // Trains are counted from the head, so a train short of eight cars is
+      // the last one.
       const ahead = chain.length - 1 - i;
       if (ahead > 0 && ahead % TRAIN === 0) { s += trainGap * car.part; prev = null; }
     });
@@ -1301,6 +1303,7 @@ export function init(root) {
   const cityList = $('cityList');
   const countEl = $('count');
   const peopleEl = $('people');
+  const peopleNounEl = $('peopleNoun');
   const scoreTitleEl = $('scoreTitle');
   // The heading is drawn by the page shell, but its text belongs to the
   // module — this is the one word of it that changes with the mode.
@@ -1470,6 +1473,7 @@ export function init(root) {
     lastPeople = people;
     countEl.textContent = nf(count);
     peopleEl.textContent = nf(people);
+    peopleNounEl.textContent = plural(people, 'принятого студента', 'принятых студента', 'принятых студентов');
   }
 
   // What the picture says, for a reader who cannot see it: which picture it is

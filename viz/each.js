@@ -5,7 +5,7 @@
 // whole scene is the numbers themselves, set in the same face as the rest of
 // the page.
 
-import { CITIES, LYCEUM, STAFF, STUDENTS, FOREIGN, HSE_TOTAL, ADMITTED, AREA_TOTAL, YEAR } from '../data/hse.js';
+import { CITIES, LYCEUM, STAFF, STUDENTS, FOREIGN, HSE_TOTAL, ADMITTED, AREA_TOTAL, YEAR, ADMISSION_YEAR } from '../data/hse.js';
 import { COUNTRIES } from '../data/countries.js';
 import { ORBIT_KM, INCLINE, SATELLITES } from '../data/satellites.js';
 import { nf, dec, plural } from '../lib/format.js';
@@ -24,9 +24,9 @@ const PROGRAMS = 329;       // programmes — the studies section
 
 // Подпись у нижнего края кадра — не дата съемки. Сегодняшний день, который
 // стоял тут раньше, читался как дата настоящего снимка, а это не снимок, а
-// доска показателей: она за тот год, за который верны цифры страницы, и
-// год берется оттуда же, откуда и они (YEAR в data/hse.js).
-const PRINT = `Вышка в цифрах — ${YEAR}`;
+// доска показателей. Годы берутся оттуда же, откуда и цифры, — прием может
+// относиться к более позднему году, чем остальные показатели.
+const PRINT = `Вышка в цифрах — ${YEAR}${ADMISSION_YEAR === YEAR ? '' : `–${ADMISSION_YEAR}`}`;
 
 // The satellites are not quoted like the rest: «Космос» draws them and this
 // block captions the picture they took, so both read the same data file and
@@ -82,7 +82,7 @@ export function init(root) {
     fig(STUDENTS, 1.5, of(STUDENTS, 'студент', 'студента', 'студентов')),
     fig(STAFF, 1.05, of(STAFF, 'сотрудник', 'сотрудника', 'сотрудников')),
     fig(LYCEUM, 0.75, of(LYCEUM, 'лицеист', 'лицеиста', 'лицеистов')),
-    fig(ADMITTED, 1.2, of(ADMITTED, 'первокурсник', 'первокурсника', 'первокурсников')),
+    fig(ADMITTED, 1.2, `${of(ADMITTED, 'первокурсник', 'первокурсника', 'первокурсников')} в ${ADMISSION_YEAR} году`),
     fig(COUNTRIES.length, 0.9, of(COUNTRIES.length, 'страна', 'страны', 'стран')),
     fig(FOREIGN, 0.85, of(FOREIGN, 'иностранец', 'иностранца', 'иностранцев'), `${nf(FOREIGN)}+`),
     fig(BUILDINGS, 1.05, of(BUILDINGS, 'здание', 'здания', 'зданий')),
@@ -417,6 +417,13 @@ export function init(root) {
            half the smallest figure on the board it still came out at 11.4px,
            under the twelve the rest of the page keeps to. */
         .each-w { font-size: 0.55em; }
+      }
+
+      /* On the narrowest phones the two captions at the top of the shot
+         would meet. Let the object's name wrap; the board measures the
+         resulting height before placing the figures. */
+      @media (max-width: 360px) {
+        .each-meta.tl { max-width: calc(50% - 30px); white-space: normal; }
       }
     </style>
 
