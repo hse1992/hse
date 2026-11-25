@@ -1230,9 +1230,8 @@ export function init(root) {
   const host = root.closest('.viz-section') || root.parentElement;
   const LAST = meta.steps - 1;
 
-  // The same town as the town section draws — see lib/town-map.js.
-  // На телефоне тот же город показывается втрое уже, и дом в восемь пикселей
-  // читается как точка: там он просит дома покрупнее.
+  // The same town as the town section draws — see lib/town-map.js. На
+  // телефоне форма города подстраивается под ориентацию экрана.
   const townMap = mountTownMap($('townMap'), { fill: phone.matches, tall: phone.matches });
 
   function step(i) {
@@ -1379,6 +1378,8 @@ export function init(root) {
   if (phone.matches) {
     const stage = root.querySelector('.area-stage');
     let told = -1;
+    let sceneProgress = null;
+    let width = window.innerWidth;
 
     // Сколько пути сцена стоит на экране целиком: от ее верха до того места,
     // где из-под нее начинает выезжать калькулятор. Ровно на этом отрезке и
@@ -1394,7 +1395,8 @@ export function init(root) {
     const follow = () => {
       const span = пройти();
       if (!span) return;
-      const gone = -stage.getBoundingClientRect().top;
+      const box = stage.getBoundingClientRect();
+      const gone = -box.top;
       // Семь отрезков на семь состояний, а калькулятор приходит восьмым — там,
       // где сцена кончилась. Открывается он на экран раньше, чем читатель до
       // него доедет: открытый ровно в точке приезда, он дергал страницу под
@@ -1403,12 +1405,24 @@ export function init(root) {
       const i = gone >= span
         ? LAST
         : Math.min(LAST - 1, Math.max(0, Math.floor((gone / span) * LAST)));
+      sceneProgress = gone >= -1 && gone < span ? Math.max(0, gone) / span : null;
       if (i === told) return;
       told = i;
       step(i);
     };
     window.addEventListener('scroll', follow, { passive: true });
-    window.addEventListener('resize', follow);
+    window.addEventListener('resize', () => {
+      if (!phone.matches) { width = window.innerWidth; return; }
+      // Путь внутри сцены при повороте меняется отдельно от открытия и
+      // калькулятора. Сохраняем долю именно этого пути, иначе карта или
+      // следующий кадр могут смениться сами. Панель по высоте не трогаем.
+      if (window.innerWidth !== width && sceneProgress !== null) {
+        const top = window.scrollY + stage.getBoundingClientRect().top;
+        window.scrollTo(0, Math.round(top + sceneProgress * пройти()));
+      }
+      width = window.innerWidth;
+      follow();
+    });
     follow();
 
     // And how far the next state is, for the shell that moves the page: the
