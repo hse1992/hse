@@ -154,16 +154,19 @@
   const each = { meta: eachMeta, load: () => import('./viz/each.js?v=2') };
   import { mountProgress, introRunner, mountTitleMark, mountWindowSize } from './lib/page.js';
   import { nameSwitches } from './lib/ui.js';
-  // Старый файл данных не содержит этого экспорта и его цифры уже устарели.
-  // Сам год на странице не показывается; проверка нужна для восстановления
-  // из кэша через обработчик в <head>.
-  import { ADMISSION_YEAR } from './data/hse.js';
+  // Сверяем версию данных до сборки страницы. Старый файл без этого экспорта
+  // или с другим номером запускает восстановление из кэша через <head>.
+  import { DATA_REVISION } from './data/hse.js';
   import { mountStepper } from './lib/stepper.js';
   import { bindShortWords, keepBound } from './lib/typo.js';
 
   // Every visualisation on the page, in the order it appears.
   // To add one: write viz/<name>.js, import it, append it here.
   const MODULES = [metro, stadium, world, area, study, professions, space, each];
+
+  // Держать вровень с DATA_REVISION в data/hse.js при обновлении чисел.
+  const EXPECTED_DATA_REVISION = 1;
+  if (DATA_REVISION !== EXPECTED_DATA_REVISION) throw new SyntaxError('Устарели данные Вышки');
 
   // Высота окна, померенная руками: титульный экран считает свой рост по ней,
   // а не по dvh, который на айфоне не поспевает за панелью браузера.

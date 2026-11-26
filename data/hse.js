@@ -1,8 +1,12 @@
 // Shared HSE figures. Every visualisation reads its numbers from here so the
 // whole page can never disagree with itself.
 
-// Reporting years are kept as metadata, not displayed without a request.
-// Keep both exports for visitors whose browser has cached an older script.
+// Bump this together with EXPECTED_DATA_REVISION in index.html when figures
+// change, so a browser holding an older data file refreshes it before launch.
+export const DATA_REVISION = 1;
+
+// Legacy exports are kept for visitors whose browser has cached older scripts.
+// They do not assign a reporting year to the current figures shown on the page.
 export const YEAR = 2025;
 export const ADMISSION_YEAR = 2026;
 
@@ -28,13 +32,13 @@ const city = (key, name, color, students, staff, area, areaStudy, admitted, fore
 });
 
 export const CITIES = [
-  city('msk', 'Москва', '#11A0D7', 48139, 9612, 509397, 308789, 15573, 4500),
-  city('spb', 'Санкт-Петербург', '#EB681F', 7895, 1310, 111924, 60648, 2676, 700),
-  city('nn', 'Нижний Новгород', '#029C63', 4366, 572, 32332, 20949, 1684, 270),
-  city('perm', 'Пермь', '#7D4EBA', 2869, 324, 33679, 21227, 868, 130)
+  city('msk', 'Москва', '#11A0D7', 46592, 10207, 509397, 308789, 15573, 4500),
+  city('spb', 'Санкт-Петербург', '#EB681F', 7989, 1394, 111924, 60648, 2676, 700),
+  city('nn', 'Нижний Новгород', '#029C63', 4685, 621, 32332, 20949, 1684, 270),
+  city('perm', 'Пермь', '#7D4EBA', 2832, 347, 33679, 21227, 868, 130)
 ];
 
-export const LYCEUM = 2562;         // students of the lyceum, the exact count
+export const LYCEUM = 2819;         // students of the lyceum, the exact count
 export const LYCEUM_COLOR = '#FFD400';
 
 // Students from abroad on all campuses. The campus figures are rounded down, so
