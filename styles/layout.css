@@ -1203,8 +1203,8 @@ button { font-family: inherit; }
    подписи, группа — fieldset со скрытым legend. Нажимается вся плашка, фокус,
    пробел и «отмечено / не отмечено» у диктора — свои у чекбокса.
 
-   На телефоне состояние видно галочкой, заливкой и рамкой; на широком экране
-   обычные чекбоксы с подписями стоят в общей белой карточке. Цвета — токены. */
+   На телефоне каждая плашка белая, как карточки городов, а состояние видно
+   по чекбоксу; на широком экране подписи стоят в общей белой карточке. */
 .choice-group {
   min-width: 0;
   margin: 0;
@@ -1399,6 +1399,18 @@ button { font-family: inherit; }
     padding: 6px 10px;
     font-size: 0.875rem;
     line-height: 1.25;
+  }
+  .choice,
+  .choice.on {
+    border: 0;
+    border-radius: var(--r-card);
+    background: var(--card);
+    box-shadow: var(--card-shadow);
+    color: var(--text);
+  }
+  @media (hover: hover) {
+    .choice:hover,
+    .choice.on:hover { background: var(--card); }
   }
   .choice-label { min-width: auto; }
   .choice-input {
