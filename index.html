@@ -134,11 +134,11 @@
 </main>
 
 <script type="module">
-  // Новые адреса этих двух файлов не дадут старым подписям из кэша вернуться
-  // после обновления страницы. При следующем изменении файла меняется и v.
+  // Версии в адресах не дают старым подписям из кэша вернуться после
+  // обновления страницы. При изменении файла меняется и его v.
   import * as metro from './viz/metro.js?v=2';
   import * as stadium from './viz/stadium.js';
-  import * as world from './viz/world.js';
+  import * as world from './viz/world.js?v=2';
   import * as area from './viz/area.js';
   import * as study from './viz/study.js';
   import * as professions from './viz/professions.js';
@@ -151,7 +151,7 @@
   import { meta as spaceMeta } from './viz/space.meta.js';
   import { meta as eachMeta } from './viz/each.meta.js';
   const space = { meta: spaceMeta, load: () => import('./viz/space.js') };
-  const each = { meta: eachMeta, load: () => import('./viz/each.js?v=2') };
+  const each = { meta: eachMeta, load: () => import('./viz/each.js?v=3') };
   import { mountProgress, introRunner, mountTitleMark, mountWindowSize } from './lib/page.js';
   import { nameSwitches } from './lib/ui.js';
   // Сверяем версию данных до сборки страницы. Старый файл без этого экспорта
@@ -165,7 +165,7 @@
   const MODULES = [metro, stadium, world, area, study, professions, space, each];
 
   // Держать вровень с DATA_REVISION в data/hse.js при обновлении чисел.
-  const EXPECTED_DATA_REVISION = 1;
+  const EXPECTED_DATA_REVISION = 2;
   if (DATA_REVISION !== EXPECTED_DATA_REVISION) throw new SyntaxError('Устарели данные Вышки');
 
   // Высота окна, померенная руками: титульный экран считает свой рост по ней,

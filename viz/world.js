@@ -1,6 +1,6 @@
 // Countries HSE students come from, as a wall of flags split by part of the world.
 
-import { CITIES, STUDENTS, FOREIGN } from '../data/hse.js';
+import { CITIES, STUDENTS, FOREIGN_ROUND } from '../data/hse.js';
 import { COUNTRIES, REGIONS, BY_CITY } from '../data/countries.js';
 import { nf, pct, plural } from '../lib/format.js';
 import { onResize, toTop, placeTips } from '../lib/ui.js';
@@ -58,7 +58,7 @@ export const meta = {
   //
   // На телефоне заливки у вопроса нет. Там строка вдвое уже, фраза переносится
   // на две строки, и синий прямоугольник разваливается на два куска поперек
-  // экрана — рядом с красным «5 600+ иностранцев» это уже не выделение, а
+  // экрана — рядом с красным «около 5 400 иностранцев» это уже не выделение, а
   // пестрота. Вопрос там стоит отдельной строкой и выделен самим собой:
   // корпоративный синий, жирнее и крупнее соседней строки.
   //
@@ -76,7 +76,7 @@ export const meta = {
     // The students from abroad in the colour they are picked out in on the
     // stadium the lead-in stands on.
     text: 'Из них <span class="world-ask" style="background: var(--foreign); color: var(--card)">'
-      + `${nf(FOREIGN)}+ ${plural(FOREIGN, 'иностранец', 'иностранца', 'иностранцев')}</span>. `
+      + `около ${nf(FOREIGN_ROUND)} ${plural(FOREIGN_ROUND, 'иностранец', 'иностранца', 'иностранцев')}</span>. `
       + (PHONE
         ? '<span class="world-ask-line" style="display: block; margin-top: 0.5em;'
           + ' color: var(--hse-blue); font-weight: 700; font-size: 1.12em">'
@@ -2180,7 +2180,7 @@ export function init(root) {
     // А сам вопрос уходит с ответом, не дожидаясь стены: «Как думаешь, из
     // скольких стран?» над карточкой, где крупно написано 128, спрашивает о
     // том, что под ним и отвечено. Остальное в экране — 62 000 студентов и
-    // 5 600 иностранцев — это то, из чего эти 128 взялись, и стоит над ними
+    // около 5 400 иностранцев — это то, из чего эти 128 взялись, и стоит над ними
     // до самой стены. Так на обоих экранах: на телефоне вопрос стоит своей
     // строкой, на широком — в конце строки про иностранцев, и строка от его
     // ухода не становится ниже.

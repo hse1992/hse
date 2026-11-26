@@ -5,7 +5,7 @@
 // whole scene is the numbers themselves, set in the same face as the rest of
 // the page.
 
-import { CITIES, LYCEUM, STAFF, STUDENTS, FOREIGN, HSE_TOTAL, ADMITTED, AREA_TOTAL } from '../data/hse.js';
+import { CITIES, LYCEUM, STAFF, STUDENTS, FOREIGN, FOREIGN_ROUND, HSE_TOTAL, ADMITTED, AREA_TOTAL } from '../data/hse.js';
 import { COUNTRIES } from '../data/countries.js';
 import { ORBIT_KM, INCLINE, SATELLITES } from '../data/satellites.js';
 import { nf, dec, plural } from '../lib/format.js';
@@ -81,7 +81,7 @@ export function init(root) {
     fig(LYCEUM, 0.75, of(LYCEUM, 'лицеист', 'лицеиста', 'лицеистов')),
     fig(ADMITTED, 1.2, of(ADMITTED, 'первокурсник', 'первокурсника', 'первокурсников')),
     fig(COUNTRIES.length, 0.9, of(COUNTRIES.length, 'страна', 'страны', 'стран')),
-    fig(FOREIGN, 0.85, of(FOREIGN, 'иностранец', 'иностранца', 'иностранцев'), `${nf(FOREIGN)}+`),
+    fig(FOREIGN, 0.85, of(FOREIGN_ROUND, 'иностранец', 'иностранца', 'иностранцев'), `~${nf(FOREIGN_ROUND)}`),
     fig(BUILDINGS, 1.05, of(BUILDINGS, 'здание', 'здания', 'зданий')),
     fig(AREA_TOTAL, 1.35, 'м² площади'),
     fig(AREA_STUDY, 0.85, 'м² для учебы'),
