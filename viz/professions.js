@@ -144,6 +144,13 @@ const CARD_STYLE = `<style>
     .prof-open { --prof-logo: min(24vh, 44vw, 240px); }
     .prof-open-row { flex-direction: column; }
     .prof-open-we { font-size: calc(var(--prof-logo) * 0.48); }
+
+    /* Место для следующей строки есть с первого кадра, хотя сама строка
+       еще прозрачна. Поэтому «Мы» и знак не поднимаются, когда она приходит.
+       Высоту строки меряет каркас; при посадке она складывается как обычно. */
+    #professions.viz-intro .viz-header > p {
+      height: calc(var(--sub-h, 0px) * var(--sub-gone, 1));
+    }
   }
 </style>`;
 
