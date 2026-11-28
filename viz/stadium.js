@@ -106,6 +106,23 @@ export function init(root) {
   root.classList.add('stadium-body');
   root.innerHTML = `
     <style>
+      /* Чекбокс лицея повторяет цвет его мест на трибунах. На светлом фоне
+         сама галочка темная, чтобы она оставалась хорошо видна. */
+      @media (max-width: 860px) {
+        .stadium-lyceum .choice-input:checked {
+          background: var(--lyceum);
+          border-color: var(--lyceum);
+        }
+        .stadium-lyceum .choice-input:checked::before {
+          border-color: var(--text);
+        }
+      }
+      @media (min-width: 861px) {
+        .stadium-lyceum .choice-input:checked {
+          accent-color: var(--lyceum);
+        }
+      }
+
       /* Оба предложения подзаголовка стоят каждое на своей строке. Пустой
          строки между ними больше нет: она разделяла их, пока заголовок держал
          середину экрана крупной карточкой, и складывалась по мере его посадки
@@ -819,6 +836,11 @@ export function init(root) {
     takeOver();
     state.kinds[key] = on;
     render();
+  });
+  // choices() строит плашки в порядке KIND_DEFS; помечаем именно лицей,
+  // чтобы цвет не зависел от положения плашки в списке.
+  kinds.el.querySelectorAll('.choice').forEach((label, i) => {
+    if (KIND_DEFS[i].lyceum) label.classList.add('stadium-lyceum');
   });
   kindRow.replaceWith(kinds.el);
   kindRow = kinds.el;
