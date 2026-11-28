@@ -152,13 +152,13 @@ export const meta = {
   // Short enough for the strip at the top of a phone — see meta.short in CLAUDE.md.
   short: 'Профессии',
   // The card and the section have different headings. While the card holds,
-  // it is «МЫ» and the logo, and the logo opens up on a beat of its
+  // it is «Мы» and the logo, and the logo opens up on a beat of its
   // own to let «не только» into its ring. Once the card settles, the heading of
   // the section takes its place — the same one the block is read under.
   title: CARD_STYLE
     + '<span class="prof-open" aria-hidden="true">'
     +   '<span class="prof-open-row">'
-    +     '<span class="prof-open-we">МЫ</span>'
+    +     '<span class="prof-open-we">Мы</span>'
     +     '<span class="prof-open-logo" data-el="logo"></span>'
     +   '</span>'
     + '</span>'
