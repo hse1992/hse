@@ -110,9 +110,8 @@ const CARD_STYLE = `<style>
   }
 
   .prof-open-we {
-    /* Высота самих букв — около 80% знака: кегль больше их из-за метрик
-       шрифта. */
-    font-size: calc(var(--prof-logo) * 1.14);
+    /* Буквы крупные, но оставляют знаку главное место в паре. */
+    font-size: calc(var(--prof-logo) * 0.72);
     line-height: 1;
     letter-spacing: -0.03em;
     white-space: nowrap;
@@ -144,7 +143,7 @@ const CARD_STYLE = `<style>
   @media (max-width: 860px) {
     .prof-open { --prof-logo: min(24vh, 44vw, 240px); }
     .prof-open-row { flex-direction: column; }
-    .prof-open-we { font-size: calc(var(--prof-logo) * 0.65); }
+    .prof-open-we { font-size: calc(var(--prof-logo) * 0.48); }
   }
 </style>`;
 
@@ -171,6 +170,9 @@ export const meta = {
   // движение. Отдельного такта эта строка не просит — текст без картинки.
   subtitle: `<span class="prof-lead intro-stage" data-stage="1" style="display: block">${LEAD}</span>`,
   intro: true,
+  // У карточки со знаком своя композиция: ее размер не должен менять общий
+  // масштаб обычных заголовков, когда каркас подбирает его под экран.
+  introScale: 1.54,
   // Two beats before the block: the logo as it is, and the logo opening up
   // with the line about the wall under it.
   introStages: 2
