@@ -765,6 +765,9 @@ export function init(root) {
          Кегль ограничен долей высоты окна: на низком экране цифра в полтора
          десятка строк съела бы и линейку, и кнопки под ней. */
       .world-body:not(.world-walled) .world-score {
+        /* Строка отстоит от метки над шкалой; сама шкала остается на месте. */
+        position: relative;
+        top: -16px;
         justify-content: center;
         gap: 0.18em;
         line-height: 1;
