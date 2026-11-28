@@ -88,7 +88,8 @@ def imports_of(rel: str) -> list:
     """Что файл импортирует — путями от корня проекта."""
     src = (ROOT / rel).read_text(encoding="utf-8")
     here = pathlib.PurePosixPath(rel).parent
-    return [str(pathlib.PurePosixPath(os.path.normpath(here / m)))
+    # Ревизия в адресе нужна браузеру, а на диске имя файла идет без нее.
+    return [str(pathlib.PurePosixPath(os.path.normpath(here / m.split("?", 1)[0].split("#", 1)[0])))
             for m in IMPORT_RE.findall(src)]
 
 

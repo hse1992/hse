@@ -139,7 +139,7 @@
   // обновления страницы. При изменении файла меняется и его v.
   import * as metro from './viz/metro.js?v=2';
   import * as stadium from './viz/stadium.js?v=2';
-  import * as world from './viz/world.js?v=3';
+  import * as world from './viz/world.js?v=4';
   import * as area from './viz/area.js?v=2';
   import * as study from './viz/study.js';
   import * as professions from './viz/professions.js?v=5';
@@ -158,7 +158,7 @@
   // Сверяем версию данных до сборки страницы. Старый файл без этого экспорта
   // или с другим номером запускает восстановление из кэша через <head>.
   import { DATA_REVISION } from './data/hse.js';
-  import { mountStepper } from './lib/stepper.js';
+  import { mountStepper } from './lib/stepper.js?v=1';
   import { bindShortWords, keepBound } from './lib/typo.js';
 
   // Every visualisation on the page, in the order it appears.

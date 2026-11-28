@@ -1181,6 +1181,7 @@ export function init(root) {
 
   // ---------- Flags ----------
   const grid = $('grid');
+  const tip = $('tip');
   // Каркас на телефоне отнимает прокрутку у всей страницы, кроме того, что
   // помечено этим классом. Стена — как раз такое место: ее листают пальцем.
   if (phone.matches) grid.classList.add('page-scrolls');
@@ -1262,9 +1263,15 @@ export function init(root) {
     // И высота всего остального — стену убираем, а заодно и сам этот экран:
     // иначе тело меряется по нему и «остального» всегда ровно на экран.
     const kept = root.style.minHeight;
+    const tipDisplay = tip.style.display;
     root.style.minHeight = '0px';
     grid.style.maxHeight = '0px';
+    // Подпись страны стоит поверх стены и после скрытия сохраняет координаты.
+    // Если ее не убрать из обмера, она продолжает растягивать scrollHeight,
+    // и вернувшаяся стена сжимается до минимальных четырех рядов.
+    tip.style.display = 'none';
     const without = root.scrollHeight;
+    tip.style.display = tipDisplay;
     root.style.minHeight = kept;
     const want = Math.max(WALL_MIN, Math.round(room - without));
     // Та же высота второй раз не пишется: запись меняет размер стены, за
@@ -1550,7 +1557,6 @@ export function init(root) {
   // (`data-arrows` — см. lib/stepper.js, иначе стрелки забирает страница),
   // таб уводит дальше. Сто двадцать восемь отдельных остановок были бы той же
   // стеной, только поперек дороги.
-  const tip = $('tip');
   const wrap = tip.parentElement;
   grid.setAttribute('data-arrows', '');
 
