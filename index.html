@@ -142,7 +142,7 @@
   import * as world from './viz/world.js?v=2';
   import * as area from './viz/area.js?v=2';
   import * as study from './viz/study.js';
-  import * as professions from './viz/professions.js';
+  import * as professions from './viz/professions.js?v=2';
   // Две дальние главы грузятся не со страницей, а по требованию: их код —
   // треть всего, что телефон качает до кнопки «Начать», а нужен он
   // главами позже. При старте каркасу хватает их метаданных (заголовки,
@@ -151,7 +151,7 @@
   // и build() ниже.
   import { meta as spaceMeta } from './viz/space.meta.js';
   import { meta as eachMeta } from './viz/each.meta.js';
-  const space = { meta: spaceMeta, load: () => import('./viz/space.js') };
+  const space = { meta: spaceMeta, load: () => import('./viz/space.js?v=2') };
   const each = { meta: eachMeta, load: () => import('./viz/each.js?v=3') };
   import { mountProgress, introRunner, mountTitleMark, mountWindowSize } from './lib/page.js';
   import { nameSwitches } from './lib/ui.js';

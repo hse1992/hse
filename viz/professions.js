@@ -90,17 +90,15 @@ const CARD_STYLE = `<style>
   .prof-open {
     /* Everything on this card is measured against the logo: it is the one
        thing on the screen, and the words beside it are its size. */
-    --prof-logo: min(26vh, 25vw, 240px);
+    --prof-logo: min(26vh, 16vw, 240px);
     height: calc(var(--prof-open-h, 0px) * (1 - var(--intro-body, 1)));
     opacity: calc(1 - var(--intro-body, 1));
   }
 
-  /* «Мы —» and the logo stand side by side in the middle of the screen. The
-     heading is as wide as the section, so centring them here centres them on
-     the screen. */
+  /* Слово и знак стоят рядом и вместе центрируются на экране. Размер знака
+     ограничен шириной окна, чтобы строка не переносилась на узком десктопе. */
   .prof-open-row {
     display: flex;
-    flex-wrap: wrap;
     align-items: center;
     justify-content: center;
     gap: calc(var(--prof-logo) * 0.1);
@@ -111,23 +109,13 @@ const CARD_STYLE = `<style>
     opacity: var(--intro-body, 1);
   }
 
-  /* The phone used to get the plain heading alone: the card followed the thumb
-     there, and a reader could park halfway through this swap, where the logo
-     and the line that replaces it stand on top of each other at half height
-     each. Now the page is read by beats on a phone too — the swap only ever
-     plays, never holds — so the logo is back. It only has to be measured
-     against the narrow screen: a quarter of its width is a logo the size of a
-     coin. */
-  @media (max-width: 860px) {
-    .prof-open { --prof-logo: min(24vh, 44vw, 240px); }
-
-    .prof-open-we { font-size: calc(var(--prof-logo) * 0.34); }
-  }
-
   .prof-open-we {
-    font-size: calc(var(--prof-logo) * 0.4);
+    /* Высота самих букв — около 80% знака: кегль больше их из-за метрик
+       шрифта. */
+    font-size: calc(var(--prof-logo) * 1.14);
     line-height: 1;
     letter-spacing: -0.03em;
+    white-space: nowrap;
   }
 
   /* The logo is laid out at the size it settles at and blown up with the card,
@@ -135,7 +123,9 @@ const CARD_STYLE = `<style>
   .prof-open-logo {
     display: block;
     position: relative;
+    flex: 0 0 var(--prof-logo);
     width: var(--prof-logo);
+    height: var(--prof-logo);
     aspect-ratio: 1;
   }
 
@@ -147,6 +137,15 @@ const CARD_STYLE = `<style>
     width: 100%;
     height: 100%;
   }
+
+  /* На телефоне слово всегда над знаком. При переносе flex-строки высота
+     измерялась до увеличения карточки, и знак обрезался. Здесь колонка
+     остается колонкой в любом масштабе и сохраняет круглые пропорции. */
+  @media (max-width: 860px) {
+    .prof-open { --prof-logo: min(24vh, 44vw, 240px); }
+    .prof-open-row { flex-direction: column; }
+    .prof-open-we { font-size: calc(var(--prof-logo) * 0.65); }
+  }
 </style>`;
 
 export const meta = {
@@ -154,13 +153,13 @@ export const meta = {
   // Short enough for the strip at the top of a phone — see meta.short in CLAUDE.md.
   short: 'Профессии',
   // The card and the section have different headings. While the card holds,
-  // it is «Мы —» and the logo under it, and the logo opens up on a beat of its
+  // it is «МЫ» and the logo, and the logo opens up on a beat of its
   // own to let «не только» into its ring. Once the card settles, the heading of
   // the section takes its place — the same one the block is read under.
   title: CARD_STYLE
     + '<span class="prof-open" aria-hidden="true">'
     +   '<span class="prof-open-row">'
-    +     '<span class="prof-open-we">Мы —</span>'
+    +     '<span class="prof-open-we">МЫ</span>'
     +     '<span class="prof-open-logo" data-el="logo"></span>'
     +   '</span>'
     + '</span>'
@@ -813,7 +812,11 @@ export function init(root) {
 
   const follow = () => {
     if (!logo) return;
-    const p = parseFloat(section.style.getPropertyValue('--stage-1')) || 0;
+    const raw = parseFloat(section.style.getPropertyValue('--stage-1')) || 0;
+    // Телефон округляет остановку до целого пикселя: у неподвижного первого
+    // кадра могло получиться 0.003 вместо нуля, и вместо оригинального файла
+    // показывалась перерисовка кольца. Первые доли движения оставляем нулем.
+    const p = raw < 0.02 ? 0 : raw;
     if (p === placed) return;
     placed = p;
     logo.place(p);

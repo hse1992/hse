@@ -467,6 +467,15 @@ export function init(root) {
         .space-section .viz-header { z-index: 3; }
         .space-section .viz-lead { z-index: 4; }
 
+        /* На титульной карточке подзаголовок не должен касаться далекой
+           Земли. Поднимаем всю карточку, а при посадке плавно возвращаем
+           обычное положение заголовка. Планета при этом не двигается. */
+        .viz-intro.space-section .viz-header {
+          transform: translate(var(--card-x, 0), var(--card-y, 0))
+                     translateY(max(0px, calc(var(--intro-dy, 0px) - 32px * (1 - var(--intro-body, 1)))))
+                     scale(var(--intro-k, 1));
+        }
+
         .space-card {
           flex: 1;
           height: auto;
